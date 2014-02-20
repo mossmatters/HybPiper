@@ -1,0 +1,22 @@
+
+This pipeline has a Trinity-like model for handling files within custom-made subdirectories, and contains utilities for batching the pipeline to many assemblies at once. Before beginning the computationally intensive parts of the pipeline, it checks whether the output file for that step has already been generated. If so, it simply reads in that file. 
+
+The major steps of the pipeline include:
+
+1) Generation of control files, containing filenames and various parameters.
+
+2) Given an assembly and a set of protein baits for each gene, select the best protein bait for this assembly. This generates a “tailored” bait file, so that exonerate has the best chance to find a CDS in the assembly.
+
+3) Conduct one or more exonerate searches for each protein in the assembly, ensuring that each contig is also the best hit for the protein (Reciprocal Best Hit). If multiple contigs match the same protein in non-overlapping sequences, stitch the hits together into a “supercontig”
+
+4) In a subdirectory, generate separate FASTA files containing either the nucleotide (FNA) or amino acid (FAA) sequence for each protein. 
+
+5) Optional utilities after running the pipeline for multiple assemblies: 
+     NOTE: for these utilities to work, the files must be in the same directory hierarchy created by the pipeline.
+               (i.e. species/alignments/FAA/ and species/alignments/FNA/)
+     a) Generate a single file for one or more proteins.
+               Simple FASTA or use MAFFT to align it.
+     b) Summarize the completeness of the alignments, gene by gene.
+               Creates a matrix: each row is a species with length of each protein (in alphabetical order) separated by tabs.
+     c) Matrixmerge: generate supermatrix from all aligned matricies.                                                                                     
+
