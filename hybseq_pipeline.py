@@ -1,4 +1,4 @@
-#!/usr/env python
+#!/usr/bin/env python
 
 # Given an assembly file of genomic DNA and a file containing target proteins:
 # 	1. Use exonerate to determine hits for each contig.
@@ -12,28 +12,30 @@
 # Biopython
 ##########################
 
-import sys, os, subprocess,math
+import sys, os, subprocess,math,argparse,logging
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-id_threshold = 55 #Percent identity between protein and contig hit.
+#id_threshold = 55 #Percent identity between protein and contig hit.
 first_search_filename = "exonerate_results.fasta"
 
-def initial_exonerate(proteinfilename, assemblyfilename):
+def initial_exonerate(proteinfilename, assemblyfilename,prefix):
 	"""Conduct exonerate search, returns a dictionary of results.
 	Using the ryo option in exonerate, the header should contain all the useful information."""
+	logger = logging.getLogger("pipeline")
 	
-	outputfilename = "exonerate_results.fasta"
+	outputfilename = "%s/exonerate_results.fasta" %prefix
 	exonerate_ryo = '">%ti,%qi,%qab,%qae,%pi,(%tS),%tab,%tae\\n%tcs\\n"'
 	exonerate_command = "exonerate -m protein2genome --showalignment no --showvulgar no -V 0 --ryo %s %s %s >%s" % (exonerate_ryo,proteinfilename,assemblyfilename,outputfilename)
-	print exonerate_command
+	
+	logger.info(exonerate_command)
 	#print exonerate_ryo
 	#proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,proteinfilename,assemblyfilename])
 	proc = subprocess.call(exonerate_command,shell=True)
 	protHitsCount = 0
 	#proc.wait()
-	records = SeqIO.to_dict(SeqIO.parse("exonerate_results.fasta",'fasta'))
+	records = SeqIO.to_dict(SeqIO.parse(outputfilename,'fasta'))
 	#proc.stdout.close()
 	
 	return records
@@ -81,13 +83,17 @@ def filter_by_percentid(prot,thresh):
 	kept_indicies = [i for i in range(len(prot["percentid"])) if prot["percentid"][i] > thresh]
 	return keep_indicies(kept_indicies,prot)		
 
-def supercontig_exonerate(supercontig,protseq):
+def supercontig_exonerate(supercontig,protseq,prefix):
 	"""Given a long, joined contig and a protein sequence, return the exonerate hit(s)"""
+	logger = logging.getLogger("pipeline")
+
 	exonerate_ryo = '>%ti,%qi,%qab,%qae,%pi,(%tS)\\n%tcs\\n'
-	SeqIO.write(protseq,"temp.prot.fa",'fasta')
-	SeqIO.write(supercontig,"temp.contig.fa",'fasta')
-	print "Conducting exonerate search"
-	proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,"temp.prot.fa","temp.contig.fa"],stdout=subprocess.PIPE)
+	temp_prot_filename = "%s/temp.prot.fa"%prefix
+	temp_contig_filename =  "%s/temp.contig.fa"%prefix
+	SeqIO.write(protseq,temp_prot_filename,'fasta')
+	SeqIO.write(supercontig,temp_contig_filename,'fasta')
+	logger.info("Conducting exonerate search on supercontig")
+	proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,temp_prot_filename,temp_contig_filename],stdout=subprocess.PIPE)
 	proc.wait()
 	#print proc.stdout.readlines()
 	supercontig_cds = SeqIO.parse(proc.stdout,'fasta')
@@ -99,18 +105,20 @@ def sort_byhitloc(seqrecord):
 	"""Key function for sorting based on the start location of a hit record."""
 	return int(seqrecord.id.split(",")[2])
 	
-def fullContigs(prot,sequence_dict,assembly_dict,protein_dict):
+def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	"""Generates a contig from all hits to a protein. 
 	If more than one hit, conduct a second exonerate search with the original contigs
 	stitched together."""
+	logger = logging.getLogger("pipeline")
+
 	numHits = len(prot["assemblyHits"])
 	sequence_list = []
 	contigHits = []
 	
 	#print numHits
 	if numHits == 1:
-		print prot["assemblyHits"]
-		print prot["percentid"]
+		logger.debug(prot["assemblyHits"])
+		logger.debug(prot["percentid"])
 		return str(sequence_dict[prot["assemblyHits"][0]].seq)	#If only one hit to this protein.
 	else:
 		for hit in range(len(prot["assemblyHits"])):
@@ -122,21 +130,20 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict):
 				else:
 					sequence_list.append(assembly_dict[assembly_seq_name].reverse_complement())
 			contigHits.append(assembly_seq_name)
-	print prot["name"]
- 	print [i for i in prot["assemblyHits"]]
- 	print [(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
- 	print prot["hit_strand"]
- 	print prot["percentid"]
+ 	logger.debug([i for i in prot["assemblyHits"]])
+	logger.debug([(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))])
+ 	logger.debug(prot["hit_strand"])
+ 	logger.debug(prot["percentid"])
 	supercontig = SeqRecord(Seq("".join(str(b.seq) for b in sequence_list)),id=prot["name"])
 	#print supercontig
 	
 	#Need to remove contigs if they have the same basename
 	
-	supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]])
+	supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]],prefix)
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
 	joined_supercontig_cds.sort(key=sort_byhitloc)
-	print joined_supercontig_cds
+	logger.debug(joined_supercontig_cds)
 	return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))	
 	#print joined_supercontig_cds
 	#print ""
@@ -250,6 +257,8 @@ def tuple_overlap(a,b):
 def reciprocal_best_hit(prot,proteinHits):
 	"""Given a protein dictionary and the dictionary of all protein dictionaries,
 		Return the protein dictionary minus any contigs that have higher percentage hits to other proteins."""
+	logger = logging.getLogger("pipeline")
+
 	protname = prot["name"]
 	kept_indicies=[]
 	for contig in prot["assemblyHits"]:
@@ -262,19 +271,19 @@ def reciprocal_best_hit(prot,proteinHits):
 			if proteinHits[otherProt]["name"] != protname:
 				if contigname in otherprot_contiglist:
 					full_contigname = [b for b in proteinHits[otherProt]["assemblyHits"] if contigname in b][0]
-					print contig, full_contigname
+					logging.debug("%s %s" %(contig, full_contigname))
 					otherHit_idx = proteinHits[otherProt]["assemblyHits"].index(full_contigname)
 					
 					target_ranges = [sorted((prot["target_begin"][contig_idx],prot["target_end"][contig_idx])),sorted((proteinHits[otherProt]["target_begin"][otherHit_idx],proteinHits[otherProt]["target_end"][otherHit_idx]))]
-					print target_ranges
+					logging.debug(repr(target_ranges))
 					#Check that the two contig hits have overlapping ranges.
 					if tuple_overlap(target_ranges[0],target_ranges[1]): 				
-						print prot["percentid"][contig_idx],proteinHits[otherProt]["percentid"][otherHit_idx]
+						logging.debug("%s %s"%(repr(prot["percentid"][contig_idx]),repr(proteinHits[otherProt]["percentid"][otherHit_idx])))
 						if prot["percentid"][contig_idx] < proteinHits[otherProt]["percentid"][otherHit_idx]:
-							print "contig %s is a better hit to %s" %(contigname,otherProt)
+							logging.debug("contig %s is a better hit to %s" %(contigname,otherProt))
 							maxProt = proteinHits[otherProt]["name"]
 					else:
-						print "ranges did not overlap"
+						logging.debug("ranges did not overlap")
 		if maxProt == protname:
 			kept_indicies.append(contig_idx)
 	return keep_indicies(kept_indicies,prot)		
@@ -297,14 +306,38 @@ def help():
 	return	
 
 def main(): 
-	if len(sys.argv) < 4:
-		help()
-		return
-		
-	proteinfilename = sys.argv[1]
-	assemblyfilename = sys.argv[2]
-	prefix = sys.argv[3]
+	parser = argparse.ArgumentParser(description="HybSeqPipeline.py; Hybrid Sequence Pipeline for Bait Capture Assemblies")
+	parser.add_argument("-v", "--verbose",help="Report progress of pipeline to stdout",
+		action="store_const",dest="loglevel",const=logging.INFO, default=logging.WARNING)
+	parser.add_argument("--debug",help="Pring debugging information for development testing.",
+		action="store_const",dest="loglevel",const=logging.DEBUG, default=logging.WARNING)
+	parser.add_argument("proteinfile",help="FASTA file containing one 'bait' sequence per protein.")
+	parser.add_argument("assemblyfile",help="FASTA file containing DNA sequence assembly.")
+	parser.add_argument("--prefix",help="""Prefix for directory, files, and sequences generated from this assembly. 
+			If not specified, will be extracted from assembly file name.""",default=None)
+	parser.add_argument("--no_alignments",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
+	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.")
+	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55)
+	
+	args = parser.parse_args()
 
+	proteinfilename = args.proteinfile
+	assemblyfilename = args.assemblyfile
+	if args.prefix:
+		prefix = args.prefix
+	else:
+		prefix = os.path.basename(assemblyfilename).split(".")[0]	
+	if args.first_search_filename:
+		first_search_filename=args.first_search_filename
+	else:
+		first_search_filename= "%s/exonerate_results.fasta" % prefix
+	
+	logger = logging.getLogger("pipeline")
+	logger.setLevel(args.loglevel)
+	formatter = logging.Formatter('[%(levelname)s] %(message)s')
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
 	try:
 		proteinfile = open(proteinfilename)
 	except IOError:
@@ -320,66 +353,66 @@ def main():
 	protein_dict = SeqIO.to_dict(SeqIO.parse(proteinfile,'fasta'))
 	
 	if os.path.exists(first_search_filename): 	#Shortcut for Testing purposes
-		print "Reading exonerate results from file."
+		logger.info("Reading exonerate results from file.")
 		sequence_dict = SeqIO.to_dict(SeqIO.parse(first_search_filename,'fasta'))
 	else:
-		print "Starting exonerate search, please wait."
-		sequence_dict = initial_exonerate(proteinfilename,assemblyfilename)
+		logger.info("Starting exonerate search, please wait.")
+		sequence_dict = initial_exonerate(proteinfilename,assemblyfilename,prefix)
 	proteinHits = protein_sort(sequence_dict)
 
 	print "There were %i exonerate hits." %	len(sequence_dict)
 	print "There were %i unique proteins hit." % len(proteinHits)
 	
-	directory_name = "%s/FNA" % prefix
+	directory_name = "%s/alignments/FNA" % prefix
 	if not os.path.exists(directory_name):
 		os.makedirs(directory_name)
 
-	directory_name = "%s/FAA" % prefix
+	directory_name = "%s/alignments/FAA" % prefix
 	if not os.path.exists(directory_name):
 		os.makedirs(directory_name)
 	
  	for prot in proteinHits:
  		#Put contigs in order along the protein.
- 		print proteinHits[prot]["name"]
- 		print "Initial hits: ", proteinHits[prot]["assemblyHits"]
+ 		logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
+ 		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		proteinHits[prot] = get_contig_order(proteinHits[prot])
- 		print "After get_contig_order: ", proteinHits[prot]["assemblyHits"]
+ 		logger.debug("After get_contig_order: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
 		#Remove contigs that are suboptimal hits. Only one protein hit allowed per contig.
 		proteinHits[prot] = reciprocal_best_hit(proteinHits[prot],proteinHits)
- 		print "After RBH: " , proteinHits[prot]["assemblyHits"]
+ 		logger.debug("After RBH: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
  			continue		#All hits have been filtered out
  		
  		#Filter out contigs with a hit below a threshold
- 		proteinHits[prot] = filter_by_percentid(proteinHits[prot],id_threshold)
- 		print "After filter_by_percent_id:", proteinHits[prot]["assemblyHits"]
+ 		proteinHits[prot] = filter_by_percentid(proteinHits[prot],args.threshold)
+ 		logger.debug("After filter_by_percent_id: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
  			continue		#All hits have been filtered out
  		
  		#Delete contigs if their range is completely subsumed by another hit's range.
  		proteinHits[prot] = overlapping_contigs(proteinHits[prot])
- 		print "After overlapping_contigs: " , proteinHits[prot]["assemblyHits"]
+ 		logger.debug("After overlapping_contigs: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		#Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.	
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
  			continue		#All hits have been filtered out
 
- 		nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict)
- 		#print nucl_sequence
-		print proteinHits[prot]["name"]
-		#print nucl_sequence
-		amino_sequence = myTranslate(nucl_sequence)
+ 		nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix)
 
-		amino_filename = "%s/FAA/%s.FAA" % (prefix,prot)#.split("-")[1])
-		amino_file = open(amino_filename,'w')
-		amino_file.write(">%s\n%s\n" % (prefix,amino_sequence))
-		amino_file.close()
+		if args.no_alignments:
+			return
+		else:
+			amino_sequence = myTranslate(nucl_sequence)
+
+			amino_filename = "%s/alignments/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
+			amino_file = open(amino_filename,'w')
+			amino_file.write(">%s\n%s\n" % (prefix,amino_sequence))
+			amino_file.close()
 		
-		nucleo_filename = "%s/FNA/%s.FNA" % (prefix,prot)#.split("-")[1])
-		nucleo_file = open(nucleo_filename,'w')
-		nucleo_file.write(">%s\n%s\n" % (prefix,nucl_sequence))
-		nucleo_file.close()
+			nucleo_filename = "%s/alignments/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
+			nucleo_file = open(nucleo_filename,'w')
+			nucleo_file.write(">%s\n%s\n" % (prefix,nucl_sequence))
+			nucleo_file.close()
 # 			
-	
 	proteinfile.close()
 	assemblyfile.close()
 

@@ -1,25 +1,24 @@
 
-import os
+import os,sys
 from Bio import SeqIO
 
 curdir = os.getcwd()
 
-protein_directory = "/scratch/mjohnson/hyseqPipeline/targets/plastid"
-alignment_directory = "/scratch/mjohnson/hyseqPipeline/assemblies/plastid/new_plastid/pipeline"
-outfilename = "/scratch/mjohnson/hyseqPipeline/cp_summary_mosses.txt"
-os.chdir(alignment_directory)
-species = os.listdir(alignment_directory)
-
-outfile = open(outfilename,'w')
-os.chdir(protein_directory)
-protein_list = [i.split(".")[0] + ".FAA" for i in os.listdir(protein_directory)]
-print sorted(protein_list)
-outfile.write("%s\t%s\n" % ("species","\t".join(a.split(".")[0] for a in protein_list)))
+protein_directory = "/Users/mjohnson/Desktop/hybseq_pipeline/targets/plastid"
+alignment_directory = "/Users/mjohnson/Hybseqtest"
+outfilename = "cp_summary_mosses.txt"
+#os.chdir(alignment_directory)
+species = [d.split(".")[0] for d in os.listdir(alignment_directory) if os.path.isdir(os.path.join(alignment_directory, d)) and  not d.startswith(".")]
+#outfile = open(outfilename,'w')
+#os.chdir(protein_directory)
+protein_list = ["%s.FAA" % i.split(".")[0] for i in os.listdir(protein_directory)]
+#print sorted(protein_list)
+sys.stdout.write("%s\t%s\n" % ("species","\t".join(a.split(".")[0] for a in protein_list)))
 for sp in species:
-	species_proteindir = os.path.join(alignment_directory,sp,"FAA")
+	species_proteindir = os.path.join(alignment_directory,sp,"alignments/FAA")
 	os.chdir(species_proteindir)
 	sp_list = [len(SeqIO.read(protfile,'fasta').seq) if os.path.isfile(protfile) else 0 for protfile in protein_list]
-	outfile.write("%s\t%s\n" %
+	sys.stdout.write("%s\t%s\n" %
 		(sp,"\t".join(str(a) for a in sp_list))
 		)
-outfile.close()
+#outfile.close()
