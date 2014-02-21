@@ -1,5 +1,38 @@
+HybSeq Pipeline
 
-This pipeline has a Trinity-like model for handling files within custom-made subdirectories, and contains utilities for batching the pipeline to many assemblies at once. Before beginning the computationally intensive parts of the pipeline, it checks whether the output file for that step has already been generated. If so, it simply reads in that file. 
+by Matt Johnson and Norm Wickett, Chicago Botanic Gardens
+
+Purpose: 
+Targeted bait capture is a technique for sequencing many loci simultaneously.
+The illumina reads are then assembled into long contigs.
+This pipeline attempts to assign contigs to bait protein sequences.
+The main output is one FASTA file per protein, containing the CDS portion of the homologous protein sequence.
+
+------------Dependencies----------------
+Python 2.7 or later
+BIOPYTHON 1.6 or later
+EXONERATE
+BLAST command line tools
+
+This pipeline runs with Python, version 2.7 or later, to take advantage of the argparse module for command-line argument.
+It requires BIOPYTHON (version 1.6 or later)for parsing and handling nucleotide and protein sequences (www.biopython.org)
+EXONERATE is used for alignment between bait proteins and assemblies, and retrieval of in-frame CDS sequences. 
+If your baits were constructed with multiple sequences per gene, the "query_file_builder.py" script will create a "tailored" bait file, using the best match to the assembly for each gene. This script requires that BLAST command-line tools (specifically blastx) are installed in the $PATH
+-----------------------------------------
+
+-----------------Setup-------------------
+Install the dependencies.
+Construct a "bait file" of protein sequences. If you have just one sequence per bait, simply concatenate all of them into one file.
+If you have more than one sequence per bait, they need to be identified before concatenation.
+The ID for each sequence should include the bait source and the protein ID, separated by a hyphen. For example:
+>Amborella-atpH
+MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM
+[Add helper script to do this]
+
+------------------------------------------
+
+
+
 
 The major steps of the pipeline include:
 
