@@ -317,7 +317,7 @@ def main():
 			If not specified, will be extracted from assembly file name.""",default=None)
 	parser.add_argument("--no_alignments",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
 	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.")
-	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55)
+	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55,type=int)
 	
 	args = parser.parse_args()
 
@@ -372,6 +372,7 @@ def main():
 		os.makedirs(directory_name)
 	
  	for prot in proteinHits:
+ 		logger.debug(prot)
  		#Put contigs in order along the protein.
  		logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
  		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
@@ -399,7 +400,7 @@ def main():
  		nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix)
 
 		if args.no_alignments:
-			return
+			continue
 		else:
 			amino_sequence = myTranslate(nucl_sequence)
 

@@ -4,9 +4,9 @@ from Bio import SeqIO
 
 curdir = os.getcwd()
 
-protein_directory = "/Users/mjohnson/Desktop/hybseq_pipeline/targets/plastid"
-alignment_directory = "/Users/mjohnson/Hybseqtest"
-outfilename = "cp_summary_mosses.txt"
+protein_directory = "/Users/mjohnson/Desktop/hybseq_pipeline/targets/mitochondrion"
+alignment_directory = "/Users/mjohnson/mtdna"
+outfilename = "mt_summary_mosses.txt"
 #os.chdir(alignment_directory)
 species = [d.split(".")[0] for d in os.listdir(alignment_directory) if os.path.isdir(os.path.join(alignment_directory, d)) and  not d.startswith(".")]
 #outfile = open(outfilename,'w')
