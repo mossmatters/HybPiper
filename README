@@ -15,7 +15,7 @@ EXONERATE
 BLAST command line tools
 
 This pipeline runs with Python, version 2.7 or later, to take advantage of the argparse module for command-line argument.
-It requires BIOPYTHON (version 1.6 or later)for parsing and handling nucleotide and protein sequences (www.biopython.org)
+It requires BIOPYTHON (version 1.6 or later) for parsing and handling nucleotide and protein sequences (www.biopython.org)
 EXONERATE is used for alignment between bait proteins and assemblies, and retrieval of in-frame CDS sequences. 
 If your baits were constructed with multiple sequences per gene, the "query_file_builder.py" script will create a "tailored" bait file, using the best match to the assembly for each gene. This script requires that BLAST command-line tools (specifically blastx) are installed in the $PATH
 -----------------------------------------
@@ -27,13 +27,59 @@ If you have more than one sequence per bait, they need to be identified before c
 The ID for each sequence should include the bait source and the protein ID, separated by a hyphen. For example:
 >Amborella-atpH
 MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM
-[Add helper script to do this]
+[Future plans: Add helper script to do this]
 
 ------------------------------------------
 
+----------------query_file_builder.py-----
+
+This script generates the "tailored baitfile" for the species by choosing the best representative at each gene using a BLAST search against the assembly file. It also sets up all of the necessary file hierarchy to run the next step of the pipeline.
+
+The input to the script requires a fasta file containing protein bait sequences, as described in Setup, and the nucleotide assembly file.
+
+The script will use the prefix of the assembly file to generate a directory containing all the results. For the cleanest results, create a new directory, and use relative or absolute paths to indicate the locations of both the protein and assembly file.
+
+For example, if one level up there is one directory containing baits and another containing assemblies:
+
+EXAMPLE COMMAND LINE
+
+query_file_builder.py ../baits/all_plastid_baits.FAA ../assemblies/speciesName.fasta
+
+RESULTS AND OUTPUT FILES
+
+Current directory: 
+	the master bait file is copied here
+	a BLAST database is generated
+	A "Results directory" for the pipeline is generated (prefix of the assembly file)
+	
+Within the Results Directory:
+	baitfile.FAA   	-- 	tailored bait file for this assembly
+	assembly.fasta 	--	assembly copied here
+	temp.blastx		--	results of BLAST search of assembly vs baitfile
+	
+----------------exonerate_hits.py----------
+After the query_file_builder is complete, run this script next.
+The minimal inputs are the tailored bait file and the assembly.
+
+If run immediately after query_file_builder, use the --prefix flag to specify the file names:
+
+EXAMPLE COMMAND LINE
+
+exonerate_hits.py speciesName/baitfile.FAA speciesName/assembly.fasta --prefix=speciesName
+
+RESULTS AND OUTPUT FILES
+
+In speciesName directory:
+	exonerate_results.fasta		--	Results from the exonerate search, before filtering.
+	sequences					--	nucleotide (FNA) and amino acid (FAA) sequences,
+										one per locus
+
+The threshold for accepting an exonerate hit can be adjusted with -t (Default: 55 percent)
 
 
 
+	
+	
 The major steps of the pipeline include:
 
 1) Generation of control files, containing filenames and various parameters.

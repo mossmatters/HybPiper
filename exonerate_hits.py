@@ -306,7 +306,7 @@ def help():
 	return	
 
 def main(): 
-	parser = argparse.ArgumentParser(description="HybSeqPipeline.py; Hybrid Sequence Pipeline for Bait Capture Assemblies")
+	parser = argparse.ArgumentParser(description="exonerate_hits.py; Generate gene-by-gene protein and nucleotide files from Bait Capture Assembly")
 	parser.add_argument("-v", "--verbose",help="Report progress of pipeline to stdout",
 		action="store_const",dest="loglevel",const=logging.INFO, default=logging.WARNING)
 	parser.add_argument("--debug",help="Pring debugging information for development testing.",
@@ -315,7 +315,7 @@ def main():
 	parser.add_argument("assemblyfile",help="FASTA file containing DNA sequence assembly.")
 	parser.add_argument("--prefix",help="""Prefix for directory, files, and sequences generated from this assembly. 
 			If not specified, will be extracted from assembly file name.""",default=None)
-	parser.add_argument("--no_alignments",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
+	parser.add_argument("--no_sequences",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
 	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.")
 	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55,type=int)
 	
@@ -363,11 +363,11 @@ def main():
 	print "There were %i exonerate hits." %	len(sequence_dict)
 	print "There were %i unique proteins hit." % len(proteinHits)
 	
-	directory_name = "%s/alignments/FNA" % prefix
+	directory_name = "%s/sequences/FNA" % prefix
 	if not os.path.exists(directory_name):
 		os.makedirs(directory_name)
 
-	directory_name = "%s/alignments/FAA" % prefix
+	directory_name = "%s/sequences/FAA" % prefix
 	if not os.path.exists(directory_name):
 		os.makedirs(directory_name)
 	
@@ -399,23 +399,25 @@ def main():
 
  		nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix)
 
-		if args.no_alignments:
+		if args.no_sequences:
 			continue
 		else:
 			amino_sequence = myTranslate(nucl_sequence)
 
-			amino_filename = "%s/alignments/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
+			amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
 			amino_file = open(amino_filename,'w')
 			amino_file.write(">%s\n%s\n" % (prefix,amino_sequence))
 			amino_file.close()
 		
-			nucleo_filename = "%s/alignments/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
+			nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
 			nucleo_file = open(nucleo_filename,'w')
 			nucleo_file.write(">%s\n%s\n" % (prefix,nucl_sequence))
 			nucleo_file.close()
 # 			
+	os.remove("temp.contig.fa")
+	os.remove("temp.prot.fa")
 	proteinfile.close()
 	assemblyfile.close()
-
+	
 
 if __name__ == "__main__":main()
