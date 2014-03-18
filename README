@@ -10,9 +10,9 @@ The main output is one FASTA file per protein, containing the CDS portion of the
 
 ------------Dependencies----------------
 Python 2.7 or later
-BIOPYTHON 1.6 or later
-EXONERATE
-BLAST command line tools
+BIOPYTHON 1.59 or later: http://biopython.org/wiki/Main_Page
+EXONERATE: http://www.ebi.ac.uk/~guy/exonerate/
+BLAST command line tools: ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/
 
 This pipeline runs with Python, version 2.7 or later, to take advantage of the argparse module for command-line argument.
 It requires BIOPYTHON (version 1.6 or later) for parsing and handling nucleotide and protein sequences (www.biopython.org)
@@ -90,6 +90,7 @@ The major steps of the pipeline include:
 
 4) In a subdirectory, generate separate FASTA files containing either the nucleotide (FNA) or amino acid (FAA) sequence for each protein. 
 
+Still to come:
 5) Optional utilities after running the pipeline for multiple assemblies: 
      NOTE: for these utilities to work, the files must be in the same directory hierarchy created by the pipeline.
                (i.e. species/alignments/FAA/ and species/alignments/FNA/)
