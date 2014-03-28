@@ -414,8 +414,8 @@ def main():
 			nucleo_file.write(">%s\n%s\n" % (prefix,nucl_sequence))
 			nucleo_file.close()
 # 			
-	os.remove("temp.contig.fa")
-	os.remove("temp.prot.fa")
+	os.remove("%s/temp.contig.fa" % prefix)
+	os.remove("%s/temp.prot.fa" % prefix)
 	proteinfile.close()
 	assemblyfile.close()
 	
