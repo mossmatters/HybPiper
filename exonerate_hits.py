@@ -94,6 +94,7 @@ def supercontig_exonerate(supercontig,protseq,prefix):
 	SeqIO.write(supercontig,temp_contig_filename,'fasta')
 	logger.info("Conducting exonerate search on supercontig")
 	proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,temp_prot_filename,temp_contig_filename],stdout=subprocess.PIPE)
+
 	proc.wait()
 	#print proc.stdout.readlines()
 	supercontig_cds = SeqIO.parse(proc.stdout,'fasta')
@@ -143,7 +144,10 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
 	joined_supercontig_cds.sort(key=sort_byhitloc)
-	logger.debug(joined_supercontig_cds)
+	
+	#Now need to find overlapping contigs AGAIN.
+
+	logger.debug([b.id for b in joined_supercontig_cds])
 	return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))	
 	#print joined_supercontig_cds
 	#print ""
@@ -325,6 +329,10 @@ def main():
 	assemblyfilename = args.assemblyfile
 	if args.prefix:
 		prefix = args.prefix
+		if os.path.exists(prefix):
+			pass
+		else:
+			os.mkdir(prefix)
 	else:
 		prefix = os.path.basename(assemblyfilename).split(".")[0]	
 	if args.first_search_filename:
@@ -406,16 +414,16 @@ def main():
 
 			amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
 			amino_file = open(amino_filename,'w')
-			amino_file.write(">%s\n%s\n" % (prefix,amino_sequence))
+			amino_file.write(">%s\n%s\n" % (prefix.split("/")[-1],amino_sequence))
 			amino_file.close()
 		
 			nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
 			nucleo_file = open(nucleo_filename,'w')
-			nucleo_file.write(">%s\n%s\n" % (prefix,nucl_sequence))
+			nucleo_file.write(">%s\n%s\n" % (prefix.split("/")[-1],nucl_sequence))
 			nucleo_file.close()
-# 			
-	os.remove("%s/temp.contig.fa" % prefix)
-	os.remove("%s/temp.prot.fa" % prefix)
+#  	if "temp.contig.fa" in os.listdir(prefix):	
+# 		os.remove("%s/temp.contig.fa" % prefix)
+# 		os.remove("%s/temp.prot.fa" % prefix)
 	proteinfile.close()
 	assemblyfile.close()
 	
