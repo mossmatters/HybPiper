@@ -302,6 +302,9 @@ def myTranslate(nucl):
 	aminoseq = nucseq.translate()
 	return str(aminoseq)
 
+def report_no_sequences(protname):
+	print "No valid sequences remain for {}!".format(protname)
+
 def help():
 	print "USAGE: python hybseq_pipeline.py proteinfile assemblyfile prefix"
 	print "The program Exonerate must be in your $PATH."
@@ -368,8 +371,8 @@ def main():
 		sequence_dict = initial_exonerate(proteinfilename,assemblyfilename,prefix)
 	proteinHits = protein_sort(sequence_dict)
 
-	print "There were %i exonerate hits." %	len(sequence_dict)
-	print "There were %i unique proteins hit." % len(proteinHits)
+	print "There were {} exonerate hits for {}.".format(len(sequence_dict),proteinfilename)
+	#print "There were %i unique proteins hit." % len(proteinHits)
 	
 	directory_name = "%s/sequences/FNA" % prefix
 	if not os.path.exists(directory_name):
@@ -390,12 +393,14 @@ def main():
 		proteinHits[prot] = reciprocal_best_hit(proteinHits[prot],proteinHits)
  		logger.debug("After RBH: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
+ 			report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
  		
  		#Filter out contigs with a hit below a threshold
  		proteinHits[prot] = filter_by_percentid(proteinHits[prot],args.threshold)
  		logger.debug("After filter_by_percent_id: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
+	 		report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
  		
  		#Delete contigs if their range is completely subsumed by another hit's range.
@@ -403,6 +408,7 @@ def main():
  		logger.debug("After overlapping_contigs: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		#Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.	
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
+		 	report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
 
  		nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix)
@@ -411,7 +417,7 @@ def main():
 			continue
 		else:
 			amino_sequence = myTranslate(nucl_sequence)
-
+			print "Writing amino acid sequence, length: {}".format(len(amino_sequence))
 			amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
 			amino_file = open(amino_filename,'w')
 			amino_file.write(">%s\n%s\n" % (prefix.split("/")[-1],amino_sequence))

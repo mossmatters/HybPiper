@@ -38,19 +38,23 @@ def read_sorting(blastfilename):
 			read_hit_dict[readID] = [target]
 	return read_hit_dict
 
-def write_paired_seqs(target,ID1,Seq1,ID2,Seq2):
+def write_paired_seqs(target,ID1,Seq1,ID2,Seq2,single=True):
 	mkdir_p(target)
-	outfile1 = open(os.path.join(target,"{}_1.fasta".format(target)),'a')
-	outfile1.write(">{}\n{}\n".format(ID1,Seq1))
+	if single:
+		outfile = open(os.path.join(target,"{}_interleaved.fasta".format(target)),'a')
+		outfile.write(">{}\n{}\n".format(ID1,Seq1))
+		outfile.write(">{}\n{}\n".format(ID2,Seq2))
+		outfile.close()
+	else:
+		outfile1 = open(os.path.join(target,"{}_1.fasta".format(target)),'a')
+		outfile1.write(">{}\n{}\n".format(ID1,Seq1))
+		outfile2 = open(os.path.join(target,"{}_2.fasta".format(target)),'a')
+		outfile2.write(">{}\n{}\n".format(ID2,Seq2))
+		outfile1.close()
+		outfile2.close()
 
-	outfile2 = open(os.path.join(target,"{}_2.fasta".format(target)),'a')
-	outfile2.write(">{}\n{}\n".format(ID2,Seq2))
 	
-	outfile1.close()
-	outfile2.close()
-
-	
-def distribute_reads(readfilename1,readfilename2,read_hit_dict):
+def distribute_reads(readfilename1,readfilename2,read_hit_dict,single=True):
 	iterator1 = FastqGeneralIterator(open(readfilename1))
 	iterator2 = FastqGeneralIterator(open(readfilename2))
 
@@ -74,7 +78,7 @@ def main():
 	read_hit_dict = read_sorting(blastfilename)
 	#print read_hit_dict
 	print "Unique reads with hits: {}".format(len(read_hit_dict))
-	distribute_reads(readfilename1,readfilename2,read_hit_dict)
+	distribute_reads(readfilename1,readfilename2,read_hit_dict,single=True)
 
 
 
