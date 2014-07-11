@@ -16,12 +16,12 @@ file:
 Anomodon-rbcl
 Physcomitrella-rbcl
 
+Given multiple baits, the script will choose the most appropriate 'reference' sequence
+using the highest cumulative BLAST scores across all hits.
+
 Output directories can also be created, one for each target category
 	(the default is to put them all in the current one)
 The field delimiter may also be changed.
-
-NOTE: This script will APPEND sequences to existing files. 
- If you are re-running this script, delete the existing output first!
 """
 
 
@@ -61,9 +61,10 @@ def tailored_target(blastxfilename):
 			besthit_counts[top_taxon] += 1
 		else:
 			besthit_counts[top_taxon] = 1
-	print "Tally of best hits\n-------------"
+	tallyfile = open("bait_tallies.txt",'w')
 	for x in besthit_counts:
-		print "{}:\t{}".format(x, besthit_counts[x])
+		tallyfile.write("{}\t{}\n".format(x, besthit_counts[x]))
+	tallyfile.close()
 	return besthits		
 
         
