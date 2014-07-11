@@ -92,13 +92,13 @@ def supercontig_exonerate(supercontig,protseq,prefix):
 	temp_contig_filename =  "%s/temp.contig.fa"%prefix
 	SeqIO.write(protseq,temp_prot_filename,'fasta')
 	SeqIO.write(supercontig,temp_contig_filename,'fasta')
-	logger.info("Conducting exonerate search on supercontig")
+	logger.debug("Conducting exonerate search on supercontig")
 	proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,temp_prot_filename,temp_contig_filename],stdout=subprocess.PIPE)
+
 	proc.wait()
 	#print proc.stdout.readlines()
-	supercontig_cds = SeqIO.parse(proc.stdout,'fasta')
-	
-	#print [i.id for i in supercontig_cds]
+	supercontig_cds = [i for i in SeqIO.parse(proc.stdout,'fasta') if float(i.id.split(",")[4])>55]
+	logger.debug([len(x.seq) for x in supercontig_cds])
 	return supercontig_cds
 
 def sort_byhitloc(seqrecord):
@@ -135,19 +135,27 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
  	logger.debug(prot["hit_strand"])
  	logger.debug(prot["percentid"])
 	supercontig = SeqRecord(Seq("".join(str(b.seq) for b in sequence_list)),id=prot["name"])
-	#print supercontig
+
 	
 	#Need to remove contigs if they have the same basename
 	
 	supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]],prefix)
+	
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
 	joined_supercontig_cds.sort(key=sort_byhitloc)
-	logger.debug(joined_supercontig_cds)
-	return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))	
+	SeqIO.write(joined_supercontig_cds,'%s/supercontig_exonerate.fasta'%prefix,'fasta') 
+	if len(joined_supercontig_cds) == 1:
+		return str(joined_supercontig_cds[0].seq)
+	#One more Exonerate, just to be sure.
+	superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)),id=prot["name"])
+	final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
+	final_supercontig.sort(key=sort_byhitloc)
+	return str(Seq("".join(str(b.seq) for b in final_supercontig)))
+		
 	#print joined_supercontig_cds
 	#print ""
-	return joined_supercontig_cds
+	#return joined_supercontig_cds
 
 
 def find_longest_hit(prot):
@@ -298,6 +306,9 @@ def myTranslate(nucl):
 	aminoseq = nucseq.translate()
 	return str(aminoseq)
 
+def report_no_sequences(protname):
+	print "No valid sequences remain for {}!".format(protname)
+
 def help():
 	print "USAGE: python hybseq_pipeline.py proteinfile assemblyfile prefix"
 	print "The program Exonerate must be in your $PATH."
@@ -325,6 +336,10 @@ def main():
 	assemblyfilename = args.assemblyfile
 	if args.prefix:
 		prefix = args.prefix
+		if os.path.exists(prefix):
+			pass
+		else:
+			os.mkdir(prefix)
 	else:
 		prefix = os.path.basename(assemblyfilename).split(".")[0]	
 	if args.first_search_filename:
@@ -360,8 +375,8 @@ def main():
 		sequence_dict = initial_exonerate(proteinfilename,assemblyfilename,prefix)
 	proteinHits = protein_sort(sequence_dict)
 
-	print "There were %i exonerate hits." %	len(sequence_dict)
-	print "There were %i unique proteins hit." % len(proteinHits)
+	print "There were {} exonerate hits for {}.".format(len(sequence_dict),proteinfilename)
+	#print "There were %i unique proteins hit." % len(proteinHits)
 	
 	directory_name = "%s/sequences/FNA" % prefix
 	if not os.path.exists(directory_name):
@@ -382,12 +397,14 @@ def main():
 		proteinHits[prot] = reciprocal_best_hit(proteinHits[prot],proteinHits)
  		logger.debug("After RBH: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
+ 			report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
  		
  		#Filter out contigs with a hit below a threshold
  		proteinHits[prot] = filter_by_percentid(proteinHits[prot],args.threshold)
  		logger.debug("After filter_by_percent_id: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
+	 		report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
  		
  		#Delete contigs if their range is completely subsumed by another hit's range.
@@ -395,6 +412,7 @@ def main():
  		logger.debug("After overlapping_contigs: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		#Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.	
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
+		 	report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
 
  		nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix)
@@ -403,19 +421,19 @@ def main():
 			continue
 		else:
 			amino_sequence = myTranslate(nucl_sequence)
-
+			print "Writing amino acid sequence, length: {}".format(len(amino_sequence))
 			amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
 			amino_file = open(amino_filename,'w')
-			amino_file.write(">%s\n%s\n" % (prefix,amino_sequence))
+			amino_file.write(">%s\n%s\n" % (prefix.split("/")[-1],amino_sequence))
 			amino_file.close()
 		
 			nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
 			nucleo_file = open(nucleo_filename,'w')
-			nucleo_file.write(">%s\n%s\n" % (prefix,nucl_sequence))
+			nucleo_file.write(">%s\n%s\n" % (prefix.split("/")[-1],nucl_sequence))
 			nucleo_file.close()
-# 			
-	os.remove("%s/temp.contig.fa" % prefix)
-	os.remove("%s/temp.prot.fa" % prefix)
+#  	if "temp.contig.fa" in os.listdir(prefix):	
+# 		os.remove("%s/temp.contig.fa" % prefix)
+# 		os.remove("%s/temp.prot.fa" % prefix)
 	proteinfile.close()
 	assemblyfile.close()
 	
