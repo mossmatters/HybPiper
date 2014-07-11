@@ -92,14 +92,13 @@ def supercontig_exonerate(supercontig,protseq,prefix):
 	temp_contig_filename =  "%s/temp.contig.fa"%prefix
 	SeqIO.write(protseq,temp_prot_filename,'fasta')
 	SeqIO.write(supercontig,temp_contig_filename,'fasta')
-	logger.info("Conducting exonerate search on supercontig")
+	logger.debug("Conducting exonerate search on supercontig")
 	proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,temp_prot_filename,temp_contig_filename],stdout=subprocess.PIPE)
 
 	proc.wait()
 	#print proc.stdout.readlines()
-	supercontig_cds = SeqIO.parse(proc.stdout,'fasta')
-	
-	#print [i.id for i in supercontig_cds]
+	supercontig_cds = [i for i in SeqIO.parse(proc.stdout,'fasta') if float(i.id.split(",")[4])>55]
+	logger.debug([len(x.seq) for x in supercontig_cds])
 	return supercontig_cds
 
 def sort_byhitloc(seqrecord):
@@ -136,22 +135,27 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
  	logger.debug(prot["hit_strand"])
  	logger.debug(prot["percentid"])
 	supercontig = SeqRecord(Seq("".join(str(b.seq) for b in sequence_list)),id=prot["name"])
-	#print supercontig
+
 	
 	#Need to remove contigs if they have the same basename
 	
 	supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]],prefix)
+	
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
 	joined_supercontig_cds.sort(key=sort_byhitloc)
-	
-	#Now need to find overlapping contigs AGAIN.
-
-	logger.debug([b.id for b in joined_supercontig_cds])
-	return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))	
+	SeqIO.write(joined_supercontig_cds,'%s/supercontig_exonerate.fasta'%prefix,'fasta') 
+	if len(joined_supercontig_cds) == 1:
+		return str(joined_supercontig_cds[0].seq)
+	#One more Exonerate, just to be sure.
+	superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)),id=prot["name"])
+	final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
+	final_supercontig.sort(key=sort_byhitloc)
+	return str(Seq("".join(str(b.seq) for b in final_supercontig)))
+		
 	#print joined_supercontig_cds
 	#print ""
-	return joined_supercontig_cds
+	#return joined_supercontig_cds
 
 
 def find_longest_hit(prot):
