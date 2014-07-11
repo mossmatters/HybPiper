@@ -4,13 +4,9 @@ import argparse,os,sys,importlib,shutil,subprocess
 
 helptext="""
 This script is a wrapper around several scripts in the HybSeqPipeline.
-
 It can check whether you have the appropriate dependencies available (see --check-depend).
-
 It makes sure that the other scripts needed are in the same directory as this one.
-
 Command line options are passed to the other executables.
-
 Unless --prefix is set, output will be put within a directory named after your read files."""
 
 def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
@@ -233,6 +229,9 @@ def exonerate(genes,basename,run_dir,replace=True):
 			if os.path.isdir(os.path.join(g,basename)):
 				shutil.rmtree(os.path.join(g,basename))
 	genes = [x for x in genes if os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size > 0]
+	if len(genes) == 0:
+		print "ERROR: No genes recovered for {}!".format(basename)
+		return 1
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} ::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename," ".join(genes))
@@ -246,7 +245,7 @@ def exonerate(genes,basename,run_dir,replace=True):
 def main():
 	parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument("--check-depend",dest='check_depend',help="Check for dependencies (executables and Python packages) and exit. May not work at all on Windows.",action='store_true')
-	parser.add_argument("--no-blast",dest="blast",action="store_false",help="Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. Useful for re-runnning assembly/exonerate steps with different options.")
+	parser.add_argument("--no-blast",dest="blast",action="store_false",help="Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. \nUseful for re-runnning assembly/exonerate steps with different options.")
 	parser.add_argument("--no-distribute",dest="distribute",action="store_false",help="Do not distribute the reads and bait sequences to sub-directories.")
 	parser.add_argument("--no-velvet",dest="velvet",action="store_false",help="Do not run the velvet stages (velveth and velvetg)")
 	parser.add_argument("--no-cap3",dest="cap3",action="store_false",help="Do not run CAP3, which joins the output of the different velvet runs")
