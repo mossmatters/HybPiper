@@ -261,11 +261,17 @@ def main():
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
 	
 	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=True,cap3=True,exonerate=True)
-
+	if len(sys.argv) == 1:
+		parser.print_help()
+		sys.exit(1)
 	args = parser.parse_args()
 	
 	run_dir = os.path.split(sys.argv[0])[0]
-	baitfile = os.path.abspath(args.baitfile)
+	if args.baitfile:
+		baitfile = os.path.abspath(args.baitfile)
+	else:
+		parser.print_help()
+		sys.exit(1)
 	readfiles = [os.path.abspath(x) for x in args.readfiles]	
 	
 	#Check dependencies
