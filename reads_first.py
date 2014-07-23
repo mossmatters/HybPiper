@@ -201,7 +201,8 @@ def cap3(genes):
 	if exitcode:
 		print "ERROR: Something went wrong while concatenating the velvet output files."
 		return exitcode
-	
+	#Check that the velvet output actually has data in it.
+	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 	print "Running Cap3"
 	cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(" ".join(genes))
 	print cap3_cmd
