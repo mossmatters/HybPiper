@@ -328,7 +328,7 @@ def main():
 		if exitcode:
 			return
 	
-	
+	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 	#Exonerate hits
 	if args.exonerate:
 		exitcode = exonerate(genes,basename,run_dir)
