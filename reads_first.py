@@ -280,7 +280,7 @@ def main():
 		if check_dependencies():
 			other_scripts = ["distribute_reads_to_targets.py","distribute_targets.py","exonerate_hits.py"]
 			for script in other_scripts:
-				if os.path.isfile(os.pathjoin(run_dir,script)):
+				if os.path.isfile(os.path.join(run_dir,script)):
 					pass
 				else:
 					print "ERROR: Script {} not found! Please make sure it is in the same directory as this one!".format(script)
