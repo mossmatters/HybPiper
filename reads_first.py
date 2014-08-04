@@ -103,7 +103,7 @@ def check_dependencies():
 	return everything_is_awesome
 
 
-def blastx(readfiles,baitfile,evalue,basename):
+def blastx(readfiles,baitfile,evalue,basename,cpu=None):
 	if os.path.isfile(baitfile):
 		if os.path.isfile(os.path.split(baitfile)[0]+'.psq'):
 			db_file = baitfile
@@ -132,8 +132,10 @@ def blastx(readfiles,baitfile,evalue,basename):
 		pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
 	
 		blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6".format(db_file,evalue)
-		
-		full_command = "time {} | parallel --block 200K --recstart '>' --pipe {} >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
+		if cpu:
+			full_command = "time {} | parallel -j {} --block 200K --recstart '>' --pipe {} >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
+		else:
+			full_command = "time {} | parallel --block 200K --recstart '>' --pipe {} >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
 		print full_command
 		exitcode = subprocess.call(full_command,shell=True)
 		if exitcode:
@@ -164,15 +166,17 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
-def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"]):
+def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],cpu=None):
 	"""Use parallel to run velveth and velvetg on a set of k values on every gene with blastx hits from the previous steps."""
 	if os.path.isfile('velveth.log'):
 		os.remove('velveth.log')
 	if os.path.isfile('velvetg.log'):
 		os.remove('velvetg.log')
 	
-	
-	velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
+	if cpu:
+		velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(cpu," ".join(genes)," ".join(kvals))
+	else:
+		velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
 	print os.getcwd()
 	print os.listdir(".")
 	
@@ -183,8 +187,10 @@ def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"])
 	if exitcode:
 		print "ERROR: Something went wrong with velveth!"
 		return exitcode
-	
-	velvetg_cmd = "time parallel --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log ::: {} ::: {}".format(ins_length,cov_cutoff," ".join(genes)," ".join(kvals))
+	if cpu:
+		velvetg_cmd = "time parallel -j {} --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log ::: {} ::: {}".format(cpu,ins_length,cov_cutoff," ".join(genes)," ".join(kvals))
+	else:
+		velvetg_cmd = "time parallel --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log ::: {} ::: {}".format(ins_length,cov_cutoff," ".join(genes)," ".join(kvals))
 	print "Running velvetg on {} genes".format(len(genes))
 	print velvetg_cmd
 	exitcode = subprocess.call(velvetg_cmd,shell=True)
@@ -193,9 +199,12 @@ def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"])
 		return exitcode
 	return None
 	
-def cap3(genes):
+def cap3(genes,cpu=None):
 	print "Concatenating velvet output"
-	cat_cmd = "time parallel cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa ::: {}".format(" ".join(genes))
+	if cpu:
+		cat_cmd = "time parallel -j {} cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa ::: {}".format(cpu," ".join(genes))
+	else:
+		cat_cmd = "time parallel cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa ::: {}".format(" ".join(genes))
 	print cat_cmd
 	exitcode = subprocess.call(cat_cmd,shell=True)
 	if exitcode:
@@ -204,7 +213,10 @@ def cap3(genes):
 	#Check that the velvet output actually has data in it.
 	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 	print "Running Cap3"
-	cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(" ".join(genes))
+	if cpu:
+		cap3_cmd = "time parallel -j {} --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(cpu," ".join(genes))
+	else:
+		cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(" ".join(genes))
 	print cap3_cmd
 	exitcode = subprocess.call(cap3_cmd,shell=True)
 	if exitcode:
@@ -221,7 +233,7 @@ def cap3(genes):
 		
 	return None	
 
-def exonerate(genes,basename,run_dir,replace=True):
+def exonerate(genes,basename,run_dir,replace=True,cpu=None):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
@@ -235,7 +247,10 @@ def exonerate(genes,basename,run_dir,replace=True):
 		return 1
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
-	exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} ::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename," ".join(genes))
+	if cpu:
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} ::: {}".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename," ".join(genes))
+	else:
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} ::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename," ".join(genes))
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
@@ -254,6 +269,7 @@ def main():
 	parser.add_argument('-r',"--readfiles",nargs='+',help="One or more read files to start the pipeline. If exactly two are specified, will assume it is paired Illumina reads.",default=[])
 	parser.add_argument('-b','--baitfile',help="FASTA file containing bait sequences for each gene. If there are multiple baits for a gene, the id must be of the form: >Taxon-geneName",default=None)
 	
+	parser.add_argument('--cpu',type=int,default=0,help="Limit the number of CPUs. Default is to use all cores available.")
 	parser.add_argument('--evalue',type=float,default=1e-9,help="e-value threshold for blastx hits, default: %(default)s")
 	parser.add_argument('--cov_cutoff',type=int,default=4,help="Coverage cutoff for velvetg. default: %(default)s")
 	parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
@@ -303,7 +319,7 @@ def main():
 	
 	#BLAST
 	if args.blast:
-		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename)
+		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu)
 		if not blastx_outputfile:
 			print "ERROR: Something is wrong with the Blastx step, exiting!"
 			return
@@ -318,20 +334,20 @@ def main():
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
 	#Velvet
 	if args.velvet:
-		exitcode = velvet(genes,cov_cutoff=args.cov_cutoff,ins_length=args.ins_length,kvals=args.kvals)
+		exitcode = velvet(genes,cov_cutoff=args.cov_cutoff,ins_length=args.ins_length,kvals=args.kvals,cpu=args.cpu)
 		if exitcode:
 			return
 			
 	#CAP3
 	if args.cap3:
-		exitcode = cap3(genes)
+		exitcode = cap3(genes,cpu=args.cpu)
 		if exitcode:
 			return
 	
 	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 	#Exonerate hits
 	if args.exonerate:
-		exitcode = exonerate(genes,basename,run_dir)
+		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu)
 		if exitcode:
 			return
 	
