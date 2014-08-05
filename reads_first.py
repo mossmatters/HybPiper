@@ -103,7 +103,7 @@ def check_dependencies():
 	return everything_is_awesome
 
 
-def blastx(readfiles,baitfile,evalue,basename,cpu=None):
+def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 	if os.path.isfile(baitfile):
 		if os.path.isfile(os.path.split(baitfile)[0]+'.psq'):
 			db_file = baitfile
@@ -131,7 +131,7 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None):
 		# Curly braces must be doubled within a formatted string.
 		pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
 	
-		blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6".format(db_file,evalue)
+		blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file,evalue,max_target_seqs)
 		if cpu:
 			full_command = "time {} | parallel -j {} --block 200K --recstart '>' --pipe {} >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
 		else:
@@ -271,6 +271,7 @@ def main():
 	
 	parser.add_argument('--cpu',type=int,default=0,help="Limit the number of CPUs. Default is to use all cores available.")
 	parser.add_argument('--evalue',type=float,default=1e-9,help="e-value threshold for blastx hits, default: %(default)s")
+	parser.add_argument('--max_target_seqs',type=int,default=10,help='Max target seqs to save in blast search, default: %(default)s')
 	parser.add_argument('--cov_cutoff',type=int,default=4,help="Coverage cutoff for velvetg. default: %(default)s")
 	parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
 	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default is 21,31,41,51, and 61.",default=["21","31","41","51","61"])
