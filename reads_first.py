@@ -320,7 +320,7 @@ def main():
 	
 	#BLAST
 	if args.blast:
-		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.mags_target_seqs)
+		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs)
 		if not blastx_outputfile:
 			print "ERROR: Something is wrong with the Blastx step, exiting!"
 			return
