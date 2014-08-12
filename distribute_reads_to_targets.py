@@ -67,7 +67,7 @@ def distribute_reads(readfilename1,readfilename2,read_hit_dict,single=True):
 		if ID1 in read_hit_dict:
 			for target in read_hit_dict[ID1]:
 				write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
-		if ID2 in read_hit_dict:
+		elif ID2 in read_hit_dict:
 			for target in read_hit_dict[ID2]:
 				write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
 

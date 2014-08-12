@@ -120,12 +120,14 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 	else:
 		print "Cannot find baitfile at: {}".format(baitfile)
 		return None
-		
+
+	#Remove previous blast results if they exist (because we will be appending)
+	if os.path.isfile(basename+".blastx"):
+		os.remove(basename+".blastx")
+	
 	for read_file in readfiles:
 	
-		#Remove previous blast results if they exist (because we will be appending)
-		if os.path.isfile(basename+".blastx"):
-			os.remove(basename+".blastx")
+		
 	
 		#Piping commands for Fastq -> FASTA	
 		# Curly braces must be doubled within a formatted string.
