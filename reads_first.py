@@ -287,13 +287,7 @@ def main():
 	args = parser.parse_args()
 	
 	run_dir = os.path.split(sys.argv[0])[0]
-	if args.baitfile:
-		baitfile = os.path.abspath(args.baitfile)
-	else:
-		parser.print_help()
-		sys.exit(1)
-	readfiles = [os.path.abspath(x) for x in args.readfiles]	
-	
+
 	#Check dependencies
 	if args.check_depend:
 		if check_dependencies():
@@ -303,12 +297,19 @@ def main():
 					pass
 				else:
 					print "ERROR: Script {} not found! Please make sure it is in the same directory as this one!".format(script)
+					return
 			print "Everything looks good!"
-			return
 		else:
 			print "ERROR: One or more dependencies not found!"
 			return
-	
+
+	if args.baitfile:
+		baitfile = os.path.abspath(args.baitfile)
+	else:
+		parser.print_help()
+		return
+	readfiles = [os.path.abspath(x) for x in args.readfiles]	
+
 	if len(args.readfiles) < 1:
 		print "ERROR: Please specify readfiles with -r"
 		return
