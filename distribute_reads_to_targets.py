@@ -53,11 +53,28 @@ def write_paired_seqs(target,ID1,Seq1,ID2,Seq2,single=True):
 		outfile1.close()
 		outfile2.close()
 
+def write_single_seqs(target,ID1,Seq1):
+	"""Distributing targets from single-end sequencing"""
+	mkdir_p(target)
+	outfile = open(os.path.join(target,"{}_interleaved.fasta".format(target)),'a')
+	outfile.write(">{}\n{}\n".format(ID1,Seq1))
+	outfile.close()
 	
-def distribute_reads(readfilename1,readfilename2,read_hit_dict,single=True):
-	iterator1 = FastqGeneralIterator(open(readfilename1))
-	iterator2 = FastqGeneralIterator(open(readfilename2))
+	
+def distribute_reads(readfiles,read_hit_dict,single=True):
+	iterator1 = FastqGeneralIterator(open(readfiles[0]))
+	if len(readfiles) == 1:
+	
+		for ID1_long, Seq1, Qual1 in iterator1:
+			ID1 = ID1_long.split()[0]
+			if ID1 in read_hit_dict:
+				for target in read_hit_dict[ID1]:
+					write_single_seqs(target,ID1,Seq1)
+		return
 
+	elif len(readfiles) == 2:
+		iterator2 = FastqGeneralIterator(open(readfiles[1]))
+	
 	for ID1_long, Seq1, Qual1 in iterator1:
 		ID2_long, Seq2, Qual2 = iterator2.next()
 		
@@ -73,12 +90,11 @@ def distribute_reads(readfilename1,readfilename2,read_hit_dict,single=True):
 
 def main():
 	blastfilename = sys.argv[1]
-	readfilename1 = sys.argv[2]
-	readfilename2 = sys.argv[3]
+	readfiles = sys.argv[2:]
 	read_hit_dict = read_sorting(blastfilename)
 	#print read_hit_dict
 	print "Unique reads with hits: {}".format(len(read_hit_dict))
-	distribute_reads(readfilename1,readfilename2,read_hit_dict,single=True)
+	distribute_reads(readfiles,read_hit_dict,single=True)
 
 
 

@@ -150,10 +150,11 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
-	read_cmd = "time python {} {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile,readfiles[0],readfiles[1])
+	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile," ".join(readfiles))
 	exitcode = subprocess.call(read_cmd,shell=True)
 	if exitcode:
 		print "ERROR: Something went wrong with distributing reads to gene directories."
+		return exitcode
 	target_cmd = "time python {} {} --blastx {}".format(os.path.join(run_dir,"distribute_targets.py"),baitfile,blastx_outputfile)
 	exitcode = subprocess.call(target_cmd,shell=True)
 	if exitcode:
@@ -333,7 +334,7 @@ def main():
 	if args.distribute:
 		exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir)
 		if exitcode:
-			return
+			sys.exit(1)
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
 	#Velvet
 	if args.velvet:
