@@ -197,3 +197,4 @@ EXAMPLE COMMAND LINE
 query_file_builder.py ../baits/all_plastid_baits.FAA ../assemblies/speciesName.fasta
 
 
+https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.png
