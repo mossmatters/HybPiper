@@ -80,7 +80,8 @@ def check_dependencies():
 						"velvetg",
 						"velveth",
 						"cap3",
-						"parallel"]
+						"parallel",
+						"makeblastdb"]
 
 	python_packages = 	["Bio"]
 	

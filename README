@@ -60,9 +60,9 @@ The script "reads_first.py" will create a directory based on the fastq filenames
 
 -----------Running the pipeline----------
 
-The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file "baits.fasta":
+The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file "baits.fasta". The HybSeqPipeline scripts should be in a different directory:
 
-python reads_first.py -r MySpecies_R1.fastq MySpecies_R2.fastq -b baits.fasta
+python /Users/mehmattski/HybSeqPipeline/reads_first.py -r MySpecies_R1.fastq MySpecies_R2.fastq -b baits.fasta
 
 For best results, these three input files should be in the current directory.
 
