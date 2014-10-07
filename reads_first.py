@@ -169,17 +169,24 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
-def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],cpu=None):
+def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],cpu=None,paired=True):
 	"""Use parallel to run velveth and velvetg on a set of k values on every gene with blastx hits from the previous steps."""
 	if os.path.isfile('velveth.log'):
 		os.remove('velveth.log')
 	if os.path.isfile('velvetg.log'):
 		os.remove('velvetg.log')
-	
-	if cpu:
-		velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(cpu," ".join(genes)," ".join(kvals))
+	if paired:
+		if cpu:
+			velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(cpu," ".join(genes)," ".join(kvals))
+		else:
+			velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
 	else:
-		velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
+		if cpu:
+			velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -short {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(cpu," ".join(genes)," ".join(kvals))
+		else:
+			velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -short {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
+	
+
 	print os.getcwd()
 	print os.listdir(".")
 	
@@ -215,6 +222,11 @@ def cap3(genes,cpu=None):
 		return exitcode
 	#Check that the velvet output actually has data in it.
 	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
+	
+	if len(genes) == 0:
+		print "No genes left! Exiting!"
+		return 1
+		
 	print "Running Cap3"
 	if cpu:
 		cap3_cmd = "time parallel -j {} --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(cpu," ".join(genes))
@@ -336,6 +348,11 @@ def main():
 		if exitcode:
 			sys.exit(1)
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
+	
+	if len(genes) == 0:
+		print "ERROR: No genes with BLAST hits! Exiting!"
+		return
+	
 	#Velvet
 	if args.velvet:
 		exitcode = velvet(genes,cov_cutoff=args.cov_cutoff,ins_length=args.ins_length,kvals=args.kvals,cpu=args.cpu)
