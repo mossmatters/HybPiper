@@ -249,7 +249,7 @@ def cap3(genes,cpu=None):
 		
 	return None	
 
-def exonerate(genes,basename,run_dir,replace=True,cpu=None):
+def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
@@ -264,9 +264,9 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None):
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} ::: {}".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename," ".join(genes))
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} ::: {}".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh," ".join(genes))
 	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} ::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename," ".join(genes))
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} ::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename,thresh," ".join(genes))
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
@@ -291,6 +291,7 @@ def main():
 	parser.add_argument('--cov_cutoff',type=int,default=4,help="Coverage cutoff for velvetg. default: %(default)s")
 	parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
 	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default is 21,31,41,51, and 61.",default=["21","31","41","51","61"])
+	parser.add_argument("--thresh",type=int,help="Percent Identity Threshold for stitching together exonerate results. Default is 55, but increase this if you are worried about contaminant sequences.",default=55)
 
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
 	
@@ -370,7 +371,7 @@ def main():
 	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 	#Exonerate hits
 	if args.exonerate:
-		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu)
+		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh)
 		if exitcode:
 			return
 	
