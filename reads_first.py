@@ -166,6 +166,10 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
 def make_basename(readfiles,prefix=None):
 	"""Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore."""
 	basename = os.path.split(readfiles[0])[1].split('_')[0]
+	if prefix:
+		if not os.path.exists(prefix):
+			os.makedirs(prefix)
+		return prefix
 	if not os.path.exists(basename):
 		os.makedirs(basename)
 	return basename

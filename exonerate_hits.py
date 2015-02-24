@@ -66,9 +66,16 @@ def protein_sort(records):
 					}
 	return proteinHits
 
+def sort_key(elem):
+	return elem[0],elem[1]
+
 def get_contig_order(prot):
 	"""Given the dictionary of hits for a protein, return the dictionary with the fields sorted by start location."""
-	sorting_order = sorted(range(len(prot["hit_start"])),key=lambda k:prot["hit_start"][k])
+	logger = logging.getLogger("pipeline")
+	
+	tuplist =[(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
+	logger.debug( tuplist )
+	sorting_order = sorted(range(len(tuplist)),key=lambda k:sort_key(tuplist[k]))
 	
 	prot["assemblyHits"] = [prot["assemblyHits"][i] for i in sorting_order]
 	prot["hit_start"] = [prot["hit_start"][i] for i in sorting_order]
@@ -98,12 +105,24 @@ def supercontig_exonerate(supercontig,protseq,prefix):
 	proc.wait()
 	#print proc.stdout.readlines()
 	supercontig_cds = [i for i in SeqIO.parse(proc.stdout,'fasta') if float(i.id.split(",")[4])>55]
-	logger.debug([len(x.seq) for x in supercontig_cds])
+	logger.debug("Supercontig lengths: %s" % " ".join([str(len(x.seq)) for x in supercontig_cds]))
 	return supercontig_cds
 
 def sort_byhitloc(seqrecord):
 	"""Key function for sorting based on the start location of a hit record."""
 	return int(seqrecord.id.split(",")[2])
+
+def subsume_supercontigs(supercontigs):
+	"""If one supercontig has a start and end location greater than all the others, throw the rest out"""
+	logger = logging.getLogger("pipeline")
+	supercontig_rangelist = [(int(x.id.split(",")[2]),int(x.id.split(",")[3])) for x in supercontigs]
+	logger.debug("Checking these ranges for supercontig: ")
+	logger.debug(supercontig_rangelist)
+	seqs_to_keep = range_connectivity(supercontig_rangelist)
+	logger.debug("Keeping these contigs: ")
+	logger.debug([supercontigs[x].id for x in seqs_to_keep])
+	return [supercontigs[x] for x in seqs_to_keep]
+
 	
 def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	"""Generates a contig from all hits to a protein. 
@@ -123,36 +142,49 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	else:
 		for hit in range(len(prot["assemblyHits"])):
 			assembly_seq_name = prot["assemblyHits"][hit].split(",")[0]
-			
+			logger.debug("Protein hit {} from {} to {} with {}% id on strand {}".format(assembly_seq_name,
+						 prot["hit_start"][hit],
+						 prot["hit_end"][hit],
+						 prot["percentid"][hit],
+						 prot["hit_strand"][hit]
+						 ))
 			if assembly_seq_name not in contigHits:		#Only add each contig once.
 				if prot["hit_strand"][hit] == "+":
 					sequence_list.append(assembly_dict[assembly_seq_name])
 				else:
 					sequence_list.append(assembly_dict[assembly_seq_name].reverse_complement())
 			contigHits.append(assembly_seq_name)
- 	logger.debug([i for i in prot["assemblyHits"]])
-	logger.debug([(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))])
- 	logger.debug(prot["hit_strand"])
- 	logger.debug(prot["percentid"])
+# 	logger.debug([i for i in prot["assemblyHits"]])
+#	logger.debug([(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))])
+# 	logger.debug(prot["hit_strand"])
+# 	logger.debug(prot["percentid"])
+# 	logger.debug("\n".join(["{}   {}".format(x,assembly_dict[x].seq) for x in contigHits]))
 	supercontig = SeqRecord(Seq("".join(str(b.seq) for b in sequence_list)),id=prot["name"])
 
-	
 	#Need to remove contigs if they have the same basename
-	
 	supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]],prefix)
 	
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
-	joined_supercontig_cds.sort(key=sort_byhitloc)
+	joined_supercontig_cds.sort()#key=sort_byhitloc,reverse=True)
+	logger.debug([x.id for x in joined_supercontig_cds])
+	#Get rid of supercontig sequences that are subsumed by longer sequences on the same stretch.
+	joined_supercontig_cds = subsume_supercontigs(joined_supercontig_cds)
+	
+	
 	SeqIO.write(joined_supercontig_cds,'%s/supercontig_exonerate.fasta'%prefix,'fasta') 
 	if len(joined_supercontig_cds) == 1:
+		logger.debug("One sequence remaining")
 		return str(joined_supercontig_cds[0].seq)
 	#One more Exonerate, just to be sure.
 	superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)),id=prot["name"])
 	final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
-	final_supercontig.sort(key=sort_byhitloc)
+	final_supercontig.sort(key=sort_byhitloc,reverse=True)
+	final_supercontig = subsume_supercontigs(final_supercontig)
+	
+	
 	return str(Seq("".join(str(b.seq) for b in final_supercontig)))
-		
+	return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))		
 	#print joined_supercontig_cds
 	#print ""
 	#return joined_supercontig_cds
@@ -201,20 +233,25 @@ def keep_indicies(kept_indicies, prot):
 def overlapping_contigs(prot):
 	"""Given a protein dictionary, determine whether the hit ranges are overlapping,
 	and save only those contigs that are not completely subsumed by other contigs."""
+	logger = logging.getLogger("pipeline")
 	range_list = [(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
+	logger.debug(range_list)
 	kept_indicies = range_connectivity(range_list)
+	logger.debug(kept_indicies)
 	return keep_indicies(kept_indicies,prot)
 
 def range_connectivity(range_list):
 	"""Given two sorted lists, representing the beginning and end of a range,
 	Determine "connectivity" between consecutive elements of the list.
 	For each connected segment, determine whether one segement "subsumes" the other."""
+	logger = logging.getLogger("pipeline")
+
 	starts = [a[0] for a in range_list]
 	ends = [a[1] for a in range_list]
-
 	connected_ranges = []
 	collapsed_ranges = []
 	num_breaks = 0
+
 	for i in range(len(starts)):
 		try:
 			next_start = starts[i+1]
@@ -232,8 +269,14 @@ def range_connectivity(range_list):
 			connected_ranges.append((starts[i],ends[i]))
 		else:
 			num_breaks += 1
+			
 			connected_ranges.append((starts[i],ends[i]))
-			collapsed_ranges.append(subsume(connected_ranges))
+			logger.debug("Connected Ranges: ")
+			logger.debug(connected_ranges)
+			subsumed = subsume(connected_ranges)
+			logger.debug("Subsumed Ranges: ")
+			logger.debug(subsumed)
+			collapsed_ranges.append(subsumed)
 			connected_ranges = []
 	if False: #num_breaks == 0:
 		kept_indicies = [range_list.index(i) for i in connected_ranges]
@@ -349,10 +392,10 @@ def main():
 	
 	logger = logging.getLogger("pipeline")
 	logger.setLevel(args.loglevel)
-	formatter = logging.Formatter('[%(levelname)s] %(message)s')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logger.addHandler(handler)
+	#formatter = logging.Formatter('[%(levelname)s] %(message)s') #Commenting this out stops messages from appearing twice.
+	#handler = logging.StreamHandler()
+	#handler.setFormatter(formatter)
+	#logger.addHandler(handler)
 	try:
 		proteinfile = open(proteinfilename)
 	except IOError:
@@ -390,26 +433,33 @@ def main():
  		logger.debug(prot)
  		#Put contigs in order along the protein.
  		logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
- 		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+# 		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+ 		logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
+
  		proteinHits[prot] = get_contig_order(proteinHits[prot])
- 		logger.debug("After get_contig_order: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+# 		logger.debug("After get_contig_order: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+ 		logger.debug("After get_contig_order: %d" % len(proteinHits[prot]["assemblyHits"]))
 		#Remove contigs that are suboptimal hits. Only one protein hit allowed per contig.
+
 		proteinHits[prot] = reciprocal_best_hit(proteinHits[prot],proteinHits)
- 		logger.debug("After RBH: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+# 		logger.debug("After RBH: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+		logger.debug("After RBH: %d" % len(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
  			report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
  		
  		#Filter out contigs with a hit below a threshold
  		proteinHits[prot] = filter_by_percentid(proteinHits[prot],args.threshold)
- 		logger.debug("After filter_by_percent_id: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+# 		logger.debug("After filter_by_percent_id: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+ 		logger.debug("After filter_by_percent_id: %d" % len(proteinHits[prot]["assemblyHits"]))
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
 	 		report_no_sequences(proteinHits[prot]["name"])
  			continue		#All hits have been filtered out
  		
  		#Delete contigs if their range is completely subsumed by another hit's range.
  		proteinHits[prot] = overlapping_contigs(proteinHits[prot])
- 		logger.debug("After overlapping_contigs: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+# 		logger.debug("After overlapping_contigs: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+ 		logger.debug("After overlapping_contigs: %d" % len(proteinHits[prot]["assemblyHits"]))
  		#Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.	
  		if len(proteinHits[prot]["assemblyHits"]) == 0:
 		 	report_no_sequences(proteinHits[prot]["name"])
