@@ -471,15 +471,16 @@ def main():
 			continue
 		else:
 			amino_sequence = myTranslate(nucl_sequence)
+			seqID = prefix.split("/")[-1].strip("/")
 			print "Writing amino acid sequence, length: {}".format(len(amino_sequence))
 			amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
 			amino_file = open(amino_filename,'w')
-			amino_file.write(">%s\n%s\n" % (prefix.split("/")[-1],amino_sequence))
+			amino_file.write(">%s\n%s\n" % (seqID,amino_sequence))
 			amino_file.close()
 		
 			nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
 			nucleo_file = open(nucleo_filename,'w')
-			nucleo_file.write(">%s\n%s\n" % (prefix.split("/")[-1],nucl_sequence))
+			nucleo_file.write(">%s\n%s\n" % (seqID,nucl_sequence))
 			nucleo_file.close()
 #  	if "temp.contig.fa" in os.listdir(prefix):	
 # 		os.remove("%s/temp.contig.fa" % prefix)
