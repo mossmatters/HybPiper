@@ -163,6 +163,23 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
 		return exitcode
 	return None
 
+def distribute_bwa(bamfile,readfiles,baitfile,run_dir):
+	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
+	#print run_dir
+	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile," ".join(readfiles))
+	exitcode = subprocess.call(read_cmd,shell=True)
+	if exitcode:
+		print "ERROR: Something went wrong with distributing reads to gene directories."
+		return exitcode
+	target_cmd = "time python {} {} --bam {}".format(os.path.join(run_dir,"distribute_targets.py"),baitfile,bamfile)
+	exitcode = subprocess.call(target_cmd,shell=True)
+	if exitcode:
+		print "ERROR: Something went wrong distributing targets to gene directories."
+		return exitcode
+	return None
+
+
+
 def make_basename(readfiles,prefix=None):
 	"""Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore."""
 	basename = os.path.split(readfiles[0])[1].split('_')[0]
@@ -277,10 +294,59 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 		print "ERROR: Something went wrong with Exonerate!"
 		return exitcode
 	return
+
+def bwa(readfiles,baitfile,basename,cpu):
+	"""Conduct BWA search of reads against the baitfile.
+	Returns an error if the second line of the baitfile contains characters other than ACTGN"""
+	dna = set("ATCGN")
+	if os.path.isfile(baitfile):
+		#Quick detection of whether baitfile is DNA. 
+		with open(baitfile) as bf:
+			header = bf.readline()
+			seqline = bf.readline().rstrip()
+			if set(seqline) - dna:
+				print "ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file for BWA!"
+				return None
+	
+		if os.path.isfile(os.path.split(baitfile)[0]+'.amb'):
+			db_file = baitfile
+		else:
+			print "Making nucleotide bwa index in current directory."
+			if os.path.split(baitfile)[0]:
+				shutil.copy(baitfile,'.')
+			db_file = os.path.split(baitfile)[1]
+			make_bwa_index_cmd = "bwa index {}".format(db_file)
+			print "[CMD]: {}".format(make_bwa_index_cmd)
+			exitcode = subprocess.call(make_bwa_index_cmd,shell=True)
+			if exitcode:
+				return None
+	else:
+		print "ERROR: Cannot find baitfile at: {}".format(baitfile)
+		return None
+
+	#Remove previous blast results if they exist (because we will be appending)
+	#if os.path.isfile(basename+".blastx"):
+	#	os.remove(basename+".blastx")
+	
+	#Piping commands for Fastq -> FASTA	
+	# Curly braces must be doubled within a formatted string.
+	if cpu:
+		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
+	else:
+		full_command = "time bwa mem {} {} | samtools view -h -b -S - > {}.bam ".format(db_file," ".join(readfiles),basename)
+	print "[CMD]: {}".format(full_command)
+	exitcode = subprocess.call(full_command,shell=True)
+	if exitcode:
+		return None
+			
+	return basename + '.bam'
+
+
 			
 def main():
 	parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument("--check-depend",dest='check_depend',help="Check for dependencies (executables and Python packages) and exit. May not work at all on Windows.",action='store_true')
+	parser.add_argument("--bwa",dest="bwa",action='store_true',help="Use BWA to search reads for hits to target. Requires BWA and a bait file that is nucleotides!",default=False)
 	parser.add_argument("--no-blast",dest="blast",action="store_false",help="Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. \nUseful for re-runnning assembly/exonerate steps with different options.")
 	parser.add_argument("--no-distribute",dest="distribute",action="store_false",help="Do not distribute the reads and bait sequences to sub-directories.")
 	parser.add_argument("--no-velvet",dest="velvet",action="store_false",help="Do not run the velvet stages (velveth and velvetg)")
@@ -340,6 +406,17 @@ def main():
 	basename = make_basename(args.readfiles,prefix=args.prefix)
 	os.chdir(basename)
 	
+	#BWA
+	if args.bwa:
+		if args.blast:
+			args.blast=False
+			bamfile = bwa(readfiles,baitfile,basename,cpu=args.cpu)
+			if not bamfile:
+				print "ERROR: Something went wrong with the BWA step, exiting!"
+				return
+		else:
+			bamfile = basename + ".bam"
+	
 	#BLAST
 	if args.blast:
 		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs)
@@ -351,7 +428,10 @@ def main():
 	#Distribute
 	
 	if args.distribute:
-		exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir)
+		if args.bwa:
+			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir)
+		else:
+			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir)
 		if exitcode:
 			sys.exit(1)
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
@@ -372,9 +452,10 @@ def main():
 		if exitcode:
 			return
 	
-	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
+	
 	#Exonerate hits
 	if args.exonerate:
+		genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh)
 		if exitcode:
 			return
