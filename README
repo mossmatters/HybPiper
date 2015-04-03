@@ -9,7 +9,7 @@ by Matt Johnson and Norm Wickett, Chicago Botanic Gardens
 
 Purpose: 
 Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences.
-This pipeline starts with Illumina reads, and assigns them to target genes using BLASTx.
+This pipeline starts with Illumina reads, and assigns them to target genes using BLASTx or BWA.
 The reads are distributed to separate directories, where they are assembled separately using Velvet and CAP3. 
 The main output is one FASTA file per protein, containing the CDS portion of the homologous protein sequence.
 
@@ -21,6 +21,11 @@ BLAST command line tools: ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LA
 Velvet: https://www.ebi.ac.uk/~zerbino/velvet/
 CAP3: http://seq.cs.iastate.edu/cap3.html
 GNU Parallel: http://www.gnu.org/software/parallel/
+
+Required for BWA version of the pipeline:
+	BWA: http://bio-bwa.sourceforge.net/
+	samtools: http://www.htslib.org/
+
 
 This pipeline runs with Python, version 2.7 or later, to take advantage of the argparse module for command-line argument.
 It requires BIOPYTHON (version 1.6 or later) for parsing and handling nucleotide and protein sequences (www.biopython.org)
@@ -51,6 +56,9 @@ For velvet, this command line worked for me in Mac OS 10.9:
 	make 'MAXKMERLENGTH=67' LDFLAGS='-L third-party/zlib-1.2.3/ -lm’
 
 --------Preparing your files-------------
+IMPORTANT: If you are using BLAST to map reads to targets, you need a PROTEIN baitfile.
+
+If you are using BWA, you need a NUCLEOTIDE baitfile. 
 
 Construct a "bait file" of protein sequences. If you have just one sequence per bait, simply concatenate all of them into one file.
 If you have more than one sequence per bait, they need to be identified before concatenation.
@@ -84,8 +92,8 @@ A wrapper script that:
 You can tell the script to skip upstream steps (for example: --no-blast) but the script will still assume that the output files of these steps still exist!
 
 This script will call, in order:
-	1. Blastx
-	2. distribute_reads_to_targets.py and distribute_targets.py
+	1. Blastx (or BWA)
+	2. distribute_reads_to_targets.py (or distribute_reads_to_targets.py)  and distribute_targets.py
 	3. velveth and velvetg
 	4. CAP3
 	5. exonerate_hits.py
@@ -102,6 +110,13 @@ and the raw read files, and distributes the reads into FASTA files ready for ass
 If there are multiple BLAST results (for example, one for each read direction),
 concatenate them prior to sorting.
 
+-------distribute_reads_to_targets_bwa.py-----
+After a BWA search of the raw reads against the target sequences, the reads need to be 
+sorted according to the successful hits. This script takes the bam output (parsed using samtools)
+and the raw read files, and distributes the reads into FASTA files ready for assembly.
+
+If there are multiple BAM results (for example, one for each read direction),
+concatenate them prior to sorting.
 
 ----------distribute_targets.py-----------
 Given a file containing all of the "baits" for a target enrichment, create separate
@@ -114,6 +129,8 @@ Physcomitrella-rbcl
 
 Given multiple baits, the script will choose the most appropriate 'reference' sequence
 using the highest cumulative BLAST scores across all hits.
+
+If the search was BWA rather than BLAST, it will use the BWA alignment score.
 
 Output directories can also be created, one for each target category
 	(the default is to put them all in the current one)
@@ -137,8 +154,8 @@ The threshold for accepting an exonerate hit can be adjusted with -t (Default: 5
 
 Current directory: 
 	the master bait file is copied here
-	a BLAST database is generated
-	One directory is generated for every gene with BLAST hits. 
+	a BLAST or BWA database is generated
+	One directory is generated for every gene with BLAST or BWA hits. 
 	A file "bait_tallies.txt" summarizes which bait sources were chosen.
 	
 Within the Directory For Each Gene:
@@ -159,7 +176,7 @@ Within the sequences directory:
 	
 The major steps of the pipeline include:
 
-1) Blast search of the reads against the target sequences.
+1) Blast (or BWA) search of the reads against the target sequences.
 
 2) Distribution of reads into separate directories, one per gene.
 
