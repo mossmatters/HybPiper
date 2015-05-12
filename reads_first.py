@@ -105,7 +105,16 @@ def check_dependencies():
 
 
 def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
+	dna = set("ATCGN")
 	if os.path.isfile(baitfile):
+		#Quick detection of whether baitfile is DNA. 
+		with open(baitfile) as bf:
+			header = bf.readline()
+			seqline = bf.readline().rstrip()
+			if not set(seqline) - dna:
+				print "ERROR: only ATCGN characters found in first line. You need a protein bait file for BLASTx!"
+				return None
+
 		if os.path.isfile(os.path.split(baitfile)[0]+'.psq'):
 			db_file = baitfile
 		else:
