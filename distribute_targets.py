@@ -137,7 +137,7 @@ def help():
 def main():
 	parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument("--no_dirs",help="Do not generate separate directories for each protein-- output all to the current directory.", action="store_true",default=False)
-	parser.add_argument("-d","--delimiter",help="Field separating FASTA ids for multiple sequences per target. Default is '-' . For no delemeter, write None", default="-")
+	parser.add_argument("-d","--delimiter",help="Field separating FASTA ids for multiple sequences per target. Default is '-' . For no delimeter, write None", default="-")
 	parser.add_argument("baitfile",help="FASTA file containing bait sequences")
 	parser.add_argument("--blastx",help="tabular blastx results file, used to select the best target for each gene",default=None)
 	parser.add_argument("--bam",help="BAM file from BWA search, alternative to the BLASTx method",default=None)
