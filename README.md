@@ -5,34 +5,28 @@ http://dx.doi.org/10.5281/zenodo.11977
 
 *Manuscript in Preparation*
 
-by Matt Johnson and Norm Wickett, Chicago Botanic Gardens
+by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
 *Purpose* 
 Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences.
 This pipeline starts with Illumina reads, and assigns them to target genes using BLASTx or BWA.
 The reads are distributed to separate directories, where they are assembled separately using Velvet and CAP3. 
-The main output is one FASTA file per protein, containing the CDS portion of the homologous protein sequence.
+The main output is a FASTA file of the (in frame) CDS portion of the sample for each target region, and a separate file with the translated protein sequence.
 
 ---
 #Dependencies
-*Python 2.7 or later
-*BIOPYTHON 1.59 or later: http://biopython.org/wiki/Main_Page
-*EXONERATE: http://www.ebi.ac.uk/~guy/exonerate/
-*BLAST command line tools: ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/
-*Velvet: https://www.ebi.ac.uk/~zerbino/velvet/
-*CAP3: http://seq.cs.iastate.edu/cap3.html
-*GNU Parallel: http://www.gnu.org/software/parallel/
+* Python 2.7 or later (to use the argparse module for help documents)
+* [BIOPYTHON 1.59 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files)
+* [EXONERATE](http://www.ebi.ac.uk/~guy/exonerate/) (For aligning recovered sequences to target proteins)
+* [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target protiens)
+* [Velvet](https://www.ebi.ac.uk/~zerbino/velvet/) (Assembling reads that map to each target separately)
+* [CAP3](http://seq.cs.iastate.edu/cap3.html) (Combining results of multiple Velvet assemblies)
+* [GNU Parallel](http://www.gnu.org/software/parallel/) (Handles parallelization of BLAST, Velvet, CAP3, and Exonerate)
 
 *Required for BWA version of the pipeline*:
-*BWA: http://bio-bwa.sourceforge.net/
-*samtools: http://www.htslib.org/
 
-
-This pipeline runs with Python, version 2.7 or later, to take advantage of the argparse module for command-line argument.
-It requires BIOPYTHON (version 1.6 or later) for parsing and handling nucleotide and protein sequences (www.biopython.org)
-EXONERATE is used for alignment between bait proteins and assemblies, and retrieval of in-frame CDS sequences. 
-This script requires that BLAST command-line tools (specifically blastx) are installed in the $PATH
-GNU Parallel is a *nix tool for running many jobs (for example, 1000s of Velvet assemblies) simultaneously on a multi-processor computer. It is required for every step of the pipeline.
+* [BWA](http://bio-bwa.sourceforge.net/) (Aligns reads to target nucleotide sequences)
+* [samtools](http://www.htslib.org/) (Read/Write BAM files to save space).
 
 ---
 #Setup
@@ -65,19 +59,19 @@ Construct a "bait file" of protein sequences. If you have just one sequence per 
 If you have more than one sequence per bait, they need to be identified before concatenation.
 The ID for each sequence should include the bait source and the protein ID, separated by a hyphen. For example:
 
-```>Amborella-atpH
-MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM```
+`>Amborella-atpH
+MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM`
 
 [Future plans: Add helper script to do this]
 
 To execute the entire pipeline, create a directory containing the paired-end read files.
 The script `reads_first.py` will create a directory based on the fastq filenames (or use the `--prefix` flag):
 
-Anomodon-rostratus_L0001_R1.fastq ---> Anomodon-rostratus/
+`Anomodon-rostratus_L0001_R1.fastq` ---> `Anomodon-rostratus/`
 
 ##Running the pipeline
 
-The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file "baits.fasta". The HybSeqPipeline scripts should be in a different directory:
+The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file `baits.fasta`. The HybSeqPipeline scripts should be in a different directory:
 
 ```python /Users/mehmattski/HybSeqPipeline/reads_first.py -r MySpecies_R1.fastq MySpecies_R2.fastq -b baits.fasta```
 
@@ -102,17 +96,17 @@ This script will call, in order:
 
 1. Blastx (or BWA)
 
-2. distribute_reads_to_targets.py (or distribute_reads_to_targets.py)  and distribute_targets.py
+2. `distribute_reads_to_targets.py` (or `distribute_reads_to_targets_bwa.py`)  and `distribute_targets.py`
 
-3. velveth and velvetg
+3. `velveth` and `velvetg`
 
-4. CAP3
+4. `CAP3`
 
-5. exonerate_hits.py
+5. `exonerate_hits.py`
 
 Some program-specific options may be passed at the command line. 
 
-For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`) or the coverage-cutoff level for Velvet assemblies (`--cov_cutoff`, default is `5`)	
+For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`) or the coverage-cutoff level for Velvet assemblies (`--cov_cutoff`, default is `5`). Use `reads_first.py -h` for a full list.	
 
 ##`distribute_reads_to_targets.py`
 After a BLASTx search of the raw reads against the target sequences, the reads need to be 
@@ -136,9 +130,9 @@ FASTA files with all copies of that bait. Multiple copies of the same bait can b
 specified using a "-" delimiter. For example, the following will be sorted in to the same
 file:
 
-Anomodon-rbcl
+`Anomodon-rbcl`
 
-Physcomitrella-rbcl
+`Physcomitrella-rbcl`
 
 Given multiple baits, the script will choose the most appropriate 'reference' sequence
 using the highest cumulative BLAST scores across all hits. If the search was BWA rather than BLAST, it will use the BWA alignment score.
@@ -245,4 +239,4 @@ EXAMPLE COMMAND LINE
 `query_file_builder.py ../baits/all_plastid_baits.FAA ../assemblies/speciesName.fasta`
 
 
-https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.png
+[](https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.png)
