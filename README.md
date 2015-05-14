@@ -46,8 +46,11 @@ NOTE: Velvet must be compiled with the ability to handle k-mer values > 31:
 Both Exonerate and Velvet require zlib. 
 Perhaps the easiest way to install Exonerate is with homebrew: http://brew.sh/
 Install homebrew, and then "tap" the science repository:
+
 	brew tap homebrew/science
+
 Now install exonerate:
+
 	brew install exonerate
 
 For velvet, this command line worked for me in Mac OS 10.9:
