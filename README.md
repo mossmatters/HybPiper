@@ -1,6 +1,8 @@
 #HybSeq Pipeline
 Please cite the following DOI while the manuscript is in preparation:
 
+![](https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.png)
+
 http://dx.doi.org/10.5281/zenodo.11977
 
 *Manuscript in Preparation*
@@ -8,6 +10,7 @@ http://dx.doi.org/10.5281/zenodo.11977
 by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
 *Purpose* 
+
 Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences.
 This pipeline starts with Illumina reads, and assigns them to target genes using BLASTx or BWA.
 The reads are distributed to separate directories, where they are assembled separately using Velvet and CAP3. 
@@ -31,10 +34,11 @@ The main output is a FASTA file of the (in frame) CDS portion of the sample for 
 ---
 #Setup
 ##Install the dependencies.
-Normal installations are fine for most tools (see below for installation of Velvet), as long as they are in your $PATH.
-You can check the installation by executing the "readsfirst.py" script with the --check-depend flag.
+Normal installations are fine for most tools (see below for installation of Velvet), as long as they are in your `$PATH`.
+You can check the installation by executing the `readsfirst.py` script with the `--check-depend` flag.
 
-NOTE: Velvet must be compiled with the ability to handle k-mer values > 31.
+NOTE: Velvet must be compiled with the ability to handle k-mer values > 31:
+
 	make 'MAXKMERLENGTH=67' 
 
 ###MACOSX installation notes
@@ -106,7 +110,9 @@ This script will call, in order:
 
 Some program-specific options may be passed at the command line. 
 
-For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`) or the coverage-cutoff level for Velvet assemblies (`--cov_cutoff`, default is `5`). Use `reads_first.py -h` for a full list.	
+For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`), the coverage-cutoff level for Velvet assemblies (`--cov_cutoff`, default is `5`), or the percent-identity threshold for aligning contigs to the reference sequences (`--thresh`, the default is `55`).
+
+Use `reads_first.py -h` for a full list.	
 
 ##`distribute_reads_to_targets.py`
 After a BLASTx search of the raw reads against the target sequences, the reads need to be 
@@ -161,6 +167,7 @@ EXAMPLE COMMAND LINE:
 
 The threshold for accepting an exonerate hit can be adjusted with `-t` (Default: 55 percent)
 
+-----
 
 #RESULTS AND OUTPUT FILES
 
@@ -178,23 +185,23 @@ The threshold for accepting an exonerate hit can be adjusted with `-t` (Default:
 ##Gene Directory
 1.	Velvet and CAP3 results. Final assembly is at "GeneName_cap3ed.fa"
 
-2.	Fasta file for reference bait chosen by the distribute_targets.py script.
+2.	Fasta file for reference bait chosen by the `distribute_targets.py` script.
 
 3.	Directory of Exonerate results (with same name as the sample)
 
 ##Exonerate Directory
 
-1.	exonerate_results.fasta -- Results of the initial exonerate search for all contigs.
+1.	`exonerate_results.fasta` -- Results of the initial exonerate search for all contigs.
 
-2.	supercontig_exonerate.fasta -- Long concatenated contig from final exonerate search.
+2.	`supercontig_exonerate.fasta` -- Long concatenated contig from final exonerate search.
 
 3.	sequences directory
 
 ##Sequences directory
 
-1.	FNA/GeneName.FNA: In-frame nucleotide sequence
+1.	`FNA/GeneName.FNA`: In-frame nucleotide sequence
 
-2.	FAA/GeneName.FAA: Amino acid sequence.
+2.	`FAA/GeneName.FAA`: Amino acid sequence.
 	
 #Summary
 
@@ -210,16 +217,77 @@ The major steps of the pipeline include:
 
 5. In a subdirectory, generate separate FASTA files containing either the nucleotide (FNA) or amino acid (FAA) sequence for each protein. 
 
+-----
+
 #After the pipeline
 Optional utilities after running the pipeline for multiple assemblies: 
 
-NOTE: for these utilities to work, the files must be in the same directory hierarchy created by the pipeline. (i.e. `species/alignments/FAA/` and `species/alignments/FNA/`)
+**NOTE**: for these utilities to work, the files must be in the same directory hierarchy created by the pipeline. (i.e. `species/sequences/FAA/` and `species/sequences/FNA/`)
 
-     a) Generate a single file for one or more proteins.
-               Simple FASTA or use MAFFT to align it.
-     b) Summarize the completeness of the alignments, gene by gene.
-               Creates a matrix: each row is a species with length of each protein (in alphabetical order) separated by tabs.
-     c) Matrixmerge: generate supermatrix from all aligned matricies.                                                                                     
+##`get_seq_lengths.py`
+
+This script will summarize the recovery of genes from multiple samples. If you have all of these separate runs of the HybSeqPipeline in the same directory, create a `namelist.txt` file that contains a list of all the HybSeqPipeline directories for each sample (one per line):
+
+```
+Sample1
+Sample2
+Sample3
+```
+
+Specify the location of the bait file and whether it is amino acid or nucleotide on the command line:
+
+###Example Command Line
+
+`python get_seq_lengths.py baitfile.fasta namelist.txt dna > gene_lengths.txt`
+
+The script will output a table to `stdout`. The first line is a header containing the gene names. The second line contains the length of the reference for each gene. If there are multiple reference sequences for each gene, an average is reported. The remaining lines are the lengths recovered by the HybSeqPipeline for each sample, one sample per line (one column per gene). If the gene is missing, a 0 is indicated.
+
+###Example output
+```
+Species	26S	18S
+MeanLength	3252.0	1821.6
+funaria	3660	1758
+timmia	3057	1821
+```
+
+##`gene_recovery_heatmap.R`
+
+This script takes the ouput of `get_seq_lengths.py` and creates a figure to visualize the recovery efficiency.
+
+Unlike the python scripts, you will need to open the R script in a text editor or RStudio and edit a few parameters before running the script within R. 
+
+The script requires two R packages: `gplots` and `heatmap.plus` 
+Install these using `install.packages` before running the script.
+You will need to set the name of your input file (the one produced by `get_seq_lengths.py`) at the top of the script.
+The output will look something like this:
+
+![heatmap](examples/plastids_heatmap.pdf)
+
+Each row shows a sample, and each column is a gene (in this case, one of the 44 chloroplast genes). The amount of shading in each box corresponds to the length of the gene recovered for that sample, relative to the length of the reference (bait). 
+
+In this case, there are a few samples for which few or no genes were recovered (white rows) and a few genes that were not recovered in any sample (white columns). 
+
+
+
+##`retrieve_sequences.py`
+
+This script fetches the sequences recovered from the same gene for many samples and generates an unaligned multi-FASTA file for each gene. 
+
+This script will get the sequences generated from multiple runs of the HybSeqPipeline (reads_first.py).
+Have all of the runs in the same directory (sequence_dir). 
+It retreives all the gene names from the bait file used in the run of the pipeline.
+
+###Example Command Line
+
+`python retrieve_sequences.py baitfile.fasta sequence_dir dna`
+
+You must specify whether you want the protein (aa) or nucleotide (dna) sequences.
+
+Will output unaligned fasta files, one per gene, to the current directory.
+
+
+
+-----
 
 #DEPRECATED SCRIPTS
 These scripts are left over from a version of the pipeline that started with sequence assemblies, rather than raw reads.
@@ -239,4 +307,4 @@ EXAMPLE COMMAND LINE
 `query_file_builder.py ../baits/all_plastid_baits.FAA ../assemblies/speciesName.fasta`
 
 
-[](https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.png)
+
