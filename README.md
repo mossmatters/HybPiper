@@ -66,8 +66,6 @@ The ID for each sequence should include the bait source and the protein ID, sepa
 `>Amborella-atpH
 MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM`
 
-[Future plans: Add helper script to do this]
-
 To execute the entire pipeline, create a directory containing the paired-end read files.
 The script `reads_first.py` will create a directory based on the fastq filenames (or use the `--prefix` flag):
 
@@ -81,6 +79,10 @@ The following command will execute the entire pipeline on a pair of Illumina rea
 
 For best results, these three input files should be in the current directory.
 
+The BLASTx version of the pipeline (default) is intended for amino acid sequences.
+Although it is slower than the BWA version, it may have higher specificity.
+Reads may not align to divergent nucleotide bait sequences, which are required for the BWA version.
+If you find the recovery efficiency is poor with BWA, you may want to try again with BLASTx.
 
 
 #Pipeline Scripts
@@ -261,7 +263,7 @@ Install these using `install.packages` before running the script.
 You will need to set the name of your input file (the one produced by `get_seq_lengths.py`) at the top of the script.
 The output will look something like this:
 
-![heatmap](examples/plastids_heatmap.pdf)
+![heatmap](examples/plastids_heatmap.png)
 
 Each row shows a sample, and each column is a gene (in this case, one of the 44 chloroplast genes). The amount of shading in each box corresponds to the length of the gene recovered for that sample, relative to the length of the reference (bait). 
 
