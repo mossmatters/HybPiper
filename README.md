@@ -1,9 +1,9 @@
 #HybSeq Pipeline
 Please cite the following DOI while the manuscript is in preparation:
 
-![](https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.png)
+[![DOI](https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.svg)](http://dx.doi.org/10.5281/zenodo.17609)
 
-http://dx.doi.org/10.5281/zenodo.11977
+http://dx.doi.org/10.5281/zenodo.17609
 
 *Manuscript in Preparation*
 
