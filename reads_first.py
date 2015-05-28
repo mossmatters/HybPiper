@@ -342,7 +342,10 @@ def bwa(readfiles,baitfile,basename,cpu):
 	if cpu:
 		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
 	else:
-		full_command = "time bwa mem {} {} | samtools view -h -b -S - > {}.bam ".format(db_file," ".join(readfiles),basename)
+		#Use all cores
+		import multiprocessing
+		cpu = multiprocessing.cpu_count()
+		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
 	print "[CMD]: {}".format(full_command)
 	exitcode = subprocess.call(full_command,shell=True)
 	if exitcode:
