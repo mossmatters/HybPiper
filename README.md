@@ -247,6 +247,8 @@ Specify the location of the bait file and whether it is amino acid or nucleotide
 
 The script will output a table to `stdout`. The first line is a header containing the gene names. The second line contains the length of the reference for each gene. If there are multiple reference sequences for each gene, an average is reported. The remaining lines are the lengths recovered by the HybSeqPipeline for each sample, one sample per line (one column per gene). If the gene is missing, a 0 is indicated.
 
+A warning will print to stderr if any sequences are longer than 1.5x the average reference length for that gene.
+
 ###Example output
 ```
 Species	26S	18S
