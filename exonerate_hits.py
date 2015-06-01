@@ -248,36 +248,44 @@ def range_connectivity(range_list):
 
 	starts = [a[0] for a in range_list]
 	ends = [a[1] for a in range_list]
-	connected_ranges = []
+	
+	subsumed_ranges = []
 	collapsed_ranges = []
 	num_breaks = 0
-
-	for i in range(len(starts)):
-		try:
-			next_start = starts[i+1]
-		except IndexError:	#Special case at the end of the list
-			if starts[i] <= ends[i-1]:
-				connected_ranges.append((starts[i],ends[i]))
-				collapsed_ranges.append(subsume(connected_ranges))
-			else:
-				num_breaks += 1
-				connected_ranges.append((starts[i],ends[i]))
-				collapsed_ranges.append(subsume(connected_ranges))
-				connected_ranges = []
-			continue
-		if next_start <= ends[i]:
-			connected_ranges.append((starts[i],ends[i]))
+	
+	for i in range(len(range_list)):
+		#Check if one contig has the whole range, keep only that one.
+		if starts[i] == min(starts) and ends[i] == max(ends):
+			subsumed_ranges = [range_list[i]]
+			break
 		else:
-			num_breaks += 1
-			
-			connected_ranges.append((starts[i],ends[i]))
-			logger.debug("Connected Ranges: ")
-			logger.debug(connected_ranges)
-			subsumed = subsume(connected_ranges)
-			logger.debug("Subsumed Ranges: ")
-			logger.debug(subsumed)
-			collapsed_ranges.append(subsumed)
-			connected_ranges = []
+			if starts[i] > min(starts) and ends[i] < max(ends):
+				logger.debug("removing {}".format(range_list[i]))
+			else:
+				subsumed_ranges.append(range_list[i])				
+	#If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
+	if len(subsumed_ranges) > 1:
+		best_start_end = 0
+		best_end_start = 1000000000
+		for j in range(len(subsumed_ranges)):
+			if subsumed_ranges[j][0] == min(starts):
+				if subsumed_ranges[j][1] > best_start_end:
+					best_start_end = subsumed_ranges[j][1]
+					longest_left = j
+
+			elif subsumed_ranges[j][1] == max(ends):
+				if subsumed_ranges[j][0] < best_end_start:
+					best_end_start = subsumed_ranges[j][0]
+					longest_right = j
+			else:
+				collapsed_ranges.append(subsumed_ranges[j])
+		logger.debug("Best end start: {}".format(best_end_start))
+		logger.debug("Best start end: {}".format(best_start_end))
+		collapsed_ranges.append(subsumed_ranges[longest_left])
+		collapsed_ranges.append(subsumed_ranges[longest_right])
+	else:
+		collapsed_ranges = subsumed_ranges		
+
 	if False: #num_breaks == 0:
 		kept_indicies = [range_list.index(i) for i in connected_ranges]
 		return kept_indicies
@@ -293,14 +301,7 @@ def range_connectivity(range_list):
 		kept_indicies = [range_list.index(i) for i in flattened_list]
 		return kept_indicies
 	
-def subsume(connected_ranges):
-	"""Determine whether one range in the list of ranges completely encompasses the other."""
-	starts = [a[0] for a in connected_ranges]
-	ends = [a[1] for a in connected_ranges]
-	for i in range(len(connected_ranges)):
-		if starts[i] == min(starts) and ends[i] == max(ends):
-			return connected_ranges[i]
-	return connected_ranges
+		
 def tuple_overlap(a,b):
 	"""Given two tuples of length two, determine if the ranges overlap"""
 	return a[0] < b[0] < a[1] or b[0] < a[0] < b[1]
