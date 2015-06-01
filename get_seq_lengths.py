@@ -59,10 +59,13 @@ sys.stdout.write("Species\t{}\nMeanLength\t{}\n".format("\t".join(unique_names),
 
 for name in namelist:
 	name_lengths = []
-	for gene in unique_names:
-		read_file = os.path.join(name,gene,name,"sequences",filetype,"{}.{}".format(gene,filetype))
+	for gene in range(len(unique_names)):
+		read_file = os.path.join(name,unique_names[gene],name,"sequences",filetype,"{}.{}".format(unique_names[gene],filetype))
 		if os.path.exists(read_file):
-			name_lengths.append(str(len(SeqIO.read(read_file,'fasta').seq)))
+			seq_length = len(SeqIO.read(read_file,'fasta').seq)
+			if seq_length > 1.5 * float(avg_ref_lengths[gene]):
+				sys.stderr.write("****WARNING! Sequence length for {} is more than 50% longer than {} reference!\n".format(name,unique_names[gene]))
+			name_lengths.append(str(seq_length))
 		else:
 			name_lengths.append("0")
 		
