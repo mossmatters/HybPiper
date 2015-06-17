@@ -9,6 +9,9 @@ It makes sure that the other scripts needed are in the same directory as this on
 Command line options are passed to the other executables.
 Unless --prefix is set, output will be put within a directory named after your read files."""
 
+velvet_genefilename = "velvet_genelist.txt"
+exonerate_genefilename = "exonerate_genelist.txt"
+
 def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     """Given a command, mode, and a PATH string, return the path which
     conforms to the given mode on the PATH, or None if there is no such
@@ -206,20 +209,25 @@ def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],
 		os.remove('velveth.log')
 	if os.path.isfile('velvetg.log'):
 		os.remove('velvetg.log')
+	
+	#Write a file with the list of genes for velvet, to avoid screen spam and hitting the argument cap.
+	with open(velvet_genefilename,'w') as genefile:
+		genefile.write("\n".join(genes)+"\n")
+	
 	if paired:
 		if cpu:
-			velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(cpu," ".join(genes)," ".join(kvals))
+			velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log :::: {} ::: {}".format(cpu,velvet_genefilename," ".join(kvals))
 		else:
-			velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
+			velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -shortPaired {{1}}/{{1}}_interleaved.fasta '>>' velveth.log :::: {} ::: {}".format(velvet_genefilename," ".join(kvals))
 	else:
 		if cpu:
-			velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -short {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(cpu," ".join(genes)," ".join(kvals))
+			velveth_cmd = "time parallel  -j {} --eta velveth {{1}}/velvet{{2}} {{2}} -short {{1}}/{{1}}_interleaved.fasta '>>' velveth.log :::: {} ::: {}".format(cpu,velvet_genefilename," ".join(kvals))
 		else:
-			velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -short {{1}}/{{1}}_interleaved.fasta '>>' velveth.log ::: {} ::: {}".format(" ".join(genes)," ".join(kvals))
+			velveth_cmd = "time parallel  --eta velveth {{1}}/velvet{{2}} {{2}} -short {{1}}/{{1}}_interleaved.fasta '>>' velveth.log :::: {} ::: {}".format(velvet_genefilename," ".join(kvals))
 	
 
-	print os.getcwd()
-	print os.listdir(".")
+	#print os.getcwd()
+	#print os.listdir(".")
 	
 	
 	print "Running velveth on {} genes".format(len(genes))
@@ -229,9 +237,9 @@ def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],
 		print "ERROR: Something went wrong with velveth!"
 		return exitcode
 	if cpu:
-		velvetg_cmd = "time parallel -j {} --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log ::: {} ::: {}".format(cpu,ins_length,cov_cutoff," ".join(genes)," ".join(kvals))
+		velvetg_cmd = "time parallel -j {} --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log :::: {} ::: {}".format(cpu,ins_length,cov_cutoff,velvet_genefilename," ".join(kvals))
 	else:
-		velvetg_cmd = "time parallel --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log ::: {} ::: {}".format(ins_length,cov_cutoff," ".join(genes)," ".join(kvals))
+		velvetg_cmd = "time parallel --eta velvetg {{1}}/velvet{{2}} -ins_length {} -cov_cutoff {} '>>' velvetg.log :::: {} ::: {}".format(ins_length,cov_cutoff,velvet_genefilename," ".join(kvals))
 	print "Running velvetg on {} genes".format(len(genes))
 	print velvetg_cmd
 	exitcode = subprocess.call(velvetg_cmd,shell=True)
@@ -242,10 +250,11 @@ def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],
 	
 def cap3(genes,cpu=None):
 	print "Concatenating velvet output"
+	
 	if cpu:
-		cat_cmd = "time parallel -j {} cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa ::: {}".format(cpu," ".join(genes))
+		cat_cmd = "time parallel -j {} cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa :::: {}".format(cpu,velvet_genefilename)
 	else:
-		cat_cmd = "time parallel cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa ::: {}".format(" ".join(genes))
+		cat_cmd = "time parallel cat {{1}}/*/contigs.fa '>' {{1}}/velvet_contigs.fa :::: {}".format(velvet_genefilename)
 	print cat_cmd
 	exitcode = subprocess.call(cat_cmd,shell=True)
 	if exitcode:
@@ -260,9 +269,9 @@ def cap3(genes,cpu=None):
 		
 	print "Running Cap3"
 	if cpu:
-		cap3_cmd = "time parallel -j {} --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(cpu," ".join(genes))
+		cap3_cmd = "time parallel -j {} --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log :::: {}".format(cpu,velvet_genefilename)
 	else:
-		cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log ::: {}".format(" ".join(genes))
+		cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log :::: {}".format(velvet_genefilename)
 	print cap3_cmd
 	exitcode = subprocess.call(cap3_cmd,shell=True)
 	if exitcode:
@@ -270,7 +279,7 @@ def cap3(genes,cpu=None):
 		return exitcode
 
 	print "Joining CAP3 contigs and singletons"
-	join_cmd = "time parallel cat {{1}}/velvet_contigs.fa.cap.contigs {{1}}/velvet_contigs.fa.cap.singlets '>' {{1}}/{{1}}_cap3ed.fa ::: {}".format(" ".join(genes))
+	join_cmd = "time parallel cat {{1}}/velvet_contigs.fa.cap.contigs {{1}}/velvet_contigs.fa.cap.singlets '>' {{1}}/{{1}}_cap3ed.fa :::: {}".format(velvet_genefilename)
 	print join_cmd
 	exitcode = subprocess.call(join_cmd,shell=True)
 	if exitcode:
@@ -283,6 +292,10 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
+	
+	with open(exonerate_genefilename,'w') as genefile:
+		genefile.write("\n".join(genes)+"\n")
+	
 	if replace:
 		for g in genes:
 			if os.path.isdir(os.path.join(g,basename)):
@@ -294,9 +307,9 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} ::: {}".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh," ".join(genes))
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {}".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
 	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} ::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename,thresh," ".join(genes))
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
