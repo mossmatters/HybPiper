@@ -10,7 +10,9 @@ Command line options are passed to the other executables.
 Unless --prefix is set, output will be put within a directory named after your read files."""
 
 velvet_genefilename = "velvet_genelist.txt"
+cap3_genefilename = "cap3_genelist.txt"
 exonerate_genefilename = "exonerate_genelist.txt"
+
 
 def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     """Given a command, mode, and a PATH string, return the path which
@@ -263,15 +265,18 @@ def cap3(genes,cpu=None):
 	#Check that the velvet output actually has data in it.
 	genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
 	
+	with open(cap3_genefilename,'w') as genefile:
+		genefile.write("\n".join(genes)+"\n")
+	
 	if len(genes) == 0:
 		print "No genes left! Exiting!"
 		return 1
 		
-	print "Running Cap3"
+	print "Running Cap3 on {} genes".format(len(genes))
 	if cpu:
-		cap3_cmd = "time parallel -j {} --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log :::: {}".format(cpu,velvet_genefilename)
+		cap3_cmd = "time parallel -j {} --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log :::: {}".format(cpu,cap3_genefilename)
 	else:
-		cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log :::: {}".format(velvet_genefilename)
+		cap3_cmd = "time parallel --eta cap3 {{1}}/velvet_contigs.fa -o 20 -p 99 '>' {{1}}/{{1}}_cap3.log :::: {}".format(cap3_genefilename)
 	print cap3_cmd
 	exitcode = subprocess.call(cap3_cmd,shell=True)
 	if exitcode:
@@ -279,7 +284,7 @@ def cap3(genes,cpu=None):
 		return exitcode
 
 	print "Joining CAP3 contigs and singletons"
-	join_cmd = "time parallel cat {{1}}/velvet_contigs.fa.cap.contigs {{1}}/velvet_contigs.fa.cap.singlets '>' {{1}}/{{1}}_cap3ed.fa :::: {}".format(velvet_genefilename)
+	join_cmd = "time parallel cat {{1}}/velvet_contigs.fa.cap.contigs {{1}}/velvet_contigs.fa.cap.singlets '>' {{1}}/{{1}}_cap3ed.fa :::: {}".format(cap3_genefilename)
 	print join_cmd
 	exitcode = subprocess.call(join_cmd,shell=True)
 	if exitcode:
