@@ -45,6 +45,7 @@ NOTE: Velvet must be compiled with the ability to handle k-mer values > 31:
 
 Both Exonerate and Velvet require zlib. 
 Perhaps the easiest way to install Exonerate is with homebrew: http://brew.sh/
+
 Install homebrew, and then "tap" the science repository:
 
 	brew tap homebrew/science
@@ -52,6 +53,8 @@ Install homebrew, and then "tap" the science repository:
 Now install exonerate:
 
 	brew install exonerate
+
+Homebrew will install zlib as part of the dependencies for exonerate. 
 
 For velvet, this command line worked for me in Mac OS 10.9:
 
@@ -62,35 +65,42 @@ For velvet, this command line worked for me in Mac OS 10.9:
 
 If you are using BWA, you need a NUCLEOTIDE baitfile. 
 
-Construct a "bait file" of protein sequences. If you have just one sequence per bait, simply concatenate all of them into one file.
-If you have more than one sequence per bait, they need to be identified before concatenation.
+Construct a "bait file" of protein sequences in FASTA format. It is ok to have more than one "source sequence" per bait. 
 The ID for each sequence should include the bait source and the protein ID, separated by a hyphen. For example:
 
-`>Amborella-atpH
-MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM`
+```
+>Amborella-atpH
+MNPLISAASVIAAGLAVGLASIGPGVGQGTAAGQAVEGIARQPEAEGKIRGTLLLSLAFM
+>Aneura-atpH
+MNPLIPAASVIAAGLAVGLASIGPGIGQGTAAGQAVEGIARQPEAEGKIRGTLLSSPASM
+>Amborella-rbcL
+MSPKTETKASAGFKAGVKDYRLTYYTPDYETLATDILAAFRVTPQPGVPPEEAGAAVAAE
+>Aneura-rbcL
+MSPQTETKAGVGFKAGVKDYRLTYYTPEYETKETDILAAFRMTPQPGVPPEEAGAAVAAE
+```
+
+##Running the pipeline
+
+HybSeqPipeline is run separately for each sample (single or paired-end sequence reads). When HybSeqPipeline generates sequence files from the reads, it does so in a standardized directory heirarchy. Many of the post-processing scripts rely on this directory heirarchy, so do not modify it after running the initial pipeline. It is a good idea to run the pipeline for each sample from the same directory. You will end up with one directory per run of HybSeqPipeline, and some of the later scripts take advantage of this predictable directory structure.
 
 To execute the entire pipeline, create a directory containing the paired-end read files.
 The script `reads_first.py` will create a directory based on the fastq filenames (or use the `--prefix` flag):
 
 `Anomodon-rostratus_L0001_R1.fastq` ---> `Anomodon-rostratus/`
 
-##Running the pipeline
 
 The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file `baits.fasta`. The HybSeqPipeline scripts should be in a different directory:
 
 ```python /Users/mehmattski/HybSeqPipeline/reads_first.py -r MySpecies_R1.fastq MySpecies_R2.fastq -b baits.fasta```
 
-For best results, these three input files should be in the current directory.
-
-The BLASTx version of the pipeline (default) is intended for amino acid sequences.
-Although it is slower than the BWA version, it may have higher specificity.
-Reads may not align to divergent nucleotide bait sequences, which are required for the BWA version.
+The BLASTx version of the pipeline (default) will map the reads to amino acid bait sequences sequences.
+Although it is slower than the BWA version, it may have higher specificity. Reads may not align to divergent nucleotide bait sequences, which are required for the BWA version.
 If you find the recovery efficiency is poor with BWA, you may want to try again with BLASTx.
 
 
 #Pipeline Scripts
 
-##`reads_first.py`
+###`reads_first.py`
 A wrapper script that:
 
 1. Can check if all dependencies are installed correctly. (`--check-depend`)
@@ -119,7 +129,7 @@ For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`), t
 
 Use `reads_first.py -h` for a full list.	
 
-##`distribute_reads_to_targets.py`
+###`distribute_reads_to_targets.py`
 After a BLASTx search of the raw reads against the target sequences, the reads need to be 
 sorted according to the successful hits. This script takes the BLASTx output (tabular)
 and the raw read files, and distributes the reads into FASTA files ready for assembly.
@@ -127,7 +137,7 @@ and the raw read files, and distributes the reads into FASTA files ready for ass
 If there are multiple BLAST results (for example, one for each read direction),
 concatenate them prior to sorting.
 
-##`distribute_reads_to_targets_bwa.py`
+###`distribute_reads_to_targets_bwa.py`
 After a BWA search of the raw reads against the target sequences, the reads need to be 
 sorted according to the successful hits. This script takes the bam output (parsed using samtools)
 and the raw read files, and distributes the reads into FASTA files ready for assembly.
@@ -135,23 +145,22 @@ and the raw read files, and distributes the reads into FASTA files ready for ass
 If there are multiple BAM results (for example, one for each read direction),
 concatenate them prior to sorting.
 
-##`distribute_targets.py`
+###`distribute_targets.py`
 Given a file containing all of the "baits" for a target enrichment, create separate
 FASTA files with all copies of that bait. Multiple copies of the same bait can be 
-specified using a "-" delimiter. For example, the following will be sorted in to the same
-file:
+specified using a "-" delimiter. For example, the hits against the following two baits will be sorted in to the same file:
 
 `Anomodon-rbcl`
 
 `Physcomitrella-rbcl`
 
 Given multiple baits, the script will choose the most appropriate 'reference' sequence
-using the highest cumulative BLAST scores across all hits. If the search was BWA rather than BLAST, it will use the BWA alignment score.
+using the highest cumulative BLAST scores across all hits. If the search was BWA rather than BLAST, it will use the bait with the highest total BWA alignment score for each gene.
 
 Output directories can also be created, one for each target category (the default is to put them all in the current one). The field delimiter may also be changed.
 
 
-##`exonerate_hits.py`
+###`exonerate_hits.py`
 This script generates alignments of velvet/CAP3 contigs against the target sequence. 
 
 If BLASTx is used, the model is `protein2genome`
@@ -229,7 +238,20 @@ Optional utilities after running the pipeline for multiple assemblies:
 
 **NOTE**: for these utilities to work, the files must be in the same directory hierarchy created by the pipeline. (i.e. `species/sequences/FAA/` and `species/sequences/FNA/`)
 
-##`get_seq_lengths.py`
+###`cleanup.py`
+
+HybSeqPipeline generates a lot of output files. Most of these can be discarded after the run. This script handles deleting unnecessary files, and can reduce the size of the directory created by HybSeqPipeline by 75%.
+
+####Example Command Line
+
+```
+python cleanup.py hyb_seq_directory
+```
+
+By default the script will delete all the files generated by velvet. Other options may be added in the future.
+
+
+###`get_seq_lengths.py`
 
 This script will summarize the recovery of genes from multiple samples. If you have all of these separate runs of the HybSeqPipeline in the same directory, create a `namelist.txt` file that contains a list of all the HybSeqPipeline directories for each sample (one per line):
 
@@ -241,7 +263,7 @@ Sample3
 
 Specify the location of the bait file and whether it is amino acid or nucleotide on the command line:
 
-###Example Command Line
+####Example Command Line
 
 `python get_seq_lengths.py baitfile.fasta namelist.txt dna > gene_lengths.txt`
 
@@ -249,7 +271,7 @@ The script will output a table to `stdout`. The first line is a header containin
 
 A warning will print to stderr if any sequences are longer than 1.5x the average reference length for that gene.
 
-###Example output
+####Example output
 ```
 Species	26S	18S
 MeanLength	3252.0	1821.6
@@ -257,7 +279,7 @@ funaria	3660	1758
 timmia	3057	1821
 ```
 
-##`gene_recovery_heatmap.R`
+###`gene_recovery_heatmap.R`
 
 This script takes the ouput of `get_seq_lengths.py` and creates a figure to visualize the recovery efficiency.
 
@@ -276,7 +298,7 @@ In this case, there are a few samples for which few or no genes were recovered (
 
 
 
-##`retrieve_sequences.py`
+###`retrieve_sequences.py`
 
 This script fetches the sequences recovered from the same gene for many samples and generates an unaligned multi-FASTA file for each gene. 
 
@@ -284,7 +306,7 @@ This script will get the sequences generated from multiple runs of the HybSeqPip
 Have all of the runs in the same directory (sequence_dir). 
 It retreives all the gene names from the bait file used in the run of the pipeline.
 
-###Example Command Line
+####Example Command Line
 
 `python retrieve_sequences.py baitfile.fasta sequence_dir dna`
 

@@ -150,9 +150,9 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 	
 		blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file,evalue,max_target_seqs)
 		if cpu:
-			full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{} >> {}.blastx' ".format(pipe_cmd,cpu,blastx_command,basename)
+			full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
 		else:
-			full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{} >> {}.blastx' ".format(pipe_cmd,blastx_command,basename)
+			full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
 		print full_command
 		exitcode = subprocess.call(full_command,shell=True)
 		if exitcode:
