@@ -46,7 +46,7 @@ def concatenate_sequences(gene_dict,fastafiles,unique_names):
 				new_seq_dict[name] += gene_dict[gene][name]
 			except KeyError:
 				new_seq_dict[name] = gene_dict[gene][name]
-				partition_lengths.append(len(gene_dict[gene][name]))
+		partition_lengths.append(len(next(gene_dict[gene].itervalues())))
 	for final_seq in new_seq_dict:
 		SeqIO.write(new_seq_dict[final_seq],sys.stdout,'fasta')			
 	final_seq_length = len(new_seq_dict[final_seq])
@@ -56,14 +56,13 @@ def concatenate_sequences(gene_dict,fastafiles,unique_names):
 def raxml_partition(fastafiles,partition_lengths,partition_type):
 	'''Generate a raxml partition file for the given fastafiles. User specifies the partition type'''
 	gene_start = 1
-	gene_end = 1	
 	partition_file = open("partition.raxml",'w')
 	
 	if partition_type == 'CODON':
 		pass
 	else:
 		for g in xrange(len(fastafiles)):
-			gene_end = gene_start + partition_lengths[g]
+			gene_end = gene_start + partition_lengths[g] - 1
 			partition_file.write("{},{}={}-{}\n".format(partition_type,fastafiles[g],gene_start,gene_end))
 			gene_start = gene_end + 1
 		partition_file.close()	
