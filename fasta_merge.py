@@ -37,23 +37,48 @@ def insert_sequences(gene_dict,unique_names):
 	return gene_dict
 
 def concatenate_sequences(gene_dict,fastafiles,unique_names):
-	'''Given a dictionary of dictionaries with complete sampling in each gene, write out concatenated sequences to stdout'''	
+	'''Given a dictionary of dictionaries with complete sampling in each gene, write out concatenated sequences to stdout. Returns a list of partition lengths.'''	
 	new_seq_dict = {}
+	partition_lengths = []
 	for gene in fastafiles:
 		for name in unique_names:
 			try:
 				new_seq_dict[name] += gene_dict[gene][name]
 			except KeyError:
 				new_seq_dict[name] = gene_dict[gene][name]
+				partition_lengths.append(len(gene_dict[gene][name]))
 	for final_seq in new_seq_dict:
 		SeqIO.write(new_seq_dict[final_seq],sys.stdout,'fasta')			
 	final_seq_length = len(new_seq_dict[final_seq])
 	sys.stderr.write("Final conatenated sequence length: {}\n".format(final_seq_length))
+	return partition_lengths
+
+def raxml_partition(fastafiles,partition_lengths,partition_type):
+	'''Generate a raxml partition file for the given fastafiles. User specifies the partition type'''
+	gene_start = 1
+	gene_end = 1	
+	partition_file = open("partition.raxml",'w')
+	
+	if partition_type == 'CODON':
+		pass
+	else:
+		for g in xrange(len(fastafiles)):
+			gene_end = gene_start + partition_lengths[g]
+			partition_file.write("{},{}={}-{}\n".format(partition_type,fastafiles[g],gene_start,gene_end))
+			gene_start = gene_end + 1
+		partition_file.close()	
+
+
+
+
 def main():
 	parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument("--fastafiles",nargs='+',help="List of Fasta Files. Can use wildcard on Linux/Mac systems")
 	parser.add_argument("--filelist",help="File containing list of Fasta files. Alternative to --fastalist")
-	
+	parser.add_argument("--raxml",help="Create a partition file 'partitions.raxml' intended for raxml in the current directory. For amino acid sequences, select the substitution model. To specify a separate model for 1st/2nd vs. 3rd codon positions, select CODON.",
+		choices = ['DNA','WAG','JTT','CODON'
+					],default=None)
+		
 	if len(sys.argv) < 2:
 		parser.print_help()
 		sys.exit(1)
@@ -88,6 +113,9 @@ def main():
 	sys.stderr.write("{} Unique names found. If you were expecting fewer sequences, check your IDs!\n".format(len(unique_names)))
 	gaps_inserted = insert_sequences(gene_dict,unique_names)
 
-	concatenate_sequences(gaps_inserted,fastafiles,unique_names)
+	partition_lengths = concatenate_sequences(gaps_inserted,fastafiles,unique_names)
+	
+	if args.raxml:
+		raxml_partition(fastafiles,partition_lengths,args.raxml)
 
 if __name__ == "__main__":main()
