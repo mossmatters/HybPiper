@@ -123,21 +123,29 @@ def subsume_supercontigs(supercontigs):
 	logger.debug([supercontigs[x].id for x in seqs_to_keep])
 	return [supercontigs[x] for x in seqs_to_keep]
 
+def write_exonerate_stats(contig_id_list,prefix):
+	'''Given a list of IDs from initial exonerate search, write info to a standard file'''
+	with open("{}/exonerate_stats.csv".format(prefix),'w') as exonerate_statsfile:
+		exonerate_statsfile.write("\n".join(contig_id_list)+'\n')
+
 	
 def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	"""Generates a contig from all hits to a protein. 
 	If more than one hit, conduct a second exonerate search with the original contigs
 	stitched together."""
 	logger = logging.getLogger("pipeline")
-
+	#logger.setLevel(logging.DEBUG)
 	numHits = len(prot["assemblyHits"])
 	sequence_list = []
 	contigHits = []
 	
+	logger.debug("All hits:")
+	logger.debug(prot["assemblyHits"])
+	write_exonerate_stats(prot["assemblyHits"],prefix)
+
+	
 	#print numHits
 	if numHits == 1:
-		logger.debug(prot["assemblyHits"])
-		logger.debug(prot["percentid"])
 		return str(sequence_dict[prot["assemblyHits"][0]].seq)	#If only one hit to this protein.
 	else:
 		for hit in range(len(prot["assemblyHits"])):
@@ -167,7 +175,9 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
 	joined_supercontig_cds.sort()#key=sort_byhitloc,reverse=True)
-	logger.debug([x.id for x in joined_supercontig_cds])
+	#logger.info([x for x in prot['assemblyHits'] if x in sequence_list])
+	#write_exonerate_stats([x for x in prot['assemblyHits'] if x in sequence_list])
+
 	#Get rid of supercontig sequences that are subsumed by longer sequences on the same stretch.
 	joined_supercontig_cds = subsume_supercontigs(joined_supercontig_cds)
 	
