@@ -361,7 +361,7 @@ def myTranslate(nucl):
 	return str(aminoseq)
 
 def report_no_sequences(protname):
-	print "No valid sequences remain for {}!".format(protname)
+	sys.stderr.write("No valid sequences remain for {}!\n".format(protname))
 
 def help():
 	print "USAGE: python hybseq_pipeline.py proteinfile assemblyfile prefix"
@@ -429,7 +429,7 @@ def main():
 		sequence_dict = initial_exonerate(proteinfilename,assemblyfilename,prefix)
 	proteinHits = protein_sort(sequence_dict)
 
-	print "There were {} exonerate hits for {}.".format(len(sequence_dict),proteinfilename)
+	sys.stderr.write("There were {} exonerate hits for {}.\n".format(len(sequence_dict),proteinfilename))
 	#print "There were %i unique proteins hit." % len(proteinHits)
 	
 	directory_name = "%s/sequences/FNA" % prefix
@@ -483,7 +483,8 @@ def main():
 		else:
 			amino_sequence = myTranslate(nucl_sequence)
 			seqID = prefix.split("/")[-1].strip("/")
-			print "Writing amino acid sequence, length: {}".format(len(amino_sequence))
+			sys.stderr.write("Writing amino acid sequence, length: {}\n".format(len(amino_sequence)))
+			sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1],len(amino_sequence)))
 			amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
 			amino_file = open(amino_filename,'w')
 			amino_file.write(">%s\n%s\n" % (seqID,amino_sequence))

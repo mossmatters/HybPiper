@@ -312,9 +312,9 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {}".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {} >> genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
 	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {}".format(os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {} >> genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
