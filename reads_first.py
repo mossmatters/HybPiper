@@ -310,6 +310,9 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 		print "ERROR: No genes recovered for {}!".format(basename)
 		return 1
 	
+	if os.path.isfile("genes_with_seqs.txt"):
+		os.remove("genes_with_seqs.txt")
+	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
 		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {} >> genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
@@ -490,7 +493,7 @@ def main():
 		if exitcode:
 			return
 	
-	
+	sys.stderr.write("Generated sequences from {} genes!\n".format(len(open("genes_with_seqs.txt").readlines())))
 	
 
 
