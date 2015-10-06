@@ -27,6 +27,9 @@ def build_index(file_type="coding"):
 	bwa_index_cmd = "bwa index {}_sequences.fasta".format(file_type)
 	sys.stderr.write("[CMD] {}".format(bwa_index_cmd))
 	os.system(bwa_index_cmd)	
+	samtools_index_cmd = "samtools faidx {}_sequences.fasta".format(file_type)
+	sys.stderr.write("[CMD] {}".format(samtools_index_cmd))
+	os.system(samtools_index_cmd)
 
 def map_reads(readfiles,file_type="coding",ncpu=6):
 	'''Map the original reads to the sequences using bwa mem and samtools. Generates sorted bam file'''
@@ -36,7 +39,7 @@ def map_reads(readfiles,file_type="coding",ncpu=6):
 	
 def make_pileup(file_type="coding"):
 	'''Generate a pileup file for depth at all sequences'''
-	mpileup_cmd = "samtools mpileup {}.sorted.bam > {}.mpileup".format(file_type,file_type)
+	mpileup_cmd = "samtools mpileup -f {}_sequences.fasta {}.sorted.bam > {}.mpileup".format(file_type,file_type,file_type)
 	sys.stderr.write("[CMD] {}".format(mpileup_cmd))
 	os.system(mpileup_cmd)	 
 	
