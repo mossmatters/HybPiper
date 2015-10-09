@@ -27,10 +27,10 @@ def make_intron_supercontig(contig_info,gene,prefix):
 	for i in contig_info:
 		intron_supercontig += cap3contigs[i[0]]
 	intron_supercontig.id = '{}-{}'.format(prefix,gene)
-	SeqIO.write(intron_supercontig,'intron_supercontig.fasta','fasta')	
+	SeqIO.write(intron_supercontig,'sequences/intron/intron_supercontig.fasta','fasta')	
 	
 def re_run_exonerate(gene):
-	exonerate_cmd = "exonerate -m protein2genome -q ../{}_baits.fasta -t intron_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate.gff".format(gene)
+	exonerate_cmd = "exonerate -m protein2genome -q ../{}_baits.fasta -t sequences/intron/intron_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate.gff".format(gene)
 	sys.stderr.write("[CMD] {}\n".format(exonerate_cmd))
 	os.system(exonerate_cmd)
 	introngff =  open("intronerate.gff").read()
@@ -61,13 +61,19 @@ def main():
 		genelist = [x.split()[0] for x in open('genes_with_seqs.txt').readlines()]
 
 	with open("intron_stats.txt",'w') as intron_stats_file:	
+		full_gff = ''
 		for gene in genelist:
 			os.chdir("{}/{}".format(gene,args.prefix))
 			contig_info = get_contig_info()
+			if not os.path.exists("sequences/intron"):
+				os.makedirs("sequences/intron")
 			make_intron_supercontig(contig_info,gene,args.prefix)
 			num_introns = re_run_exonerate(gene)
 			intron_stats_file.write("{}\t{}\t{}\n".format(args.prefix,gene,num_introns))
+			full_gff += open("intronerate.gff").read()
 			os.chdir(basedir)
+	with open("{}_genes.gff".format(args.prefix),'w') as all_gff:
+		all_gff.write(full_gff)		
 
 
 

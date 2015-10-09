@@ -23,7 +23,12 @@ def merge_seqs(genelist,prefix,file_type="coding"):
 	'''Given a list of gene sequences, retreive the sequences and generate a single FASTA file.'''
 	with open("{}_sequences.fasta".format(file_type),"w") as outfile:
 		for gene in genelist:
-			seq = SeqIO.read("{}/{}/sequences/FNA/{}.FNA".format(gene,prefix,gene),'fasta')
+			if file_type == "coding":
+				seqfile = "{}/{}/sequences/FNA/{}.FNA".format(gene,prefix,gene)
+			else:
+				seqfile = "{}/{}/sequences/intron/intron_supercontig.fasta".format(gene,prefix)	
+			
+			seq = SeqIO.read(seqfile,'fasta')
 			seq.id = seq.id + "-" + gene
 			SeqIO.write(seq,outfile,'fasta')
 
@@ -54,7 +59,7 @@ def make_depth(file_type="coding"):
 
 def main():
 	parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
-	#parser.add_argument("--introns",help="Calculate coverage from all exonerate contigs, not just surviving coding sequence.",default=False,action=store_true)
+	parser.add_argument("--introns",help="Calculate coverage from complete exonerate contigs, not just surviving coding sequence.",default=False,action='store_true')
 	#parser.add_argument("-c","--cds_fn",help="Fasta file of coding domain sequences (nucleotides), should have same names as corresponding protein file.",default=None)
 	parser.add_argument("--genelist",help="Optional list of genes to retreive coverage. Default is to use genes_with_seqs.txt")
 
@@ -80,15 +85,24 @@ def main():
 	else:
 		genelist = [x.split()[0] for x in open('genes_with_seqs.txt').readlines()]
 	
+	if args.introns:
+		if os.path.exists("intron_stats.txt"):
+			file_type = "fullgene"
+		else:
+			sys.stderr.write("Intron stats not found, please run intronerate first!\n")
+			sys.exit(1)	
+	else:
+		file_type = "coding"
+	
 	readfiles = [os.path.abspath(f) for f in args.readfiles]
 	
-	merge_seqs(genelist,args.prefix)
-	build_index()				
-	map_reads(readfiles)
+	merge_seqs(genelist,args.prefix,file_type=file_type)
+	build_index(file_type=file_type)				
+	map_reads(readfiles,file_type=file_type)
 	if args.pileup:
-		make_pileup()
+		make_pileup(file_type=file_type)
 	else:
-		make_depth()	
+		make_depth(file_type=file_type)	
 
 
 if __name__ == '__main__': main()
