@@ -25,12 +25,18 @@ def make_intron_supercontig(contig_info,gene,prefix):
 	cap3contigs = SeqIO.to_dict(SeqIO.parse("../{}_cap3ed.fa".format(gene),'fasta'))
 	intron_supercontig = SeqRecord(Seq(''))
 	for i in contig_info:
-		intron_supercontig += cap3contigs[i[0]]
+		if i[5] == "(+)":
+			intron_supercontig += cap3contigs[i[0]]
+		elif i[5] == "(-)":
+			intron_supercontig += cap3contigs[i[0]].reverse_complement()	
+		else:
+			sys.stderr.write("Strandedness not found!")
+			sys.exit(1)	
 	intron_supercontig.id = '{}-{}'.format(prefix,gene)
 	SeqIO.write(intron_supercontig,'sequences/intron/intron_supercontig.fasta','fasta')	
 	
 def re_run_exonerate(gene):
-	exonerate_cmd = "exonerate -m protein2genome -q ../{}_baits.fasta -t sequences/intron/intron_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate.gff".format(gene)
+	exonerate_cmd = "exonerate -m protein2genome -q sequences/FAA/{}.FAA -t sequences/intron/intron_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate.gff".format(gene)
 	sys.stderr.write("[CMD] {}\n".format(exonerate_cmd))
 	os.system(exonerate_cmd)
 	introngff =  open("intronerate.gff").read()
