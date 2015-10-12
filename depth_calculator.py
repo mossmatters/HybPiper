@@ -26,10 +26,10 @@ def merge_seqs(genelist,prefix,file_type="coding"):
 			if file_type == "coding":
 				seqfile = "{}/{}/sequences/FNA/{}.FNA".format(gene,prefix,gene)
 			else:
-				seqfile = "{}/{}/sequences/intron/intron_supercontig.fasta".format(gene,prefix)	
+				seqfile = "{}/{}/sequences/intron/gene_supercontig.fasta".format(gene,prefix)	
 			
 			seq = SeqIO.read(seqfile,'fasta')
-			seq.id = seq.id + "-" + gene
+			#seq.id = seq.id + "-" + gene
 			SeqIO.write(seq,outfile,'fasta')
 
 def build_index(file_type="coding"):
@@ -44,7 +44,7 @@ def map_reads(readfiles,file_type="coding",ncpu=6):
 	bwa_samtools_cmd = "bwa mem -t {} {}_sequences.fasta  {} | samtools view -bS - | samtools sort - {}.sorted".format(ncpu,file_type," ".join(readfiles),file_type)
 	cmd_runner(bwa_samtools_cmd)
 
-	samtools_index_cmd = "samtools index -b coding.sorted.bam"
+	samtools_index_cmd = "samtools index -b {}.sorted.bam".format(file_type)
 	cmd_runner(samtools_index_cmd)
 	
 def make_pileup(file_type="coding"):
