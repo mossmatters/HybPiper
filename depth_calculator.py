@@ -26,7 +26,7 @@ def merge_seqs(genelist,prefix,file_type="coding"):
 			if file_type == "coding":
 				seqfile = "{}/{}/sequences/FNA/{}.FNA".format(gene,prefix,gene)
 			else:
-				seqfile = "{}/{}/sequences/intron/gene_supercontig.fasta".format(gene,prefix)	
+				seqfile = "{}/{}/sequences/intron/{}_supercontig.fasta".format(gene,prefix,gene)	
 			
 			seq = SeqIO.read(seqfile,'fasta')
 			#seq.id = seq.id + "-" + gene

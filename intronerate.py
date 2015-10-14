@@ -35,10 +35,11 @@ def make_intron_supercontig(contig_info,gene,prefix):
 			sys.stderr.write("Strandedness not found!")
 			sys.exit(1)	
 	intron_supercontig.id = '{}-{}'.format(prefix,gene)
-	SeqIO.write(intron_supercontig,'sequences/intron/gene_supercontig.fasta','fasta')	
+	intron_supercontig.description = ''
+	SeqIO.write(intron_supercontig,'sequences/intron/{}_supercontig.fasta'.format(gene),'fasta')	
 	
 def re_run_exonerate(gene):
-	exonerate_cmd = "exonerate -m protein2genome -q sequences/FAA/{}.FAA -t sequences/intron/gene_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate_raw.gff".format(gene)
+	exonerate_cmd = "exonerate -m protein2genome -q sequences/FAA/{}.FAA -t sequences/intron/{}_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate_raw.gff".format(gene, gene)
 	sys.stderr.write("[CMD] {}\n".format(exonerate_cmd))
 	os.system(exonerate_cmd)
 
