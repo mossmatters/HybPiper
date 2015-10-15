@@ -100,14 +100,13 @@ def remove_exons(gff_filename,supercontig_filename,mode="all"):
 	'''Given a supercontig and corresponding annotation, remove the exon sequences. In "intron" mode, only return sequences specifically annotated as introns'''
 	exon_starts = []
 	exon_ends = []
-	with open(gff_filename) as gff_file:
-		gff= gff_file.readlines()
-		for line in gff:
-			line = line.rstrip().split()
-			if len(line) > 2:
-				if line[2] == "exon":
-					exon_starts.append(int(line[3]))
-					exon_ends.append(int(line[4]))
+	gff = open(gff_filename).readlines()
+	for line in gff:
+		line = line.rstrip().split("\t")
+		if len(line) > 2:
+			if line[2] == "exon":
+				exon_starts.append(int(line[3]))
+				exon_ends.append(int(line[4]))
 	supercontig = SeqIO.read(supercontig_filename,'fasta')
 	exonless_contig = SeqRecord(Seq(''),id=supercontig.id)
 	start = 0
@@ -162,8 +161,8 @@ def main():
 				
 				new_gff.write(new_gff_string)
 				full_gff += new_gff_string
-				exonless_contig = remove_exons("intronerate.gff","sequences/intron/{}_supercontig.fasta".format(gene))
-				SeqIO.write(exonless_contig,"sequences/intron/{}_introns.fasta".format(gene),'fasta')
+			exonless_contig = remove_exons("intronerate.gff","sequences/intron/{}_supercontig.fasta".format(gene))
+			SeqIO.write(exonless_contig,"sequences/intron/{}_introns.fasta".format(gene),'fasta')
 				
 			os.chdir(basedir)
 	with open("{}_genes.gff".format(args.prefix),'w') as all_gff:
