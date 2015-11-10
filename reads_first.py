@@ -115,7 +115,7 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 		#Quick detection of whether baitfile is DNA. 
 		with open(baitfile) as bf:
 			header = bf.readline()
-			seqline = bf.readline().rstrip()
+			seqline = bf.readline().rstrip().upper()
 			if not set(seqline) - dna:
 				print "ERROR: only ATCGN characters found in first line. You need a protein bait file for BLASTx!"
 				return None
@@ -333,7 +333,7 @@ def bwa(readfiles,baitfile,basename,cpu):
 		#Quick detection of whether baitfile is DNA. 
 		with open(baitfile) as bf:
 			header = bf.readline()
-			seqline = bf.readline().rstrip()
+			seqline = bf.readline().rstrip().upper()
 			if set(seqline) - dna:
 				print "ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file for BWA!"
 				return None
