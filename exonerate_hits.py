@@ -174,7 +174,7 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	
 	#Sort the supercontigs by hit location to the protein.
 	joined_supercontig_cds = [b for b in supercontig_cds]
-	joined_supercontig_cds.sort()#key=sort_byhitloc,reverse=True)
+	joined_supercontig_cds.sort(key=sort_byhitloc,reverse=True)
 	#logger.info([x for x in prot['assemblyHits'] if x in sequence_list])
 	#write_exonerate_stats([x for x in prot['assemblyHits'] if x in sequence_list])
 
