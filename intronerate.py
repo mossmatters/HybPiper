@@ -137,7 +137,7 @@ def main():
 		sys.stderr.write("Directory {} not found!\n".format(args.prefix))	
 
 	if args.genelist:
-		genelist = [x.rstrip() for x in open(args.genelist).readlines()]
+		genelist = [x.split()[0] for x in open(args.genelist).readlines()]
 	else:
 		genelist = [x.split()[0] for x in open('genes_with_seqs.txt').readlines()]
 
