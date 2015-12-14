@@ -12,6 +12,7 @@ Unless --prefix is set, output will be put within a directory named after your r
 velvet_genefilename = "velvet_genelist.txt"
 cap3_genefilename = "cap3_genelist.txt"
 exonerate_genefilename = "exonerate_genelist.txt"
+spades_genefilename = "spades_genelist.txt"
 
 
 def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
@@ -205,6 +206,50 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
+
+def spades(genes,cov_cutoff=8,cpu=None,paired=True):
+	"Run SPAdes on each gene separately using GNU paralell."""
+	if os.path.isfile("spades.log"):
+		os.remove("spades.log")
+	
+	with open(spades_genefilename,'w') as spadesfile:
+		spadesfile.write("\n".join(genes)+"\n")
+	
+	if paired:
+		fileflag = "--12"
+	else:
+		fileflag = "-s"
+	
+	if cpu:
+		spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,spades_genefilename)
+	else:
+		spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,spades_genefilename)
+		
+		
+	print "Running SPAdes on {} genes".format(len(genes))
+	print spades_cmd
+	exitcode = subprocess.call(spades_cmd,shell=True)
+	
+	#Need to handle an error differently with SPAdes, which can fail if there are simply not enough reads. 
+	
+	if exitcode:
+		print "ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:"
+	
+	spades_genelist = []
+	
+	for gene in genes:
+		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)):
+			shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
+			spades_genelist.append(gene)
+		else:
+			print "{}".format(gene)
+	
+	with open(exonerate_genefilename,'w') as genefile:
+		genefile.write("\n".join(spades_genelist)+"\n")
+
+	return spades_genelist	
+		
+
 def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],cpu=None,paired=True):
 	"""Use parallel to run velveth and velvetg on a set of k values on every gene with blastx hits from the previous steps."""
 	if os.path.isfile('velveth.log'):
@@ -248,6 +293,8 @@ def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],
 	if exitcode:
 		print "ERROR: Something went wrong with velvetg!"
 		return exitcode
+	with open(exonerate_genefilename,'w') as genefile:
+		genefile.write("\n".join([x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]))	
 	return None
 	
 def cap3(genes,cpu=None):
@@ -293,19 +340,16 @@ def cap3(genes,cpu=None):
 		
 	return None	
 
-def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
+def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
-	
-	with open(exonerate_genefilename,'w') as genefile:
-		genefile.write("\n".join(genes)+"\n")
 	
 	if replace:
 		for g in genes:
 			if os.path.isdir(os.path.join(g,basename)):
 				shutil.rmtree(os.path.join(g,basename))
-	genes = [x for x in genes if os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size > 0]
+	#genes = [x for x in genes if os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size > 0]
 	if len(genes) == 0:
 		print "ERROR: No genes recovered for {}!".format(basename)
 		return 1
@@ -313,11 +357,16 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55):
 	if os.path.isfile("genes_with_seqs.txt"):
 		os.remove("genes_with_seqs.txt")
 	
+	if use_velvet:
+		file_stem = "cap3ed.fa"
+	else:
+		file_stem = "contigs.fasta"
+	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,exonerate_genefilename)
 	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_cap3ed.fa --prefix {{}}/{} -t {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),basename,thresh,exonerate_genefilename)
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
@@ -385,6 +434,9 @@ def main():
 	parser.add_argument("--no-velvet",dest="velvet",action="store_false",help="Do not run the velvet stages (velveth and velvetg)")
 	parser.add_argument("--no-cap3",dest="cap3",action="store_false",help="Do not run CAP3, which joins the output of the different velvet runs")
 	parser.add_argument("--no-exonerate",dest="exonerate",action="store_false",help="Do not run the Exonerate step, which assembles full length CDS regions and proteins from each gene")
+	parser.add_argument("--velvet-mode",dest="use_velvet",action="store_true",help="Backwards compatability for velvet mode. NOT RECOMMENDED, VELVET MAKES ERROR PRONE ASSEMBLIES!")
+	parser.add_argument("--no-assemble",dest="assemble",action="store_false",help="Skip the SPAdes assembly stage.")
+	
 	parser.add_argument('-r',"--readfiles",nargs='+',help="One or more read files to start the pipeline. If exactly two are specified, will assume it is paired Illumina reads.",default=[])
 	parser.add_argument('-b','--baitfile',help="FASTA file containing bait sequences for each gene. If there are multiple baits for a gene, the id must be of the form: >Taxon-geneName",default=None)
 	
@@ -398,7 +450,7 @@ def main():
 
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
 	
-	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=True,cap3=True,exonerate=True)
+	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)
 	if len(sys.argv) == 1:
 		parser.print_help()
 		sys.exit(1)
@@ -473,22 +525,28 @@ def main():
 		print "ERROR: No genes with BLAST hits! Exiting!"
 		return
 	
-	#Velvet
-	if args.velvet:
-		exitcode = velvet(genes,cov_cutoff=args.cov_cutoff,ins_length=args.ins_length,kvals=args.kvals,cpu=args.cpu)
-		if exitcode:
-			return
+	if args.use_velvet:
+		#Velvet
+		if args.velvet:
+			exitcode = velvet(genes,cov_cutoff=args.cov_cutoff,ins_length=args.ins_length,kvals=args.kvals,cpu=args.cpu)
+			if exitcode:
+				return
 			
-	#CAP3
-	if args.cap3:
-		exitcode = cap3(genes,cpu=args.cpu)
-		if exitcode:
+		#CAP3
+		if args.cap3:
+			exitcode = cap3(genes,cpu=args.cpu)
+			if exitcode:
+				return
+
+	if args.assemble:	
+		spades_genelist = spades(genes,cov_cutoff=args.cov_cutoff,cpu=args.cpu)
+		if not spades_genelist:
+			print "ERROR: No genes had assembled contigs! Exiting!"
 			return
-	
 	
 	#Exonerate hits
 	if args.exonerate:
-		genes = [x for x in genes if os.path.getsize(os.path.join(x,'velvet_contigs.fa')) > 0]
+		genes = [x.rstrip() for x in open(exonerate_genefilename).readlines()]
 		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh)
 		if exitcode:
 			return
