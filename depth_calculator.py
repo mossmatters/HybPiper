@@ -29,7 +29,7 @@ def merge_seqs(genelist,prefix,file_type="coding"):
 				seqfile = "{}/{}/sequences/intron/{}_supercontig.fasta".format(gene,prefix,gene)	
 			
 			seq = SeqIO.read(seqfile,'fasta')
-			#seq.id = seq.id + "-" + gene
+			seq.id = seq.id + "-" + gene
 			SeqIO.write(seq,outfile,'fasta')
 
 def build_index(file_type="coding"):
