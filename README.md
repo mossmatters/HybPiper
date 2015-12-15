@@ -13,7 +13,7 @@ by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
 Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences.
 This pipeline starts with Illumina reads, and assigns them to target genes using BLASTx or BWA.
-The reads are distributed to separate directories, where they are assembled separately using Velvet and CAP3. 
+The reads are distributed to separate directories, where they are assembled separately using SPAdes. 
 The main output is a FASTA file of the (in frame) CDS portion of the sample for each target region, and a separate file with the translated protein sequence.
 
 An optional script run after the main pipeline can also extract the 
@@ -25,24 +25,26 @@ intronic regions flanking each exon.
 * [BIOPYTHON 1.59 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files)
 * [EXONERATE](http://www.ebi.ac.uk/~guy/exonerate/) (For aligning recovered sequences to target proteins)
 * [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target protiens)
-* [Velvet](https://www.ebi.ac.uk/~zerbino/velvet/) (Assembling reads that map to each target separately)
-* [CAP3](http://seq.cs.iastate.edu/cap3.html) (Combining results of multiple Velvet assemblies)
-* [GNU Parallel](http://www.gnu.org/software/parallel/) (Handles parallelization of BLAST, Velvet, CAP3, and Exonerate)
+* [SPAdes](http://bioinf.spbau.ru/en/spades) (Assembling reads into contigs)
+* [GNU Parallel](http://www.gnu.org/software/parallel/) (Handles parallelization of searching, assembling, and aligning)
 
 *Required for BWA version of the pipeline and for the intron and depth calculation scripts*:
 
 * [BWA](http://bio-bwa.sourceforge.net/) (Aligns reads to target nucleotide sequences)
 * [samtools](http://www.htslib.org/) (Read/Write BAM files to save space).
 
+**NOTE:** A previous version of the pipeline required Velvet and CAP3 for assembly. These have been unreliable at assembling individual genes, and SPAdes has replaced them.
+
 ---
 #Setup
 ##Install the dependencies.
-Normal installations are fine for most tools (see below for installation of Velvet), as long as they are in your `$PATH`.
+Normal installations are fine for most tools, as long as they are in your `$PATH`.
+
+For Python and BioPython, the [Anaconda distribution](https://www.continuum.io/downloads) may be easiest to use and install. 
+
 You can check the installation by executing the `readsfirst.py` script with the `--check-depend` flag.
 
-NOTE: Velvet must be compiled with the ability to handle k-mer values > 31:
-
-	make 'MAXKMERLENGTH=67' 
+For Spades, if you download pre-compiled binaries, make sure that the contents of `spades/bin` and `spades/share/spades` are in your `$PATH`
 
 ###MACOSX installation notes
 
@@ -59,10 +61,11 @@ Now install exonerate:
 
 Homebrew will install zlib as part of the dependencies for exonerate. 
 
-You can also install samtools and bwa this way:
+You can also install samtools, spades, and bwa this way:
 
 	brew install bwa
 	brew install samtools
+	brew install spades
 
 For velvet, this command line worked for me in Mac OS 10.9:
 
@@ -125,15 +128,13 @@ This script will call, in order:
 
 2. `distribute_reads_to_targets.py` (or `distribute_reads_to_targets_bwa.py`)  and `distribute_targets.py`
 
-3. `velveth` and `velvetg`
+3. Run SPAdes assembler.
 
-4. `CAP3`
-
-5. `exonerate_hits.py`
+4. `exonerate_hits.py`
 
 Some program-specific options may be passed at the command line. 
 
-For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`), the coverage-cutoff level for Velvet assemblies (`--cov_cutoff`, default is `5`), or the percent-identity threshold for aligning contigs to the reference sequences (`--thresh`, the default is `55`).
+For example, the e-value threshold for BLASTX (`--evalue`, default is `1e-9`), the coverage-cutoff level for SPAdes assemblies (`--cov_cutoff`, default is `8`), or the percent-identity threshold for aligning contigs to the reference sequences (`--thresh`, the default is `55`).
 
 Use `reads_first.py -h` for a full list.	
 
@@ -169,7 +170,7 @@ Output directories can also be created, one for each target category (the defaul
 
 
 ###`exonerate_hits.py`
-This script generates alignments of velvet/CAP3 contigs against the target sequence. 
+This script generates alignments of SPAdes contigs against the target sequence. 
 
 If BLASTx is used, the model is `protein2genome`
 
@@ -205,7 +206,7 @@ The threshold for accepting an exonerate hit can be adjusted with `-t` (Default:
 4. A file "bait_tallies.txt" summarizes which bait sources were chosen.
 	
 ##Gene Directory
-1.	Velvet and CAP3 results. Final assembly is at "GeneName_cap3ed.fa"
+1.	SPAdes. Final assembly is at "GeneName_contigs.fasta"
 
 2.	Fasta file for reference bait chosen by the `distribute_targets.py` script.
 
@@ -233,7 +234,7 @@ The major steps of the pipeline include:
 
 2. Distribution of reads into separate directories, one per gene.
 
-3. Assembly of reads for each gene into contigs with Velvet, using multiple k-mer values. The multiple runs of Velvet are summarized using CAP3.
+3. Assembly of reads for each gene into contigs with SPAdes.
 
 4. Conduct one or more exonerate searches for each contig in the assembly. If multiple contigs match the same protein in non-overlapping sequences, stitch the hits together into a “supercontig”
 
