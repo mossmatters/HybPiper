@@ -24,7 +24,7 @@ def get_contig_info():
 	return sorted_contig_stats
 	
 def make_intron_supercontig(contig_info,gene,prefix):
-	cap3contigs = SeqIO.to_dict(SeqIO.parse("../{}_cap3ed.fa".format(gene),'fasta'))
+	cap3contigs = SeqIO.to_dict(SeqIO.parse("../{}_contigs.fasta".format(gene),'fasta'))
 	intron_supercontig = SeqRecord(Seq(''))
 	for i in contig_info:
 		if i[5] == "(+)":
