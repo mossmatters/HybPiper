@@ -353,7 +353,17 @@ def reciprocal_best_hit(prot,proteinHits):
 			kept_indicies.append(contig_idx)
 	return keep_indicies(kept_indicies,prot)		
 
-
+def paralog_test(exonerate_hits,prot):
+	"""Gives a warning if there are multiple hits of long length to the same protein"""
+	logger = logging.getLogger("pipeline")
+	protlength = len(prot)
+	hitlengths = [abs(int(x.split(",")[2]) - int(x.split(",")[3])) for x in exonerate_hits["assemblyHits"]]
+	logger.debug("protein length: {}".format(protlength))
+	logger.debug("Hit lengths:")
+	logger.debug(hitlengths)
+	longhits = [x > 0.75*protlength for x in hitlengths]
+	if sum(longhits) > 1:
+		sys.stderr.write("WARNING: Multiple long-length exonerate hits for {}. Check for paralogs!\n".format(prot.id))
 
 def myTranslate(nucl):
 	"""Given a raw sequence of nucleotides, return raw sequence of amino acids."""
@@ -454,6 +464,8 @@ def main():
  		#logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
 # 		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
+
+		paralog_test(proteinHits[prot],protein_dict[prot])
 
  		proteinHits[prot] = get_contig_order(proteinHits[prot])
 # 		logger.debug("After get_contig_order: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
