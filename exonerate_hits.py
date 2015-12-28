@@ -134,7 +134,7 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	If more than one hit, conduct a second exonerate search with the original contigs
 	stitched together."""
 	logger = logging.getLogger("pipeline")
-	#logger.setLevel(logging.DEBUG)
+	#logger.setLevel(logger.debug)
 	numHits = len(prot["assemblyHits"])
 	sequence_list = []
 	contigHits = []
@@ -254,6 +254,7 @@ def range_connectivity(range_list):
 	"""Given two sorted lists, representing the beginning and end of a range,
 	Determine "connectivity" between consecutive elements of the list.
 	For each connected segment, determine whether one segement "subsumes" the other."""
+	
 	logger = logging.getLogger("pipeline")
 
 	starts = [a[0] for a in range_list]
@@ -266,6 +267,7 @@ def range_connectivity(range_list):
 	for i in range(len(range_list)):
 		#Check if one contig has the whole range, keep only that one.
 		if starts[i] == min(starts) and ends[i] == max(ends):
+			logger.debug("Contig {} has range that subsumes all others!".format(i))
 			subsumed_ranges = [range_list[i]]
 			break
 		else:
@@ -289,6 +291,7 @@ def range_connectivity(range_list):
 					longest_right = j
 			else:
 				collapsed_ranges.append(subsumed_ranges[j])
+		
 		logger.debug("Best end start: {}".format(best_end_start))
 		logger.debug("Best start end: {}".format(best_start_end))
 		collapsed_ranges.append(subsumed_ranges[longest_left])
@@ -333,19 +336,19 @@ def reciprocal_best_hit(prot,proteinHits):
 			if proteinHits[otherProt]["name"] != protname:
 				if contigname in otherprot_contiglist:
 					full_contigname = [b for b in proteinHits[otherProt]["assemblyHits"] if contigname in b][0]
-					logging.debug("%s %s" %(contig, full_contigname))
+					logger.debug("%s %s" %(contig, full_contigname))
 					otherHit_idx = proteinHits[otherProt]["assemblyHits"].index(full_contigname)
 					
 					target_ranges = [sorted((prot["target_begin"][contig_idx],prot["target_end"][contig_idx])),sorted((proteinHits[otherProt]["target_begin"][otherHit_idx],proteinHits[otherProt]["target_end"][otherHit_idx]))]
-					logging.debug(repr(target_ranges))
+					logger.debug(repr(target_ranges))
 					#Check that the two contig hits have overlapping ranges.
 					if tuple_overlap(target_ranges[0],target_ranges[1]): 				
-						logging.debug("%s %s"%(repr(prot["percentid"][contig_idx]),repr(proteinHits[otherProt]["percentid"][otherHit_idx])))
+						logger.debug("%s %s"%(repr(prot["percentid"][contig_idx]),repr(proteinHits[otherProt]["percentid"][otherHit_idx])))
 						if prot["percentid"][contig_idx] < proteinHits[otherProt]["percentid"][otherHit_idx]:
-							logging.debug("contig %s is a better hit to %s" %(contigname,otherProt))
+							logger.debug("contig %s is a better hit to %s" %(contigname,otherProt))
 							maxProt = proteinHits[otherProt]["name"]
 					else:
-						logging.debug("ranges did not overlap")
+						logger.debug("ranges did not overlap")
 		if maxProt == protname:
 			kept_indicies.append(contig_idx)
 	return keep_indicies(kept_indicies,prot)		
@@ -375,7 +378,7 @@ def main():
 	parser.add_argument("-v", "--verbose",help="Report progress of pipeline to stdout",
 		action="store_const",dest="loglevel",const=logging.INFO, default=logging.WARNING)
 	parser.add_argument("--debug",help="Pring debugging information for development testing.",
-		action="store_const",dest="loglevel",const=logging.DEBUG, default=logging.WARNING)
+		action="store_true",dest="loglevel")
 	parser.add_argument("proteinfile",help="FASTA file containing one 'bait' sequence per protein.")
 	parser.add_argument("assemblyfile",help="FASTA file containing DNA sequence assembly.")
 	parser.add_argument("--prefix",help="""Prefix for directory, files, and sequences generated from this assembly. 
@@ -402,7 +405,12 @@ def main():
 		first_search_filename= "%s/exonerate_results.fasta" % prefix
 	
 	logger = logging.getLogger("pipeline")
-	logger.setLevel(args.loglevel)
+	ch = logging.StreamHandler()
+	logger.addHandler(ch)
+	if args.loglevel:
+		logger.setLevel(logging.DEBUG)
+		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+		ch.setFormatter(formatter)
 	#formatter = logging.Formatter('[%(levelname)s] %(message)s') #Commenting this out stops messages from appearing twice.
 	#handler = logging.StreamHandler()
 	#handler.setFormatter(formatter)
@@ -443,7 +451,7 @@ def main():
  	for prot in proteinHits:
  		logger.debug(prot)
  		#Put contigs in order along the protein.
- 		logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
+ 		#logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
 # 		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
 
