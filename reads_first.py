@@ -207,7 +207,7 @@ def make_basename(readfiles,prefix=None):
 	return basename
 
 
-def spades(genes,cov_cutoff=8,cpu=None,paired=True):
+def spades(genes,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	if os.path.isfile("spades.log"):
 		os.remove("spades.log")
@@ -220,20 +220,28 @@ def spades(genes,cov_cutoff=8,cpu=None,paired=True):
 	else:
 		fileflag = "-s"
 	
+	if kvals:
+		kvals = ",".join(kvals)
+	
 	if cpu:
-		spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,spades_genefilename)
+		if kvals:
+			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,kvals,cov_cutoff,fileflag,spades_genefilename)
+		else:
+			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,spades_genefilename)
 	else:
-		spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,spades_genefilename)
+		if kvals:
+			spades_cmd = "time parallel --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(kvals,cov_cutoff,fileflag,spades_genefilename)
+		else:
+			spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,spades_genefilename)
 		
-		
-	print "Running SPAdes on {} genes".format(len(genes))
-	print spades_cmd
+	sys.stderr.write("Running SPAdes on {} genes\n".format(len(genes)))
+	sys.stderr.write(spades_cmd + "\n")
 	exitcode = subprocess.call(spades_cmd,shell=True)
 	
 	#Need to handle an error differently with SPAdes, which can fail if there are simply not enough reads. 
 	
 	if exitcode:
-		print "ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:"
+		sys.stderr.write("ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:\n")
 	
 	spades_genelist = []
 	
@@ -242,7 +250,7 @@ def spades(genes,cov_cutoff=8,cpu=None,paired=True):
 			shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
 			spades_genelist.append(gene)
 		else:
-			print "{}".format(gene)
+			sys.stderr.write("{}\n".format(gene))
 	
 	with open(exonerate_genefilename,'w') as genefile:
 		genefile.write("\n".join(spades_genelist)+"\n")
@@ -445,7 +453,7 @@ def main():
 	parser.add_argument('--max_target_seqs',type=int,default=10,help='Max target seqs to save in blast search, default: %(default)s')
 	parser.add_argument('--cov_cutoff',type=int,default=8,help="Coverage cutoff for velvetg. default: %(default)s")
 	parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
-	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default is 21,31,41,51, and 61.",default=["21","31","41","51","61"])
+	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default is 21,31,41,51, and 61.",default=None)
 	parser.add_argument("--thresh",type=int,help="Percent Identity Threshold for stitching together exonerate results. Default is 55, but increase this if you are worried about contaminant sequences.",default=65)
 
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
@@ -539,7 +547,7 @@ def main():
 				return
 
 	if args.assemble:	
-		spades_genelist = spades(genes,cov_cutoff=args.cov_cutoff,cpu=args.cpu)
+		spades_genelist = spades(genes,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
 		if not spades_genelist:
 			print "ERROR: No genes had assembled contigs! Exiting!"
 			return
@@ -553,6 +561,9 @@ def main():
 	
 	sys.stderr.write("Generated sequences from {} genes!\n".format(len(open("genes_with_seqs.txt").readlines())))
 	
-
+	paralog_warnings = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,basename,"paralog_warning.txt"))]
+	with open("genes_with_paralog_warnings.txt",'w') as pw:
+		pw.write("\n".join(paralog_warnings))
+	sys.stderr.write("WARNING: Potential paralogs detected for {} genes!".format(len(paralog_warnings)))
 
 if __name__ == "__main__":main()

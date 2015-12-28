@@ -353,7 +353,7 @@ def reciprocal_best_hit(prot,proteinHits):
 			kept_indicies.append(contig_idx)
 	return keep_indicies(kept_indicies,prot)		
 
-def paralog_test(exonerate_hits,prot):
+def paralog_test(exonerate_hits,prot,prefix):
 	"""Gives a warning if there are multiple hits of long length to the same protein"""
 	logger = logging.getLogger("pipeline")
 	protlength = len(prot)
@@ -364,6 +364,10 @@ def paralog_test(exonerate_hits,prot):
 	longhits = [x > 0.75*protlength for x in hitlengths]
 	if sum(longhits) > 1:
 		sys.stderr.write("WARNING: Multiple long-length exonerate hits for {}. Check for paralogs!\n".format(prot.id))
+		with open("{}/paralog_warning.txt".format(prefix),'w') as pw:
+			for hit in range(len(exonerate_hits["assemblyHits"])):
+				if longhits[hit]:
+					pw.write(prot.id+ "\t"+exonerate_hits["assemblyHits"][hit] + "\n")	
 
 def myTranslate(nucl):
 	"""Given a raw sequence of nucleotides, return raw sequence of amino acids."""
@@ -384,11 +388,12 @@ def help():
 	return	
 
 def main(): 
+	
 	parser = argparse.ArgumentParser(description="exonerate_hits.py; Generate gene-by-gene protein and nucleotide files from Bait Capture Assembly")
-	parser.add_argument("-v", "--verbose",help="Report progress of pipeline to stdout",
-		action="store_const",dest="loglevel",const=logging.INFO, default=logging.WARNING)
-	parser.add_argument("--debug",help="Pring debugging information for development testing.",
-		action="store_true",dest="loglevel")
+	#parser.add_argument("-v", "--verbose",help="Report progress of pipeline to stdout",
+	#	action="store_const",dest="loglevel",const=logging.INFO, default=logging.WARNING)
+	parser.add_argument("--debug",help="Print debugging information for development testing.",
+		action="store_true",dest="loglevel",default=False)
 	parser.add_argument("proteinfile",help="FASTA file containing one 'bait' sequence per protein.")
 	parser.add_argument("assemblyfile",help="FASTA file containing DNA sequence assembly.")
 	parser.add_argument("--prefix",help="""Prefix for directory, files, and sequences generated from this assembly. 
@@ -409,6 +414,7 @@ def main():
 			os.mkdir(prefix)
 	else:
 		prefix = os.path.basename(assemblyfilename).split(".")[0]	
+
 	if args.first_search_filename:
 		first_search_filename=args.first_search_filename
 	else:
@@ -419,8 +425,10 @@ def main():
 	logger.addHandler(ch)
 	if args.loglevel:
 		logger.setLevel(logging.DEBUG)
-		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-		ch.setFormatter(formatter)
+	else:
+		logger.setLevel(logging.INFO)
+	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	ch.setFormatter(formatter)
 	#formatter = logging.Formatter('[%(levelname)s] %(message)s') #Commenting this out stops messages from appearing twice.
 	#handler = logging.StreamHandler()
 	#handler.setFormatter(formatter)
@@ -440,10 +448,10 @@ def main():
 	protein_dict = SeqIO.to_dict(SeqIO.parse(proteinfile,'fasta'))
 	
 	if os.path.exists(first_search_filename): 	#Shortcut for Testing purposes
-		logger.info("Reading exonerate results from file.")
+		#logger.info("Reading exonerate results from file.")
 		sequence_dict = SeqIO.to_dict(SeqIO.parse(first_search_filename,'fasta'))
 	else:
-		logger.info("Starting exonerate search, please wait.")
+		#logger.info("Starting exonerate search, please wait.")
 		sequence_dict = initial_exonerate(proteinfilename,assemblyfilename,prefix)
 	proteinHits = protein_sort(sequence_dict)
 
@@ -465,7 +473,7 @@ def main():
 # 		logger.debug("Initial hits: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
 
-		paralog_test(proteinHits[prot],protein_dict[prot])
+		paralog_test(proteinHits[prot],protein_dict[prot],prefix)
 
  		proteinHits[prot] = get_contig_order(proteinHits[prot])
 # 		logger.debug("After get_contig_order: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
