@@ -245,12 +245,13 @@ def overlapping_contigs(prot):
 	and save only those contigs that are not completely subsumed by other contigs."""
 	logger = logging.getLogger("pipeline")
 	range_list = [(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
+	
 	logger.debug(range_list)
-	kept_indicies = range_connectivity(range_list)
+	kept_indicies = range_connectivity(range_list,prot["assemblyHits"])
 	logger.debug(kept_indicies)
 	return keep_indicies(kept_indicies,prot)
 
-def range_connectivity(range_list):
+def range_connectivity(range_list,assemblyHits):
 	"""Given two sorted lists, representing the beginning and end of a range,
 	Determine "connectivity" between consecutive elements of the list.
 	For each connected segment, determine whether one segement "subsumes" the other."""
@@ -262,19 +263,32 @@ def range_connectivity(range_list):
 	
 	subsumed_ranges = []
 	collapsed_ranges = []
+	full_length_indicies = []
 	num_breaks = 0
+	
 	
 	for i in range(len(range_list)):
 		#Check if one contig has the whole range, keep only that one.
 		if starts[i] == min(starts) and ends[i] == max(ends):
 			logger.debug("Contig {} has range that subsumes all others!".format(i))
 			subsumed_ranges = [range_list[i]]
-			break
+			full_length_indicies.append(i)
 		else:
 			if starts[i] > min(starts) and ends[i] < max(ends):
 				logger.debug("removing {}".format(range_list[i]))
 			else:
-				subsumed_ranges.append(range_list[i])				
+				subsumed_ranges.append(range_list[i])
+	
+	#If there are multiple full length hits, return the one with the best percent identity.
+	if len(full_length_indicies) > 1:
+		max_percentid = 0
+		for i in range(len(full_length_indicies)):
+			percentid = float(assemblyHits[i].split(",")[4])
+			if percentid > max_percentid:
+				percentid =  max_percentid
+				to_keep = full_length_indicies[i]
+		return [to_keep]
+								
 	#If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
 	if len(subsumed_ranges) > 1:
 		best_start_end = 0
