@@ -112,13 +112,13 @@ def sort_byhitloc(seqrecord):
 	"""Key function for sorting based on the start location of a hit record."""
 	return int(seqrecord.id.split(",")[2])
 
-def subsume_supercontigs(supercontigs):
+def subsume_supercontigs(supercontigs,assemblyHits):
 	"""If one supercontig has a start and end location greater than all the others, throw the rest out"""
 	logger = logging.getLogger("pipeline")
 	supercontig_rangelist = [(int(x.id.split(",")[2]),int(x.id.split(",")[3])) for x in supercontigs]
 	logger.debug("Checking these ranges for supercontig: ")
 	logger.debug(supercontig_rangelist)
-	seqs_to_keep = range_connectivity(supercontig_rangelist)
+	seqs_to_keep = range_connectivity(supercontig_rangelist,assemblyHits)
 	logger.debug("Keeping these contigs: ")
 	logger.debug([supercontigs[x].id for x in seqs_to_keep])
 	return [supercontigs[x] for x in seqs_to_keep]
@@ -190,7 +190,7 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)),id=prot["name"])
 	final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
 	final_supercontig.sort(key=sort_byhitloc,reverse=True)
-	final_supercontig = subsume_supercontigs(final_supercontig)
+	final_supercontig = subsume_supercontigs(final_supercontig,prot["assemblyHits"])
 	
 	
 	return str(Seq("".join(str(b.seq) for b in final_supercontig)))
