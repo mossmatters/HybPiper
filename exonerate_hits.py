@@ -112,13 +112,14 @@ def sort_byhitloc(seqrecord):
 	"""Key function for sorting based on the start location of a hit record."""
 	return int(seqrecord.id.split(",")[2])
 
-def subsume_supercontigs(supercontigs,assemblyHits):
+def subsume_supercontigs(supercontigs):
 	"""If one supercontig has a start and end location greater than all the others, throw the rest out"""
 	logger = logging.getLogger("pipeline")
 	supercontig_rangelist = [(int(x.id.split(",")[2]),int(x.id.split(",")[3])) for x in supercontigs]
+	supercontig_ids = [x.id for x in supercontigs]
 	logger.debug("Checking these ranges for supercontig: ")
 	logger.debug(supercontig_rangelist)
-	seqs_to_keep = range_connectivity(supercontig_rangelist,assemblyHits)
+	seqs_to_keep = range_connectivity(supercontig_rangelist,supercontig_ids)
 	logger.debug("Keeping these contigs: ")
 	logger.debug([supercontigs[x].id for x in seqs_to_keep])
 	return [supercontigs[x] for x in seqs_to_keep]
@@ -190,7 +191,7 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
 	superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)),id=prot["name"])
 	final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
 	final_supercontig.sort(key=sort_byhitloc,reverse=True)
-	final_supercontig = subsume_supercontigs(final_supercontig,prot["assemblyHits"])
+	final_supercontig = subsume_supercontigs(final_supercontig)
 	
 	
 	return str(Seq("".join(str(b.seq) for b in final_supercontig)))
@@ -251,7 +252,7 @@ def overlapping_contigs(prot):
 	logger.debug(kept_indicies)
 	return keep_indicies(kept_indicies,prot)
 
-def range_connectivity(range_list,assemblyHits):
+def range_connectivity(range_list,assemblyHits=None):
 	"""Given two sorted lists, representing the beginning and end of a range,
 	Determine "connectivity" between consecutive elements of the list.
 	For each connected segment, determine whether one segement "subsumes" the other."""
@@ -280,14 +281,15 @@ def range_connectivity(range_list,assemblyHits):
 				subsumed_ranges.append(range_list[i])
 	
 	#If there are multiple full length hits, return the one with the best percent identity.
-	if len(full_length_indicies) > 1:
-		max_percentid = 0
-		for i in range(len(full_length_indicies)):
-			percentid = float(assemblyHits[i].split(",")[4])
-			if percentid > max_percentid:
-				percentid =  max_percentid
-				to_keep = full_length_indicies[i]
-		return [to_keep]
+	if assemblyHits:
+		if len(full_length_indicies) > 1:
+			max_percentid = 0
+			for i in range(len(full_length_indicies)):
+				percentid = float(assemblyHits[i].split(",")[4])
+				if percentid > max_percentid:
+					percentid =  max_percentid
+					to_keep = full_length_indicies[i]
+			return [to_keep]
 								
 	#If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
 	if len(subsumed_ranges) > 1:
@@ -413,7 +415,7 @@ def main():
 	parser.add_argument("--prefix",help="""Prefix for directory, files, and sequences generated from this assembly. 
 			If not specified, will be extracted from assembly file name.""",default=None)
 	parser.add_argument("--no_sequences",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
-	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.")
+	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.",default="no")
 	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55,type=int)
 	
 	args = parser.parse_args()
@@ -429,11 +431,6 @@ def main():
 	else:
 		prefix = os.path.basename(assemblyfilename).split(".")[0]	
 
-	if args.first_search_filename:
-		first_search_filename=args.first_search_filename
-	else:
-		first_search_filename= "%s/exonerate_results.fasta" % prefix
-	
 	logger = logging.getLogger("pipeline")
 	ch = logging.StreamHandler()
 	logger.addHandler(ch)
@@ -461,8 +458,8 @@ def main():
 	assembly_dict = SeqIO.to_dict(SeqIO.parse(assemblyfile,'fasta'))
 	protein_dict = SeqIO.to_dict(SeqIO.parse(proteinfile,'fasta'))
 	
-	if os.path.exists(first_search_filename): 	#Shortcut for Testing purposes
-		#logger.info("Reading exonerate results from file.")
+	if os.path.exists(args.first_search_filename): 	#Shortcut for Testing purposes
+		logger.info("Reading initial exonerate results from file {}.".format(first_search_filename))
 		sequence_dict = SeqIO.to_dict(SeqIO.parse(first_search_filename,'fasta'))
 	else:
 		#logger.info("Starting exonerate search, please wait.")
