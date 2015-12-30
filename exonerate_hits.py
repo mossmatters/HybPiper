@@ -275,10 +275,11 @@ def range_connectivity(range_list,assemblyHits=None):
 			subsumed_ranges = [range_list[i]]
 			full_length_indicies.append(i)
 		else:
-			if starts[i] > min(starts) and ends[i] < max(ends):
-				logger.debug("removing {}".format(range_list[i]))
-			else:
-				subsumed_ranges.append(range_list[i])
+			if starts[i] >= min(starts) and ends[i] <= max(ends):
+				if len(full_length_indicies) > 0:
+					logger.debug("removing {}".format(range_list[i]))
+				else:
+					subsumed_ranges.append(range_list[i])
 	
 	#If there are multiple full length hits, return the one with the best percent identity.
 	if assemblyHits:
