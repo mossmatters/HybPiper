@@ -288,7 +288,8 @@ def range_connectivity(range_list,assemblyHits=None):
 			for i in range(len(full_length_indicies)):
 				percentid = float(assemblyHits[i].split(",")[4])
 				if percentid > max_percentid:
-					percentid =  max_percentid
+					max_percentid = percentid
+					logger.debug("percent_id: {}, maxpercent_id: {}".format(percentid,max_percentid))
 					to_keep = full_length_indicies[i]
 			return [to_keep]
 								
