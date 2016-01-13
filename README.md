@@ -1,13 +1,10 @@
-#HybSeq Pipeline
-Please cite the following DOI while the manuscript is in preparation:
-
-[![DOI](https://zenodo.org/badge/6513/mehmattski/HybSeqPipeline.svg)](http://dx.doi.org/10.5281/zenodo.17609)
-
-http://dx.doi.org/10.5281/zenodo.17609
+#HybPiper
 
 *Manuscript in Preparation*
 
 by Matt Johnson and Norm Wickett, Chicago Botanic Garden
+
+![](examples/hybpiper_logo.png)
 
 *Purpose* 
 
@@ -92,7 +89,7 @@ MSPQTETKAGVGFKAGVKDYRLTYYTPEYETKETDILAAFRMTPQPGVPPEEAGAAVAAE
 
 ##Running the pipeline
 
-HybSeqPipeline is run separately for each sample (single or paired-end sequence reads). When HybSeqPipeline generates sequence files from the reads, it does so in a standardized directory heirarchy. Many of the post-processing scripts rely on this directory heirarchy, so do not modify it after running the initial pipeline. It is a good idea to run the pipeline for each sample from the same directory. You will end up with one directory per run of HybSeqPipeline, and some of the later scripts take advantage of this predictable directory structure.
+HybPiper is run separately for each sample (single or paired-end sequence reads). When HybPiper generates sequence files from the reads, it does so in a standardized directory heirarchy. Many of the post-processing scripts rely on this directory heirarchy, so do not modify it after running the initial pipeline. It is a good idea to run the pipeline for each sample from the same directory. You will end up with one directory per run of HybPiper, and some of the later scripts take advantage of this predictable directory structure.
 
 To execute the entire pipeline, create a directory containing the paired-end read files.
 The script `reads_first.py` will create a directory based on the fastq filenames (or use the `--prefix` flag):
@@ -100,9 +97,9 @@ The script `reads_first.py` will create a directory based on the fastq filenames
 `Anomodon-rostratus_L0001_R1.fastq` ---> `Anomodon-rostratus/`
 
 
-The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file `baits.fasta`. The HybSeqPipeline scripts should be in a different directory:
+The following command will execute the entire pipeline on a pair of Illumina read files, using the baits in the file `baits.fasta`. The HybPiper scripts should be in a different directory:
 
-```python /Users/mehmattski/HybSeqPipeline/reads_first.py -r MySpecies_R1.fastq MySpecies_R2.fastq -b baits.fasta```
+```python /Users/mehmattski/HybPiper/reads_first.py -r MySpecies_R1.fastq MySpecies_R2.fastq -b baits.fasta```
 
 The BLASTx version of the pipeline (default) will map the reads to amino acid bait sequences sequences.
 Although it is slower than the BWA version, it may have higher specificity. Reads may not align to divergent nucleotide bait sequences, which are required for the BWA version.
@@ -241,6 +238,15 @@ The major steps of the pipeline include:
 5. In a subdirectory, generate separate FASTA files containing either the nucleotide (FNA) or amino acid (FAA) sequence for each protein. 
 
 -----
+#Paralogs
+
+In many HybSeq bait designs, care is taken to avoid enrichment for genes with paralogous sequences in the target genomes. However, gene duplication and paleopolyploidy (especially in plants) makes it difficult to completely avoid paralogs. However, given enough read depth, it may be possible to identify paralogous sequences with HybPiper. 
+
+If SPAdes assembler generates multiple contigs that contain coding sequences represeting 75% of the length of the reference protein, HybPiper will print a warning for that gene. It will also print the names of the contigs in ```prefix/genename/paralog_warning.txt``` and will print a list of all genes with paralog warnings to ```prefix/genes_with_paralog_warnings.txt```.
+
+If many of your genes have paralogs, one approach could be to add the paralog coding sequence to your bait file as a separate gene, and re-running HybPiper. Reads that have a better mapping to the paralog will be sorted accordingly.
+
+-----
 
 #Introns
 
@@ -248,7 +254,7 @@ Frequently, probe sequences for HybSeq are designed from coding regions (exons) 
 
 The figure below shows the depth of MiSeq reads aligned to the draft genome of *Artocarpus altilis*. The gray lines represent depth within a sliding window (50 bp) across the genome scaffold for 22 *Artocarpus* samples. The dark line is the overall average depth, and the red bars represent the exons. Substantial depth is acheived up to 400 bp away from the exons for most samples.
 
-We have extended HybSeqPipeline to extract sequences flanking the coding sequence for each gene.
+We have extended HybPiper to extract sequences flanking the coding sequence for each gene.
 
 ###`intronerate.py`
 
@@ -276,7 +282,7 @@ Optional utilities after running the pipeline for multiple assemblies:
 
 ###`cleanup.py`
 
-HybSeqPipeline generates a lot of output files. Most of these can be discarded after the run. This script handles deleting unnecessary files, and can reduce the size of the directory created by HybSeqPipeline by 75%.
+HybPiper generates a lot of output files. Most of these can be discarded after the run. This script handles deleting unnecessary files, and can reduce the size of the directory created by HybPiper by 75%.
 
 ####Example Command Line
 
@@ -289,7 +295,7 @@ By default the script will delete all the files generated by velvet. Other optio
 
 ###`get_seq_lengths.py`
 
-This script will summarize the recovery of genes from multiple samples. If you have all of these separate runs of the HybSeqPipeline in the same directory, create a `namelist.txt` file that contains a list of all the HybSeqPipeline directories for each sample (one per line):
+This script will summarize the recovery of genes from multiple samples. If you have all of these separate runs of the HybPiper in the same directory, create a `namelist.txt` file that contains a list of all the HybPiper directories for each sample (one per line):
 
 ```
 Sample1
@@ -303,7 +309,7 @@ Specify the location of the bait file and whether it is amino acid or nucleotide
 
 `python get_seq_lengths.py baitfile.fasta namelist.txt dna > gene_lengths.txt`
 
-The script will output a table to `stdout`. The first line is a header containing the gene names. The second line contains the length of the reference for each gene. If there are multiple reference sequences for each gene, an average is reported. The remaining lines are the lengths recovered by the HybSeqPipeline for each sample, one sample per line (one column per gene). If the gene is missing, a 0 is indicated.
+The script will output a table to `stdout`. The first line is a header containing the gene names. The second line contains the length of the reference for each gene. If there are multiple reference sequences for each gene, an average is reported. The remaining lines are the lengths recovered by the HybPiper for each sample, one sample per line (one column per gene). If the gene is missing, a 0 is indicated.
 
 A warning will print to stderr if any sequences are longer than 1.5x the average reference length for that gene.
 
@@ -338,7 +344,7 @@ In this case, there are a few samples for which few or no genes were recovered (
 
 This script fetches the sequences recovered from the same gene for many samples and generates an unaligned multi-FASTA file for each gene. 
 
-This script will get the sequences generated from multiple runs of the HybSeqPipeline (reads_first.py).
+This script will get the sequences generated from multiple runs of the HybPiper (reads_first.py).
 Have all of the runs in the same directory (sequence_dir). 
 It retreives all the gene names from the bait file used in the run of the pipeline.
 
