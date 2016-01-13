@@ -5,6 +5,8 @@
 by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
 ![](examples/hybpiper_logo.png)
+(logo by Elliot Gardner)
+
 
 *Purpose* 
 
