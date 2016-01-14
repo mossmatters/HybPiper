@@ -286,11 +286,12 @@ def range_connectivity(range_list,assemblyHits=None):
 		if len(full_length_indicies) > 1:
 			max_percentid = 0
 			for i in range(len(full_length_indicies)):
-				percentid = float(assemblyHits[i].split(",")[4])
+				percentid = float(assemblyHits[full_length_indicies[i]].split(",")[4])
 				if percentid > max_percentid:
-					max_percentid = percentid
 					logger.debug("percent_id: {}, maxpercent_id: {}".format(percentid,max_percentid))
 					to_keep = full_length_indicies[i]
+					max_percentid = percentid
+					
 			return [to_keep]
 								
 	#If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
