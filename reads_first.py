@@ -372,9 +372,9 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_mutliplier,length_pct,exonerate_genefilename)
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
 	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_mutliplier,length_pct,exonerate_genefilename)
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
