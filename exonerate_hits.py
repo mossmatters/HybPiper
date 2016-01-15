@@ -314,6 +314,7 @@ def range_connectivity(range_list,assemblyHits=None,prot_length=None,length_pct 
 			if abs(starts[i] - ends[i]) > max_length * length_pct:
 				logger.debug("including long contig {}".format(range_list[i]))	
 				full_length_indicies.append(i)
+				subsumed_ranges = [range_list[i]]
 			elif starts[i] == min(starts) and ends[i] == max(ends):
 				logger.debug("Contig {} has range that subsumes all others!".format(i))
 				subsumed_ranges = [range_list[i]]
