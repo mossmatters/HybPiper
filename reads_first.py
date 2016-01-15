@@ -348,7 +348,7 @@ def cap3(genes,cpu=None):
 		
 	return None	
 
-def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False):
+def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False,depth_multiplier=0,length_pct=100):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
@@ -372,9 +372,9 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,exonerate_genefilename)
+		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_mutliplier,length_pct,exonerate_genefilename)
 	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,exonerate_genefilename)
+		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_mutliplier,length_pct,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
@@ -455,7 +455,7 @@ def main():
 	parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
 	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default is 21,31,41,51, and 61.",default=None)
 	parser.add_argument("--thresh",type=int,help="Percent Identity Threshold for stitching together exonerate results. Default is 55, but increase this if you are worried about contaminant sequences.",default=65)
-	parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 100%%",default=100,type=int)
+	parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 90%%",default=90,type=int)
 	parser.add_argument("--depth_multiplier",help="Accept any full-length exonerate hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
 
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
@@ -557,7 +557,7 @@ def main():
 	#Exonerate hits
 	if args.exonerate:
 		genes = [x.rstrip() for x in open(exonerate_genefilename).readlines()]
-		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh)
+		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh,length_pct = args.length_pct,depth_multiplier=args.depth_multiplier)
 		if exitcode:
 			return
 	

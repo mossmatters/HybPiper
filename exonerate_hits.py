@@ -464,7 +464,7 @@ def main():
 	parser.add_argument("--no_sequences",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
 	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.",default="no")
 	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55,type=int)
-	parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 100%%",default=100,type=int)
+	parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 100%%",default=90,type=int)
 	parser.add_argument("--depth_multiplier",help="Accept any full-length hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
 	
 	
