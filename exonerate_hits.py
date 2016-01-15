@@ -67,13 +67,15 @@ def protein_sort(records):
 	return proteinHits
 
 def sort_key(elem):
-	return elem[0],elem[1]
+	'''Sort by start location (increasing) then by end location (increasing), then by depth (decreasing)'''
+	return elem[0],elem[1],-elem[2]
 
 def get_contig_order(prot):
 	"""Given the dictionary of hits for a protein, return the dictionary with the fields sorted by start location."""
 	logger = logging.getLogger("pipeline")
 	
-	tuplist =[(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
+	tuplist =[(prot["hit_start"][i],prot["hit_end"][i],float(prot["assemblyHits"][i].split(",")[0].split("_")[5])) for i in range(len(prot["hit_start"]))]
+	logger.debug("before sorting: {}".format(" ".join(prot["assemblyHits"])))
 	logger.debug( tuplist )
 	sorting_order = sorted(range(len(tuplist)),key=lambda k:sort_key(tuplist[k]))
 	
@@ -82,7 +84,8 @@ def get_contig_order(prot):
 	prot["hit_end"] = [prot["hit_end"][i] for i in sorting_order]
 	prot["percentid"] = [prot["percentid"][i] for i in sorting_order]
 	prot["hit_strand"] = [prot["hit_strand"][i] for i in sorting_order]
-		
+	
+	logger.debug("After sorting: {}".format(" ".join(prot["assemblyHits"])))	
 	return prot
 
 def filter_by_percentid(prot,thresh):
@@ -241,18 +244,51 @@ def keep_indicies(kept_indicies, prot):
 
 	return prot
 
-def overlapping_contigs(prot):
+def overlapping_contigs(prot,length_pct,depth_multiplier):
 	"""Given a protein dictionary, determine whether the hit ranges are overlapping,
 	and save only those contigs that are not completely subsumed by other contigs."""
 	logger = logging.getLogger("pipeline")
 	range_list = [(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
 	
 	logger.debug(range_list)
-	kept_indicies = range_connectivity(range_list,prot["assemblyHits"])
+	kept_indicies = range_connectivity(range_list,prot["assemblyHits"],prot_length = prot["reflength"],length_pct = length_pct,depth_multiplier=depth_multiplier)
 	logger.debug(kept_indicies)
 	return keep_indicies(kept_indicies,prot)
 
-def range_connectivity(range_list,assemblyHits=None):
+
+def best_by_percent_id(assemblyHits,full_length_indicies):
+	'''Given a list of contig names, return the one with the best percent identity (fourth comma delimited field)'''
+	logger = logging.getLogger("pipeline")
+	max_percentid = 0
+	for i in range(len(full_length_indicies)):
+		percentid = float(assemblyHits[full_length_indicies[i]].split(",")[4])
+		if percentid > max_percentid:
+			logger.debug("percent_id: {}, maxpercent_id: {}".format(percentid,max_percentid))
+			to_keep = full_length_indicies[i]
+			max_percentid = percentid
+	return to_keep
+	
+def best_by_depth(assemblyHits,full_length_indicies,thresh=10):
+	'''If one contig has a depth that is 10x more than all the others, return that one, else return None'''
+	logger=logging.getLogger("pipeline")
+	depths = []
+	for i in range(len(full_length_indicies)):
+		depths.append((full_length_indicies[i],float(assemblyHits[full_length_indicies[i]].split(',')[0].split("_")[5])))
+	depths.sort(reverse=True,key=lambda x: x[1])
+	logger.debug(depths)
+	depth_threshold = depths[0][1] / thresh
+	logger.debug("Depth threshold: {}".format(depth_threshold))
+	top_depth_best = all(i[1] <= depth_threshold for i in depths[1:]) 
+	if top_depth_best:
+		best_depth_contig = depths[0][0]
+		logger.debug("Contig {} with depth {} is more than {} times greater depth than other contigs".format(best_depth_contig,depths[0][1],thresh))
+		return best_depth_contig
+	logger.debug("All contigs have similar depth")
+
+	return None	
+
+
+def range_connectivity(range_list,assemblyHits=None,prot_length=None,length_pct = 1,depth_multiplier = None,use_depth=False):
 	"""Given two sorted lists, representing the beginning and end of a range,
 	Determine "connectivity" between consecutive elements of the list.
 	For each connected segment, determine whether one segement "subsumes" the other."""
@@ -262,20 +298,27 @@ def range_connectivity(range_list,assemblyHits=None):
 	starts = [a[0] for a in range_list]
 	ends = [a[1] for a in range_list]
 	
+	if depth_multiplier:
+		use_depth = True
+	
 	subsumed_ranges = []
 	collapsed_ranges = []
 	full_length_indicies = []
 	num_breaks = 0
-	
+	if prot_length:
+		max_length = prot_length
+	else:
+		max_length = max(ends) - min(starts)
 	
 	for i in range(len(range_list)):
-		#Check if one contig has the whole range, keep only that one.
-		if starts[i] == min(starts) and ends[i] == max(ends):
-			logger.debug("Contig {} has range that subsumes all others!".format(i))
-			subsumed_ranges = [range_list[i]]
-			full_length_indicies.append(i)
-		else:
-			if starts[i] >= min(starts) and ends[i] <= max(ends):
+			if abs(starts[i] - ends[i]) > max_length * length_pct:
+				logger.debug("including long contig {}".format(range_list[i]))	
+				full_length_indicies.append(i)
+			elif starts[i] == min(starts) and ends[i] == max(ends):
+				logger.debug("Contig {} has range that subsumes all others!".format(i))
+				subsumed_ranges = [range_list[i]]
+				full_length_indicies.append(i)
+			else:
 				if len(full_length_indicies) > 0:
 					logger.debug("removing {}".format(range_list[i]))
 				else:
@@ -284,15 +327,16 @@ def range_connectivity(range_list,assemblyHits=None):
 	#If there are multiple full length hits, return the one with the best percent identity.
 	if assemblyHits:
 		if len(full_length_indicies) > 1:
-			max_percentid = 0
-			for i in range(len(full_length_indicies)):
-				percentid = float(assemblyHits[full_length_indicies[i]].split(",")[4])
-				if percentid > max_percentid:
-					logger.debug("percent_id: {}, maxpercent_id: {}".format(percentid,max_percentid))
-					to_keep = full_length_indicies[i]
-					max_percentid = percentid
-					
-			return [to_keep]
+			if use_depth:
+				to_keep = best_by_depth(assemblyHits,full_length_indicies,depth_multiplier)
+				if to_keep:
+					return [to_keep]
+				else:
+					to_keep = best_by_percent_id(assemblyHits,full_length_indicies)		
+					return [to_keep]
+			else:
+				to_keep = best_by_percent_id(assemblyHits,full_length_indicies)		
+				return [to_keep]
 								
 	#If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
 	if len(subsumed_ranges) > 1:
@@ -420,6 +464,9 @@ def main():
 	parser.add_argument("--no_sequences",help="Do not generate protein and nucleotide sequence files.", action="store_true",default=False)
 	parser.add_argument("--first_search_filename",help="Location of previously completed Exonerate results. Useful for testing.",default="no")
 	parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55,type=int)
+	parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 100%%",default=100,type=int)
+	parser.add_argument("--depth_multiplier",help="Accept any full-length hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
+	
 	
 	args = parser.parse_args()
 
@@ -481,6 +528,7 @@ def main():
 		os.makedirs(directory_name)
 	
  	for prot in proteinHits:
+ 		
  		logger.debug(prot)
  		#Put contigs in order along the protein.
  		#logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
@@ -488,7 +536,8 @@ def main():
  		logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
 
 		paralog_test(proteinHits[prot],protein_dict[prot],prefix)
-
+		proteinHits[prot]["reflength"] = len(protein_dict[prot])
+		
  		proteinHits[prot] = get_contig_order(proteinHits[prot])
 # 		logger.debug("After get_contig_order: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		logger.debug("After get_contig_order: %d" % len(proteinHits[prot]["assemblyHits"]))
@@ -510,7 +559,7 @@ def main():
  			continue		#All hits have been filtered out
  		
  		#Delete contigs if their range is completely subsumed by another hit's range.
- 		proteinHits[prot] = overlapping_contigs(proteinHits[prot])
+ 		proteinHits[prot] = overlapping_contigs(proteinHits[prot],args.length_pct*0.01,args.depth_multiplier)
 # 		logger.debug("After overlapping_contigs: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
  		logger.debug("After overlapping_contigs: %d" % len(proteinHits[prot]["assemblyHits"]))
  		#Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.	
