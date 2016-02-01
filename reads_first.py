@@ -453,7 +453,7 @@ def main():
 	parser.add_argument('--max_target_seqs',type=int,default=10,help='Max target seqs to save in blast search, default: %(default)s')
 	parser.add_argument('--cov_cutoff',type=int,default=8,help="Coverage cutoff for velvetg. default: %(default)s")
 	parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
-	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default is 21,31,41,51, and 61.",default=None)
+	parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default auto-dectection by SPAdes.",default=None)
 	parser.add_argument("--thresh",type=int,help="Percent Identity Threshold for stitching together exonerate results. Default is 55, but increase this if you are worried about contaminant sequences.",default=65)
 	parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 90%%",default=90,type=int)
 	parser.add_argument("--depth_multiplier",help="Accept any full-length exonerate hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
