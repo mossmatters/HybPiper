@@ -72,7 +72,6 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 	for gene in genes:
 		all_kmers = [int(x[1:]) for x in os.listdir(os.path.join(gene,"{}_spades".format(gene))) if x.startswith("K")]
 		all_kmers.sort()
-		print all_kmers
 		
 		if len(all_kmers) < 2:
 			sys.stderr.write("WARNING: All Kmers failed for {}!\n".format(gene))
@@ -112,7 +111,7 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 		else:
 			sys.stderr.write("{}\n".format(gene))
 			spades_failed.append(gene)
-	return spades_failed
+	return spades_failed,spades_duds
 	
 
 
@@ -136,7 +135,7 @@ def main():
 			with open("failed_spades.txt",'w') as failed_spadefile:
 				failed_spadefile.write("\n".join(spades_failed))
 		
-			spades_failed = rerun_spades("failed_spades.txt")
+			spades_failed,spades_duds = rerun_spades("failed_spades.txt")
 			if len(spades_failed) == 0:
 				sys.stderr.write("All redos completed successfully!\n")
 	
