@@ -39,7 +39,7 @@ def spades_initial(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	
 	sys.stderr.write("Running SPAdes on {} genes\n".format(len(genes)))
 	sys.stderr.write(spades_cmd + "\n")
-	exitcode = os.system(spades_cmd)
+	exitcode = subprocess.call(spades_cmd,shell=True)
 
 	if exitcode:
 		sys.stderr.write("ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:\n")
@@ -97,7 +97,7 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 	
 	sys.stderr.write("Re-running SPAdes for {} genes\n".format(len(genes_redos)))
 	sys.stderr.write(redo_spades_cmd+"\n")
-	exitcode = os.system(redo_spades_cmd)
+	exitcode = subprocess.call(redo_spades_cmd,shell=True)
 	
 
 	
@@ -135,8 +135,10 @@ def main():
 			with open("failed_spades.txt",'w') as failed_spadefile:
 				failed_spadefile.write("\n".join(spades_failed))
 		
-			spades_failed,spades_duds = rerun_spades("failed_spades.txt")
+			spades_failed,spades_duds = rerun_spades("failed_spades.txt",cov_cutoff=args.cov_cutoff)
 			if len(spades_failed) == 0:
 				sys.stderr.write("All redos completed successfully!\n")
+			else:
+				sys.exit(1)
 	
 if __name__ == "__main__":main()

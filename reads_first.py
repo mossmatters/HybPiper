@@ -209,31 +209,47 @@ def make_basename(readfiles,prefix=None):
 def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	
-	import spades_runner
+#	import spades_runner
 	
 	if os.path.isfile("spades.log"):
 		os.remove("spades.log")
 	if os.path.isfile("spades_redo.log"):
 		os.remove("spades_redo.log")
-		
-	with open(spades_genefilename,'w') as spadesfile:
-		spadesfile.write("\n".join(genes)+"\n")
 
-	spades_failed = spades_runner.spades_initial(spades_genefilename,cov_cutoff,cpu,kvals)
-	if len(spades_failed) > 0:
-		with open("failed_spades.txt",'w') as failed_spadefile:
-			failed_spadefile.write("\n".join(spades_failed))
-	
-		spades_failed_redos,spades_duds = spades_runner.rerun_spades("failed_spades.txt")
-		if len(spades_failed) == 0:
-			sys.stderr.write("All redos completed successfully!\n")
-	
-	spades_genelist = []
+	if cpu:
+		spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(cpu,os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+	else:	
+		spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+
+	exitcode = subprocess.call(spades_runner_cmd,shell=True)
+	if exitcode:
+		sys.stderr.write("WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n")
+		return None
+	else:
+		if os.path.isfile("spades_duds.txt"):
+			spades_duds = [x.rstrip() for x in open("spades_duds.txt")]
+		else:
+			spades_duds = []
+
+
+# 	with open(spades_genefilename,'w') as spadesfile:
+# 		spadesfile.write("\n".join(genes)+"\n")
+# 
+# 	spades_failed = spades_runner.spades_initial(spades_genefilename,cov_cutoff,cpu,kvals)
+# 	if len(spades_failed) > 0:
+# 		with open("failed_spades.txt",'w') as failed_spadefile:
+# 			failed_spadefile.write("\n".join(spades_failed))
+# 	
+# 		spades_failed_redos,spades_duds = spades_runner.rerun_spades("failed_spades.txt")
+# 		if len(spades_failed) == 0:
+# 			sys.stderr.write("All redos completed successfully!\n")
+# 	
+ 	spades_genelist = []
 	for gene in genes:
-		if gene not in set(spades_failed):
-			if gene not in set(spades_duds):
-				if gene not in set(spades_failed_redos):
-					spades_genelist.append(gene)
+#		if gene not in set(spades_failed):
+		if gene not in set(spades_duds):
+#				if gene not in set(spades_failed_redos):
+			spades_genelist.append(gene)
 	
 	with open(exonerate_genefilename,'w') as genefile:
 		genefile.write("\n".join(spades_genelist)+"\n")
@@ -563,7 +579,7 @@ def main():
 		if exitcode:
 			sys.exit(1)
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
-	
+	#genes = ["gene008"]
 	if len(genes) == 0:
 		print "ERROR: No genes with BLAST hits! Exiting!"
 		return
