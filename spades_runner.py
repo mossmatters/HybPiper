@@ -48,10 +48,18 @@ def spades_initial(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	spades_failed = []
 	
 	for gene in genes:
+		gene_failed = False
 		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)):
-			shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
-			spades_successful.append(gene)
+			contig_file_size = os.stat("{}/{}_spades/contigs.fasta".format(gene,gene)).st_size
+			if  contig_file_size> 0:
+				shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
+				spades_successful.append(gene)
+			else:
+				gene_failed = True
 		else:
+			gene_failed = True
+			
+		if gene_failed:
 			sys.stderr.write("{}\n".format(gene))
 			spades_failed.append(gene)
 	return spades_failed
@@ -90,10 +98,7 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 		redo_spades_cmd = "parallel -j {} --eta :::: redo_spades_commands.txt > spades_redo.log".format(cpu) 	
 	else:
 		redo_spades_cmd = "parallel --eta :::: redo_spades_commands.txt > spades_redo.log" 	
-		
-	
-	with open("spades_duds.txt",'w') as spades_duds_file:
-		spades_duds_file.write("\n".join(spades_duds))
+
 	
 	sys.stderr.write("Re-running SPAdes for {} genes\n".format(len(genes_redos)))
 	sys.stderr.write(redo_spades_cmd+"\n")
@@ -107,7 +112,7 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 	for gene in genes_redos:
 		gene_failed = False
 		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)):
-			if os.stat("{}/{}_spades/contigs.fasta").st_size > 0:
+			if os.stat("{}/{}_spades/contigs.fasta".format(gene,gene)).st_size > 0:
 				shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
 				spades_successful.append(gene)
 			else:
@@ -117,7 +122,10 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 			
 		if gene_failed:
 			sys.stderr.write("{}\n".format(gene))
-			spades_failed.append(gene)
+			spades_duds.append(gene)
+	with open("spades_duds.txt",'w') as spades_duds_file:
+		spades_duds_file.write("\n".join(spades_duds))
+
 	return spades_failed,spades_duds
 	
 
