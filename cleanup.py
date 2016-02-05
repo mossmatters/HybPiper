@@ -20,7 +20,7 @@ def remove_velvet():
 	for v in velvet_dirs:
 		shutil.rmtree(v)
 
-def remove_spades()
+def remove_spades():
 	'''In the current directory, remove the spades directory.'''
 	spades_dirs = [s for s in os.listdir(".") if s.endswith("spades") and os.path.isdir(s)]
 	for s in spades_dirs:
