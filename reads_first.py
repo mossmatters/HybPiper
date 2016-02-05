@@ -217,7 +217,7 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 		os.remove("spades_redo.log")
 
 	if cpu:
-		spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(cpu,os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+		spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
 	else:	
 		spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
 
