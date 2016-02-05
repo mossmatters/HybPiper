@@ -105,7 +105,7 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 		sys.stderr.write("ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:\n")
 		
 	for gene in genes_redos:
-		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)):
+		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)) and os.stat.("{}/{}_spades/contigs.fasta").st_size > 0:
 			shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
 			spades_successful.append(gene)
 		else:
