@@ -210,6 +210,9 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	
 #	import spades_runner
+
+ 	with open(spades_genefilename,'w') as spadesfile:
+ 		spadesfile.write("\n".join(genes)+"\n")
 	
 	if os.path.isfile("spades.log"):
 		os.remove("spades.log")
@@ -232,8 +235,7 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 			spades_duds = []
 
 
-# 	with open(spades_genefilename,'w') as spadesfile:
-# 		spadesfile.write("\n".join(genes)+"\n")
+
 # 
 # 	spades_failed = spades_runner.spades_initial(spades_genefilename,cov_cutoff,cpu,kvals)
 # 	if len(spades_failed) > 0:
