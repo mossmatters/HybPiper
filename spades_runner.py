@@ -35,7 +35,8 @@ def spades_initial(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 		os.remove("spades.log")
 	
 	genes = [x.rstrip() for x in open(genelist)]
-	spades_cmd = make_spades_cmd(genelist,cov_cutoff,cpu,paired,kvals)
+	print paired
+	spades_cmd = make_spades_cmd(genelist,cov_cutoff,cpu,paired=paired,kvals=kvals)
 	
 	sys.stderr.write("Running SPAdes on {} genes\n".format(len(genes)))
 	sys.stderr.write(spades_cmd + "\n")
@@ -138,19 +139,25 @@ def main():
 	parser.add_argument('--cov_cutoff',type=int,default=8,help="Coverage cutoff for SPAdes. default: %(default)s")
 	parser.add_argument("--kvals",nargs='+',help="Values of k for SPAdes assemblies. Default is to use SPAdes auto detection based on read lengths (recommended).",default=None)
 	parser.add_argument("--redos_only",action="store_true",default=False,help="Continue from previously assembled SPAdes assemblies and only conduct redos from failed_spades.txt")
+	parser.add_argument("--single",help="Reads are single end. Default is paired end.",action='store_true',default=False)
 	
 	args = parser.parse_args()
+	
+	if args.single:
+		is_paired = False
+	else:
+		is_paired = True
 	
 	if os.path.isfile("failed_spades.txt") and args.redos_only:
 		spades_failed = rerun_spades("failed_spades.txt")
 	else:	
-		spades_failed = spades_initial(args.genelist,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)	
+		spades_failed = spades_initial(args.genelist,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=is_paired)	
 	
 		if len(spades_failed) > 0:
 			with open("failed_spades.txt",'w') as failed_spadefile:
 				failed_spadefile.write("\n".join(spades_failed))
 		
-			spades_failed,spades_duds = rerun_spades("failed_spades.txt",cov_cutoff=args.cov_cutoff)
+			spades_failed,spades_duds = rerun_spades("failed_spades.txt",cov_cutoff=args.cov_cutoff,paired=is_paired)
 			if len(spades_failed) == 0:
 				sys.stderr.write("All redos completed successfully!\n")
 			else:

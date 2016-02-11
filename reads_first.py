@@ -220,10 +220,15 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 		os.remove("spades_redo.log")
 
 	if cpu:
-		spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
-	else:	
-		spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
-
+		if paired:
+			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+		else:
+			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+	else:
+		if paired:
+			spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+		else:
+			spades_runner_cmd = "python {} {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
 	exitcode = subprocess.call(spades_runner_cmd,shell=True)
 	if exitcode:
 		sys.stderr.write("WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n")
@@ -599,8 +604,14 @@ def main():
 			if exitcode:
 				return
 
-	if args.assemble:	
-		spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
+	if args.assemble:
+		if len(readfiles) == 1:	
+			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=False)
+		elif len(readfiles) == 2:
+			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
+		else:
+			print "ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!"
+			return
 		if not spades_genelist:
 			print "ERROR: No genes had assembled contigs! Exiting!"
 			return
