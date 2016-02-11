@@ -206,56 +206,107 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
-
-def spades(genes,cov_cutoff=8,cpu=None,paired=True,kvals=None):
+def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	"Run SPAdes on each gene separately using GNU paralell."""
+	
+#	import spades_runner
+
+ 	with open(spades_genefilename,'w') as spadesfile:
+ 		spadesfile.write("\n".join(genes)+"\n")
+	
 	if os.path.isfile("spades.log"):
 		os.remove("spades.log")
-	
-	with open(spades_genefilename,'w') as spadesfile:
-		spadesfile.write("\n".join(genes)+"\n")
-	
-	if paired:
-		fileflag = "--12"
-	else:
-		fileflag = "-s"
-	
-	if kvals:
-		kvals = ",".join(kvals)
-	
+	if os.path.isfile("spades_redo.log"):
+		os.remove("spades_redo.log")
+
 	if cpu:
-		if kvals:
-			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,kvals,cov_cutoff,fileflag,spades_genefilename)
-		else:
-			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,spades_genefilename)
-	else:
-		if kvals:
-			spades_cmd = "time parallel --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(kvals,cov_cutoff,fileflag,spades_genefilename)
-		else:
-			spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,spades_genefilename)
-		
-	sys.stderr.write("Running SPAdes on {} genes\n".format(len(genes)))
-	sys.stderr.write(spades_cmd + "\n")
-	exitcode = subprocess.call(spades_cmd,shell=True)
-	
-	#Need to handle an error differently with SPAdes, which can fail if there are simply not enough reads. 
-	
+		spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+	else:	
+		spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+
+	exitcode = subprocess.call(spades_runner_cmd,shell=True)
 	if exitcode:
-		sys.stderr.write("ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:\n")
-	
-	spades_genelist = []
-	
-	for gene in genes:
-		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)):
-			shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
-			spades_genelist.append(gene)
+		sys.stderr.write("WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n")
+		return None
+	else:
+		if os.path.isfile("spades_duds.txt"):
+			spades_duds = [x.rstrip() for x in open("spades_duds.txt")]
 		else:
-			sys.stderr.write("{}\n".format(gene))
+			spades_duds = []
+
+
+
+# 
+# 	spades_failed = spades_runner.spades_initial(spades_genefilename,cov_cutoff,cpu,kvals)
+# 	if len(spades_failed) > 0:
+# 		with open("failed_spades.txt",'w') as failed_spadefile:
+# 			failed_spadefile.write("\n".join(spades_failed))
+# 	
+# 		spades_failed_redos,spades_duds = spades_runner.rerun_spades("failed_spades.txt")
+# 		if len(spades_failed) == 0:
+# 			sys.stderr.write("All redos completed successfully!\n")
+# 	
+ 	spades_genelist = []
+	for gene in genes:
+#		if gene not in set(spades_failed):
+		if gene not in set(spades_duds):
+#				if gene not in set(spades_failed_redos):
+			spades_genelist.append(gene)
 	
 	with open(exonerate_genefilename,'w') as genefile:
 		genefile.write("\n".join(spades_genelist)+"\n")
 
 	return spades_genelist	
+
+# def spades(genes,cov_cutoff=8,cpu=None,paired=True,kvals=None):
+# 	"Run SPAdes on each gene separately using GNU paralell."""
+# 	if os.path.isfile("spades.log"):
+# 		os.remove("spades.log")
+# 	
+# 	with open(spades_genefilename,'w') as spadesfile:
+# 		spadesfile.write("\n".join(genes)+"\n")
+# 	
+# 	if paired:
+# 		fileflag = "--12"
+# 	else:
+# 		fileflag = "-s"
+# 	
+# 	if kvals:
+# 		kvals = ",".join(kvals)
+# 	
+# 	if cpu:
+# 		if kvals:
+# 			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,kvals,cov_cutoff,fileflag,spades_genefilename)
+# 		else:
+# 			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,spades_genefilename)
+# 	else:
+# 		if kvals:
+# 			spades_cmd = "time parallel --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(kvals,cov_cutoff,fileflag,spades_genefilename)
+# 		else:
+# 			spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,spades_genefilename)
+# 		
+# 	sys.stderr.write("Running SPAdes on {} genes\n".format(len(genes)))
+# 	sys.stderr.write(spades_cmd + "\n")
+# 	exitcode = subprocess.call(spades_cmd,shell=True)
+# 	
+# 	#Need to handle an error differently with SPAdes, which can fail if there are simply not enough reads. 
+# 	
+# 	if exitcode:
+# 		sys.stderr.write("ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs found for the following genes:\n")
+# 	
+# 	spades_genelist = []
+# 	
+# 	for gene in genes:
+# 		if os.path.isfile("{}/{}_spades/contigs.fasta".format(gene,gene)):
+# 			shutil.copy("{}/{}_spades/contigs.fasta".format(gene,gene),"{}/{}_contigs.fasta".format(gene,gene))
+# 			spades_genelist.append(gene)
+# 		else:
+# 			sys.stderr.write("{}\n".format(gene))
+# 	
+# 	with open(exonerate_genefilename,'w') as genefile:
+# 		genefile.write("\n".join(spades_genelist)+"\n")
+# 
+# 	return spades_genelist	
 		
 
 def velvet(genes,cov_cutoff=5,ins_length=200,kvals = ["21","31","41","51","61"],cpu=None,paired=True):
@@ -530,7 +581,7 @@ def main():
 		if exitcode:
 			sys.exit(1)
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
-	
+	#genes = ["gene008"]
 	if len(genes) == 0:
 		print "ERROR: No genes with BLAST hits! Exiting!"
 		return
@@ -549,7 +600,7 @@ def main():
 				return
 
 	if args.assemble:	
-		spades_genelist = spades(genes,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
+		spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
 		if not spades_genelist:
 			print "ERROR: No genes had assembled contigs! Exiting!"
 			return
