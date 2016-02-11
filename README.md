@@ -1,14 +1,15 @@
 #HybPiper
-
-*Manuscript in Preparation*
+--
+*Manuscript in Review*
 
 by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
 ![](examples/hybpiper_logo.png)
+
 (logo by Elliot Gardner)
 
 
-*Purpose* 
+###Purpose
 
 Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences.
 This pipeline starts with Illumina reads, and assigns them to target genes using BLASTx or BWA.
@@ -71,11 +72,17 @@ For velvet, this command line worked for me in Mac OS 10.9:
 `make 'MAXKMERLENGTH=67' LDFLAGS='-L third-party/zlib-1.2.3/ -lm’`
 
 ##Preparing your files
-**IMPORTANT**: If you are using BLAST to map reads to targets, you need a PROTEIN baitfile.
+HybPiper uses target sequences to first sort the reads and then extract exon sequences from assembled contigs, for each gene sepearately. In order to run HybPiper, you will need to prepare a "target file," a FASTA file that contains one or more homologous sequences for each gene.
 
-If you are using BWA, you need a NUCLEOTIDE baitfile. 
+If sequencing baits were designed for several exons within a gene, you should consider concatenating the exons (in the appropriate order) in the target file. HybPiper will align assembled contigs to the full gene sequence and will separate exon sequences from intron sequences.
 
-Construct a "bait file" of protein sequences in FASTA format. It is ok to have more than one "source sequence" per bait. 
+If you are using HybPiper on data generated using HybSeq, the target file should contain the full-length reference sequences for each gene, *NOT* the probe sequences.
+
+
+**IMPORTANT: If you are using BLAST to map reads to targets, you need a PROTEIN target file. If you are using BWA, you need a NUCLEOTIDE target file.**
+
+
+Construct a "target file" of protein sequences in FASTA format. It is ok to have more than one "source sequence" per bait. 
 The ID for each sequence should include the bait source and the protein ID, separated by a hyphen. For example:
 
 ```
@@ -179,7 +186,7 @@ Contigs are not expected to overlap much. An inital exonerate search is filtered
 
 To maximize the chance that Exonerate may find introns, all contigs that pass the previous steps are concatenated into a "supercontig" and the exonerate search is repeated. Once again, unique hits that pass a percent identity threshold and do not overlap with longer hits are saved, and from this the full length CDS and protein sequences are generated.
 
-In the older version of the script ("assemble-first"), the script was used after the `query_file_builder` is complete. The minimal inputs are the tailored bait file and the assembly.
+In the older version of the script ("assemble-first"), the script was used after the `query_file_builder` is complete. The minimal inputs are the tailored target file and the assembly.
 
 If run immediately after query_file_builder, use the --prefix flag to specify the file names:
 
@@ -196,7 +203,7 @@ The threshold for accepting an exonerate hit can be adjusted with `-t` (Default:
 ##Base directory
 (Specified by ``--prefix`` or generated from the read file names)
  
-1. The master bait file is copied here
+1. The master target file is copied here
 
 2. A BLAST or BWA database is generated
 
@@ -242,11 +249,11 @@ The major steps of the pipeline include:
 -----
 #Paralogs
 
-In many HybSeq bait designs, care is taken to avoid enrichment for genes with paralogous sequences in the target genomes. However, gene duplication and paleopolyploidy (especially in plants) makes it difficult to completely avoid paralogs. However, given enough read depth, it may be possible to identify paralogous sequences with HybPiper. 
+In many HybSeq bait designs, care is taken to avoid enrichment for genes with paralogous sequences in the target genomes. However, gene duplication and paleopolyploidy (especially in plants) makes it difficult to completely avoid paralogs. Given enough read depth, it may be possible to identify paralogous sequences with HybPiper. 
 
 If SPAdes assembler generates multiple contigs that contain coding sequences represeting 75% of the length of the reference protein, HybPiper will print a warning for that gene. It will also print the names of the contigs in ```prefix/genename/paralog_warning.txt``` and will print a list of all genes with paralog warnings to ```prefix/genes_with_paralog_warnings.txt```.
 
-If many of your genes have paralogs, one approach could be to add the paralog coding sequence to your bait file as a separate gene, and re-running HybPiper. Reads that have a better mapping to the paralog will be sorted accordingly.
+If many of your genes have paralogs, one approach could be to add the paralog coding sequence to your target file as a separate gene, and re-running HybPiper. Reads that have a better mapping to the paralog will be sorted accordingly.
 
 -----
 
@@ -292,7 +299,7 @@ HybPiper generates a lot of output files. Most of these can be discarded after t
 python cleanup.py hyb_seq_directory
 ```
 
-By default the script will delete all the files generated by velvet. Other options may be added in the future.
+By default the script will delete all the files generated by Spades. Other options may be added in the future.
 
 
 ###`get_seq_lengths.py`
@@ -305,7 +312,7 @@ Sample2
 Sample3
 ```
 
-Specify the location of the bait file and whether it is amino acid or nucleotide on the command line:
+Specify the location of the target file and whether it is amino acid or nucleotide on the command line:
 
 ####Example Command Line
 
@@ -348,7 +355,7 @@ This script fetches the sequences recovered from the same gene for many samples 
 
 This script will get the sequences generated from multiple runs of the HybPiper (reads_first.py).
 Have all of the runs in the same directory (sequence_dir). 
-It retreives all the gene names from the bait file used in the run of the pipeline.
+It retreives all the gene names from the target file used in the run of the pipeline.
 
 ####Example Command Line
 
