@@ -29,7 +29,7 @@ def initial_exonerate(proteinfilename, assemblyfilename,prefix):
 	exonerate_ryo = '">%ti,%qi,%qab,%qae,%pi,(%tS),%tab,%tae\\n%tcs\\n"'
 	exonerate_command = "exonerate -m protein2genome --showalignment no --showvulgar no -V 0 --ryo %s %s %s >%s" % (exonerate_ryo,proteinfilename,assemblyfilename,outputfilename)
 	
-	logger.info(exonerate_command)
+	logger.debug(exonerate_command)
 	#print exonerate_ryo
 	#proc = subprocess.Popen(['exonerate','-m','protein2genome','--showalignment','no','-V','0','--showvulgar','no','--ryo',exonerate_ryo,proteinfilename,assemblyfilename])
 	proc = subprocess.call(exonerate_command,shell=True)
