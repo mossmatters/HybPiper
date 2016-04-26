@@ -11,15 +11,17 @@ def retrieve_seqs(name,gene):
 	seqs_to_write = None
 	if os.path.isdir(os.path.join(name,gene,name,'paralogs')):
 		seqs_to_write = [x for x in SeqIO.parse(os.path.join(name,gene,name,'paralogs','{}_paralogs.fasta'.format(gene)),'fasta')]
+		num_seqs = str(len(seqs_to_write))
 	elif os.path.isfile(os.path.join(name,gene,name,'sequences','FNA','{}.FNA'.format(gene))):
 		seqs_to_write = SeqIO.read(os.path.join(name,gene,name,'sequences','FNA','{}.FNA'.format(gene)),'fasta')
+		num_seqs = "1"
 	
 	if seqs_to_write:
 		SeqIO.write(seqs_to_write,sys.stdout,'fasta')
 	else:
-		return 0
+		num_seqs = "0"
 	
-	return len(seqs_to_write)	
+	return num_seqs
 			
 
 def main():
