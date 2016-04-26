@@ -15,7 +15,11 @@ def retrieve_seqs(name,gene):
 		seqs_to_write = SeqIO.read(os.path.join(name,gene,name,'sequences','FNA','{}.FNA'.format(gene)),'fasta')
 	
 	if seqs_to_write:
-		SeqIO.write(seqs_to_write,sys.stdout,'fasta')	
+		SeqIO.write(seqs_to_write,sys.stdout,'fasta')
+	else:
+		return 0
+	
+	return len(seqs_to_write)	
 			
 
 def main():
@@ -26,8 +30,9 @@ def main():
 	args = parser.parse_args()
 	
 	namelist = [x.rstrip() for x in open(args.namelist)]
-	
+	num_seqs = []
 	for name in namelist:
-		retrieve_seqs(name,args.gene)
-
+		num_seqs.append(retrieve_seqs(name,args.gene))
+	sys.stderr.write("\t".join(num_seqs) + "\n")
+	
 if __name__ == "__main__":main()
