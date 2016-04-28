@@ -522,7 +522,7 @@ def main():
 		sys.exit(1)
 	args = parser.parse_args()
 	
-	run_dir = os.path.split(sys.argv[0])[0]
+	run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
 	#Check dependencies
 	if args.check_depend:
