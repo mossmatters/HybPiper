@@ -35,6 +35,6 @@ def main():
 	num_seqs = []
 	for name in namelist:
 		num_seqs.append(retrieve_seqs(name,args.gene))
-	sys.stderr.write("\t".join(num_seqs) + "\n")
+	sys.stderr.write("{}\t{}\n".format(args.gene,"\t".join(num_seqs)))
 	
 if __name__ == "__main__":main()
