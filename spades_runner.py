@@ -35,7 +35,7 @@ def spades_initial(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 		os.remove("spades.log")
 	
 	genes = [x.rstrip() for x in open(genelist)]
-	print paired
+	#print paired
 	spades_cmd = make_spades_cmd(genelist,cov_cutoff,cpu,paired=paired,kvals=kvals)
 	
 	sys.stderr.write("Running SPAdes on {} genes\n".format(len(genes)))

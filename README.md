@@ -48,11 +48,14 @@ For full installation instructions, please see our wiki page:
 
 [https://github.com/mossmatters/HybPiper/wiki/Installation](https://github.com/mossmatters/HybPiper/wiki/Installation)
 
+Once all dependencies are installed, execute the `run_tests.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
+
+
 ----
 
 #Pipeline Input
 
-Our full instructions on running the pipeline, including a step-by-step tutorial using a small test dataset, is available on our wiki:
+Full instructions on running the pipeline, including a step-by-step tutorial using a small test dataset, is available on our wiki:
 
 [https://github.com/mossmatters/HybPiper/wiki](https://github.com/mossmatters/HybPiper/wiki)
 
