@@ -255,6 +255,8 @@ If SPAdes assembler generates multiple contigs that contain coding sequences rep
 
 If many of your genes have paralogs, one approach could be to add the paralog coding sequence to your target file as a separate gene, and re-running HybPiper. Reads that have a better mapping to the paralog will be sorted accordingly.
 
+For more in-depth discussion about paralogs, see the examples in [the paralog tutorial.](https://github.com/mossmatters/HybPiper/wiki/Paralogs)
+
 -----
 
 #Introns
