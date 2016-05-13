@@ -41,7 +41,7 @@ def build_index(file_type="coding"):
 
 def map_reads(readfiles,file_type="coding",ncpu=6):
 	'''Map the original reads to the sequences using bwa mem and samtools. Generates sorted bam file'''
-	bwa_samtools_cmd = "bwa mem -t {} {}_sequences.fasta  {} | samtools view -bS - | samtools sort - {}.sorted".format(ncpu,file_type," ".join(readfiles),file_type)
+	bwa_samtools_cmd = "bwa mem -t {} {}_sequences.fasta  {} | samtools view -bS - | samtools sort - > {}.sorted.bam".format(ncpu,file_type," ".join(readfiles),file_type)
 	cmd_runner(bwa_samtools_cmd)
 
 	samtools_index_cmd = "samtools index -b {}.sorted.bam".format(file_type)
@@ -109,7 +109,7 @@ def main():
 	all_genes = set([seq.id.split("-")[1] for seq in SeqIO.parse(args.targets,'fasta')])
 		
 	if args.genelist:
-		genelist = [x.rstrip() for x in open(args.genelist).readlines()]
+		genelist = [x.rstrip() for x in open(os.path.join(basedir,args.genelist)).readlines()]
 	else:
 		genelist = [x.split()[0] for x in open('genes_with_seqs.txt').readlines()]
 	
@@ -122,7 +122,7 @@ def main():
 	else:
 		file_type = "coding"
 	
-	readfiles = [os.path.abspath(f) for f in args.readfiles]
+	readfiles = [os.path.realpath(os.path.join(basedir,f)) for f in args.readfiles]
 	
 	if not os.path.isfile("coding.depth") or args.overwrite == True:
 		merge_seqs(genelist,args.prefix,file_type=file_type)
