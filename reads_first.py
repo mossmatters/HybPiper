@@ -83,11 +83,14 @@ def check_dependencies():
 	"""Checks for the presence of executables and Python packages"""
 	executables = 		["blastx",
 						"exonerate",
-						"velvetg",
-						"velveth",
-						"cap3",
+						#"velvetg",
+						#"velveth",
+						#"cap3",
 						"parallel",
-						"makeblastdb"]
+						"makeblastdb",
+						"spades.py",
+						"bwa",
+						"samtools"]
 
 	python_packages = 	["Bio"]
 	
@@ -522,7 +525,7 @@ def main():
 		sys.exit(1)
 	args = parser.parse_args()
 	
-	run_dir = os.path.split(sys.argv[0])[0]
+	run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
 	#Check dependencies
 	if args.check_depend:
@@ -535,6 +538,7 @@ def main():
 					print "ERROR: Script {} not found! Please make sure it is in the same directory as this one!".format(script)
 					return
 			print "Everything looks good!"
+			return
 		else:
 			print "ERROR: One or more dependencies not found!"
 			return
