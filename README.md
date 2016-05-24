@@ -1,4 +1,6 @@
 #HybPiper
+
+[![Join the chat at https://gitter.im/mossmatters/HybPiper](https://badges.gitter.im/mossmatters/HybPiper.svg)](https://gitter.im/mossmatters/HybPiper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 --
 *Manuscript in Revision*
 
