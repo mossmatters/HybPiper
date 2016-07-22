@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/mossmatters/HybPiper](https://badges.gitter.im/mossmatters/HybPiper.svg)](https://gitter.im/mossmatters/HybPiper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 --
-*Manuscript in Revision*
+[Read our article in Applications in Plant Sciences (Open Access)](http://www.bioone.org/doi/full/10.3732/apps.1600016)
 
 by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
@@ -91,7 +91,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 #Changelog
 
-**1.1** *May, 2016*: Release associated with revised submission to *Applications in Plant Sciences*.
+**1.1** *May, 2016*: Release associated with manuscript in *Applications in Plant Sciences*.
 
 -- Added paralog_investigator.py, which detects and extracts long exons from putative paralogs in all genes in one sample.
 
@@ -110,3 +110,9 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 **1.0** *Feb, 2016*: Initial fully-featured release associated with submission of manuscript to *Applications in Plant Sciences*.
 
 -- Sequence assembly now uses SPAdes rather than Velvet + CAP3
+
+---
+
+#Citation
+Johnson, M. G., Gardner, E. M., Liu, Y., Medina, R., Goffinet, B., Shaw, A. J., Zerega, N. J. C, and  Wickett, N. J. (2016). HybPiper: Extracting Coding Sequence and Introns for Phylogenetics from High-Throughput Sequencing Reads Using Target Enrichment. Applications in Plant Sciences, 4(7), 1600016. doi:10.3732/apps.1600016
+
