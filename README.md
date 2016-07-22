@@ -1,6 +1,7 @@
 #HybPiper
 
-[![Join the chat at https://gitter.im/mossmatters/HybPiper](https://badges.gitter.im/mossmatters/HybPiper.svg)](https://gitter.im/mossmatters/HybPiper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/mossmatters/HybPiper](https://badges.gitter.im/mossmatters/HybPiper.svg)](https://gitter.im/mossmatters/HybPiper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)  [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
+
 --
 [Read our article in Applications in Plant Sciences (Open Access)](http://www.bioone.org/doi/full/10.3732/apps.1600016)
 
