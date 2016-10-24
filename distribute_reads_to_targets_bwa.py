@@ -70,8 +70,6 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
 	
 		for ID1_long, Seq1, Qual1 in iterator1:
 			ID1 = ID1_long.split()[0]
-			if ID1.endswith("\1") or ID1.endswith("\2"):
-				ID1 = ID1[:-2]
 			if ID1 in read_hit_dict:
 				for target in read_hit_dict[ID1]:
 					write_single_seqs(target,ID1,Seq1)
@@ -84,12 +82,7 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
 		ID2_long, Seq2, Qual2 = iterator2.next()
 		
 		ID1 = ID1_long.split()[0]
-		if ID1.endswith("/1") or ID1.endswith("/2"):
-			ID1 = ID1[:-2]
-
 		ID2 = ID2_long.split()[0]
-		if ID2.endswith("/1") or ID2.endswith("/2"):
-			ID2 = ID2[:-2]
 		
 		if ID1 in read_hit_dict:
 			for target in read_hit_dict[ID1]:
