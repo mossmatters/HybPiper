@@ -209,7 +209,7 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
-def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
+def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	
 #	import spades_runner
@@ -222,16 +222,28 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	if os.path.isfile("spades_redo.log"):
 		os.remove("spades_redo.log")
 
+	spades_runner_list = ["python","{}/spades_runner.py".format(run_dir),spades_genefilename,"--cov_cutoff",str(cov_cutoff)]
 	if cpu:
-		if paired:
-			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
-		else:
-			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
-	else:
-		if paired:
-			spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
-		else:
-			spades_runner_cmd = "python {} {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+		spades_runner_list.append("--cpu")
+		spades_runner_list.append(str(cpu))
+	if not paired:
+		spades_runner_list.append("--single")
+	if timeout:
+		spades_runner_list.append("--timeout")
+		spades_runner_list.append("{}%".format(timeout))
+	
+	spades_runner_cmd = " ".join(spades_runner_list)	
+
+# 	if cpu:
+# 		if paired:
+# 			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+# 		else:
+# 			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+# 	else:
+# 		if paired:
+# 			spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+# 		else:
+# 			spades_runner_cmd = "python {} {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
 	exitcode = subprocess.call(spades_runner_cmd,shell=True)
 	if exitcode:
 		sys.stderr.write("WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n")
@@ -407,7 +419,7 @@ def cap3(genes,cpu=None):
 		
 	return None	
 
-def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False,depth_multiplier=0,length_pct=100):
+def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False,depth_multiplier=0,length_pct=100,timeout=None):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
@@ -430,10 +442,29 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 		file_stem = "contigs.fasta"
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
+	
+	parallel_cmd_list = ["time parallel","--eta"]
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
-	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
+		parallel_cmd_list.append("-j {}".format(cpu))
+	if timeout:
+		parallel_cmd_list.append("--timeout {}%".format(timeout))	
+	
+	exonerate_cmd_list = ["python","{}/exonerate_hits.py".format(run_dir),
+				"{{}}/{{}}_baits.fasta","{{}}/{{}}_{}".format(file_stem),
+				"--prefix {}".format(basename), 
+				"-t {}".format(thresh),
+				"--depth_multiplier {}".format(depth_multiplier),
+				"--length_pct {}".format(length_pct),
+				"::::",
+				exonerate_genefilename,
+				"> genes_with_seqs.txt"]
+				
+	exonerate_cmd = " ".join(parallel_cmd_list) + " " + " ".join(exonerate_cmd_list)			
+	
+# 	if cpu:
+# 		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
+# 	else:
+# 		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
@@ -518,6 +549,7 @@ def main():
 	parser.add_argument("--depth_multiplier",help="Accept any full-length exonerate hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
 
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
+	parser.add_argument("--timeout",help="Use GNU Parallel to kill long-running processes if they take longer than X percent of average.",default=0)
 	
 	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)
 	if len(sys.argv) == 1:
@@ -610,9 +642,9 @@ def main():
 
 	if args.assemble:
 		if len(readfiles) == 1:	
-			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=False)
+			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=False,timeout=args.timeout)
 		elif len(readfiles) == 2:
-			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
+			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,timeout=args.timeout)
 		else:
 			print "ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!"
 			return
@@ -623,7 +655,7 @@ def main():
 	#Exonerate hits
 	if args.exonerate:
 		genes = [x.rstrip() for x in open(exonerate_genefilename).readlines()]
-		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh,length_pct = args.length_pct,depth_multiplier=args.depth_multiplier)
+		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh,length_pct = args.length_pct,depth_multiplier=args.depth_multiplier,timeout=args.timeout)
 		if exitcode:
 			return
 	

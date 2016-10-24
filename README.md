@@ -92,6 +92,17 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 #Changelog
 
+**1.1.1** *November, 2016*
+
+* Features 
+
+	- Added `--timeout` flag, which uses GNU Parallel to kill processes (i.e. Spades or Exonerate) if they take X percent longer than average. Use if there are a lot of stuck jobs (`--timeout 1000`)
+
+* Bug Fixes
+
+ - Can accommodate Solexa FASTQ paired headers
+
+
 **1.1** *May, 2016*: Release associated with manuscript in *Applications in Plant Sciences*.
 
 -- Added paralog_investigator.py, which detects and extracts long exons from putative paralogs in all genes in one sample.

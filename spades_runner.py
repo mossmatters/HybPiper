@@ -7,7 +7,7 @@ The re-runs are attempted by removing the largest k-mer and re-running spades. I
 contigs.fasta file is generated, a 'spades.ok' file is saved.'''
 
 
-def make_spades_cmd(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None,redo=False):
+def make_spades_cmd(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None,redo=False,timeout=None):
 	
 	if paired:
 		fileflag = "--12"
@@ -17,19 +17,32 @@ def make_spades_cmd(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None,redo=F
 	if kvals:
 		kvals = ",".join(kvals)
 
+	parallel_cmd_list = ["time","parallel","--eta"]
 	if cpu:
-		if kvals:
-			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,kvals,cov_cutoff,fileflag,genelist)
-		else:
-			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,genelist)
-	else:
-		if kvals:
-			spades_cmd = "time parallel --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(kvals,cov_cutoff,fileflag,genelist)
-		else:
-			spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,genelist)
-	return spades_cmd
+		parallel_cmd_list.append("-j {}".format(cpu))
+	if timeout:
+		parallel_cmd_list.append("--timeout {}%".format(timeout))	
+	
+	spades_cmd_list = ["spades.py --only-assembler --threads 1 --cov-cutoff",str(cov_cutoff)]
+	if kvals:
+		spades_cmd_list.append("-k {}".format(kvals))
+	spades_cmd_list.append("{} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(fileflag,genelist))
+	
+	spades_cmd = " ".join(parallel_cmd_list) + " " + " ".join(spades_cmd_list)
+	return spades_cmd 
+# 	if cpu:
+# 		if kvals:
+# 			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,kvals,cov_cutoff,fileflag,genelist)
+# 		else:
+# 			spades_cmd = "time parallel -j {} --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cpu,cov_cutoff,fileflag,genelist)
+# 	else:
+# 		if kvals:
+# 			spades_cmd = "time parallel --eta spades.py --only-assembler -k {} --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(kvals,cov_cutoff,fileflag,genelist)
+# 		else:
+# 			spades_cmd = "time parallel --eta spades.py --only-assembler --threads 1 --cov-cutoff {} {} {{}}/{{}}_interleaved.fasta -o {{}}/{{}}_spades :::: {} > spades.log".format(cov_cutoff,fileflag,genelist)
+# 	return spades_cmd
 
-def spades_initial(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None):
+def spades_initial(genelist,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	if os.path.isfile("spades.log"):
 		os.remove("spades.log")
@@ -96,9 +109,9 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
 	
 	redo_cmds_file.close()
 	if cpu:
-		redo_spades_cmd = "parallel -j {} --eta :::: redo_spades_commands.txt > spades_redo.log".format(cpu) 	
+		redo_spades_cmd = "parallel -j {} --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log".format(cpu) 	
 	else:
-		redo_spades_cmd = "parallel --eta :::: redo_spades_commands.txt > spades_redo.log" 	
+		redo_spades_cmd = "parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log" 	
 
 	
 	sys.stderr.write("Re-running SPAdes for {} genes\n".format(len(genes_redos)))
@@ -140,6 +153,7 @@ def main():
 	parser.add_argument("--kvals",nargs='+',help="Values of k for SPAdes assemblies. Default is to use SPAdes auto detection based on read lengths (recommended).",default=None)
 	parser.add_argument("--redos_only",action="store_true",default=False,help="Continue from previously assembled SPAdes assemblies and only conduct redos from failed_spades.txt")
 	parser.add_argument("--single",help="Reads are single end. Default is paired end.",action='store_true',default=False)
+	parser.add_argument("--timeout",help="Use GNU Parallel to kill processes that take longer than X times the average.",default=0)
 	
 	args = parser.parse_args()
 	
@@ -151,7 +165,7 @@ def main():
 	if os.path.isfile("failed_spades.txt") and args.redos_only:
 		spades_failed = rerun_spades("failed_spades.txt")
 	else:	
-		spades_failed = spades_initial(args.genelist,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=is_paired)	
+		spades_failed = spades_initial(args.genelist,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=is_paired,timeout=args.timeout)	
 	
 		if len(spades_failed) > 0:
 			with open("failed_spades.txt",'w') as failed_spadefile:
