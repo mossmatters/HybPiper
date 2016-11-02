@@ -450,8 +450,8 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 		parallel_cmd_list.append("--timeout {}%".format(timeout))	
 	
 	exonerate_cmd_list = ["python","{}/exonerate_hits.py".format(run_dir),
-				"{{}}/{{}}_baits.fasta","{{}}/{{}}_{}".format(file_stem),
-				"--prefix {}".format(basename), 
+				"{}/{}_baits.fasta","{{}}/{{}}_{}".format(file_stem),
+				"--prefix {{}}/{}".format(basename), 
 				"-t {}".format(thresh),
 				"--depth_multiplier {}".format(depth_multiplier),
 				"--length_pct {}".format(length_pct),
