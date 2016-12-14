@@ -163,7 +163,7 @@ def main():
 		is_paired = True
 	
 	if os.path.isfile("failed_spades.txt") and args.redos_only:
-		spades_failed = rerun_spades("failed_spades.txt")
+		spades_failed = rerun_spades("failed_spades.txt",cpu=args.cpu,paired=is_paired)
 	else:	
 		spades_failed = spades_initial(args.genelist,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=is_paired,timeout=args.timeout)	
 	
