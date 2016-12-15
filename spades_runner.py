@@ -171,7 +171,7 @@ def main():
 			with open("failed_spades.txt",'w') as failed_spadefile:
 				failed_spadefile.write("\n".join(spades_failed))
 		
-			spades_failed,spades_duds = rerun_spades("failed_spades.txt",cov_cutoff=args.cov_cutoff,paired=is_paired)
+			spades_failed,spades_duds = rerun_spades("failed_spades.txt",cov_cutoff=args.cov_cutoff,paired=is_paired,cpu=args.cpu)
 			if len(spades_failed) == 0:
 				sys.stderr.write("All redos completed successfully!\n")
 			else:
