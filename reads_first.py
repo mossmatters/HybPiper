@@ -233,15 +233,29 @@ def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None)
 
 
 def make_basename(readfiles,prefix=None):
-	"""Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore."""
-	basename = os.path.split(readfiles[0])[1].split('_')[0]
+	"""Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore.
+        If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
+        
+        """
 	if prefix:
-		if not os.path.exists(prefix):
-			os.makedirs(prefix)
-		return prefix
+            if not os.path.exists(prefix):
+                os.makedirs(prefix)
+
+
+            prefixParentDir, prefix = os.path.split(prefix)
+            if not prefix:
+                # if prefix has a trailing /, prefixParentDir will have the / stripped and prefix will be empty.
+                # so try again
+                prefix = os.path.split(prefixParentDir)[1]
+
+
+            return prefixParentDir,prefix
+
+	basename = os.path.split(readfiles[0])[1].split('_')[0]
+
 	if not os.path.exists(basename):
 		os.makedirs(basename)
-	return basename
+	return basename, basename
 
 def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None,unpaired=False):
 	"Run SPAdes on each gene separately using GNU paralell."""
@@ -637,8 +651,8 @@ def main():
 		return
 	
 	#Generate directory
-	basename = make_basename(args.readfiles,prefix=args.prefix)
-	os.chdir(basename)
+	basedir, basename = make_basename(args.readfiles,prefix=args.prefix)
+	os.chdir(basedir)
 	
 	#BWA
 	if args.bwa:

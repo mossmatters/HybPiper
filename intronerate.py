@@ -133,6 +133,7 @@ def main():
 	if os.path.isdir(args.prefix):
 		os.chdir(args.prefix)
 		basedir = os.getcwd()
+		prefix = os.path.split(basedir)[1]
 	else:
 		sys.stderr.write("Directory {} not found!\n".format(args.prefix))	
 
@@ -144,11 +145,11 @@ def main():
 	with open("intron_stats.txt",'w') as intron_stats_file:	
 		full_gff = ''
 		for gene in genelist:
-			os.chdir("{}/{}".format(gene,args.prefix))
+			os.chdir("{}/{}".format(gene,prefix))
 			contig_info = get_contig_info()
 			if not os.path.exists("sequences/intron"):
 				os.makedirs("sequences/intron")
-			make_intron_supercontig(contig_info,gene,args.prefix)
+			make_intron_supercontig(contig_info,gene,prefix)
 			if not args.no_exonerate:
 				re_run_exonerate(gene)
 			hits = parse_gff("intronerate_raw.gff")
@@ -156,7 +157,7 @@ def main():
 			with open("intronerate.gff",'w') as new_gff:
 				new_gff_string = get_new_gff(kept_hits)
 				num_introns = new_gff_string.count("intron\t")
-				intron_stats_file.write("{}\t{}\t{}\n".format(args.prefix,gene,num_introns))
+				intron_stats_file.write("{}\t{}\t{}\n".format(prefix,gene,num_introns))
 				sys.stderr.write("{} introns found for {}.\n".format(num_introns,gene))
 				
 				new_gff.write(new_gff_string)
@@ -165,7 +166,7 @@ def main():
 			SeqIO.write(exonless_contig,"sequences/intron/{}_introns.fasta".format(gene),'fasta')
 				
 			os.chdir(basedir)
-	with open("{}_genes.gff".format(args.prefix),'w') as all_gff:
+	with open("{}_genes.gff".format(prefix),'w') as all_gff:
 		all_gff.write(full_gff)		
 
 
