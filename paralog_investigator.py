@@ -43,10 +43,10 @@ def main():
 	args = parser.parse_args()
 	
 	if args.genelist:
-		if os.path.isfile(genelist):
+		if os.path.isfile(args.genelist):
 			genelist = [x.rstrip() for x in open(args.genelist)]
 		else:
-			sys.stderr.write("ERROR: cannot find genelist {}\n".format(genelist))
+			sys.stderr.write("ERROR: cannot find genelist {}\n".format(args.genelist))
 			sys.exit(1)
 	else:
 		if os.path.isfile("{}/genes_with_paralog_warnings.txt".format(args.prefix)):
