@@ -575,6 +575,11 @@ def main():
 	
 	#Generate directory
 	basedir, basename = make_basename(args.readfiles,prefix=args.prefix)
+        if os.listdir(basedir):
+            ## When running under HTCondor, the execution might be restarted
+            ##  However, this code in not tolerant of restarts
+            print "ERROR: Directory {} not empty, exiting!".format(basedir)
+            return
 	os.chdir(basedir)
 	
 	#BWA
