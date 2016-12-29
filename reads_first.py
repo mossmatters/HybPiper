@@ -458,8 +458,10 @@ def bwa(readfiles,baitfile,basename,cpu):
 			db_file = baitfile
 		else:
 			print "Making nucleotide bwa index in current directory."
-			if os.path.split(baitfile)[0]:
-				shutil.copy(baitfile,'.')
+                        baitfileDir = os.path.split(baitfile)[0]
+                        if baitfileDir:
+                                if os.path.realpath(baitfileDir) != os.path.realpath('.'):
+				    shutil.copy(baitfile,'.')
 			db_file = os.path.split(baitfile)[1]
 			make_bwa_index_cmd = "bwa index {}".format(db_file)
 			print "[CMD]: {}".format(make_bwa_index_cmd)
