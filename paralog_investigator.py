@@ -56,9 +56,15 @@ def main():
 			sys.exit(1)
 				
 	os.chdir(args.prefix)
+        # Now we only need the last component of the prefix path
+        prefixParentDir, prefix = os.path.split(args.prefix)
+        if not prefix:
+                # if prefix has a trailing /, prefixParentDir will have the / stripped and prefix will be empty.
+                # so try again
+                prefix = os.path.split(prefixParentDir)[1]
 	
 	for gene in genelist:
-		num_paralogs = extract_paralogs(gene,args.prefix)
+		num_paralogs = extract_paralogs(gene,prefix)
 		sys.stderr.write("{} paralogs written for {}\n".format(num_paralogs,gene))
 	
 	

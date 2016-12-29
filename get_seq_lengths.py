@@ -58,9 +58,12 @@ avg_ref_lengths = [str((sum(reference_lengths[gene])/len(reference_lengths[gene]
 sys.stdout.write("Species\t{}\nMeanLength\t{}\n".format("\t".join(unique_names),"\t".join(avg_ref_lengths)))
 
 for name in namelist:
+	parentDir,name = os.path.split(name)
+	if not name:
+		parentDir,name = os.path.split(parentDir)
 	name_lengths = []
 	for gene in range(len(unique_names)):
-		read_file = os.path.join(name,unique_names[gene],name,"sequences",filetype,"{}.{}".format(unique_names[gene],filetype))
+		read_file = os.path.join(parentDir,name,unique_names[gene],name,"sequences",filetype,"{}.{}".format(unique_names[gene],filetype))
 		if os.path.exists(read_file):
 			seq_length = len(SeqIO.read(read_file,'fasta').seq)
 			if seq_length > 1.5 * float(avg_ref_lengths[gene]):
