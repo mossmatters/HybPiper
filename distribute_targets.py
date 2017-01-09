@@ -44,7 +44,10 @@ def tailored_target_blast(blastxfilename):
 		result = result.split()
 		hitname = result[1].split("-")
 		bitscore = float(result[-1])
-		protname = hitname[1]
+		try: 
+			protname = hitname[1]
+		except IndexError:
+			raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
 		taxon = hitname[0]
 		if protname in hitcounts:
 			if taxon in hitcounts[protname]:
@@ -80,7 +83,10 @@ def tailored_target_bwa(bamfilename):
 		result = result.split()
 		hitname = result[2].split("-")
 		mapscore = float(result[4])
-		protname = hitname[1]
+		try: 
+			protname = hitname[1]
+		except IndexError:
+			raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
 		taxon = hitname[0]
 		if protname in hitcounts:
 			if taxon in hitcounts[protname]:
