@@ -92,15 +92,18 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 #Changelog
 
-**1.1.1** *November, 2016*
+**1.2** *January, 2016*
 
 * Features 
+
+	- Added `--target` flag. Using this flag, HybPiper will only use targets with the specified name in the Alignment/Exon Extraction phase. All other targets for that locus will only be used in the Mapping/Read Sorting phase.
 
 	- Added `--timeout` flag, which uses GNU Parallel to kill processes (i.e. Spades or Exonerate) if they take X percent longer than average. Use if there are a lot of stuck jobs (`--timeout 1000`)
 
 * Bug Fixes
 
  - Can accommodate Solexa FASTQ paired headers
+ - Fixed `spades_runner.py` not recognizing `--cpu` on redos
 
 
 **1.1** *May, 2016*: Release associated with manuscript in *Applications in Plant Sciences*.

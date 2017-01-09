@@ -166,7 +166,7 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 			
 	return basename + '.blastx'
 
-def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
+def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
 	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile," ".join(readfiles))
@@ -174,14 +174,17 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
 	if exitcode:
 		print "ERROR: Something went wrong with distributing reads to gene directories."
 		return exitcode
-	target_cmd = "time python {} {} --blastx {}".format(os.path.join(run_dir,"distribute_targets.py"),baitfile,blastx_outputfile)
+	target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--blastx",blastx_outputfile]
+	if target:
+		target_cmds.append("--target {}".format(target))
+	target_cmd = " ".join(target_cmds)
 	exitcode = subprocess.call(target_cmd,shell=True)
 	if exitcode:
 		print "ERROR: Something went wrong distributing targets to gene directories."
 		return exitcode
 	return None
 
-def distribute_bwa(bamfile,readfiles,baitfile,run_dir):
+def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
 	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile," ".join(readfiles))
@@ -189,7 +192,10 @@ def distribute_bwa(bamfile,readfiles,baitfile,run_dir):
 	if exitcode:
 		print "ERROR: Something went wrong with distributing reads to gene directories."
 		return exitcode
-	target_cmd = "time python {} {} --bam {}".format(os.path.join(run_dir,"distribute_targets.py"),baitfile,bamfile)
+	target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--bam",bamfile]
+	if target:
+		target_cmds.append("--target {}".format(target))
+	target_cmd = " ".join(target_cmds)
 	exitcode = subprocess.call(target_cmd,shell=True)
 	if exitcode:
 		print "ERROR: Something went wrong distributing targets to gene directories."
@@ -551,6 +557,8 @@ def main():
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
 	parser.add_argument("--timeout",help="Use GNU Parallel to kill long-running processes if they take longer than X percent of average.",default=0)
 	
+	parser.add_argument("--target",help="Use this target to align sequences for each gene. Other targets for that gene will be used only for read sorting.",default=None)
+	
 	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)
 	if len(sys.argv) == 1:
 		parser.print_help()
@@ -616,9 +624,9 @@ def main():
 	
 	if args.distribute:
 		if args.bwa:
-			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir)
+			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target)
 		else:
-			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir)
+			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target)
 		if exitcode:
 			sys.exit(1)
 	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
