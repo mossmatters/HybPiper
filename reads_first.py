@@ -113,7 +113,7 @@ def check_dependencies():
 	return everything_is_awesome
 
 
-def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
+def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10,unpaired=False):
 	dna = set("ATCGN")
 	if os.path.isfile(baitfile):
 		#Quick detection of whether baitfile is DNA. 
@@ -144,29 +144,44 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 	if os.path.isfile(basename+".blastx"):
 		os.remove(basename+".blastx")
 	
-	for read_file in readfiles:
-	
-		
-	
-		#Piping commands for Fastq -> FASTA	
-		# Curly braces must be doubled within a formatted string.
+	if unpaired:
+		read_file = readfiles
 		pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
-	
 		blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file,evalue,max_target_seqs)
 		if cpu:
-			full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
+			full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}_unpaired.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
 		else:
-			full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
+			full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}_unpaired.blastx ".format(pipe_cmd,blastx_command,basename)
 		print full_command
 		exitcode = subprocess.call(full_command,shell=True)
 		if exitcode:
 			#Concatenate the two blastfiles.
 		
 			return None
+		return basename + "_unpaired.blastx"
+		
+	else:
+		for read_file in readfiles:
+
+		#Piping commands for Fastq -> FASTA	
+		# Curly braces must be doubled within a formatted string.
+			pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
+	
+			blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file,evalue,max_target_seqs)
+			if cpu:
+				full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
+			else:
+				full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
+			print full_command
+			exitcode = subprocess.call(full_command,shell=True)
+			if exitcode:
+				#Concatenate the two blastfiles.
+		
+				return None
 			
 	return basename + '.blastx'
 
-def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None):
+def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None,unpaired_readfile=None):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
 	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile," ".join(readfiles))
@@ -177,6 +192,11 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None):
 	target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--blastx",blastx_outputfile]
 	if target:
 		target_cmds.append("--target {}".format(target))
+	if unpaired_readfile:
+		blastx_outputfile = blastx_outputfile.replace(".blastx","_unpaired.blastx")
+		unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile,unpaired_readfile)
+		print("[CMD] {}\n".format(unpaired_cmd))
+		exitcode = subprocess.call(unpaired_cmd,shell=True)
 	target_cmd = " ".join(target_cmds)
 	exitcode = subprocess.call(target_cmd,shell=True)
 	if exitcode:
@@ -522,7 +542,7 @@ def bwa(readfiles,baitfile,basename,cpu,unpaired=None):
 		import multiprocessing
 		cpu = multiprocessing.cpu_count()
 	
-	if len(readfiles) == 2:
+	if len(readfiles) < 3:
 		bwa_fastq = " ".join(readfiles)
 	else:
 		bwa_fastq = readfiles
@@ -634,7 +654,7 @@ def main():
 	#BLAST
 	if args.blast:
 		if args.unpaired:
-			readfiles.append(unpaired_readfile)
+			unpaired_blastxfile = blastx(unpaired_readfile,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs,unpaired=True)
 		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs)
 		if not blastx_outputfile:
 			print "ERROR: Something is wrong with the Blastx step, exiting!"
@@ -647,7 +667,7 @@ def main():
 		if args.bwa:
 			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
 		else:
-			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target)
+			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
 		if exitcode:
 			sys.exit(1)
 	if len(readfiles) == 2:
