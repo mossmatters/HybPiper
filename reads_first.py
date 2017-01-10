@@ -184,11 +184,19 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None):
 		return exitcode
 	return None
 
-def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None):
+def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
 	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile," ".join(readfiles))
+	print("[CMD] {}\n".format(read_cmd))
 	exitcode = subprocess.call(read_cmd,shell=True)
+	
+	if unpaired:
+		bamfile = bamfile.replace(".bam","_unpaired.bam")
+		unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile,unpaired)
+		print("[CMD] {}\n".format(unpaired_cmd))
+		exitcode = subprocess.call(unpaired_cmd,shell=True)
+	
 	if exitcode:
 		print "ERROR: Something went wrong with distributing reads to gene directories."
 		return exitcode
@@ -215,7 +223,7 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
-def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None):
+def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None,unpaired=False):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	
 #	import spades_runner
@@ -234,9 +242,12 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=No
 		spades_runner_list.append(str(cpu))
 	if not paired:
 		spades_runner_list.append("--single")
+	if unpaired:
+		spades_runner_list.append("--unpaired")
 	if timeout:
 		spades_runner_list.append("--timeout")
 		spades_runner_list.append("{}%".format(timeout))
+	
 	
 	spades_runner_cmd = " ".join(spades_runner_list)	
 
@@ -478,7 +489,7 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 		return exitcode
 	return
 
-def bwa(readfiles,baitfile,basename,cpu):
+def bwa(readfiles,baitfile,basename,cpu,unpaired=None):
 	"""Conduct BWA search of reads against the baitfile.
 	Returns an error if the second line of the baitfile contains characters other than ACTGN"""
 	dna = set("ATCGN")
@@ -506,20 +517,22 @@ def bwa(readfiles,baitfile,basename,cpu):
 	else:
 		print "ERROR: Cannot find baitfile at: {}".format(baitfile)
 		return None
-
-	#Remove previous blast results if they exist (because we will be appending)
-	#if os.path.isfile(basename+".blastx"):
-	#	os.remove(basename+".blastx")
 	
-	#Piping commands for Fastq -> FASTA	
-	# Curly braces must be doubled within a formatted string.
-	if cpu:
-		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
-	else:
-		#Use all cores
+	if not cpu:
 		import multiprocessing
 		cpu = multiprocessing.cpu_count()
-		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
+	
+	if len(readfiles) == 2:
+		bwa_fastq = " ".join(readfiles)
+	else:
+		bwa_fastq = readfiles
+			
+	bwa_commands = ["time bwa mem","-t",str(cpu),db_file,bwa_fastq," | samtools view -h -b -S - > "]
+	if unpaired:
+		bwa_commands.append(basename+"_unpaired.bam")
+	else:
+		bwa_commands.append(basename+".bam")
+	full_command = " ".join(bwa_commands)
 	print "[CMD]: {}".format(full_command)
 	exitcode = subprocess.call(full_command,shell=True)
 	if exitcode:
@@ -558,6 +571,7 @@ def main():
 	parser.add_argument("--timeout",help="Use GNU Parallel to kill long-running processes if they take longer than X percent of average.",default=0)
 	
 	parser.add_argument("--target",help="Use this target to align sequences for each gene. Other targets for that gene will be used only for read sorting.",default=None)
+	parser.add_argument("--unpaired",help="Include a single FASTQ file with unpaired reads along with the two paired read files",default=False)
 	
 	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)
 	if len(sys.argv) == 1:
@@ -589,12 +603,15 @@ def main():
 		parser.print_help()
 		return
 	readfiles = [os.path.abspath(x) for x in args.readfiles]	
-
+	if args.unpaired:
+		unpaired_readfile = os.path.abspath(args.unpaired)
+	else:
+		unpaired_readfile = None
 	if len(args.readfiles) < 1:
 		print "ERROR: Please specify readfiles with -r"
 		return
 	if not args.baitfile:
-		print "ERROR: Please specify a FASTA file containing bait sequences."
+		print "ERROR: Please specify a FASTA file containing target sequences."
 		return
 	
 	#Generate directory
@@ -606,6 +623,8 @@ def main():
 		if args.blast:
 			args.blast=False
 			bamfile = bwa(readfiles,baitfile,basename,cpu=args.cpu)
+			if args.unpaired:
+				unpaired_bamfile = bwa(unpaired_readfile,baitfile,basename,cpu=args.cpu,unpaired=True)
 			if not bamfile:
 				print "ERROR: Something went wrong with the BWA step, exiting!"
 				return
@@ -614,6 +633,8 @@ def main():
 	
 	#BLAST
 	if args.blast:
+		if args.unpaired:
+			readfiles.append(unpaired_readfile)
 		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs)
 		if not blastx_outputfile:
 			print "ERROR: Something is wrong with the Blastx step, exiting!"
@@ -624,12 +645,15 @@ def main():
 	
 	if args.distribute:
 		if args.bwa:
-			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target)
+			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
 		else:
 			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target)
 		if exitcode:
 			sys.exit(1)
-	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
+	if len(readfiles) == 2:
+		genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
+	else:
+		genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_unpaired.fasta"))]
 	#genes = ["gene008"]
 	if len(genes) == 0:
 		print "ERROR: No genes with BLAST hits! Exiting!"
@@ -652,7 +676,11 @@ def main():
 		if len(readfiles) == 1:	
 			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=False,timeout=args.timeout)
 		elif len(readfiles) == 2:
-			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,timeout=args.timeout)
+			if unpaired_readfile:
+				spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,timeout=args.timeout,unpaired=True)
+			else:
+				spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,timeout=args.timeout)
+
 		else:
 			print "ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!"
 			return
