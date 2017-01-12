@@ -7,13 +7,13 @@ If a sample does not have paralogs for that gene, the sequence in the FNA direct
 import os,sys,argparse
 from Bio import SeqIO
 
-def retrieve_seqs(name,gene):
+def retrieve_seqs(path,name,gene):
 	seqs_to_write = None
-	if os.path.isdir(os.path.join(name,gene,name,'paralogs')):
-		seqs_to_write = [x for x in SeqIO.parse(os.path.join(name,gene,name,'paralogs','{}_paralogs.fasta'.format(gene)),'fasta')]
+	if os.path.isdir(os.path.join(path,name,gene,name,'paralogs')):
+		seqs_to_write = [x for x in SeqIO.parse(os.path.join(path,name,gene,name,'paralogs','{}_paralogs.fasta'.format(gene)),'fasta')]
 		num_seqs = str(len(seqs_to_write))
-	elif os.path.isfile(os.path.join(name,gene,name,'sequences','FNA','{}.FNA'.format(gene))):
-		seqs_to_write = SeqIO.read(os.path.join(name,gene,name,'sequences','FNA','{}.FNA'.format(gene)),'fasta')
+	elif os.path.isfile(os.path.join(path,name,gene,name,'sequences','FNA','{}.FNA'.format(gene))):
+		seqs_to_write = SeqIO.read(os.path.join(path,name,gene,name,'sequences','FNA','{}.FNA'.format(gene)),'fasta')
 		num_seqs = "1"
 	
 	if seqs_to_write:
@@ -34,7 +34,10 @@ def main():
 	namelist = [x.rstrip() for x in open(args.namelist)]
 	num_seqs = []
 	for name in namelist:
-		num_seqs.append(retrieve_seqs(name,args.gene))
+                path, name = os.path.split(name)
+                if not name:
+                        path,name = os.path.split(path)
+	        num_seqs.append(retrieve_seqs(path,name,args.gene))
 	sys.stderr.write("{}\t{}\n".format(args.gene,"\t".join(num_seqs)))
 	
 if __name__ == "__main__":main()
