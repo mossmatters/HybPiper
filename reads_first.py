@@ -240,7 +240,12 @@ def make_basename(readfiles,prefix=None):
 	if prefix:
             if not os.path.exists(prefix):
                 os.makedirs(prefix)
-
+            else:
+                if os.listdir(prefix):
+                ## When running under HTCondor, the execution might be restarted
+                ## However, this code in not tolerant of restarts
+                    print "ERROR: Directory {} not empty, exiting!".format(prefix)
+                    return
 
             prefixParentDir, prefix = os.path.split(prefix)
             if not prefix:
@@ -251,11 +256,12 @@ def make_basename(readfiles,prefix=None):
 
             return prefixParentDir,prefix
 
+        ## --prefix is not set on cmd line;  Write output to subdir in . 
 	basename = os.path.split(readfiles[0])[1].split('_')[0]
 
 	if not os.path.exists(basename):
 		os.makedirs(basename)
-	return basename, basename
+	return '.', basename
 
 def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None,unpaired=False):
 	"Run SPAdes on each gene separately using GNU paralell."""
@@ -652,12 +658,7 @@ def main():
 	
 	#Generate directory
 	basedir, basename = make_basename(args.readfiles,prefix=args.prefix)
-        if os.listdir(basedir):
-            ## When running under HTCondor, the execution might be restarted
-            ##  However, this code in not tolerant of restarts
-            print "ERROR: Directory {} not empty, exiting!".format(basedir)
-            return
-	os.chdir(basedir)
+	os.chdir(os.path.join(basedir,basename))
 	
 	#BWA
 	if args.bwa:
