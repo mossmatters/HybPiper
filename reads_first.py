@@ -240,12 +240,12 @@ def make_basename(readfiles,prefix=None):
 	if prefix:
             if not os.path.exists(prefix):
                 os.makedirs(prefix)
-            else:
-                if os.listdir(prefix):
-                ## When running under HTCondor, the execution might be restarted
-                ## However, this code in not tolerant of restarts
-                    print "ERROR: Directory {} not empty, exiting!".format(prefix)
-                    return
+#             else:
+#                 if os.listdir(prefix):
+#                 ## When running under HTCondor, the execution might be restarted
+#                 ## However, this code in not tolerant of restarts
+#                     print "ERROR: Directory {} not empty, exiting!".format(prefix)
+#                     return
 
             prefixParentDir, prefix = os.path.split(prefix)
             if not prefix:
