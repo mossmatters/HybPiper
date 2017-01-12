@@ -113,7 +113,7 @@ def check_dependencies():
 	return everything_is_awesome
 
 
-def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
+def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10,unpaired=False):
 	dna = set("ATCGN")
 	if os.path.isfile(baitfile):
 		#Quick detection of whether baitfile is DNA. 
@@ -144,29 +144,44 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10):
 	if os.path.isfile(basename+".blastx"):
 		os.remove(basename+".blastx")
 	
-	for read_file in readfiles:
-	
-		
-	
-		#Piping commands for Fastq -> FASTA	
-		# Curly braces must be doubled within a formatted string.
+	if unpaired:
+		read_file = readfiles
 		pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
-	
 		blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file,evalue,max_target_seqs)
 		if cpu:
-			full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
+			full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}_unpaired.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
 		else:
-			full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
+			full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}_unpaired.blastx ".format(pipe_cmd,blastx_command,basename)
 		print full_command
 		exitcode = subprocess.call(full_command,shell=True)
 		if exitcode:
 			#Concatenate the two blastfiles.
 		
 			return None
+		return basename + "_unpaired.blastx"
+		
+	else:
+		for read_file in readfiles:
+
+		#Piping commands for Fastq -> FASTA	
+		# Curly braces must be doubled within a formatted string.
+			pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
+	
+			blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file,evalue,max_target_seqs)
+			if cpu:
+				full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,cpu,blastx_command,basename)
+			else:
+				full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> {}.blastx ".format(pipe_cmd,blastx_command,basename)
+			print full_command
+			exitcode = subprocess.call(full_command,shell=True)
+			if exitcode:
+				#Concatenate the two blastfiles.
+		
+				return None
 			
 	return basename + '.blastx'
 
-def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
+def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None,unpaired_readfile=None):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
 	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile," ".join(readfiles))
@@ -174,22 +189,41 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir):
 	if exitcode:
 		print "ERROR: Something went wrong with distributing reads to gene directories."
 		return exitcode
-	target_cmd = "time python {} {} --blastx {}".format(os.path.join(run_dir,"distribute_targets.py"),baitfile,blastx_outputfile)
+	target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--blastx",blastx_outputfile]
+	if target:
+		target_cmds.append("--target {}".format(target))
+	if unpaired_readfile:
+		blastx_outputfile = blastx_outputfile.replace(".blastx","_unpaired.blastx")
+		unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile,unpaired_readfile)
+		print("[CMD] {}\n".format(unpaired_cmd))
+		exitcode = subprocess.call(unpaired_cmd,shell=True)
+	target_cmd = " ".join(target_cmds)
 	exitcode = subprocess.call(target_cmd,shell=True)
 	if exitcode:
 		print "ERROR: Something went wrong distributing targets to gene directories."
 		return exitcode
 	return None
 
-def distribute_bwa(bamfile,readfiles,baitfile,run_dir):
+def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None):
 	#NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
 	#print run_dir
 	read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile," ".join(readfiles))
+	print("[CMD] {}\n".format(read_cmd))
 	exitcode = subprocess.call(read_cmd,shell=True)
+	
+	if unpaired:
+		bamfile = bamfile.replace(".bam","_unpaired.bam")
+		unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile,unpaired)
+		print("[CMD] {}\n".format(unpaired_cmd))
+		exitcode = subprocess.call(unpaired_cmd,shell=True)
+	
 	if exitcode:
 		print "ERROR: Something went wrong with distributing reads to gene directories."
 		return exitcode
-	target_cmd = "time python {} {} --bam {}".format(os.path.join(run_dir,"distribute_targets.py"),baitfile,bamfile)
+	target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--bam",bamfile]
+	if target:
+		target_cmds.append("--target {}".format(target))
+	target_cmd = " ".join(target_cmds)
 	exitcode = subprocess.call(target_cmd,shell=True)
 	if exitcode:
 		print "ERROR: Something went wrong distributing targets to gene directories."
@@ -209,7 +243,7 @@ def make_basename(readfiles,prefix=None):
 		os.makedirs(basename)
 	return basename
 
-def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
+def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=None,unpaired=False):
 	"Run SPAdes on each gene separately using GNU paralell."""
 	
 #	import spades_runner
@@ -222,16 +256,31 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None):
 	if os.path.isfile("spades_redo.log"):
 		os.remove("spades_redo.log")
 
+	spades_runner_list = ["python","{}/spades_runner.py".format(run_dir),spades_genefilename,"--cov_cutoff",str(cov_cutoff)]
 	if cpu:
-		if paired:
-			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
-		else:
-			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
-	else:
-		if paired:
-			spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
-		else:
-			spades_runner_cmd = "python {} {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+		spades_runner_list.append("--cpu")
+		spades_runner_list.append(str(cpu))
+	if not paired:
+		spades_runner_list.append("--single")
+	if unpaired:
+		spades_runner_list.append("--unpaired")
+	if timeout:
+		spades_runner_list.append("--timeout")
+		spades_runner_list.append("{}%".format(timeout))
+	
+	
+	spades_runner_cmd = " ".join(spades_runner_list)	
+
+# 	if cpu:
+# 		if paired:
+# 			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+# 		else:
+# 			spades_runner_cmd = "python {} {} --cpu {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cpu, cov_cutoff)
+# 	else:
+# 		if paired:
+# 			spades_runner_cmd = "python {} {} --cov_cutoff {}".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
+# 		else:
+# 			spades_runner_cmd = "python {} {} --cov_cutoff {} --single".format(os.path.join(run_dir,"spades_runner.py"),spades_genefilename, cov_cutoff)
 	exitcode = subprocess.call(spades_runner_cmd,shell=True)
 	if exitcode:
 		sys.stderr.write("WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n")
@@ -407,7 +456,7 @@ def cap3(genes,cpu=None):
 		
 	return None	
 
-def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False,depth_multiplier=0,length_pct=100):
+def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=False,depth_multiplier=0,length_pct=100,timeout=None):
 	#Check that each gene in genes actually has CAP3 output
 	#cap3_sizes = [os.stat(os.path.join(x,x+"_cap3ed.fa")).st_size for x in genes]
 	#print cap3_sizes
@@ -430,10 +479,29 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 		file_stem = "contigs.fasta"
 	
 	print "Running Exonerate to generate sequences for {} genes".format(len(genes))
+	
+	parallel_cmd_list = ["time parallel","--eta"]
 	if cpu:
-		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
-	else:
-		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
+		parallel_cmd_list.append("-j {}".format(cpu))
+	if timeout:
+		parallel_cmd_list.append("--timeout {}%".format(timeout))	
+	
+	exonerate_cmd_list = ["python","{}/exonerate_hits.py".format(run_dir),
+				"{}/{}_baits.fasta","{{}}/{{}}_{}".format(file_stem),
+				"--prefix {{}}/{}".format(basename), 
+				"-t {}".format(thresh),
+				"--depth_multiplier {}".format(depth_multiplier),
+				"--length_pct {}".format(length_pct),
+				"::::",
+				exonerate_genefilename,
+				"> genes_with_seqs.txt"]
+				
+	exonerate_cmd = " ".join(parallel_cmd_list) + " " + " ".join(exonerate_cmd_list)			
+	
+# 	if cpu:
+# 		exonerate_cmd = "time parallel -j {} python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(cpu,os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
+# 	else:
+# 		exonerate_cmd = "time parallel python {} {{}}/{{}}_baits.fasta {{}}/{{}}_{} --prefix {{}}/{} -t {} --depth_multiplier {} --length_pct {} :::: {} > genes_with_seqs.txt".format(os.path.join(run_dir,"exonerate_hits.py"),file_stem,basename,thresh,depth_multiplier,length_pct,exonerate_genefilename)
 	print exonerate_cmd
 	exitcode = subprocess.call(exonerate_cmd,shell=True)
 	if exitcode:
@@ -441,7 +509,7 @@ def exonerate(genes,basename,run_dir,replace=True,cpu=None,thresh=55,use_velvet=
 		return exitcode
 	return
 
-def bwa(readfiles,baitfile,basename,cpu):
+def bwa(readfiles,baitfile,basename,cpu,unpaired=None):
 	"""Conduct BWA search of reads against the baitfile.
 	Returns an error if the second line of the baitfile contains characters other than ACTGN"""
 	dna = set("ATCGN")
@@ -469,20 +537,22 @@ def bwa(readfiles,baitfile,basename,cpu):
 	else:
 		print "ERROR: Cannot find baitfile at: {}".format(baitfile)
 		return None
-
-	#Remove previous blast results if they exist (because we will be appending)
-	#if os.path.isfile(basename+".blastx"):
-	#	os.remove(basename+".blastx")
 	
-	#Piping commands for Fastq -> FASTA	
-	# Curly braces must be doubled within a formatted string.
-	if cpu:
-		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
-	else:
-		#Use all cores
+	if not cpu:
 		import multiprocessing
 		cpu = multiprocessing.cpu_count()
-		full_command = "time bwa mem -t {} {} {} | samtools view -h -b -S - > {}.bam ".format(cpu,db_file," ".join(readfiles),basename)
+	
+	if len(readfiles) < 3:
+		bwa_fastq = " ".join(readfiles)
+	else:
+		bwa_fastq = readfiles
+			
+	bwa_commands = ["time bwa mem","-t",str(cpu),db_file,bwa_fastq," | samtools view -h -b -S - > "]
+	if unpaired:
+		bwa_commands.append(basename+"_unpaired.bam")
+	else:
+		bwa_commands.append(basename+".bam")
+	full_command = " ".join(bwa_commands)
 	print "[CMD]: {}".format(full_command)
 	exitcode = subprocess.call(full_command,shell=True)
 	if exitcode:
@@ -518,6 +588,10 @@ def main():
 	parser.add_argument("--depth_multiplier",help="Accept any full-length exonerate hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
 
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
+	parser.add_argument("--timeout",help="Use GNU Parallel to kill long-running processes if they take longer than X percent of average.",default=0)
+	
+	parser.add_argument("--target",help="Use this target to align sequences for each gene. Other targets for that gene will be used only for read sorting.",default=None)
+	parser.add_argument("--unpaired",help="Include a single FASTQ file with unpaired reads along with the two paired read files",default=False)
 	
 	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)
 	if len(sys.argv) == 1:
@@ -549,12 +623,15 @@ def main():
 		parser.print_help()
 		return
 	readfiles = [os.path.abspath(x) for x in args.readfiles]	
-
+	if args.unpaired:
+		unpaired_readfile = os.path.abspath(args.unpaired)
+	else:
+		unpaired_readfile = None
 	if len(args.readfiles) < 1:
 		print "ERROR: Please specify readfiles with -r"
 		return
 	if not args.baitfile:
-		print "ERROR: Please specify a FASTA file containing bait sequences."
+		print "ERROR: Please specify a FASTA file containing target sequences."
 		return
 	
 	#Generate directory
@@ -566,6 +643,8 @@ def main():
 		if args.blast:
 			args.blast=False
 			bamfile = bwa(readfiles,baitfile,basename,cpu=args.cpu)
+			if args.unpaired:
+				unpaired_bamfile = bwa(unpaired_readfile,baitfile,basename,cpu=args.cpu,unpaired=True)
 			if not bamfile:
 				print "ERROR: Something went wrong with the BWA step, exiting!"
 				return
@@ -574,6 +653,8 @@ def main():
 	
 	#BLAST
 	if args.blast:
+		if args.unpaired:
+			unpaired_blastxfile = blastx(unpaired_readfile,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs,unpaired=True)
 		blastx_outputfile = blastx(readfiles,baitfile,args.evalue,basename,cpu=args.cpu,max_target_seqs=args.max_target_seqs)
 		if not blastx_outputfile:
 			print "ERROR: Something is wrong with the Blastx step, exiting!"
@@ -584,12 +665,15 @@ def main():
 	
 	if args.distribute:
 		if args.bwa:
-			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir)
+			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
 		else:
-			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir)
+			exitcode=	distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
 		if exitcode:
 			sys.exit(1)
-	genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
+	if len(readfiles) == 2:
+		genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
+	else:
+		genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_unpaired.fasta"))]
 	#genes = ["gene008"]
 	if len(genes) == 0:
 		print "ERROR: No genes with BLAST hits! Exiting!"
@@ -610,9 +694,13 @@ def main():
 
 	if args.assemble:
 		if len(readfiles) == 1:	
-			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=False)
+			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=False,timeout=args.timeout)
 		elif len(readfiles) == 2:
-			spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals)
+			if unpaired_readfile:
+				spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,timeout=args.timeout,unpaired=True)
+			else:
+				spades_genelist = spades(genes,run_dir,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,timeout=args.timeout)
+
 		else:
 			print "ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!"
 			return
@@ -623,7 +711,7 @@ def main():
 	#Exonerate hits
 	if args.exonerate:
 		genes = [x.rstrip() for x in open(exonerate_genefilename).readlines()]
-		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh,length_pct = args.length_pct,depth_multiplier=args.depth_multiplier)
+		exitcode = exonerate(genes,basename,run_dir,cpu=args.cpu,thresh=args.thresh,length_pct = args.length_pct,depth_multiplier=args.depth_multiplier,timeout=args.timeout)
 		if exitcode:
 			return
 	

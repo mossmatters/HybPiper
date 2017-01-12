@@ -44,7 +44,10 @@ def tailored_target_blast(blastxfilename):
 		result = result.split()
 		hitname = result[1].split("-")
 		bitscore = float(result[-1])
-		protname = hitname[1]
+		try: 
+			protname = hitname[1]
+		except IndexError:
+			raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
 		taxon = hitname[0]
 		if protname in hitcounts:
 			if taxon in hitcounts[protname]:
@@ -80,7 +83,10 @@ def tailored_target_bwa(bamfilename):
 		result = result.split()
 		hitname = result[2].split("-")
 		mapscore = float(result[4])
-		protname = hitname[1]
+		try: 
+			protname = hitname[1]
+		except IndexError:
+			raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
 		taxon = hitname[0]
 		if protname in hitcounts:
 			if taxon in hitcounts[protname]:
@@ -104,8 +110,9 @@ def tailored_target_bwa(bamfilename):
 		tallyfile.write("{}\t{}\n".format(x, besthit_counts[x]))
 	tallyfile.close()
 	return besthits	
-        
-def distribute_targets(baitfile,dirs,delim,besthits,translate=False):
+
+     
+def distribute_targets(baitfile,dirs,delim,besthits,translate=False,target=None):
 	targets = SeqIO.parse(baitfile,'fasta')
 	no_matches = []
 	for prot in targets:
@@ -116,8 +123,12 @@ def distribute_targets(baitfile,dirs,delim,besthits,translate=False):
 		
 		if dirs:
 			mkdir_p(prot_cat)
-		if prot_cat in besthits:        
-			besthit_taxon = besthits[prot_cat]
+		
+		if prot_cat in besthits:
+			if target:
+				besthit_taxon = target
+			else:       
+				besthit_taxon = besthits[prot_cat]
 			if prot.id.split("-")[0] == besthit_taxon:
 				#print "Protein {} is a best match to {}".format(prot_cat,besthit_taxon)
 				outfile = open(os.path.join(prot_cat,"{}_baits.fasta".format(prot_cat)),'w')
@@ -136,27 +147,20 @@ def help():
 		
 def main():
 	parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
-	parser.add_argument("--no_dirs",help="Do not generate separate directories for each protein-- output all to the current directory.", action="store_true",default=False)
 	parser.add_argument("-d","--delimiter",help="Field separating FASTA ids for multiple sequences per target. Default is '-' . For no delimeter, write None", default="-")
 	parser.add_argument("baitfile",help="FASTA file containing bait sequences")
 	parser.add_argument("--blastx",help="tabular blastx results file, used to select the best target for each gene",default=None)
 	parser.add_argument("--bam",help="BAM file from BWA search, alternative to the BLASTx method",default=None)
+	parser.add_argument("--target",help="Choose this version of the target always",default=None)
 	args = parser.parse_args()
 	
-	if args.no_dirs:
-		if args.blastx:
-			besthits = tailored_target_blast(args.blastx)
-			distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits)
-		elif args.bam:
-			besthits = tailored_target_bwa(args.bam)
-			distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits,translate=True)
-	else:
-		if args.blastx:
-			besthits = tailored_target_blast(args.blastx)
-			distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits)
-		elif args.bam:
-			besthits = tailored_target_bwa(args.bam)
-			distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits,translate=True)
+	if args.blastx:
+		besthits = tailored_target_blast(args.blastx)
+		translate = False			
+	if args.bam:
+		translate = True
+		besthits = tailored_target_bwa(args.bam)
+ 	distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits,translate=translate,target=args.target)
 	
 
 
