@@ -52,11 +52,21 @@ def enrich_efficiency_bwa(bamfilename):
 	
 def recovery_efficiency(name):
 	'''Report the number of genes with mapping hits, contigs, and exon sequences'''
-	a= file_len("{}/spades_genelist.txt".format(name))
-	b= file_len("{}/exonerate_genelist.txt".format(name))
-	c= file_len("{}/genes_with_seqs.txt".format(name))
 	
-	return str(a),str(b),str(c)
+	txt_files = ["spades_genelist.txt",
+				"exonerate_genelist.txt",
+				"genes_with_seqs.txt"
+				
+	]
+	
+	my_stats = []
+	for txt in txt_files:
+		if os.path.isfile("{}/{}".format(name,txt)):
+			my_stats.append(file_len("{}/{}".format(name,txt)))
+		else:
+			my_stats.append(0)
+	
+	return [str(a) for a  in stats]
 	
 def seq_length_calc(seq_lengths_fn):
 	'''From the output of get_seq_lengths.py, calculate the number of genes with seqs, and at least a pct of the reference length'''
@@ -128,8 +138,11 @@ def main():
 		stats_dict[name] += seq_length_dict[name]
 		
 		#Paralogs
-		paralog_warns = file_len("{}/genes_with_paralog_warnings.txt".format(name))
-		stats_dict[name].append(str(paralog_warns))
+		if os.path.isfile("{}/genes_with_paralog_warnings.txt".format(name)):
+			paralog_warns = file_len("{}/genes_with_paralog_warnings.txt".format(name))
+			stats_dict[name].append(str(paralog_warns))
+		else:
+			stats_dict[name].append("0")
 	#SeqLengths
 	
 	
