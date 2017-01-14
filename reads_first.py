@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse,os,sys,importlib,shutil,subprocess
+import argparse,os,sys,importlib,shutil,subprocess,glob
 
 helptext="""
 This script is a wrapper around several scripts in the HybSeqPipeline.
@@ -686,6 +686,9 @@ def main():
 	#Distribute
 	
 	if args.distribute:
+		pre_existing_fastas = glob.glob("./*/*_interleaved.fasta") + glob.glob("./*/*_unpaired.fasta")
+		for fn in pre_existing_fastas:
+			os.remove(fn)
 		if args.bwa:
 			exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
 		else:

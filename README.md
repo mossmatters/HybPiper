@@ -108,6 +108,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
  - Fixed `spades_runner.py` not recognizing `--cpu` on redos
  - Prints more meaningful messages for some common errors
  - Can accommodate `prefix` not being in current directory
+ - Deletes sorted reads on restart to prevent double counting reads.
 
 
 **1.1** *May, 2016*: Release associated with manuscript in *Applications in Plant Sciences*.
