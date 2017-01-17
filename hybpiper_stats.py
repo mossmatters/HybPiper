@@ -66,7 +66,7 @@ def recovery_efficiency(name):
 		else:
 			my_stats.append(0)
 	
-	return [str(a) for a  in stats]
+	return [str(a) for a  in my_stats]
 	
 def seq_length_calc(seq_lengths_fn):
 	'''From the output of get_seq_lengths.py, calculate the number of genes with seqs, and at least a pct of the reference length'''
