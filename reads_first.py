@@ -3,6 +3,9 @@
 import argparse,os,sys,importlib,shutil,subprocess,glob
 
 helptext="""
+
+HybPiper Version 1.2 (January 2017)
+
 This script is a wrapper around several scripts in the HybSeqPipeline.
 It can check whether you have the appropriate dependencies available (see --check-depend).
 It makes sure that the other scripts needed are in the same directory as this one.
@@ -622,7 +625,8 @@ def main():
 	args = parser.parse_args()
 	
 	run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
-
+	print("HybPiper was called with these arguments:\n{}\n".format(" ".join(sys.argv)))
+	
 	#Check dependencies
 	if args.check_depend:
 		if check_dependencies():
