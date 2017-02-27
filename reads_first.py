@@ -4,7 +4,7 @@ import argparse,os,sys,importlib,shutil,subprocess,glob
 
 helptext="""
 
-HybPiper Version 1.2 (January 2017)
+HybPiper Version 1.2 (March 2017)
 
 This script is a wrapper around several scripts in the HybSeqPipeline.
 It can check whether you have the appropriate dependencies available (see --check-depend).
@@ -618,7 +618,7 @@ def main():
 	parser.add_argument('--prefix',help="Directory name for pipeline output, default is to use the FASTQ file name.",default=None)
 	parser.add_argument("--timeout",help="Use GNU Parallel to kill long-running processes if they take longer than X percent of average.",default=0)
 	
-	parser.add_argument("--target",help="Use this target to align sequences for each gene. Other targets for that gene will be used only for read sorting.",default=None)
+	parser.add_argument("--target",help="Use this target to align sequences for each gene. Other targets for that gene will be used only for read sorting. Can be a tab-delimited file (one gene per line) or a single sequence name",default=None)
 	parser.add_argument("--unpaired",help="Include a single FASTQ file with unpaired reads along with the two paired read files",default=False)
 	
 	parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)

@@ -113,6 +113,13 @@ def tailored_target_bwa(bamfilename):
 
      
 def distribute_targets(baitfile,dirs,delim,besthits,translate=False,target=None):
+	if os.path.isfile(target):
+		print("[DISTRIBUTE]: Reading preferred target names from {} \n".format(target))
+		genes_to_targets = {x.split()[0]:x.rstrip().split()[1] for x in open(target)}
+		target_is_file = True
+	else:
+		target_is_file = False	
+		
 	targets = SeqIO.parse(baitfile,'fasta')
 	no_matches = []
 	for prot in targets:
@@ -126,7 +133,10 @@ def distribute_targets(baitfile,dirs,delim,besthits,translate=False,target=None)
 		
 		if prot_cat in besthits:
 			if target:
-				besthit_taxon = target
+				if target_is_file:
+					besthit_taxon = genes_to_targets[prot_cat]
+				else:
+					besthit_taxon = target
 			else:       
 				besthit_taxon = besthits[prot_cat]
 			if prot.id.split("-")[0] == besthit_taxon:
@@ -136,7 +146,7 @@ def distribute_targets(baitfile,dirs,delim,besthits,translate=False,target=None)
 				outfile.close()
 		else:
 			no_matches.append(prot_cat)
-	print "{} proteins had no good matches.".format(len(set(no_matches)))
+	print "[DISTRIBUTE]: {} proteins had no good matches.".format(len(set(no_matches)))
 	#print besthits.values()			
 
 		
