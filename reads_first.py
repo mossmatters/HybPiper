@@ -290,6 +290,9 @@ def spades(genes,run_dir,cov_cutoff=8,cpu=None,paired=True,kvals=None,timeout=No
 	if timeout:
 		spades_runner_list.append("--timeout")
 		spades_runner_list.append("{}%".format(timeout))
+	if kvals:
+		spades_runner_list.append("--kvals")
+		spades_runner_list.append("{}".format(",".join(kvals)))
 	
 	
 	spades_runner_cmd = " ".join(spades_runner_list)	
