@@ -59,7 +59,15 @@ def raxml_partition(fastafiles,partition_lengths,partition_type):
 	partition_file = open("partition.raxml",'w')
 	
 	if partition_type == 'CODON':
-		pass
+		for g in xrange(len(fastafiles)):
+			codon3_start = gene_start + 2
+			codon3_end = gene_start + partition_lengths[g] - 1
+			codon1_end = codon3_end - 2
+			codon2_start = gene_start + 1
+			codon2_end = codon3_end - 1
+			partition_file.write("{},{}{}={}-{}\\3,{}-{}\\3\n".format("DNA",fastafiles[g],"12",gene_start,codon1_end,codon2_start,codon2_end))
+			partition_file.write("{},{}{}={}-{}\\3\n".format("DNA",fastafiles[g],"3",codon3_start,codon3_end))
+			gene_start = codon3_end + 1
 	else:
 		for g in xrange(len(fastafiles)):
 			gene_end = gene_start + partition_lengths[g] - 1
