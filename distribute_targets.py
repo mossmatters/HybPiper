@@ -113,12 +113,13 @@ def tailored_target_bwa(bamfilename):
 
      
 def distribute_targets(baitfile,dirs,delim,besthits,translate=False,target=None):
-	if os.path.isfile(target):
-		print("[DISTRIBUTE]: Reading preferred target names from {} \n".format(target))
-		genes_to_targets = {x.split()[0]:x.rstrip().split()[1] for x in open(target)}
-		target_is_file = True
-	else:
-		target_is_file = False	
+	if target:
+		if os.path.isfile(target):
+			print("[DISTRIBUTE]: Reading preferred target names from {} \n".format(target))
+			genes_to_targets = {x.split()[0]:x.rstrip().split()[1] for x in open(target)}
+			target_is_file = True
+		else:
+			target_is_file = False	
 		
 	targets = SeqIO.parse(baitfile,'fasta')
 	no_matches = []
