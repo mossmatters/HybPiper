@@ -94,7 +94,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**1.2** *March, 2017*
+**1.2** *May, 2017*
 
 * Features 
 
@@ -103,6 +103,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
     - Added `--target` flag. Adds the ability to choose which of the reference sequences is used for each gene. If `--target` is a file (tab-delimited file with one gene and one target name per line), HybPiper will use that. Otherwise `--target` can be the name of one reference. HybPiper will only use targets with the specified name in the Alignment/Exon Extraction phase. All other targets for that locus will only be used in the Mapping/Read Sorting phase.
 
     - Added `--timeout` flag, which uses GNU Parallel to kill processes (i.e. Spades or Exonerate) if they take X percent longer than average. Use if there are a lot of stuck jobs (`--timeout 1000`)
+    - Python 3 compatibility
 
 * Bug Fixes
 
