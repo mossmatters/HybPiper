@@ -5,8 +5,8 @@
 minsize=5000
 readsize=$(wc -c < test_reads.fastq.tar.gz)
 if [ $minsize -ge $readsize ]; then
-	rm test_reads.fastq.tar.gz
-	wget https://github.com/mossmatters/HybPiper/raw/develop/test_dataset/test_reads.fastq.tar.gz || curl -O https://github.com/mossmatters/HybPiper/raw/develop/test_dataset/test_reads.fastq.tar.gz
+    rm test_reads.fastq.tar.gz
+    wget https://github.com/mossmatters/HybPiper/raw/develop/test_dataset/test_reads.fastq.tar.gz || curl -O https://github.com/mossmatters/HybPiper/raw/develop/test_dataset/test_reads.fastq.tar.gz
 fi
 
 #Unpack the test dataset

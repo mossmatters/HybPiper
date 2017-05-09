@@ -25,86 +25,86 @@ def mkdir_p(path):
         else: raise
 
 def read_sorting(bamfilename):
-	samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
-	child = subprocess.Popen(samtools_cmd,shell=True,stdout=subprocess.PIPE)
-	bwa_results = child.stdout.readlines()
-	
-	read_hit_dict = {}
-	for line in bwa_results:
-		line = line.split()
-		readID = line[0]
-		target = line[2].split("-")[-1]
-		if readID in read_hit_dict:
-			if target not in read_hit_dict[readID]:
-				read_hit_dict[readID].append(target)
-		else:
-			read_hit_dict[readID] = [target]
-	return read_hit_dict
+    samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
+    child = subprocess.Popen(samtools_cmd,shell=True,stdout=subprocess.PIPE,universal_newlines=True)
+    bwa_results = child.stdout.readlines()
+    
+    read_hit_dict = {}
+    for line in bwa_results:
+        line = line.split()
+        readID = line[0]
+        target = line[2].split("-")[-1]
+        if readID in read_hit_dict:
+            if target not in read_hit_dict[readID]:
+                read_hit_dict[readID].append(target)
+        else:
+            read_hit_dict[readID] = [target]
+    return read_hit_dict
 
 def write_paired_seqs(target,ID1,Seq1,ID2,Seq2,single=True):
-	mkdir_p(target)
-	if single:
-		outfile = open(os.path.join(target,"{}_interleaved.fasta".format(target)),'a')
-		outfile.write(">{}\n{}\n".format(ID1,Seq1))
-		outfile.write(">{}\n{}\n".format(ID2,Seq2))
-		outfile.close()
-	else:
-		outfile1 = open(os.path.join(target,"{}_1.fasta".format(target)),'a')
-		outfile1.write(">{}\n{}\n".format(ID1,Seq1))
-		outfile2 = open(os.path.join(target,"{}_2.fasta".format(target)),'a')
-		outfile2.write(">{}\n{}\n".format(ID2,Seq2))
-		outfile1.close()
-		outfile2.close()
+    mkdir_p(target)
+    if single:
+        outfile = open(os.path.join(target,"{}_interleaved.fasta".format(target)),'a')
+        outfile.write(">{}\n{}\n".format(ID1,Seq1))
+        outfile.write(">{}\n{}\n".format(ID2,Seq2))
+        outfile.close()
+    else:
+        outfile1 = open(os.path.join(target,"{}_1.fasta".format(target)),'a')
+        outfile1.write(">{}\n{}\n".format(ID1,Seq1))
+        outfile2 = open(os.path.join(target,"{}_2.fasta".format(target)),'a')
+        outfile2.write(">{}\n{}\n".format(ID2,Seq2))
+        outfile1.close()
+        outfile2.close()
 
 def write_single_seqs(target,ID1,Seq1):
-	"""Distributing targets from single-end sequencing"""
-	mkdir_p(target)
-	outfile = open(os.path.join(target,"{}_unpaired.fasta".format(target)),'a')
-	outfile.write(">{}\n{}\n".format(ID1,Seq1))
-	outfile.close()
-	
-	
+    """Distributing targets from single-end sequencing"""
+    mkdir_p(target)
+    outfile = open(os.path.join(target,"{}_unpaired.fasta".format(target)),'a')
+    outfile.write(">{}\n{}\n".format(ID1,Seq1))
+    outfile.close()
+    
+    
 def distribute_reads(readfiles,read_hit_dict,single=True):
-	iterator1 = FastqGeneralIterator(open(readfiles[0]))
-	if len(readfiles) == 1:
-	
-		for ID1_long, Seq1, Qual1 in iterator1:
-			ID1 = ID1_long.split()[0]
-			if ID1.endswith("\1") or ID1.endswith("\2"):
-				ID1 = ID1[:-2]
-			if ID1 in read_hit_dict:
-				for target in read_hit_dict[ID1]:
-					write_single_seqs(target,ID1,Seq1)
-		return
+    iterator1 = FastqGeneralIterator(open(readfiles[0]))
+    if len(readfiles) == 1:
+    
+        for ID1_long, Seq1, Qual1 in iterator1:
+            ID1 = ID1_long.split()[0]
+            if ID1.endswith("\1") or ID1.endswith("\2"):
+                ID1 = ID1[:-2]
+            if ID1 in read_hit_dict:
+                for target in read_hit_dict[ID1]:
+                    write_single_seqs(target,ID1,Seq1)
+        return
 
-	elif len(readfiles) == 2:
-		iterator2 = FastqGeneralIterator(open(readfiles[1]))
-	
-	for ID1_long, Seq1, Qual1 in iterator1:
-		ID2_long, Seq2, Qual2 = iterator2.next()
-		
-		ID1 = ID1_long.split()[0]
-		if ID1.endswith("/1") or ID1.endswith("/2"):
-			ID1 = ID1[:-2]
+    elif len(readfiles) == 2:
+        iterator2 = FastqGeneralIterator(open(readfiles[1]))
+    
+    for ID1_long, Seq1, Qual1 in iterator1:
+        ID2_long, Seq2, Qual2 = next(iterator2)
+        
+        ID1 = ID1_long.split()[0]
+        if ID1.endswith("/1") or ID1.endswith("/2"):
+            ID1 = ID1[:-2]
 
-		ID2 = ID2_long.split()[0]
-		if ID2.endswith("/1") or ID2.endswith("/2"):
-			ID2 = ID2[:-2]
-		
-		if ID1 in read_hit_dict:
-			for target in read_hit_dict[ID1]:
-				write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
-		elif ID2 in read_hit_dict:
-			for target in read_hit_dict[ID2]:
-				write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
+        ID2 = ID2_long.split()[0]
+        if ID2.endswith("/1") or ID2.endswith("/2"):
+            ID2 = ID2[:-2]
+        
+        if ID1 in read_hit_dict:
+            for target in read_hit_dict[ID1]:
+                write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
+        elif ID2 in read_hit_dict:
+            for target in read_hit_dict[ID2]:
+                write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
 
 def main():
-	bamfilename = sys.argv[1]
-	readfiles = sys.argv[2:]
-	read_hit_dict = read_sorting(bamfilename)
-	#print read_hit_dict
-	print "Unique reads with hits: {}".format(len(read_hit_dict))
-	distribute_reads(readfiles,read_hit_dict,single=True)
+    bamfilename = sys.argv[1]
+    readfiles = sys.argv[2:]
+    read_hit_dict = read_sorting(bamfilename)
+    #print read_hit_dict
+    print("Unique reads with hits: {}".format(len(read_hit_dict)))
+    distribute_reads(readfiles,read_hit_dict,single=True)
 
 
 

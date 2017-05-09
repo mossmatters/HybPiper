@@ -3,7 +3,7 @@ import sys,os
 from Bio import SeqIO
 
 helptext = '''Usage: 
-	python retrieve_sequences.py baitfile.fasta sequence_dir aa/dna/intron/supercontig
+    python retrieve_sequences.py baitfile.fasta sequence_dir aa/dna/intron/supercontig
 
 This script will get the sequences generated from multiple runs of the HybSeqPipeline (reads_first.py).
 Have all of the runs in the same directory (sequence_dir). 
@@ -18,23 +18,23 @@ Will output unaligned fasta files, one per gene, to current directory.
 
 
 if len(sys.argv) < 4:
-	print helptext
-	sys.exit(1)
+    print(helptext)
+    sys.exit(1)
 
 if sys.argv[3] == 'dna':
-	seq_dir = "FNA"
+    seq_dir = "FNA"
 elif sys.argv[3] == 'aa':
-	seq_dir = "FAA"
+    seq_dir = "FAA"
 elif sys.argv[3] == 'intron':
-	seq_dir = 'intron'
-	filename = 'introns'
+    seq_dir = 'intron'
+    filename = 'introns'
 elif sys.argv[3] == 'supercontig':
-	seq_dir = 'intron'
-	filename = 'supercontig'
+    seq_dir = 'intron'
+    filename = 'supercontig'
 
 else:
-	print helptext
-	sys.exit(1)
+    print(helptext)
+    sys.exit(1)
 
 #Use gene names parsed from a bait file.
 baitfile = sys.argv[1] 
@@ -45,26 +45,26 @@ sampledir = sys.argv[2]
 sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir,x)) and not x.startswith('.')]
 
 
-print "Retreiving {} genes from {} samples".format(len(target_genes),len(sample_names))
+print("Retreiving {} genes from {} samples".format(len(target_genes),len(sample_names)))
 
 
 for gene in target_genes:
-	gene_seqs = []
-	for rec in gene_seqs:
-		rec.id = rec.id.split("-")[0]
-		rec.description = ''
-	for sample in sample_names:
-		if seq_dir == 'intron':
-			sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,"{}_{}.fasta".format(gene,filename))
-		else:
-			sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,gene+'.'+seq_dir)
-		if os.path.isfile(sample_path):
-			gene_seqs.append(SeqIO.read(sample_path,'fasta'))
-	print "Found {} sequences for {}.".format(len(gene_seqs),gene)
-	
-	if seq_dir == 'intron':
-		outfilename = "{}_{}.fasta".format(gene,filename)
-	else:
-		outfilename = gene + '.' + seq_dir
-	
-	SeqIO.write(gene_seqs,open(outfilename,'w'),'fasta')
+    gene_seqs = []
+    for rec in gene_seqs:
+        rec.id = rec.id.split("-")[0]
+        rec.description = ''
+    for sample in sample_names:
+        if seq_dir == 'intron':
+            sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,"{}_{}.fasta".format(gene,filename))
+        else:
+            sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,gene+'.'+seq_dir)
+        if os.path.isfile(sample_path):
+            gene_seqs.append(SeqIO.read(sample_path,'fasta'))
+    print("Found {} sequences for {}.".format(len(gene_seqs),gene))
+    
+    if seq_dir == 'intron':
+        outfilename = "{}_{}.fasta".format(gene,filename)
+    else:
+        outfilename = gene + '.' + seq_dir
+    
+    SeqIO.write(gene_seqs,open(outfilename,'w'),'fasta')
