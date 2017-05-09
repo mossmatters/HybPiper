@@ -1,5 +1,7 @@
 #HybPiper
 
+Current version: 1.2 (March 2017)
+
 [![Join the chat at https://gitter.im/mossmatters/HybPiper](https://badges.gitter.im/mossmatters/HybPiper.svg)](https://gitter.im/mossmatters/HybPiper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)  [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
 
 --
@@ -12,7 +14,7 @@ by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 (logo by Elliot Gardner)
 
 
-###Purpose
+### Purpose
 
 HybPiper was designed for targeted sequence capture, in which DNA sequencing libraries are enriched for gene regions of interest, especially for phylogenetics. HybPiper is a suite of Python scripts that wrap and connect bioinformatics tools in order to extract target sequences from high-throughput DNA sequencing reads. 
 
@@ -28,7 +30,7 @@ HybPiper is run separately for each sample (single or paired-end sequence reads)
 
 
 ---
-#Dependencies
+# Dependencies
 * Python 2.7 or later (to use the argparse module for help documents)
 * [BIOPYTHON 1.59 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files)
 * [EXONERATE](http://www.ebi.ac.uk/~guy/exonerate/) (For aligning recovered sequences to target proteins)
@@ -44,7 +46,7 @@ HybPiper is run separately for each sample (single or paired-end sequence reads)
 **NOTE:** A previous version of the pipeline required Velvet and CAP3 for assembly. These have been unreliable at assembling individual genes, and SPAdes has replaced them.
 
 ---
-#Setup
+# Setup
 We have successfully installed HybPiper on MacOSX and Linux (Centos 6). All of the bioinformatics tools can be installed with [homebrew](brew.sh) or [linuxbrew](linuxbrew.sh).
 
 For full installation instructions, please see our wiki page:
@@ -56,17 +58,17 @@ Once all dependencies are installed, execute the `run_tests.sh` script from the 
 
 ----
 
-#Pipeline Input
+# Pipeline Input
 
 Full instructions on running the pipeline, including a step-by-step tutorial using a small test dataset, is available on our wiki:
 
 [https://github.com/mossmatters/HybPiper/wiki](https://github.com/mossmatters/HybPiper/wiki)
 
-###High-Throughput DNA Sequencing Reads
+### High-Throughput DNA Sequencing Reads
 
 Before running the pipeline, you will need "cleaned" FASTQ file(s)-- one or two depending on whether your sequencing was single or paired-end. Reads should have adapter sequences removed and should be trimmed to remove low quality base calls.
 
-###Target Sequences
+### Target Sequences
 
 You will also need to construct a "target" file of gene regions. The target file should contain one gene region per sequence, with exons "concatenated" into a contiguous sequence. For more information on constructing the target file, see the wiki, or view the example file in: `test_dataset/test_targets.fasta`
 
@@ -74,7 +76,7 @@ There can be more than one "source sequence" for each gene in the target file. T
 
 ----
 
-#Pipeline Output
+# Pipeline Output
 
 HybPiper will map the reads to the target sequences, sort the reads by gene, assemble the reads for each gene separately, align the contigs to the target sequence, and extract a coding sequence from each gene. Output from each of these phases is saved in a standardized directory hierarchy, making it easy for post-processing scripts to summarize information across many samples.
 
@@ -90,15 +92,15 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 
 -----
-#Changelog
+# Changelog
 
-**1.2** *January, 2017*
+**1.2** *March, 2017*
 
 * Features 
 
 	- Added `--unpaired` flag. When using paired-end sequencing reads, a third read file may be specified with this flag. Reads will be mapped to targets separately, but will be used along with paired reads in contig assembly.
 
-	- Added `--target` flag. Using this flag, HybPiper will only use targets with the specified name in the Alignment/Exon Extraction phase. All other targets for that locus will only be used in the Mapping/Read Sorting phase.
+	- Added `--target` flag. Adds the ability to choose which of the reference sequences is used for each gene. If `--target` is a file (tab-delimited file with one gene and one target name per line), HybPiper will use that. Otherwise `--target` can be the name of one reference. HybPiper will only use targets with the specified name in the Alignment/Exon Extraction phase. All other targets for that locus will only be used in the Mapping/Read Sorting phase.
 
 	- Added `--timeout` flag, which uses GNU Parallel to kill processes (i.e. Spades or Exonerate) if they take X percent longer than average. Use if there are a lot of stuck jobs (`--timeout 1000`)
 
@@ -109,6 +111,8 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
  - Prints more meaningful messages for some common errors
  - Can accommodate `prefix` not being in current directory
  - Deletes sorted reads on restart to prevent double counting reads.
+ - `spades_runner.py` will now respect `--kvals`
+ - Added initial call to log for `reads_first.py`
 
 
 **1.1** *May, 2016*: Release associated with manuscript in *Applications in Plant Sciences*.
@@ -133,6 +137,6 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 ---
 
-#Citation
+# Citation
 Johnson, M. G., Gardner, E. M., Liu, Y., Medina, R., Goffinet, B., Shaw, A. J., Zerega, N. J. C, and  Wickett, N. J. (2016). HybPiper: Extracting Coding Sequence and Introns for Phylogenetics from High-Throughput Sequencing Reads Using Target Enrichment. Applications in Plant Sciences, 4(7), 1600016. doi:10.3732/apps.1600016
 
