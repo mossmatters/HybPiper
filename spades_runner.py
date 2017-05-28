@@ -166,7 +166,14 @@ def main():
     
     if os.path.isfile("failed_spades.txt") and args.redos_only:
         spades_failed = rerun_spades("failed_spades.txt",cpu=args.cpu,paired=is_paired)
-    else:    
+    else:
+        if args.unpaired:       #Create empty unpaired file if it doesn't exist   
+            for gene in open(args.genelist):
+                gene=gene.rstrip()
+                if os.path.isfile("{}/{}_interleaved.fasta".format(gene,gene)):
+                    if not os.path.isfile("{}/{}_unpaired.fasta".format(gene,gene)):
+                        open("{}/{}_unpaired.fasta".format(gene,gene),'a').close()
+        
         spades_failed = spades_initial(args.genelist,cov_cutoff=args.cov_cutoff,cpu=args.cpu,kvals=args.kvals,paired=is_paired,timeout=args.timeout,unpaired=args.unpaired)    
     
         if len(spades_failed) > 0:
