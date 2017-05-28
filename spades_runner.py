@@ -106,7 +106,7 @@ def rerun_spades(genelist,cov_cutoff=8,cpu=None, paired = True):
         redo_kmers = [str(x) for x in all_kmers[:-1]]
         restart_k = "k{}".format(redo_kmers[-1])
         kvals = ",".join(redo_kmers)
-        spades_cmd = "spades.py --restart-from {} -k {} --threads {} --cov-cutoff {} -o {}/{}_spades".format(restart_k,kvals,cpu,cov_cutoff,gene,gene)
+        spades_cmd = "spades.py --restart-from {} -k {} --cov-cutoff {} -o {}/{}_spades".format(restart_k,kvals,cov_cutoff,gene,gene)
         redo_cmds_file.write(spades_cmd + "\n")
     
     redo_cmds_file.close()
