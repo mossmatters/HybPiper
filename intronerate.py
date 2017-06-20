@@ -121,12 +121,14 @@ def check_for_files(gene,prefix):
     '''Check to see if the files needed for intronerate are really present'''
     if os.path.isfile("{}/{}/exonerate_stats.csv".format(gene,prefix)):
         if os.path.isfile("{}/{}/sequences/FAA/{}.FAA".format(gene,prefix,gene)):
-            return True
+            if os.path.isfile("{}/{}_contigs.fasta".format(gene,gene)):
+                return True
+            else:
+                return False
         else:
             return False
     else:
         return False
-
 def main():
     parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--genelist",help="Optional list of genes to retreive coverage. Default is to use genes_with_seqs.txt")
