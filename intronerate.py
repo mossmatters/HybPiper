@@ -117,6 +117,15 @@ def remove_exons(gff_filename,supercontig_filename,mode="all"):
     exonless_contig.description = ''
     return exonless_contig    
 
+def check_for_files(gene,prefix):
+    '''Check to see if the files needed for intronerate are really present'''
+    if os.path.isfile("{}/{}/exonerate_stats.csv".format(gene,prefix)):
+        if os.path.isfile("{}/{}/sequences/FAA/{}.FAA".format(gene,prefix,gene)):
+            return True
+        else:
+            return False
+    else:
+        return False
 
 def main():
     parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
@@ -145,27 +154,30 @@ def main():
     with open("intron_stats.txt",'w') as intron_stats_file:    
         full_gff = ''
         for gene in genelist:
-            os.chdir("{}/{}".format(gene,prefix))
-            contig_info = get_contig_info()
-            if not os.path.exists("sequences/intron"):
-                os.makedirs("sequences/intron")
-            make_intron_supercontig(contig_info,gene,prefix)
-            if not args.no_exonerate:
-                re_run_exonerate(gene)
-            hits = parse_gff("intronerate_raw.gff")
-            kept_hits = filter_gff(hits)
-            with open("intronerate.gff",'w') as new_gff:
-                new_gff_string = get_new_gff(kept_hits)
-                num_introns = new_gff_string.count("intron\t")
-                intron_stats_file.write("{}\t{}\t{}\n".format(prefix,gene,num_introns))
-                sys.stderr.write("{} introns found for {}.\n".format(num_introns,gene))
+            if check_for_files(gene,prefix):
+                os.chdir("{}/{}".format(gene,prefix))
+                contig_info = get_contig_info()
+                if not os.path.exists("sequences/intron"):
+                    os.makedirs("sequences/intron")
+                make_intron_supercontig(contig_info,gene,prefix)
+                if not args.no_exonerate:
+                    re_run_exonerate(gene)
+                hits = parse_gff("intronerate_raw.gff")
+                kept_hits = filter_gff(hits)
+                with open("intronerate.gff",'w') as new_gff:
+                    new_gff_string = get_new_gff(kept_hits)
+                    num_introns = new_gff_string.count("intron\t")
+                    intron_stats_file.write("{}\t{}\t{}\n".format(prefix,gene,num_introns))
+                    sys.stderr.write("{} introns found for {}.\n".format(num_introns,gene))
                 
-                new_gff.write(new_gff_string)
-                full_gff += new_gff_string
-            exonless_contig = remove_exons("intronerate.gff","sequences/intron/{}_supercontig.fasta".format(gene))
-            SeqIO.write(exonless_contig,"sequences/intron/{}_introns.fasta".format(gene),'fasta')
+                    new_gff.write(new_gff_string)
+                    full_gff += new_gff_string
+                exonless_contig = remove_exons("intronerate.gff","sequences/intron/{}_supercontig.fasta".format(gene))
+                SeqIO.write(exonless_contig,"sequences/intron/{}_introns.fasta".format(gene),'fasta')
                 
-            os.chdir(basedir)
+                os.chdir(basedir)
+            else:
+                sys.stderr.write("ERROR: Files not found for {} gene {}!\n".format(prefix,gene))
     with open("{}_genes.gff".format(prefix),'w') as all_gff:
         all_gff.write(full_gff)        
 
