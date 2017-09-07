@@ -1,3 +1,4 @@
-Papers Using HybPiper as of May, 2017:
+Papers Using HybPiper as of July, 2017:
 
+Landis, J. B., Soltis, D. E., & Soltis, P. S. (2017). Comparative transcriptomic analysis of the evolution and development of flower size in Saltugilia (Polemoniaceae). BMC Genomics, 18(1). doi:10.1186/s12864-017-3868-2
 Crowl, A. A., Myers, C., & Cellinese, N. (2017). Embracing discordance: Phylogenomic analyses provide evidence for allopolyploidy leading to cryptic diversity in a Mediterranean Campanula (Campanulaceae) clade. Evolution, 71(4), 913–922. doi:10.1111/evo.13203

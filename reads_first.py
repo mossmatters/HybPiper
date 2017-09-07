@@ -215,8 +215,8 @@ def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None)
     exitcode = subprocess.call(read_cmd,shell=True)
     
     if unpaired:
-        bamfile = bamfile.replace(".bam","_unpaired.bam")
-        unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile,unpaired)
+        up_bamfile = bamfile.replace(".bam","_unpaired.bam")
+        unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),up_bamfile,unpaired)
         print(("[CMD] {}\n".format(unpaired_cmd)))
         exitcode = subprocess.call(unpaired_cmd,shell=True)
     
@@ -226,7 +226,10 @@ def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None)
     target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--bam",bamfile]
     if target:
         target_cmds.append("--target {}".format(target))
+    if unpaired:
+        target_cmds.append("--unpaired")
     target_cmd = " ".join(target_cmds)
+    print("[DISTRIBUTE]: {}".format(target_cmd))
     exitcode = subprocess.call(target_cmd,shell=True)
     if exitcode:
         print("ERROR: Something went wrong distributing targets to gene directories.")

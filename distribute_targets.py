@@ -72,12 +72,15 @@ def tailored_target_blast(blastxfilename):
     tallyfile.close()
     return besthits        
 
-def tailored_target_bwa(bamfilename):
+def tailored_target_bwa(bamfilename,unpaired=False):
     """Determine, for each protein, the 'best' target protein, by tallying up the blastx hit scores."""
     samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
     child = subprocess.Popen(samtools_cmd,shell=True,stdout=subprocess.PIPE,universal_newlines=True)
     bwa_results = child.stdout.readlines()
-        
+    if unpaired:
+        up_samtools_cmd = "samtools view -F 4 {}".format(bamfilename.replace(".bam","_unpaired.bam"))
+        up_child = subprocess.Popen(up_samtools_cmd,shell=True,stdout=subprocess.PIPE,universal_newlines=True)
+        bwa_results += up_child.stdout.readlines()    
     hitcounts = {}
     for result in bwa_results:
         result = result.split()
@@ -163,6 +166,7 @@ def main():
     parser.add_argument("--blastx",help="tabular blastx results file, used to select the best target for each gene",default=None)
     parser.add_argument("--bam",help="BAM file from BWA search, alternative to the BLASTx method",default=None)
     parser.add_argument("--target",help="Choose this version of the target always",default=None)
+    parser.add_argument("--unpaired",help="Indicate whether to expect a file containing results from unpaired reads.",action="store_true",default=False)
     args = parser.parse_args()
     
     if args.blastx:
@@ -170,7 +174,7 @@ def main():
         translate = False            
     if args.bam:
         translate = True
-        besthits = tailored_target_bwa(args.bam)
+        besthits = tailored_target_bwa(args.bam,args.unpaired)
     distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits,translate=translate,target=args.target)
     
 

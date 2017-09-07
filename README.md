@@ -33,7 +33,7 @@ HybPiper is run separately for each sample (single or paired-end sequence reads)
 # Dependencies
 * Python 2.7 or later (to use the argparse module for help documents)
 * [BIOPYTHON 1.59 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files)
-* [EXONERATE](http://www.ebi.ac.uk/~guy/exonerate/) (For aligning recovered sequences to target proteins)
+* [EXONERATE](http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) (For aligning recovered sequences to target proteins)
 * [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target protiens)
 * [SPAdes](http://bioinf.spbau.ru/en/spades) (Assembling reads into contigs)
 * [GNU Parallel](http://www.gnu.org/software/parallel/) (Handles parallelization of searching, assembling, and aligning)
@@ -93,6 +93,14 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 -----
 # Changelog
+
+**1.2.1** *Septermber, 2017*
+
+### Bug Fixes
+- Fixed assembly issue when gene does not have unpaired reads.
+- Fixed distribution of targets when unpaired reads present.
+- Fixed use of unpaired reads to detect best target.
+
 
 **1.2** *May, 2017*
 
