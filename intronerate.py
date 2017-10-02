@@ -38,8 +38,8 @@ def make_intron_supercontig(contig_info,gene,prefix):
     intron_supercontig.description = ''
     SeqIO.write(intron_supercontig,'sequences/intron/{}_supercontig.fasta'.format(gene),'fasta')    
     
-def re_run_exonerate(gene,target=new_faa):
-    if target == new_faa:
+def re_run_exonerate(gene,target="new_faa"):
+    if target == "new_faa":
         exonerate_cmd = "exonerate -m protein2genome -q sequences/FAA/{}.FAA -t sequences/intron/{}_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate_raw.gff".format(gene, gene)
     else:
         exonerate_cmd = "exonerate -m protein2genome -q ../{}_baits.fasta -t sequences/intron/{}_supercontig.fasta --verbose 0 --showalignment no --showvulgar no --showtargetgff yes > intronerate_raw.gff".format(gene, gene)
@@ -168,9 +168,9 @@ def main():
                 make_intron_supercontig(contig_info,gene,prefix)
                 if not args.no_exonerate:
                     if args.use_target:
-                        re_run_exonerate(gene,target=bait)
+                        re_run_exonerate(gene,target="bait")
                     else:
-                        re_run_exonerate(gene,target=new_faa)
+                        re_run_exonerate(gene,target="new_faa")
                 hits = parse_gff("intronerate_raw.gff")
                 kept_hits = filter_gff(hits)
                 with open("intronerate.gff",'w') as new_gff:
