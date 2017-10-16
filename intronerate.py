@@ -61,32 +61,135 @@ def parse_gff(filename):
             hits.append(new_hit)
     return hits
 
+def longest_hit(hits):
+    '''Given a list of hits, return the longest one'''
+    print("Using longest hit for {}\n".format(hits[0][0][0]))
+    ranges = [(int(hit[0][3]),int(hit[0][4])) for hit in hits]
+    max_length = 0
+    for hrange in range(len(ranges)):
+        hit_length = ranges[hrange][1] - ranges[hrange][0]
+        if hit_length > max_length:
+            max_length = hit_length
+            longest_hit = hrange
+    return hrange
+    
 
-def filter_gff(hits):
+def score_filter(hits,score_multiplier=2):
+    '''Given the GFF hits with overlapping ranges, determine if one has a score far 
+    exceeding the others and return that one, else return None'''
+    print("Searching for hit with score {} times better\n".format(score_multiplier))
+    scores = [int(x[0][5]) for x in hits]
+    #print(scores)
+    max_score = max(scores)
+    #print(scores.index(max_score))
+    for s in scores:
+        if s != max_score:
+            if s * score_multiplier > max_score:
+                print("No top score found")
+                return None
+    return scores.index(max_score)
+
+def join_zones(hits):
+    '''Join the hits together'''
+    min_start = 10000000
+    max_end = 0
+    for h in hits:
+        start = int(h[3])
+        end = int(h[4])
+        if start < min_start:
+            min_start = start
+        if end > max_end:
+            max_end = end
+    hits[0][3] = str(min_start)
+    hits[0][4] = str(max_end)
+    return hits[0]         
+            
+    
+    
+def filter_gff(hits,merge=True):
     hits_to_keep = []
     hits = sorted(hits,key= lambda x: int(x[0][3]))
     #Get only the features annotated as genes
     gene_annotations = [x for y in hits for x in y if x[2] == 'gene']
     #Get the start,end, and score for each gene annotation
     range_list = [(int(x[3]),int(x[4])) for x in gene_annotations]
+    #print(range_list)
     kept_indicies = range_connectivity(range_list)
+    kept_range_list = [range_list[x] for x in kept_indicies]
+    #print(kept_indicies)
     if len(kept_indicies) > 1:
         overlapping_indicies = []
         non_overlapping_indicies = []
         for ix in range(len(kept_indicies)-1):
             #print range_list[ix],range_list[ix+1],tuple_overlap(range_list[ix],range_list[ix+1])
-            if tuple_overlap(range_list[ix],range_list[ix+1]):
-                overlapping_indicies.append((kept_indicies[ix],kept_indicies[ix+1]))
+            if tuple_overlap(kept_range_list[ix],kept_range_list[ix+1]):
+                if kept_indicies[ix] not in overlapping_indicies:
+#                    if not tuple_overlap(kept_range_list[ix-1],kept_range_list[ix]):
+                     overlapping_indicies.append(kept_indicies[ix])
+                if kept_indicies[ix+1] not in overlapping_indicies:
+                     overlapping_indicies.append(kept_indicies[ix+1])
             else:
                 non_overlapping_indicies.append(kept_indicies[ix])
-        for pair in overlapping_indicies:
-            if int(gene_annotations[pair[0]][5]) > int(gene_annotations[pair[1]][5]):
-                non_overlapping_indicies.append(pair[0])
+        #print overlapping_indicies
+        if overlapping_indicies:
+            best_score = score_filter([hits[x] for x in overlapping_indicies])
+            if best_score:
+                non_overlapping_indicies.append(best_score)
             else:
-                non_overlapping_indicies.append(pair[1])
-        if not tuple_overlap(range_list[-2],range_list[-1]):
-                non_overlapping_indicies.append(kept_indicies[-1])
-        return     [hits[x] for x in non_overlapping_indicies]    
+                if merge:
+                    #merge the gene first
+                    gene_anno = []
+                    cds_anno = []
+                    exon_anno = []
+                    intron_anno = []
+                    similarity_anno = []
+                    misc_anno = []
+                    #print(hits)
+                    for x in hits:
+                        for l in x:
+                            if l[2] == 'gene':
+                                gene_anno.append(l)
+                            elif l[2] == "cds":
+                                cds_anno.append(l)
+                            elif l[2] == "exon":
+                                exon_anno.append(l)
+                            elif l[2] == "intron":
+                                intron_anno.append(l)
+                            elif l[2] == "similarity":
+                                similarity_anno.append(l)
+                            else:
+                                misc_anno.append(l)
+                    print("Merging {} annotations".format(len(gene_anno)))
+                    joined_gene = join_zones(gene_anno)
+                    joined_cds = join_zones(cds_anno)
+                    joined_exon = join_zones(exon_anno)
+                    joined_similarity =  join_zones(similarity_anno)
+                    joined_hit = [joined_gene,joined_cds,joined_exon]
+                    if intron_anno:
+                        joined_intron = join_zones(intron_anno)
+                        joined_hit.append(joined_intron)
+                    joined_hit.append(joined_similarity)
+                    joined_hit +=  misc_anno
+                    hits.append(joined_hit)
+                    kept_indicies.append(len(hits)-1)
+                    non_overlapping_indicies.append(len(kept_indicies)-1)
+                else:
+                    longest = longest_hit([hits[x] for x in overlapping_indicies])
+                    if longest:
+                        non_overlapping_indicies.append(longest)
+        
+
+#         for pair in overlapping_indicies:
+#             if int(gene_annotations[pair[0]][5]) > int(gene_annotations[pair[1]][5]):
+#                 non_overlapping_indicies.append(pair[0])
+#             else:
+#                 non_overlapping_indicies.append(pair[1])
+#         if not tuple_overlap(range_list[-2],range_list[-1]):
+#                 non_overlapping_indicies.append(kept_indicies[-1])
+        #print kept_indicies
+        #print non_overlapping_indicies
+
+        return [hits[kept_indicies[x]] for x in sorted(non_overlapping_indicies)]#.sort()]    
                 
     else:
         return [hits[x] for x in kept_indicies]            
@@ -138,8 +241,12 @@ def main():
     parser.add_argument("--prefix",help="Prefix of sample directory generated by HybSeqPipeline",required=True)
     parser.add_argument("--no-exonerate",help = "Don't re-run exonerate, use existing intronerate gff files.",action='store_true',default=False)
     parser.add_argument("--use_target",help="Align the supercontig to the original target sequences, rather than the newly generated FAA",default=False,action="store_true")
+    parser.add_argument("--merge",help="Merge overlapping annotations for genes, exons, and introns. Default is to pick the longest annotation",action="store_true",default=False)
     #parser.add_argument("--introns-only",help = "In the intron.fasta file for each gene, only write regions annotated as introns by exonerate. Default: all non-exon regions are written to introns.fasta.",action="store_true",default=False)
     args=parser.parse_args()
+    
+    if args.genelist:
+        genelist_fn = os.path.abspath(args.genelist)
     
     if len(sys.argv) < 2:
         print(helptext)
@@ -153,7 +260,7 @@ def main():
         sys.stderr.write("Directory {} not found!\n".format(args.prefix))    
 
     if args.genelist:
-        genelist = [x.split()[0] for x in open(args.genelist).readlines()]
+        genelist = [x.split()[0] for x in open(genelist_fn).readlines()]
     else:
         genelist = [x.split()[0] for x in open('genes_with_seqs.txt').readlines()]
 
@@ -172,7 +279,9 @@ def main():
                     else:
                         re_run_exonerate(gene,target="new_faa")
                 hits = parse_gff("intronerate_raw.gff")
-                kept_hits = filter_gff(hits)
+                #print([h[0] for h in hits])
+                kept_hits = filter_gff(hits,merge=args.merge)
+                #print([h[0] for h in kept_hits])
                 with open("intronerate.gff",'w') as new_gff:
                     new_gff_string = get_new_gff(kept_hits)
                     num_introns = new_gff_string.count("intron\t")

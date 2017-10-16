@@ -93,7 +93,7 @@ def filter_by_percentid(prot,thresh):
     kept_indicies = [i for i in range(len(prot["percentid"])) if prot["percentid"][i] > thresh]
     return keep_indicies(kept_indicies,prot)        
 
-def supercontig_exonerate(supercontig,protseq,prefix):
+def supercontig_exonerate(supercontig,protseq,prefix,thresh=55):
     """Given a long, joined contig and a protein sequence, return the exonerate hit(s)"""
     logger = logging.getLogger("pipeline")
 
@@ -107,7 +107,7 @@ def supercontig_exonerate(supercontig,protseq,prefix):
 
     proc.wait()
     #print proc.stdout.readlines()
-    supercontig_cds = [i for i in SeqIO.parse(proc.stdout,'fasta') if float(i.id.split(",")[4])>55]
+    supercontig_cds = [i for i in SeqIO.parse(proc.stdout,'fasta') if float(i.id.split(",")[4])>thresh]
     logger.debug("Supercontig lengths: %s" % " ".join([str(len(x.seq)) for x in supercontig_cds]))
     return supercontig_cds
 
@@ -133,7 +133,7 @@ def write_exonerate_stats(contig_id_list,prefix):
         exonerate_statsfile.write("\n".join(contig_id_list)+'\n')
 
     
-def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
+def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix,thresh=55):
     """Generates a contig from all hits to a protein. 
     If more than one hit, conduct a second exonerate search with the original contigs
     stitched together."""
@@ -164,21 +164,30 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
                 if prot["hit_strand"][hit] == "+":
                     sequence_list.append(assembly_dict[assembly_seq_name])
                 else:
-                    sequence_list.append(assembly_dict[assembly_seq_name].reverse_complement())
-            contigHits.append(assembly_seq_name)
+                    sequence_list.append(SeqRecord(assembly_dict[assembly_seq_name].reverse_complement().seq,id=assembly_seq_name))
+                contigHits.append(assembly_seq_name)
+        #print("assembly_dict in fullContigs:")
+        #print(assembly_dict)
+        logger.debug("Contig order: {}".format(",".join([x.id for x in sequence_list])))
+        logger.debug(",".join(contigHits))
+#        logger.debug(assembly_dict.keys())
 #     logger.debug([i for i in prot["assemblyHits"]])
 #    logger.debug([(prot["hit_start"][i],prot["hit_end"][i]) for i in range(len(prot["hit_start"]))])
 #     logger.debug(prot["hit_strand"])
 #     logger.debug(prot["percentid"])
 #     logger.debug("\n".join(["{}   {}".format(x,assembly_dict[x].seq) for x in contigHits]))
     supercontig = SeqRecord(Seq("".join(str(b.seq) for b in sequence_list)),id=prot["name"])
-
+    logger.debug(">supercontig\n{}".format(supercontig.seq))
     #Need to remove contigs if they have the same basename
-    supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]],prefix)
-    
+    supercontig_cds = supercontig_exonerate(supercontig,protein_dict[prot["name"]],prefix,thresh)
+    if not supercontig_cds:
+        sys.stderr.write("Supercontig below percent identity threshold!\n")
+        return None
+    logger.debug(" ".join(str(len(x)) for x in supercontig_cds))
     #Sort the supercontigs by hit location to the protein.
     joined_supercontig_cds = [b for b in supercontig_cds]
-    joined_supercontig_cds.sort(key=sort_byhitloc,reverse=True)
+    joined_supercontig_cds.sort(key=sort_byhitloc)
+    #print([x.id for x in joined_supercontig_cds])
     #logger.info([x for x in prot['assemblyHits'] if x in sequence_list])
     #write_exonerate_stats([x for x in prot['assemblyHits'] if x in sequence_list])
 
@@ -192,12 +201,13 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix):
         return str(joined_supercontig_cds[0].seq)
     #One more Exonerate, just to be sure.
     superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)),id=prot["name"])
-    final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
-    final_supercontig.sort(key=sort_byhitloc,reverse=True)
-    final_supercontig = subsume_supercontigs(final_supercontig)
+    logger.debug(">joined_supercontig\n{}".format(superdupercontig.seq))
+    #final_supercontig = [x for x in supercontig_exonerate(superdupercontig,protein_dict[prot["name"]],prefix)]
+    #final_supercontig.sort(key=sort_byhitloc)
+    #final_supercontig = subsume_supercontigs(final_supercontig)
     
     
-    return str(Seq("".join(str(b.seq) for b in final_supercontig)))
+    #return str(Seq("".join(str(b.seq) for b in final_supercontig)))
     return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))        
     #print joined_supercontig_cds
     #print ""
@@ -340,26 +350,37 @@ def range_connectivity(range_list,assemblyHits=None,prot_length=None,length_pct 
                 return [to_keep]
                                 
     #If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
+    subsumed_indices=[]
     if len(subsumed_ranges) > 1:
+        logger.debug("SUBSUMING")
         best_start_end = 0
         best_end_start = 1000000000
-        for j in range(len(subsumed_ranges)):
-            if subsumed_ranges[j][0] == min(starts):
-                if subsumed_ranges[j][1] > best_start_end:
-                    best_start_end = subsumed_ranges[j][1]
-                    longest_left = j
-
-            elif subsumed_ranges[j][1] == max(ends):
-                if subsumed_ranges[j][0] < best_end_start:
-                    best_end_start = subsumed_ranges[j][0]
-                    longest_right = j
-            else:
-                collapsed_ranges.append(subsumed_ranges[j])
+        for i,r1 in enumerate(subsumed_ranges):
+            for j,r2 in enumerate(subsumed_ranges):
+                if i != j:
+                    if tuple_subsume(r1,r2):
+                        subsumed_indices.append(j)
+        subsumed_set = set(subsumed_indices)
+        kept_indices = [x for x in range(len(subsumed_ranges)) if x not in subsumed_set]
+        return kept_indices
+                    
+#         for j in range(len(subsumed_ranges)):
+#             if subsumed_ranges[j][0] == min(starts):
+#                 if subsumed_ranges[j][1] > best_start_end:
+#                     best_start_end = subsumed_ranges[j][1]
+#                     longest_left = j
+# 
+#             elif subsumed_ranges[j][1] == max(ends):
+#                 if subsumed_ranges[j][0] < best_end_start:
+#                     best_end_start = subsumed_ranges[j][0]
+#                     longest_right = j
+#             else:
+#                 collapsed_ranges.append(subsumed_ranges[j])
         
-        logger.debug("Best end start: {}".format(best_end_start))
-        logger.debug("Best start end: {}".format(best_start_end))
-        collapsed_ranges.append(subsumed_ranges[longest_left])
-        collapsed_ranges.append(subsumed_ranges[longest_right])
+#         logger.debug("Best end start: {}".format(best_end_start))
+#         logger.debug("Best start end: {}".format(best_start_end))
+#         collapsed_ranges.append(subsumed_ranges[longest_left])
+#         collapsed_ranges.append(subsumed_ranges[longest_right])
     else:
         collapsed_ranges = subsumed_ranges        
 
@@ -382,6 +403,13 @@ def range_connectivity(range_list,assemblyHits=None,prot_length=None,length_pct 
 def tuple_overlap(a,b):
     """Given two tuples of length two, determine if the ranges overlap"""
     return a[0] < b[0] < a[1] or b[0] < a[0] < b[1]
+
+def tuple_subsume(a,b):
+    """Given two tuples of length two, determine if a has a range that includes b"""
+    if b[0] >= a[0] and b[1] <= a[1]:
+        return True
+    else:
+        return False
 
 def reciprocal_best_hit(prot,proteinHits):
     """Given a protein dictionary and the dictionary of all protein dictionaries,
@@ -529,7 +557,7 @@ def main():
         os.makedirs(directory_name)
     
     for prot in proteinHits:
-         
+        sys.stderr.write(prot)
         logger.debug(prot)
          #Put contigs in order along the protein.
          #logging.info("Searching for best hit to protein: %s" % proteinHits[prot]["name"])
@@ -567,25 +595,28 @@ def main():
         if len(proteinHits[prot]["assemblyHits"]) == 0:
             report_no_sequences(proteinHits[prot]["name"])
             continue        #All hits have been filtered out
-
-        nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix)
-
-        if args.no_sequences:
-            continue
-        else:
-            amino_sequence = myTranslate(nucl_sequence)
-            seqID = prefix.split("/")[-1].strip("/")
-            sys.stderr.write("Writing amino acid sequence, length: {}\n".format(len(amino_sequence)))
-            sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1],len(amino_sequence)))
-            amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
-            amino_file = open(amino_filename,'w')
-            amino_file.write(">%s\n%s\n" % (seqID,amino_sequence))
-            amino_file.close()
+        #print("sequence_dict")
+        #print(sequence_dict)
+        #print("assembly_dict:")
+        #print(assembly_dict)
+        nucl_sequence = fullContigs(proteinHits[prot],sequence_dict,assembly_dict,protein_dict,prefix,args.threshold)
+        if nucl_sequence:
+            if args.no_sequences:
+                continue
+            else:
+                amino_sequence = myTranslate(nucl_sequence)
+                seqID = prefix.split("/")[-1].strip("/")
+                sys.stderr.write("Writing amino acid sequence, length: {}\n".format(len(amino_sequence)))
+                sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1],len(amino_sequence)))
+                amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix,prot.split("-")[-1])
+                amino_file = open(amino_filename,'w')
+                amino_file.write(">%s\n%s\n" % (seqID,amino_sequence))
+                amino_file.close()
         
-            nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
-            nucleo_file = open(nucleo_filename,'w')
-            nucleo_file.write(">%s\n%s\n" % (seqID,nucl_sequence))
-            nucleo_file.close()
+                nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix,prot.split("-")[-1])
+                nucleo_file = open(nucleo_filename,'w')
+                nucleo_file.write(">%s\n%s\n" % (seqID,nucl_sequence))
+                nucleo_file.close()
 #      if "temp.contig.fa" in os.listdir(prefix):    
 #         os.remove("%s/temp.contig.fa" % prefix)
 #         os.remove("%s/temp.prot.fa" % prefix)
