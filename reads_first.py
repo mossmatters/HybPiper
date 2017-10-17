@@ -184,7 +184,7 @@ def blastx(readfiles,baitfile,evalue,basename,cpu=None,max_target_seqs=10,unpair
             
     return basename + '.blastx'
 
-def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None,unpaired_readfile=None):
+def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None,unpaired_readfile=None,exclude=None):
     #NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
     #print run_dir
     read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile," ".join(readfiles))
@@ -195,6 +195,8 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None,unpaired
     target_cmds = ["time python", os.path.join(run_dir,"distribute_targets.py"),baitfile,"--blastx",blastx_outputfile]
     if target:
         target_cmds.append("--target {}".format(target))
+    if exclude:
+        target_cmds.append("-- exclude {}".format(exclude))
     if unpaired_readfile:
         blastx_outputfile = blastx_outputfile.replace(".blastx","_unpaired.blastx")
         unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets.py"),blastx_outputfile,unpaired_readfile)
@@ -207,7 +209,7 @@ def distribute(blastx_outputfile,readfiles,baitfile,run_dir,target=None,unpaired
         return exitcode
     return None
 
-def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None):
+def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None,exclude=None):
     #NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE.
     #print run_dir
     read_cmd = "time python {} {} {}".format(os.path.join(run_dir,"distribute_reads_to_targets_bwa.py"),bamfile," ".join(readfiles))
@@ -228,6 +230,8 @@ def distribute_bwa(bamfile,readfiles,baitfile,run_dir,target=None,unpaired=None)
         target_cmds.append("--target {}".format(target))
     if unpaired:
         target_cmds.append("--unpaired")
+    if exclude:
+        target_cmds.append("--exclude {}".format(exclude))
     target_cmd = " ".join(target_cmds)
     print("[DISTRIBUTE]: {}".format(target_cmd))
     exitcode = subprocess.call(target_cmd,shell=True)
@@ -623,7 +627,7 @@ def main():
     
     parser.add_argument("--target",help="Use this target to align sequences for each gene. Other targets for that gene will be used only for read sorting. Can be a tab-delimited file (one gene per line) or a single sequence name",default=None)
     parser.add_argument("--unpaired",help="Include a single FASTQ file with unpaired reads along with the two paired read files",default=False)
-    
+    parser.add_argument("--exclude",help="Do not use any sequence with the specified string as a target sequence for exonerate. The sequence will be used for read sorting.",default=None)
     parser.set_defaults(check_depend=False,blast=True,distribute=True,velvet=False,cap3=False,assemble=True,use_velvet=False,exonerate=True)
     if len(sys.argv) == 1:
         parser.print_help()
@@ -700,9 +704,9 @@ def main():
         for fn in pre_existing_fastas:
             os.remove(fn)
         if args.bwa:
-            exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
+            exitcode = distribute_bwa(bamfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile,args.exclude)
         else:
-            exitcode=    distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile)
+            exitcode=    distribute(blastx_outputfile,readfiles,baitfile,run_dir,args.target,unpaired_readfile,args.exclude)
         if exitcode:
             sys.exit(1)
     if len(readfiles) == 2:

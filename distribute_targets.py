@@ -35,7 +35,7 @@ def mkdir_p(path):
             pass
         else: raise
 
-def tailored_target_blast(blastxfilename):
+def tailored_target_blast(blastxfilename,exclude=None):
     """Determine, for each protein, the 'best' target protein, by tallying up the blastx hit scores."""
     blastxfile = open(blastxfilename)
     
@@ -49,13 +49,16 @@ def tailored_target_blast(blastxfilename):
         except IndexError:
             raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
         taxon = hitname[0]
-        if protname in hitcounts:
-            if taxon in hitcounts[protname]:
-                hitcounts[protname][taxon] += bitscore
-            else:
-                hitcounts[protname][taxon] = bitscore
+        if exclude and exclude in taxon:
+            continue
         else:
-            hitcounts[protname] = {taxon:1}
+            if protname in hitcounts:
+                if taxon in hitcounts[protname]:
+                    hitcounts[protname][taxon] += bitscore
+                else:
+                    hitcounts[protname][taxon] = bitscore
+            else:
+                hitcounts[protname] = {taxon:1}
     #For each protein, find the taxon with the highest total hit bitscore.
     besthits = {}
     besthit_counts = {}
@@ -72,7 +75,7 @@ def tailored_target_blast(blastxfilename):
     tallyfile.close()
     return besthits        
 
-def tailored_target_bwa(bamfilename,unpaired=False):
+def tailored_target_bwa(bamfilename,unpaired=False,exclude=None):
     """Determine, for each protein, the 'best' target protein, by tallying up the blastx hit scores."""
     samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
     child = subprocess.Popen(samtools_cmd,shell=True,stdout=subprocess.PIPE,universal_newlines=True)
@@ -91,13 +94,16 @@ def tailored_target_bwa(bamfilename,unpaired=False):
         except IndexError:
             raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
         taxon = hitname[0]
-        if protname in hitcounts:
-            if taxon in hitcounts[protname]:
-                hitcounts[protname][taxon] += mapscore
-            else:
-                hitcounts[protname][taxon] = mapscore
+        if exclude and exclude in taxon:
+            continue
         else:
-            hitcounts[protname] = {taxon:1}
+            if protname in hitcounts:
+                if taxon in hitcounts[protname]:
+                    hitcounts[protname][taxon] += mapscore
+                else:
+                    hitcounts[protname][taxon] = mapscore
+            else:
+                hitcounts[protname] = {taxon:1}
     #For each protein, find the taxon with the highest total hit mapscore.
     besthits = {}
     besthit_counts = {}
@@ -167,14 +173,15 @@ def main():
     parser.add_argument("--bam",help="BAM file from BWA search, alternative to the BLASTx method",default=None)
     parser.add_argument("--target",help="Choose this version of the target always",default=None)
     parser.add_argument("--unpaired",help="Indicate whether to expect a file containing results from unpaired reads.",action="store_true",default=False)
+    parser.add_argument("--exclude",help="Do not use any sequence with the specified string as the chosen target.",default=None)
     args = parser.parse_args()
     
     if args.blastx:
-        besthits = tailored_target_blast(args.blastx)
+        besthits = tailored_target_blast(args.blastx,args.exclude)
         translate = False            
     if args.bam:
         translate = True
-        besthits = tailored_target_bwa(args.bam,args.unpaired)
+        besthits = tailored_target_bwa(args.bam,args.unpaired,args.exclude)
     distribute_targets(args.baitfile,dirs=True,delim=args.delimiter,besthits=besthits,translate=translate,target=args.target)
     
 

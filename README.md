@@ -94,7 +94,22 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**1.2.1** *Septermber, 2017*
+**1.3** *November, 2017* 
+
+**The Herbarium Update**
+
+### Features 
+- Added `--exclude`  flag to be the inverse of `--target`: all sequences with the specified string will not be used as targets for exon extraction (they will still be used for read-mapping). Useful if you want to add supercontig sequence to the target file, but not use it for exon extraction.
+
+
+### Bug Fixes
+- Fixed misassembly of supercontigs when there are multiple alignments to different parts of the same exon.
+- Fixed poor filtering of GFF results to produce intron/exon annotation.
+- Fixed non-propogation of exonerate parameters
+
+
+
+**1.2.1** *September, 2017*
 
 ### Bug Fixes
 - Fixed assembly issue when gene does not have unpaired reads.
