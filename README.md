@@ -101,6 +101,8 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 ### Features 
 - Added `--exclude`  flag to be the inverse of `--target`: all sequences with the specified string will not be used as targets for exon extraction (they will still be used for read-mapping). Useful if you want to add supercontig sequence to the target file, but not use it for exon extraction.
 
+- Added '--addN' to `intronerate.py`. This feature will add 10 N characters in between joined contig when recovering the supercontig. This is useful for identifying where the intron recovery fails, and for annotation processing (i.e. for GenBank).
+
 
 ### Bug Fixes
 - Fixed misassembly of supercontigs when there are multiple alignments to different parts of the same exon.

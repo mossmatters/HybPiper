@@ -23,7 +23,7 @@ def get_contig_info():
     #print sorted_contig_stats
     return sorted_contig_stats
     
-def make_intron_supercontig(contig_info,gene,prefix):
+def make_intron_supercontig(contig_info,gene,prefix,add_N = False):
     cap3contigs = SeqIO.to_dict(SeqIO.parse("../{}_contigs.fasta".format(gene),'fasta'))
     intron_supercontig = SeqRecord(Seq(''))
     for i in contig_info:
@@ -33,7 +33,9 @@ def make_intron_supercontig(contig_info,gene,prefix):
             intron_supercontig += cap3contigs[i[0]].reverse_complement()    
         else:
             sys.stderr.write("Strandedness not found!")
-            sys.exit(1)    
+            sys.exit(1)
+        if add_N and i != contig_info[-1]:
+            intron_supercontig += "NNNNNNNNNN"    
     intron_supercontig.id = '{}-{}'.format(prefix,gene)
     intron_supercontig.description = ''
     SeqIO.write(intron_supercontig,'sequences/intron/{}_supercontig.fasta'.format(gene),'fasta')    
@@ -242,6 +244,7 @@ def main():
     parser.add_argument("--no-exonerate",help = "Don't re-run exonerate, use existing intronerate gff files.",action='store_true',default=False)
     parser.add_argument("--use_target",help="Align the supercontig to the original target sequences, rather than the newly generated FAA",default=False,action="store_true")
     parser.add_argument("--merge",help="Merge overlapping annotations for genes, exons, and introns. Default is to pick the longest annotation",action="store_true",default=False)
+    parser.add_argument("--addN",help="Insert 10 Ns between the contigs when constructing the supercontig. Useful to identify where intron recovery fails.",default=False,action="store_true")
     #parser.add_argument("--introns-only",help = "In the intron.fasta file for each gene, only write regions annotated as introns by exonerate. Default: all non-exon regions are written to introns.fasta.",action="store_true",default=False)
     args=parser.parse_args()
     
@@ -272,7 +275,7 @@ def main():
                 contig_info = get_contig_info()
                 if not os.path.exists("sequences/intron"):
                     os.makedirs("sequences/intron")
-                make_intron_supercontig(contig_info,gene,prefix)
+                make_intron_supercontig(contig_info,gene,prefix,add_N=args.addN)
                 if not args.no_exonerate:
                     if args.use_target:
                         re_run_exonerate(gene,target="bait")
