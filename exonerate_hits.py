@@ -150,7 +150,10 @@ def fullContigs(prot,sequence_dict,assembly_dict,protein_dict,prefix,thresh=55):
     
     #print numHits
     if numHits == 1:
-        return str(sequence_dict[prot["assemblyHits"][0]].seq)    #If only one hit to this protein.
+        if prot["hit_strand"][0] == "+":
+            return str(sequence_dict[prot["assemblyHits"][0]].seq)    #If only one hit to this protein.
+        else:
+            return str(sequence_dict[prot["assemblyHits"][0]].seq.reverse_complement())
     else:
         for hit in range(len(prot["assemblyHits"])):
             assembly_seq_name = prot["assemblyHits"][hit].split(",")[0]
