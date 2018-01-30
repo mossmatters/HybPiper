@@ -40,8 +40,8 @@ HybPiper is run separately for each sample (single or paired-end sequence reads)
 
 *Required for BWA version of the pipeline and for the intron and depth calculation scripts*:
 
-* [BWA](http://bio-bwa.sourceforge.net/) (Aligns reads to target nucleotide sequences)
-* [samtools](http://www.htslib.org/) (Read/Write BAM files to save space).
+* [BWA](https://github.com/lh3/bwa) (Aligns reads to target nucleotide sequences)
+* [samtools 1.2 or later](https://github.com/samtools/samtools) (Read/Write BAM files to save space).
 
 **NOTE:** A previous version of the pipeline required Velvet and CAP3 for assembly. These have been unreliable at assembling individual genes, and SPAdes has replaced them.
 
@@ -94,14 +94,12 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**1.3** *November, 2017* 
-
-**The Herbarium Update**
+**1.3 The Herbarium Update** *January, 2018*
 
 ### Features 
 - Added `--exclude`  flag to be the inverse of `--target`: all sequences with the specified string will not be used as targets for exon extraction (they will still be used for read-mapping). Useful if you want to add supercontig sequence to the target file, but not use it for exon extraction.
 
-- Added '--addN' to `intronerate.py`. This feature will add 10 N characters in between joined contig when recovering the supercontig. This is useful for identifying where the intron recovery fails, and for annotation processing (i.e. for GenBank).
+- Added `--addN` to `intronerate.py`. This feature will add 10 N characters in between joined contig when recovering the supercontig. This is useful for identifying where the intron recovery fails, and for annotation processing (i.e. for GenBank).
 
 
 ### Bug Fixes

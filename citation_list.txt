@@ -1,4 +1,6 @@
-Papers Using HybPiper as of July, 2017:
+Papers Using HybPiper as of December, 2017:
 
+Peris, David, Roberto Pérez-Torrado, Chris Todd Hittinger, Eladio Barrio, and Amparo Querol. 2017. “On the Origins and Industrial Applications of Saccharomyces Cerevisiae × Saccharomyces Kudriavzevii Hybrids.” Yeast , October. https://doi.org/10.1002/yea.3283.
+Medina, Rafael, Matthew Johnson, Yang Liu, Nicholas Wilding, Terry A. Hedderson, Norman Wickett, and Bernard Goffinet. 2017. “Evolutionary Dynamism in Bryophytes: Phylogenomic Inferences Confirm Rapid Radiation in the Moss Family Funariaceae.” Molecular Phylogenetics and Evolution, December. https://doi.org/10.1016/j.ympev.2017.12.002.
 Landis, J. B., Soltis, D. E., & Soltis, P. S. (2017). Comparative transcriptomic analysis of the evolution and development of flower size in Saltugilia (Polemoniaceae). BMC Genomics, 18(1). doi:10.1186/s12864-017-3868-2
 Crowl, A. A., Myers, C., & Cellinese, N. (2017). Embracing discordance: Phylogenomic analyses provide evidence for allopolyploidy leading to cryptic diversity in a Mediterranean Campanula (Campanulaceae) clade. Evolution, 71(4), 913–922. doi:10.1111/evo.13203
