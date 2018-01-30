@@ -101,6 +101,8 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 - Added `--addN` to `intronerate.py`. This feature will add 10 N characters in between joined contig when recovering the supercontig. This is useful for identifying where the intron recovery fails, and for annotation processing (i.e. for GenBank).
 
+- Added a new version of the heatmap script, `gene_recovery_heatmap_ggplot.R`. This script is much simpler and produces nice color PNG images, but struggles a bit on PDF output. The original heatmap script is stil included. *Thanks to Paul Wolf for the ggplot code!*
+
 
 ### Bug Fixes
 - Fixed misassembly of supercontigs when there are multiple alignments to different parts of the same exon.
