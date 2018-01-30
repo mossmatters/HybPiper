@@ -54,8 +54,8 @@ for prot in SeqIO.parse(baitfile,"fasta"):
     else:
         reference_lengths[protname] = [len(prot.seq)]
 unique_names = list(set(gene_names))
-avg_ref_lengths = [str((sum(reference_lengths[gene])/len(reference_lengths[gene]))) for gene in unique_names]
-sys.stdout.write("Species\t{}\nMeanLength\t{}\n".format("\t".join(unique_names),"\t".join(avg_ref_lengths)))
+avg_ref_lengths = [(sum(reference_lengths[gene])/len(reference_lengths[gene])) for gene in unique_names]
+sys.stdout.write("Species\t{}\nMeanLength\t{}\n".format("\t".join(unique_names),"\t".join([str(x) for x in avg_ref_lengths])))
 
 for name in namelist:
     parentDir,name = os.path.split(name)
@@ -66,7 +66,7 @@ for name in namelist:
         read_file = os.path.join(parentDir,name,unique_names[gene],name,"sequences",filetype,"{}.{}".format(unique_names[gene],filetype))
         if os.path.exists(read_file):
             seq_length = len(SeqIO.read(read_file,'fasta').seq)
-            if seq_length > 1.5 * float(avg_ref_lengths[gene]):
+            if seq_length > 1.5 * avg_ref_lengths[gene]:
                 sys.stderr.write("****WARNING! Sequence length for {} is more than 50% longer than {} reference!\n".format(name,unique_names[gene]))
             name_lengths.append(str(seq_length))
         else:
