@@ -11,7 +11,7 @@ from Bio import SeqIO
 
 def extract_paralogs(gene,prefix):
     
-    putative_paralog_ids = [x.split()[1].rstrip() for x in open(os.path.join(gene,prefix,"paralog_warning.txt"))]
+    putative_paralog_ids = list(set([x.split()[1].rstrip() for x in open(os.path.join(gene,prefix,"paralog_warning.txt"))]))
     try:
         chosen_paralog = open(os.path.join(gene,prefix,"exonerate_stats.csv")).readline().rstrip()
     except IOError:
