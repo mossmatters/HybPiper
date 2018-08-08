@@ -1,8 +1,8 @@
 # HybPiper
 
-Current version: 1.2 (May 2017)
+Current version: 1.3.1 (August 2018)
 
-[![Join the chat at https://gitter.im/mossmatters/HybPiper](https://badges.gitter.im/mossmatters/HybPiper.svg)](https://gitter.im/mossmatters/HybPiper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)  [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
+[![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
 
 --
 [Read our article in Applications in Plant Sciences (Open Access)](http://www.bioone.org/doi/full/10.3732/apps.1600016)
@@ -93,6 +93,11 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 -----
 # Changelog
+
+**1.3.1 IMPORTANT BUG FIX** *August, 2018*
+
+- Reverts a change in 1.3 that changed the behavior when there is only one hit in `exonerate`. Strandedness was not handled properly, leading some sequences to be returned in reverse complement. **Sequences recovered using 1.3 should be re-run with `reads_first.py --no-blast --no-distribute --no-assemble` to repeat just the exonerate step.**
+
 
 **1.3 The Herbarium Update** *January, 2018*
 

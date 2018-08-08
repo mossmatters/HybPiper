@@ -19,7 +19,7 @@ parallel rm -r {} :::: namelist.txt
 #Run main HybPiper script with all available CPUs
 while read i
 do
-../reads_first.py -r "$i*.fastq" -b test_targets.fasta --prefix $i --bwa 
+../reads_first.py -r $i*.fastq -b test_targets.fasta --prefix $i --bwa 
 done < namelist.txt
 
 #Get the seq_lengths.txt file

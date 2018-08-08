@@ -710,10 +710,15 @@ def main():
         if exitcode:
             sys.exit(1)
     if len(readfiles) == 2:
+    
         genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_interleaved.fasta"))]
     else:
         genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,x+"_unpaired.fasta"))]
     #genes = ["gene008"]
+    print("READFILES:\n")
+    print(readfiles)
+    print(genes)
+    print(os.listdir('.'))
     if len(genes) == 0:
         print("ERROR: No genes with BLAST hits! Exiting!")
         return
