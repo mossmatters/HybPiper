@@ -717,8 +717,6 @@ def main():
     #genes = ["gene008"]
     print("READFILES:\n")
     print(readfiles)
-    print(genes)
-    print(os.listdir('.'))
     if len(genes) == 0:
         print("ERROR: No genes with BLAST hits! Exiting!")
         return
