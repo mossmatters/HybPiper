@@ -65,6 +65,7 @@ def write_single_seqs(target,ID1,Seq1):
     
     
 def distribute_reads(readfiles,read_hit_dict,single=True):
+    num_reads_to_write = len(read_hit_dict)
     iterator1 = FastqGeneralIterator(open(readfiles[0]))
     if len(readfiles) == 1:
     
@@ -80,7 +81,11 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
     elif len(readfiles) == 2:
         iterator2 = FastqGeneralIterator(open(readfiles[1]))
     
+    reads_written = 0
+    sys.stderr.write("Read distributing progress:\n")
+    
     for ID1_long, Seq1, Qual1 in iterator1:
+        
         ID2_long, Seq2, Qual2 = next(iterator2)
         
         ID1 = ID1_long.split()[0]
@@ -94,9 +99,17 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
         if ID1 in read_hit_dict:
             for target in read_hit_dict[ID1]:
                 write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
+            reads_written += 1
         elif ID2 in read_hit_dict:
             for target in read_hit_dict[ID2]:
                 write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
+            reads_written += 1
+        j = (reads_written + 1) / num_reads_to_write
+        if int(100*j) % 5  == 0: 
+            sys.stderr.write("\r")
+            sys.stderr.write("[%-20s] %d%%" % ('='*int(20*j), 100*j))
+            sys.stderr.flush()
+    sys.stderr.write("\n")
 
 def main():
     bamfilename = sys.argv[1]

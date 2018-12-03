@@ -762,6 +762,6 @@ def main():
     paralog_warnings = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x,basename,"paralog_warning.txt"))]
     with open("genes_with_paralog_warnings.txt",'w') as pw:
         pw.write("\n".join(paralog_warnings))
-    sys.stderr.write("WARNING: Potential paralogs detected for {} genes!".format(len(paralog_warnings)))
+    sys.stderr.write("WARNING: Potential paralogs detected for {} genes!\n".format(len(paralog_warnings)))
 
 if __name__ == "__main__":main()
