@@ -67,6 +67,9 @@ def write_single_seqs(target,ID1,Seq1):
 def distribute_reads(readfiles,read_hit_dict,single=True):
     num_reads_to_write = len(read_hit_dict)
     iterator1 = FastqGeneralIterator(open(readfiles[0]))
+    reads_written = 0
+    sys.stderr.write("Read distributing progress:\n")
+
     if len(readfiles) == 1:
     
         for ID1_long, Seq1, Qual1 in iterator1:
@@ -76,13 +79,18 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
                     write_single_seqs(target,ID1,Seq1)
+                    reads_written += 1
+            j = (reads_written + 1) / num_reads_to_write
+            if int(100*j) % 5  == 0: 
+               sys.stderr.write("\r")
+               sys.stderr.write("[%-20s] %d%%" % ('='*int(20*j), 100*j))
+               sys.stderr.flush()
+        sys.stderr.write("\n")
         return
-
+    
     elif len(readfiles) == 2:
         iterator2 = FastqGeneralIterator(open(readfiles[1]))
     
-    reads_written = 0
-    sys.stderr.write("Read distributing progress:\n")
     
     for ID1_long, Seq1, Qual1 in iterator1:
         

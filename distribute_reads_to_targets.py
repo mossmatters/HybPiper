@@ -3,7 +3,7 @@
 import sys,os,errno
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
-
+from distribute_reads_to_targets_bwa import distribute_reads
 """
 This script is part of a pipeline to extract phylogenetically-useful sequences from 
 Illumina data using the targeted (liquid-phase) sequence enrichment approach.
@@ -61,32 +61,32 @@ def write_single_seqs(target,ID1,Seq1):
     outfile.close()
     
     
-def distribute_reads(readfiles,read_hit_dict,single=True):
-    iterator1 = FastqGeneralIterator(open(readfiles[0]))
-    if len(readfiles) == 1:
-    
-        for ID1_long, Seq1, Qual1 in iterator1:
-            ID1 = ID1_long.split()[0]
-            if ID1 in read_hit_dict:
-                for target in read_hit_dict[ID1]:
-                    write_single_seqs(target,ID1,Seq1)
-        return
-
-    elif len(readfiles) == 2:
-        iterator2 = FastqGeneralIterator(open(readfiles[1]))
-    
-    for ID1_long, Seq1, Qual1 in iterator1:
-        ID2_long, Seq2, Qual2 = next(iterator2)
-        
-        ID1 = ID1_long.split()[0]
-        ID2 = ID2_long.split()[0]
-        
-        if ID1 in read_hit_dict:
-            for target in read_hit_dict[ID1]:
-                write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
-        elif ID2 in read_hit_dict:
-            for target in read_hit_dict[ID2]:
-                write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
+# def distribute_reads(readfiles,read_hit_dict,single=True):
+#     iterator1 = FastqGeneralIterator(open(readfiles[0]))
+#     if len(readfiles) == 1:
+#     
+#         for ID1_long, Seq1, Qual1 in iterator1:
+#             ID1 = ID1_long.split()[0]
+#             if ID1 in read_hit_dict:
+#                 for target in read_hit_dict[ID1]:
+#                     write_single_seqs(target,ID1,Seq1)
+#         return
+# 
+#     elif len(readfiles) == 2:
+#         iterator2 = FastqGeneralIterator(open(readfiles[1]))
+#     
+#     for ID1_long, Seq1, Qual1 in iterator1:
+#         ID2_long, Seq2, Qual2 = next(iterator2)
+#         
+#         ID1 = ID1_long.split()[0]
+#         ID2 = ID2_long.split()[0]
+#         
+#         if ID1 in read_hit_dict:
+#             for target in read_hit_dict[ID1]:
+#                 write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
+#         elif ID2 in read_hit_dict:
+#             for target in read_hit_dict[ID2]:
+#                 write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
 
 def main():
     blastfilename = sys.argv[1]
