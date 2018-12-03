@@ -115,10 +115,10 @@ def filter_gff(hits,merge=True):
     gene_annotations = [x for y in hits for x in y if x[2] == 'gene']
     #Get the start,end, and score for each gene annotation
     range_list = [(int(x[3]),int(x[4])) for x in gene_annotations]
-    #print(range_list)
     kept_indicies = range_connectivity(range_list)
     kept_range_list = [range_list[x] for x in kept_indicies]
-    #print(kept_indicies)
+#    print(kept_indicies)
+#    print(kept_range_list)
     if len(kept_indicies) > 1:
         overlapping_indicies = []
         non_overlapping_indicies = []
@@ -132,7 +132,10 @@ def filter_gff(hits,merge=True):
                      overlapping_indicies.append(kept_indicies[ix+1])
             else:
                 non_overlapping_indicies.append(kept_indicies[ix])
-        #print overlapping_indicies
+                #append the last index if the next to last is not overlapping
+                if ix == len(kept_indicies) - 2:
+                    non_overlapping_indicies.append(kept_indicies[ix]+1)
+        #print(non_overlapping_indicies)
         if overlapping_indicies:
             best_score = score_filter([hits[x] for x in overlapping_indicies])
             if best_score:
@@ -190,8 +193,7 @@ def filter_gff(hits,merge=True):
 #                 non_overlapping_indicies.append(kept_indicies[-1])
         #print kept_indicies
         #print non_overlapping_indicies
-
-        return [hits[kept_indicies[x]] for x in sorted(non_overlapping_indicies)]#.sort()]    
+        return [hits[x] for x in sorted(non_overlapping_indicies)]#.sort()]    
                 
     else:
         return [hits[x] for x in kept_indicies]            
