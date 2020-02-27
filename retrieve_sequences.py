@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-import sys,os
+import sys,os,argparse
 from Bio import SeqIO
 
 helptext = '''Usage: 
-    python retrieve_sequences.py baitfile.fasta sequence_dir aa/dna/intron/supercontig
+    python retrieve_sequences.py targets.fasta sequence_dir aa/dna/intron/supercontig
 
 This script will get the sequences generated from multiple runs of the HybSeqPipeline (reads_first.py).
-Have all of the runs in the same directory (sequence_dir). 
+Specify either a directory with all the HybPiper output directories or a file containing sequences of interest. 
 It retreives all the gene names from the bait file used in the run of the pipeline.
 
 You must specify whether you want the protein (aa) or nucleotide (dna) sequences.
@@ -16,33 +16,48 @@ or 'supercontig' to get intron and exon sequences.
 Will output unaligned fasta files, one per gene, to current directory.
 '''
 
+parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument("targetfile",help="FASTA File containing target sequences")
+parser.add_argument("sample_names",help="Directory containing Hybpiper Output OR a file containing HybPiper output names, one per line")
+parser.add_argument("sequence_type",help="Type of sequence to extract",choices=["dna","aa","intron","supercontig"])
+parser.add_argument("--hybpiper_dir",help="Specify directory containing HybPiper output")
+parser.add_argument("--fasta_dir",help="Specify directory for output FASTA files")
 
-if len(sys.argv) < 4:
-    print(helptext)
-    sys.exit(1)
+if len(sys.argv) < 2:
+        parser.print_help()
+        sys.exit(1)
+args = parser.parse_args()
 
-if sys.argv[3] == 'dna':
+
+if args.sequence_type == 'dna':
     seq_dir = "FNA"
-elif sys.argv[3] == 'aa':
+elif args.sequence_type == 'aa':
     seq_dir = "FAA"
-elif sys.argv[3] == 'intron':
+elif args.sequence_type == 'intron':
     seq_dir = 'intron'
     filename = 'introns'
-elif sys.argv[3] == 'supercontig':
+elif args.sequence_type == 'supercontig':
     seq_dir = 'intron'
     filename = 'supercontig'
 
-else:
-    print(helptext)
-    sys.exit(1)
-
 #Use gene names parsed from a bait file.
-baitfile = sys.argv[1] 
+baitfile = args.targetfile 
 target_genes_dict = SeqIO.to_dict(SeqIO.parse(baitfile,'fasta'))
 target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(baitfile,'fasta')]))
 
-sampledir = sys.argv[2]
-sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir,x)) and not x.startswith('.')]
+if os.path.isdir(args.sample_names):
+    sampledir = args.sample_names
+    sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir,x)) and not x.startswith('.')]
+else:
+    sample_names = [x.rstrip() for x in open(args.sample_names)]
+    if args.hybpiper_dir:
+        sampledir = args.hybpiper_dir
+    else:
+        sampledir = '.'
+if args.fasta_dir:
+    fasta_dir = args.fasta_dir
+else:
+    fasta_dir = '.'
 
 
 print("Retreiving {} genes from {} samples".format(len(target_genes),len(sample_names)))
@@ -67,4 +82,4 @@ for gene in target_genes:
     else:
         outfilename = gene + '.' + seq_dir
     
-    SeqIO.write(gene_seqs,open(outfilename,'w'),'fasta')
+    SeqIO.write(gene_seqs,open(os.path.join(fasta_dir,outfilename),'w'),'fasta')
