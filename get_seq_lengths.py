@@ -30,6 +30,8 @@ if sequenceType.upper() == 'DNA':
     filetype = 'FNA'
 elif sequenceType.upper() == 'AA':
     filetype = 'FAA'
+elif sequenceType.upper() == "SUPERCONTIG":
+    filetype = "supercontig"
 else:
     print(helptext)
     sys.exit()
@@ -63,10 +65,13 @@ for name in namelist:
         parentDir,name = os.path.split(parentDir)
     name_lengths = []
     for gene in range(len(unique_names)):
-        read_file = os.path.join(parentDir,name,unique_names[gene],name,"sequences",filetype,"{}.{}".format(unique_names[gene],filetype))
+        if filetype == "supercontig":
+            read_file = os.path.join(parentDir,name,unique_names[gene],name,"sequences","intron","{}_supercontig.fasta".format(unique_names[gene]))
+        else:
+            read_file = os.path.join(parentDir,name,unique_names[gene],name,"sequences",filetype,"{}.{}".format(unique_names[gene],filetype))
         if os.path.exists(read_file):
             seq_length = len(SeqIO.read(read_file,'fasta').seq)
-            if seq_length > 1.5 * avg_ref_lengths[gene]:
+            if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != "supercontig":
                 sys.stderr.write("****WARNING! Sequence length for {} is more than 50% longer than {} reference!\n".format(name,unique_names[gene]))
             name_lengths.append(str(seq_length))
         else:
