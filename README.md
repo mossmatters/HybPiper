@@ -94,9 +94,12 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**1.3.2** *December, 2018*
+**1.3.2** *February, 2020*
 
 - Fix for [Issue 41](https://github.com/mossmatters/HybPiper/issues/41) a problem in `intronerate.py` when attempting to resolve overlapping gene annotations.
+- Add support in `retrieve_sequences.py` for a list of HybPiper outputs rather than everything in a directory 
+- Add support for supercontigs in `get_seq_lengths.py`
+- Remove integer requirement for `--cov_cutoff` to accommodate `auto` and `off` settings in Spades.
 
 **1.3.1 IMPORTANT BUG FIX** *August, 2018*
 
