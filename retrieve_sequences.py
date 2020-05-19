@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import sys,os,argparse
 from Bio import SeqIO
+from Bio.Alphabet import generic_dna,generic_protein
+
 
 helptext = '''Usage: 
     python retrieve_sequences.py targets.fasta sequence_dir aa/dna/intron/supercontig
@@ -28,11 +30,12 @@ if len(sys.argv) < 2:
         sys.exit(1)
 args = parser.parse_args()
 
-
+alfa = generic_dna
 if args.sequence_type == 'dna':
     seq_dir = "FNA"
 elif args.sequence_type == 'aa':
     seq_dir = "FAA"
+    alfa = generic_protein
 elif args.sequence_type == 'intron':
     seq_dir = 'intron'
     filename = 'introns'
@@ -65,21 +68,28 @@ print("Retreiving {} genes from {} samples".format(len(target_genes),len(sample_
 
 for gene in target_genes:
     gene_seqs = []
-    for rec in gene_seqs:
-        rec.id = rec.id.split("-")[0]
-        rec.description = ''
-    for sample in sample_names:
-        if seq_dir == 'intron':
-            sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,"{}_{}.fasta".format(gene,filename))
-        else:
-            sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,gene+'.'+seq_dir)
-        if os.path.isfile(sample_path):
-            gene_seqs.append(SeqIO.read(sample_path,'fasta'))
-    print("Found {} sequences for {}.".format(len(gene_seqs),gene))
-    
+    numSeqs = 0
     if seq_dir == 'intron':
         outfilename = "{}_{}.fasta".format(gene,filename)
     else:
         outfilename = gene + '.' + seq_dir
+    with open(os.path.join(fasta_dir,outfilename),'w') as outfile:
+        for sample in sample_names:
+            if seq_dir == 'intron':
+                sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,"{}_{}.fasta".format(gene,filename))
+            else:
+                sample_path = os.path.join(sampledir,sample,gene,sample,'sequences',seq_dir,gene+'.'+seq_dir)
+            try:
+                seq = next(SeqIO.parse(sample_path,'fasta',alphabet=alfa))
+                #seq.id = seq.id.split("-")[0]
+                #seq.description = ''
+                SeqIO.write(seq,outfile,'fasta')
+                numSeqs += 1
+                #gene_seqs.append(next(SeqIO.parse(sample_path,'fasta')))
+            except FileNotFoundError:
+                pass
+    print("Found {} sequences for {}.".format(numSeqs,gene))
     
-    SeqIO.write(gene_seqs,open(os.path.join(fasta_dir,outfilename),'w'),'fasta')
+   
+    
+   # SeqIO.write(gene_seqs,open(os.path.join(fasta_dir,outfilename),'w'),'fasta')
