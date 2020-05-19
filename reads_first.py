@@ -615,7 +615,7 @@ def main():
     parser.add_argument('--cpu',type=int,default=0,help="Limit the number of CPUs. Default is to use all cores available.")
     parser.add_argument('--evalue',type=float,default=1e-10,help="e-value threshold for blastx hits, default: %(default)s")
     parser.add_argument('--max_target_seqs',type=int,default=10,help='Max target seqs to save in blast search, default: %(default)s')
-    parser.add_argument('--cov_cutoff',type=int,default=8,help="Coverage cutoff for velvetg. default: %(default)s")
+    parser.add_argument('--cov_cutoff',default=8,help="Coverage cutoff for velvetg. default: %(default)s")
     parser.add_argument('--ins_length',type=int,default=200,help="Insert length for velvetg. default: %(default)s")
     parser.add_argument("--kvals",nargs='+',help="Values of k for velvet assemblies. Velvet needs to be compiled to handle larger k-values! Default auto-dectection by SPAdes.",default=None)
     parser.add_argument("--thresh",type=int,help="Percent Identity Threshold for stitching together exonerate results. Default is 55, but increase this if you are worried about contaminant sequences.",default=65)

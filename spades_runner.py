@@ -151,7 +151,7 @@ def main():
     parser = argparse.ArgumentParser(description=helptext,formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('genelist',help="Text file containing the name of each gene to conduct SPAdes assembly. One gene per line, should correspond to directories within the current directory.")
     parser.add_argument('--cpu',type=int,default=0,help="Limit the number of CPUs. Default is to use all cores available.")
-    parser.add_argument('--cov_cutoff',type=int,default=8,help="Coverage cutoff for SPAdes. default: %(default)s")
+    parser.add_argument('--cov_cutoff',default=8,help="Coverage cutoff for SPAdes. default: %(default)s")
     parser.add_argument("--kvals",nargs='+',help="Values of k for SPAdes assemblies. Default is to use SPAdes auto detection based on read lengths (recommended).",default=None)
     parser.add_argument("--redos_only",action="store_true",default=False,help="Continue from previously assembled SPAdes assemblies and only conduct redos from failed_spades.txt")
     parser.add_argument("--single",help="Reads are single end. Default is paired end.",action='store_true',default=False)
