@@ -55,6 +55,26 @@ For full installation instructions, please see our wiki page:
 
 Once all dependencies are installed, execute the `run_tests.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
 
+## Docker
+
+HybPiper and all dependencies can be installed in a [Docker container image](https://www.docker.com/resources/what-container):
+
+```
+docker build -t hybpiper:latest .
+```
+
+To run a HybPiper Python / R script, with the current working directory bind mounted in the container:
+
+```
+docker run -it --rm -v $PWD:/mnt -w /mnt hybpiper:latest <script> <args>
+```
+
+e.g., to get the command-line help for `exonerate_hits.py`:
+```
+docker run -it --rm -v $PWD:/mnt -w /mnt hybpiper:latest exonerate_hits.py -h
+```
+
+For multi-user HPC cluster environments, a [Singularity](https://sylabs.io/guides/3.6/user-guide/introduction.html) image can be generated from the Docker image using [docker2singularity](https://github.com/singularityhub/docker2singularity).
 
 ----
 
