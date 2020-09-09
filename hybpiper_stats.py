@@ -49,7 +49,7 @@ def enrich_efficiency_bwa(bamfilename):
         mappedReads += float(flagstat_results[4].split()[0])
     try:
         pctMapped = mappedReads/numReads
-     except ZeroDivisionError:
+    except ZeroDivisionError:
         pctMapped = 0.0
     return str(int(numReads)),str(int(mappedReads)),"{0:.3f}".format(pctMapped)
     
