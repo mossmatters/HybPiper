@@ -47,8 +47,11 @@ def enrich_efficiency_bwa(bamfilename):
         flagstat_results = [line for line in unpaired_child.stdout.readlines()]
         numReads += float(flagstat_results[0].split()[0])
         mappedReads += float(flagstat_results[4].split()[0])
-    
-    return str(int(numReads)),str(int(mappedReads)),"{0:.3f}".format(mappedReads/numReads)
+    	try:
+    		pctMapped = mappedReads/numReads
+    	except ZeroDivisionError:
+    		pctMapped = 0.0
+    return str(int(numReads)),str(int(mappedReads)),"{0:.3f}".format(pctMapped)
     
 def recovery_efficiency(name):
     '''Report the number of genes with mapping hits, contigs, and exon sequences'''
