@@ -203,7 +203,7 @@ def grouped(iterable, n):  # CJJ
 
 
 def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh=55, nosupercontigs=False,
-                interleaved_reads='None', memory=1, discordant_cutoff=100, edit_distance=7, threads=1):
+                interleaved_reads='None', memory=1, discordant_cutoff=100, edit_distance=7, threads=1, min_id=0.85):
     """Generates a contig from all hits to a protein.
     If more than one hit, conduct a second exonerate search with the original contigs
     stitched together."""
@@ -285,7 +285,7 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
                 ########################################################################################################
                 # Calculate intron offset:
 
-                intron_offset = 0 # set as default for slice calculations below
+                intron_offset = 0  # set as default for slice calculations below
                 left_query_span_nucleotides_in_exonerate_hit = (left_prot_target_end - left_prot_target_start) * 3 # i.e. how many
                 # nucleotides in the contig query are actually in the Exonerate hit (so, not counting introns).
                 # print(f'left_query_span_nucleotides_in_exonerate_hit: {left_query_span_nucleotides_in_exonerate_hit}')
@@ -430,7 +430,8 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
     discordant_cutoff = discordant_cutoff    # CJJ user modifiable
     edit_distance = edit_distance            # CJJ user modifiable
     maxindel = 0
-    minid = 0.76                             # CJJ should be user modifiable
+    # minid = 0.76                             # CJJ should be user modifiable
+    minid = min_id
     if len(joined_supercontig_cds) == 1:  # CJJ: i.e. if file supercontig_exonerate.fasta contains a single fast seq.
 
         ################ CJJ mapping check 1: if only one sequence left after filtering above ##########################
@@ -835,6 +836,8 @@ def main():
                         action="store_true", dest='nosupercontigs', default=False)  # CJJ
     parser.add_argument("--memory", help="memory (RAM ) to use for bbmap.sh", default=1, type=int)  # CJJ
     parser.add_argument("--threads", help="threads to use for bbmap.sh", default=4, type=int)  # CJJ
+    parser.add_argument("--min_id", default=0.85, type=float,
+                        help="Minimum identity for read-pair mapping using BBmap.sh. Default is %(default)s")  # CJJ
     parser.add_argument("--discordant_reads_edit_distance",
                         help="Minimum number of differences between one read of a read pair vs the supercontig "
                              "reference for a read pair to be flagged as discordant", default=7, type=int)  # CJJ
@@ -844,6 +847,7 @@ def main():
     parser.add_argument("--paralog_warning_min_cutoff", default=0.75, type=float,
                         help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
                              "to be generated. Default is %(default)s")  # CJJ
+
 
     args = parser.parse_args()
 
@@ -987,7 +991,8 @@ def main():
         nucl_sequence = fullContigs(proteinHits[prot], sequence_dict, assembly_dict, protein_dict, prefix,
                                     args.threshold, args.nosupercontigs, interleaved_reads=interleaved_reads,
                                     memory=args.memory, discordant_cutoff=args.discordant_reads_cutoff,
-                                    edit_distance=args.discordant_reads_edit_distance, threads=args.threads)
+                                    edit_distance=args.discordant_reads_edit_distance, threads=args.threads,
+                                    min_id=args.min_id)
 
         ################################################################################################################
         # If a sequence for the locus was returned, translate it, and write nucleotide and protein seqs to file

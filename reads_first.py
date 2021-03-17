@@ -348,7 +348,7 @@ def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, time
 
 def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_velvet=False, depth_multiplier=0,
               length_pct=100, timeout=None, nosupercontigs=False, memory=1, discordant_reads_edit_distance=7,
-              discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75):
+              discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, min_id=0.85):
     """
     CJJ: runs the `exonerate_hits.py script via GNU parallel.
     """
@@ -383,6 +383,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
                               "--depth_multiplier {}".format(depth_multiplier),
                               "--length_pct {}".format(length_pct), "--nosupercontigs",
                               "--paralog_warning_min_cutoff {}".format(paralog_warning_min_cutoff),
+                              "--min_id {}".format(min_id),
                               "::::",
                               exonerate_genefilename,
                               "> genes_with_seqs.txt"]
@@ -398,6 +399,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
                               "--discordant_reads_edit_distance {}".format(discordant_reads_edit_distance),
                               "--discordant_reads_cutoff {}".format(discordant_reads_cutoff),
                               "--paralog_warning_min_cutoff {}".format(paralog_warning_min_cutoff),
+                              "--min_id {}".format(min_id),
                               "--debug",
                               "::::",
                               exonerate_genefilename,
@@ -537,17 +539,19 @@ def main():
                              "The sequence will be used for read sorting.", default=None)
     parser.add_argument("--nosupercontigs", dest="nosupercontigs", action='store_true',
                         help="Do not create any supercontigs. The longest single Exonerate hit will be used",
-                        default=False)
+                        default=False)  # CJJ
     parser.add_argument("--memory", help="GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1",
-                        default=1, type=int)
+                        default=1, type=int)  # CJJ
+    parser.add_argument("--min_id", default=0.85, type=float,
+                        help="Minimum identity for read-pair mapping using BBmap.sh. Default is %(default)s")  # CJJ
     parser.add_argument("--discordant_reads_edit_distance",
                         help="Minimum number of differences between one read of a read pair vs the supercontig "
-                             "reference for a read pair to be flagged as discordant", default=5, type=int)
+                             "reference for a read pair to be flagged as discordant", default=5, type=int)  # CJJ
     parser.add_argument("--discordant_reads_cutoff",
                         help="minimum number of discordant reads pairs required to flag a supercontigs as a potential "
-                             "hybrid of contigs from multiple paralogs", default=5, type=int)
+                             "hybrid of contigs from multiple paralogs", default=5, type=int)  # CJJ
     parser.add_argument("--merged", help="For assembly with both merged and unmerged (interleaved) reads",
-                        action="store_true", default=False)
+                        action="store_true", default=False)  # CJJ
 
     parser.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
 
@@ -766,7 +770,8 @@ def main():
                              memory=args.memory,
                              discordant_reads_edit_distance=args.discordant_reads_edit_distance,
                              discordant_reads_cutoff=args.discordant_reads_cutoff,
-                             paralog_warning_min_cutoff=args.paralog_warning_min_length_percentage)
+                             paralog_warning_min_cutoff=args.paralog_warning_min_length_percentage,
+                             min_id=args.min_id)
         if exitcode:
             return
 
