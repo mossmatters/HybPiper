@@ -203,7 +203,8 @@ def grouped(iterable, n):  # CJJ
 
 
 def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh=55, nosupercontigs=False,
-                interleaved_reads='None', memory=1, discordant_cutoff=100, edit_distance=7, threads=1, min_id=0.85):
+                interleaved_reads='None', memory=1, discordant_cutoff=100, edit_distance=7, threads=1,
+                bbmap_subfilter=7):
     """Generates a contig from all hits to a protein.
     If more than one hit, conduct a second exonerate search with the original contigs
     stitched together."""
@@ -431,7 +432,8 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
     edit_distance = edit_distance            # CJJ user modifiable
     maxindel = 0
     # minid = 0.76                             # CJJ should be user modifiable
-    minid = min_id
+    # minid = min_id
+    subfilter = bbmap_subfilter
     if len(joined_supercontig_cds) == 1:  # CJJ: i.e. if file supercontig_exonerate.fasta contains a single fast seq.
 
         ################ CJJ mapping check 1: if only one sequence left after filtering above ##########################
@@ -446,7 +448,7 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
         # it'll overburden the number of cpus requested by the slurm job.
         bbmap_command = f'bbmap.sh -Xmx{memory}g -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
                         f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t ' \
-                        f'maxindel={maxindel} strictmaxindel=t nodisk=t minid={minid} ambiguous=toss 2> /dev/null'
+                        f'maxindel={maxindel} strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
         # sys.stderr.write(f'\nbbmap_command: {bbmap_command}\n')
         # sys.stderr.flush()
         exitcode = subprocess.call(bbmap_command, shell=True)
@@ -495,7 +497,7 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
 
     bbmap_command = f'bbmap.sh -Xmx{memory}g  -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
                     f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t maxindel={maxindel} ' \
-                    f'strictmaxindel=t nodisk=t minid={minid} ambiguous=toss 2> /dev/null'
+                    f'strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
 
     # sys.stderr.write(f'\nbbmap_command: {bbmap_command}\n')
     # sys.stderr.flush()
@@ -836,8 +838,8 @@ def main():
                         action="store_true", dest='nosupercontigs', default=False)  # CJJ
     parser.add_argument("--memory", help="memory (RAM ) to use for bbmap.sh", default=1, type=int)  # CJJ
     parser.add_argument("--threads", help="threads to use for bbmap.sh", default=4, type=int)  # CJJ
-    parser.add_argument("--min_id", default=0.85, type=float,
-                        help="Minimum identity for read-pair mapping using BBmap.sh. Default is %(default)s")  # CJJ
+    parser.add_argument("--bbmap_subfilter", default=7, type=int,
+                        help="Ban alignments with more than this many substitutions. Default is %(default)s")  # CJJ
     parser.add_argument("--discordant_reads_edit_distance",
                         help="Minimum number of differences between one read of a read pair vs the supercontig "
                              "reference for a read pair to be flagged as discordant", default=7, type=int)  # CJJ
@@ -992,7 +994,7 @@ def main():
                                     args.threshold, args.nosupercontigs, interleaved_reads=interleaved_reads,
                                     memory=args.memory, discordant_cutoff=args.discordant_reads_cutoff,
                                     edit_distance=args.discordant_reads_edit_distance, threads=args.threads,
-                                    min_id=args.min_id)
+                                    bbmap_subfilter=args.bbmap_subfilter)
 
         ################################################################################################################
         # If a sequence for the locus was returned, translate it, and write nucleotide and protein seqs to file

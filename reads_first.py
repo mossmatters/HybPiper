@@ -348,7 +348,7 @@ def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, time
 
 def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_velvet=False, depth_multiplier=0,
               length_pct=100, timeout=None, nosupercontigs=False, memory=1, discordant_reads_edit_distance=7,
-              discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, min_id=0.85):
+              discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, bbmap_subfilter=7):
     """
     CJJ: runs the `exonerate_hits.py script via GNU parallel.
     """
@@ -542,8 +542,8 @@ def main():
                         default=False)  # CJJ
     parser.add_argument("--memory", help="GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1",
                         default=1, type=int)  # CJJ
-    parser.add_argument("--min_id", default=0.85, type=float,
-                        help="Minimum identity for read-pair mapping using BBmap.sh. Default is %(default)s")  # CJJ
+    parser.add_argument("--bbmap_subfilter", default=7, type=int,
+                        help="Ban alignments with more than this many substitutions. Default is %(default)s")  # CJJ
     parser.add_argument("--discordant_reads_edit_distance",
                         help="Minimum number of differences between one read of a read pair vs the supercontig "
                              "reference for a read pair to be flagged as discordant", default=5, type=int)  # CJJ
@@ -771,7 +771,7 @@ def main():
                              discordant_reads_edit_distance=args.discordant_reads_edit_distance,
                              discordant_reads_cutoff=args.discordant_reads_cutoff,
                              paralog_warning_min_cutoff=args.paralog_warning_min_length_percentage,
-                             min_id=args.min_id)
+                             bbmap_subfilter=args.bbmap_subfilter)
         if exitcode:
             return
 
