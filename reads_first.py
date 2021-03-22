@@ -383,7 +383,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
                               "--depth_multiplier {}".format(depth_multiplier),
                               "--length_pct {}".format(length_pct), "--nosupercontigs",
                               "--paralog_warning_min_cutoff {}".format(paralog_warning_min_cutoff),
-                              "--min_id {}".format(min_id),
+                              "--bbmap_subfilter {}".format(bbmap_subfilter),
                               "::::",
                               exonerate_genefilename,
                               "> genes_with_seqs.txt"]
@@ -399,7 +399,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
                               "--discordant_reads_edit_distance {}".format(discordant_reads_edit_distance),
                               "--discordant_reads_cutoff {}".format(discordant_reads_cutoff),
                               "--paralog_warning_min_cutoff {}".format(paralog_warning_min_cutoff),
-                              "--min_id {}".format(min_id),
+                              "--bbmap_subfilter {}".format(bbmap_subfilter),
                               "--debug",
                               "::::",
                               exonerate_genefilename,

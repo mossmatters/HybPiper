@@ -5,26 +5,13 @@
 ################################################################################################
 
 """
-- When stitching together contigs tos create a supercontig, trim the Exonerate hits to hit sequence only, rather than
-  using the whole contig sequence,.
+- When stitching together contigs to create a supercontig, trim the Exonerate hits to hit sequence only as necessary,
+rather than using the whole contig sequence.
 - For supercontigs, trim overlaps between Exonerate hits when stitching together sequences. To me, these overlaps seem
   most likely to occur when when Exonerate hits come from partially assembled paralogs, and the contigs have
   overlapping termini (which presumably end when the SPAdes assembly graphs get too confused... ).
 """
 
-
-
-# Given an assembly file of genomic DNA and a file containing target proteins:
-#     1. Use exonerate to determine hits for each contig.
-#     2. Load contigs into a Biopython seqRecord dictionary.
-#     3. For each protein hit, create a FASTA file with all contigs.
-#         a. The contigs will be in order of their hit location to the target proteins.
-
-######REQUIREMENTS########
-# Python 2.6 or later
-# exonerate in your $PATH
-# Biopython
-##########################
 
 import sys, os, subprocess, math, argparse, logging
 from Bio import SeqIO
@@ -33,8 +20,7 @@ from Bio.SeqRecord import SeqRecord
 from itertools import tee  # CJJ
 import re  # CJJ
 
-# id_threshold = 55 #Percent identity between protein and contig hit.
-first_search_filename = "exonerate_results.fasta"
+first_search_filename = "exonerate_results.fasta"  # CJJ hardcoded - was used for testing purposes in mossmatters code.
 
 
 def file_exists_and_not_empty(file_name):  # CJJ added for initial exonerate tests
@@ -46,8 +32,23 @@ def file_exists_and_not_empty(file_name):  # CJJ added for initial exonerate tes
 
 
 def initial_exonerate(proteinfilename, assemblyfilename, prefix):
-    """Conduct exonerate search, returns a dictionary of results.
-    Using the ryo option in exonerate, the header should contain all the useful information."""
+    """
+    Conduct exonerate search, (CJJ: first with option `--refine full` and then without if it doesn't work) returns a
+    dictionary of results.
+
+    Using the ryo option in exonerate, the header should contain all the useful information.
+    CJJ:
+    >%ti
+    %qi
+    %qab
+    %qae
+    %pi
+    (%tS)
+    %tab
+    %tae
+    %tcs
+    """
+
     logger = logging.getLogger("pipeline")
     outputfilename = "%s/exonerate_results.fasta" % prefix
     exonerate_ryo = '">%ti,%qi,%qab,%qae,%pi,(%tS),%tab,%tae\\n%tcs\\n"'
@@ -72,11 +73,29 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
 
 
 def protein_sort(records):
-    """Given the Biopython dictionary, return a dictionary of proteins indexed by their hits."""
+    """
+    Given the Biopython dictionary, return a dictionary of proteins indexed by their hits.
+
+    CJJ: I don't understand the above help text. This function:
+
+    Takes: the seq dictionary of exonerate hits returned by initial_exonerate() above.
+
+    Returns: the nested dictionary `proteinHits` (I assume it's nested for historical code reasons, as there's only
+    one protein seq key) e.g.:
+
+    {'sunf-At3g48680': {'assemblyHits': ['NODE_3_length_296_cov_10.136929,sunf-At3g48680,31,117,96.51,(-),260,2',
+    'NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207',
+    'NODE_1_length_495_cov_7.752273,sunf-At3g48680,35,157,95.90,(+),2,368'],
+    'hit_start': [31, 88, 35], 'hit_end': [117, 157, 157], 'percentid': [96.51, 92.75, 95.9],
+    'hit_strand': ['-', '+', '+'], 'target_begin': [260, 0, 2], 'target_end': [2, 207, 368], 'name': 'sunf-At3g48680'}}
+
+    Unclear why this function is called protein_sort() - it doesn't do any sorting.
+    """
+
     proteinHits = {}
-    for contig in records:
+    for contig in records:  # CJJ e.g. `NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207', etc
         hit = records[contig].id.split(",")
-        protein = hit[1]
+        protein = hit[1]  # CJJ this will be the same protein for all contigs e.g. 'sunf-At3g48680'
         if protein in proteinHits:
             proteinHits[protein]["assemblyHits"].append(",".join(hit))
             proteinHits[protein]["hit_start"].append(int(hit[2]))
@@ -99,12 +118,18 @@ def protein_sort(records):
 
 
 def sort_key(elem):
-    """Sort by start location (increasing) then by end location (increasing), then by depth (decreasing)"""
+    """
+    Sort by start location (increasing) then by end location (increasing), then by depth (decreasing).
+
+    Used in function get_contig_order().
+    """
     return elem[0], elem[1], -elem[2]
 
 
 def get_contig_order(prot):
-    """Given the dictionary of hits for a protein, return the dictionary with the fields sorted by start location."""
+    """
+    Given the dictionary of hits for a protein, return the dictionary with the fields sorted by start location.
+    """
     logger = logging.getLogger("pipeline")
     tuplist = [(prot["hit_start"][i], prot["hit_end"][i], float(prot["assemblyHits"][i].split(",")[0].split("_")[5]))
                for i in range(len(prot["hit_start"]))]
@@ -123,13 +148,20 @@ def get_contig_order(prot):
 
 
 def filter_by_percentid(prot, thresh):
-    """Given a protein dictionary, return a protein dictionary minus entries with percentID below a threshold"""
+    """
+    Given a protein dictionary, return a protein dictionary minus entries with percentID below a threshold.
+
+    CJJ: the protein dictionary referred to is the dict of partially filtered Exonerate hits with prot as key.
+    """
+
     kept_indicies = [i for i in range(len(prot["percentid"])) if prot["percentid"][i] > thresh]
     return keep_indicies(kept_indicies, prot)
 
 
 def supercontig_exonerate(supercontig, protseq, prefix, thresh=55):
-    """Given a long, joined contig and a protein sequence, return the exonerate hit(s)"""
+    """
+    Given a long, joined contig and a protein sequence, return the exonerate hit(s)
+    """
     logger = logging.getLogger("pipeline")
     exonerate_ryo = '>%ti,%qi,%qab,%qae,%pi,(%tS)\\n%tcs\\n'
     temp_prot_filename = "%s/temp.prot.fa" % prefix
@@ -536,7 +568,9 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
 
 
 def find_longest_hit(prot):
-    """Given a protein dictionary, determine the assembly hit with the longest sequence"""
+    """
+    Given a protein dictionary, determine the assembly hit with the longest sequence
+    """
     max_hit_length = 0
     max_hit_loc = 0
     for i in range(len(prot["hit_start"])):
@@ -548,8 +582,24 @@ def find_longest_hit(prot):
 
 
 def keep_indicies(kept_indicies, prot):
-    """Given a list of indicies to keep and a protein dictionary, return the dictionary with only the specified entries
-    remaining"""
+    """
+    Given a list of indices to keep and a protein dictionary, return the dictionary with only the specified entries
+    remaining.
+
+    CJJ: used in functions reciprocal_best_hit(), filter_by_percentid() and overlapping_contigs().
+
+    Arguments e.g.:
+
+    kept_indicies = [0, 1, 2]
+
+    prot = {'assemblyHits': ['NODE_3_length_296_cov_10.136929,sunf-At3g48680,31,117,96.51,(-),260,2',
+    'NODE_1_length_495_cov_7.752273,sunf-At3g48680,35,157,95.90,(+),2,368',
+    'NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207'],
+    'hit_start': [31, 35, 88], 'hit_end': [117, 157, 157], 'percentid': [96.51, 95.9, 92.75],
+    'hit_strand': ['-', '+', '+'], 'target_begin': [260, 2, 0], 'target_end': [2, 368, 207],
+    'name': 'sunf-At3g48680', 'reflength': 157}
+
+    """
 
     assHit = []
     hitstart = []
@@ -586,10 +636,23 @@ def keep_indicies(kept_indicies, prot):
 
 
 def overlapping_contigs(prot, length_pct, depth_multiplier):
-    """Given a protein dictionary, determine whether the hit ranges are overlapping,
-    and save only those contigs that are not completely subsumed by other contigs."""
+    """
+    Given a protein dictionary, determine whether the hit ranges are overlapping,
+    and save only those contigs that are not completely subsumed by other contigs.
+
+
+    CJJ:
+
+    prot = {'assemblyHits': ['NODE_3_length_296_cov_10.136929,sunf-At3g48680,31,117,96.51,(-),260,2',
+    'NODE_1_length_495_cov_7.752273,sunf-At3g48680,35,157,95.90,(+),2,368',
+    'NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207'],
+    'hit_start': [31, 35, 88], 'hit_end': [117, 157, 157], 'percentid': [96.51, 95.9, 92.75],
+    'hit_strand': ['-', '+', '+'], 'target_begin': [260, 2, 0], 'target_end': [2, 368, 207],
+    'name': 'sunf-At3g48680', 'reflength': 157}
+    """
+
     logger = logging.getLogger("pipeline")
-    range_list = [(prot["hit_start"][i], prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]
+    range_list = [(prot["hit_start"][i], prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]  # CJJ: eg [(31, 117), (35, 157), (88, 157)]
 
     logger.debug(range_list)
     kept_indicies = range_connectivity(range_list, prot["assemblyHits"], prot_length=prot["reflength"],
@@ -599,7 +662,9 @@ def overlapping_contigs(prot, length_pct, depth_multiplier):
 
 
 def best_by_percent_id(assemblyHits, full_length_indicies):
-    """Given a list of contig names, return the one with the best percent identity (fourth comma delimited field)"""
+    """
+    Given a list of contig names, return the one with the best percent identity (fourth comma delimited field)
+    """
     logger = logging.getLogger("pipeline")
     max_percentid = 0
     for i in range(len(full_length_indicies)):
@@ -612,7 +677,9 @@ def best_by_percent_id(assemblyHits, full_length_indicies):
 
 
 def best_by_depth(assemblyHits, full_length_indicies, thresh=10):
-    """If one contig has a depth that is 10x more than all the others, return that one, else return None"""
+    """
+    If one contig has a depth that is 10x more than all the others, return that one, else return None
+    """
     logger = logging.getLogger("pipeline")
     depths = []
     for i in range(len(full_length_indicies)):
@@ -635,9 +702,14 @@ def best_by_depth(assemblyHits, full_length_indicies, thresh=10):
 
 def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_pct=1, depth_multiplier=None,
                        use_depth=False):
-    """Given two sorted lists, representing the beginning and end of a range,
+    """
+    Given two sorted lists, representing the beginning and end of a range,
     Determine "connectivity" between consecutive elements of the list.
-    For each connected segment, determine whether one segment "subsumes" the other."""
+    For each connected segment, determine whether one segment "subsumes" the other.
+
+    CJJ:
+    Used in functions overlapping_contigs() and subsume_supercontigs()
+    """
 
     logger = logging.getLogger("pipeline")
 
@@ -718,12 +790,18 @@ def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_p
 
 
 def tuple_overlap(a, b):
-    """Given two tuples of length two, determine if the ranges overlap"""
+    """
+    Given two tuples of length two, determine if the ranges overlap
+
+    CJJ: used in function reciprocal_best_hit()
+    """
     return a[0] < b[0] < a[1] or b[0] < a[0] < b[1]
 
 
 def tuple_subsume(a, b):
-    """Given two tuples of length two, determine if a has a range that includes b"""
+    """
+    Given two tuples of length two, determine if a has a range that includes b
+    """
     # if b[0] >= a[0] and b[1] <= a[1]:
     if b[0] > a[0] and b[1] < a[1]:  # CJJ is using >= and <= and there are two good contigs with the same protein
         # hit ranges, they both get removed. We don't want this behaviour.
@@ -733,8 +811,16 @@ def tuple_subsume(a, b):
 
 
 def reciprocal_best_hit(prot, proteinHits):
-    """Given a protein dictionary and the dictionary of all protein dictionaries,
-        Return the protein dictionary minus any contigs that have higher percentage hits to other proteins."""
+    """
+    Given a protein dictionary and the dictionary of all protein dictionaries, return the protein dictionary minus
+    any contigs that have higher percentage hits to other proteins.
+
+    CJJ: I think this is a historical function which no longer has an effect as there's only one protein in the dict.
+
+    Note that arguments:
+    prot = proteinHits[prot]
+    proteinHits = proteinHits
+    """
     logger = logging.getLogger("pipeline")
 
     protname = prot["name"]
@@ -771,7 +857,9 @@ def reciprocal_best_hit(prot, proteinHits):
 
 
 def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
-    """Gives a warning if there are multiple hits of long length to the same protein"""
+    """
+    Gives a warning if there are multiple hits of long length to the same protein
+    """
     logger = logging.getLogger("pipeline")
     protlength = len(prot)
     hitlengths = [abs(int(x.split(",")[2]) - int(x.split(",")[3])) for x in exonerate_hits["assemblyHits"]]
@@ -779,7 +867,7 @@ def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
     logger.debug("Hit lengths:")
     logger.debug(hitlengths)
     # longhits = [x > 0.75 * protlength for x in hitlengths]
-    longhits = [x > paralog_warning_min_cutoff * protlength for x in hitlengths]  # CJJ
+    longhits = [x > paralog_warning_min_cutoff * protlength for x in hitlengths]  # CJJ: added user-adjustable param
     if sum(longhits) > 1:
         sys.stderr.write("WARNING: Multiple long-length exonerate hits for {}. Check for paralogs!\n".format(prot.id))
         with open("{}/paralog_warning.txt".format(prefix), 'w') as pw:
@@ -789,7 +877,9 @@ def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
 
 
 def myTranslate(nucl):
-    """Given a raw sequence of nucleotides, return raw sequence of amino acids."""
+    """
+    Given a raw sequence of nucleotides, return raw sequence of amino acids.
+    """
     nucseq = Seq(nucl)
     aminoseq = nucseq.translate()
     return str(aminoseq)
@@ -865,8 +955,8 @@ def main():
     ####################################################################################################################
     # Read in the selected protein reference sequence and SPAdes nucleotide contigs
     ####################################################################################################################
-    proteinfilename = args.proteinfile  # CJJ read in protein fasta e.g. At2g47110_baits.fasta
-    assemblyfilename = args.assemblyfile  # CJJ read in SPAdes contigs e.g. At2g47110_contigs.fasta
+    proteinfilename = args.proteinfile  # CJJ: read in protein fasta e.g. At2g47110_baits.fasta
+    assemblyfilename = args.assemblyfile  # CJJ: read in SPAdes contigs e.g. At2g47110_contigs.fasta
 
     ####################################################################################################################
     # Create a directory for output files based on the prefix name
@@ -884,12 +974,8 @@ def main():
     # If producing supercontigs, identify file of interleaved reads for this sample/gene for mapping
     ####################################################################################################################
     if not args.nosupercontigs:  # CJJ
-        # print(f'prefix is: {prefix}')
         gene_folder = os.path.split(prefix)[0]
-        # gene_folder = os.path.split(prefix)[1] # FOR TESTING ONLY CHANGE BACK!!!!
         interleaved_reads = f'{gene_folder}/{gene_folder}_interleaved.fasta'
-        # interleaved_reads = f'{gene_folder}_interleaved.fasta'  # FOR TESTING ONLY CHANGE BACK!!!!
-        # print(interleaved_reads)
     else:
         interleaved_reads = 'None'
 
@@ -920,8 +1006,8 @@ def main():
     except IOError:
         print("The file %s could not be opened!" % assemblyfilename)
         return ()
-    assembly_dict = SeqIO.to_dict(SeqIO.parse(assemblyfile, 'fasta'))
-    protein_dict = SeqIO.to_dict(SeqIO.parse(proteinfile, 'fasta'))
+    assembly_dict = SeqIO.to_dict(SeqIO.parse(assemblyfile, 'fasta'))  # CJJ: this will contain the SPAdes contigs
+    protein_dict = SeqIO.to_dict(SeqIO.parse(proteinfile, 'fasta'))  # CJJ: This will only contain a single protein
 
     ####################################################################################################################
     # Run the function initial_exonerate, and sort the SPAdes contig hits
@@ -931,7 +1017,8 @@ def main():
         sequence_dict = SeqIO.to_dict(SeqIO.parse(first_search_filename, 'fasta'))
     else:
         sequence_dict = initial_exonerate(proteinfilename, assemblyfilename, prefix)
-    proteinHits = protein_sort(sequence_dict)
+    proteinHits = protein_sort(sequence_dict)  # CJJ: Unclear why this function is called protein_sort() - it doesn't
+    # do any sorting.
     sys.stderr.write("There were {} exonerate hits for {}.\n".format(len(sequence_dict), proteinfilename))
 
     ####################################################################################################################
@@ -948,7 +1035,7 @@ def main():
     ####################################################################################################################
     # Filter the Exonerate SPAdes contig hits
     ####################################################################################################################
-    for prot in proteinHits:
+    for prot in proteinHits:  # CJJ: again, note that this will be a single key for a single protein seq
         logger.debug(prot)
         logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
 
@@ -957,13 +1044,12 @@ def main():
         ################################################################################################################
         paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
 
-        proteinHits[prot]["reflength"] = len(protein_dict[prot])
-        proteinHits[prot] = get_contig_order(proteinHits[prot])
+        proteinHits[prot]["reflength"] = len(protein_dict[prot])  # CJJ: protein_dict contains a single key
+        proteinHits[prot] = get_contig_order(proteinHits[prot])  # CJJ: sorts Exonerate hits by start position in query protein
         logger.debug("After get_contig_order: %d" % len(proteinHits[prot]["assemblyHits"]))
         # Remove contigs that are suboptimal hits. Only one protein hit allowed per contig.
 
-        proteinHits[prot] = reciprocal_best_hit(proteinHits[prot], proteinHits)
-        #         logger.debug("After RBH: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
+        proteinHits[prot] = reciprocal_best_hit(proteinHits[prot], proteinHits)  # CJJ: I don't think this function has an effect anymore, as there's only one prot in the dictionary
         logger.debug("After RBH: %d" % len(proteinHits[prot]["assemblyHits"]))
         if len(proteinHits[prot]["assemblyHits"]) == 0:
             report_no_sequences(proteinHits[prot]["name"])
@@ -971,7 +1057,6 @@ def main():
 
         # Filter out contigs with a hit below a threshold
         proteinHits[prot] = filter_by_percentid(proteinHits[prot], args.threshold)
-        #         logger.debug("After filter_by_percent_id: %s" % " ".join(proteinHits[prot]["assemblyHits"]))
         logger.debug("After filter_by_percent_id: %d" % len(proteinHits[prot]["assemblyHits"]))
         if len(proteinHits[prot]["assemblyHits"]) == 0:
             report_no_sequences(proteinHits[prot]["name"])
