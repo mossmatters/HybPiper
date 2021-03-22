@@ -179,12 +179,16 @@ def supercontig_exonerate(supercontig, protseq, prefix, thresh=55):
 
 
 def sort_byhitloc(seqrecord):
-    """Key function for sorting based on the start location of a hit record."""
+    """
+    Key function for sorting based on the start location of a hit record.
+    """
     return int(seqrecord.id.split(",")[2])
 
 
 def subsume_supercontigs(supercontigs):
-    """If one supercontig has a start and end location greater than all the others, throw the rest out"""
+    """
+    If one supercontig has a start and end location greater than all the others, throw the rest out
+    """
     logger = logging.getLogger("pipeline")
     supercontig_rangelist = [(int(x.id.split(",")[2]), int(x.id.split(",")[3])) for x in supercontigs]
     supercontig_ids = [x.id for x in supercontigs]
@@ -197,28 +201,35 @@ def subsume_supercontigs(supercontigs):
 
 
 def write_exonerate_stats(contig_id_list, prefix):
-    """Given a list of IDs from initial exonerate search, write info to a standard file"""
+    """
+    Given a list of IDs from initial exonerate search, write info to a standard file
+    """
     with open("{}/exonerate_stats.csv".format(prefix), 'w') as exonerate_statsfile:
         exonerate_statsfile.write("\n".join(contig_id_list) + '\n')
 
 
 def write_genes_with_supercontigs(data, prefix):  # CJJ
-    """Write a file listing genes for which a supercontig was created. These per sample files are collated
-    in the reads_first.py script after all genes have completed)."""
+    """
+    Write a file listing genes for which a supercontig was created. These per sample files are collated
+    in the reads_first.py script after all genes have completed).
+    """
     with open("{}/genes_with_supercontigs.csv".format(prefix), 'w') as supercontig_reportfile:
         supercontig_reportfile.write(f'{data}\n')
 
 
 def write_supercontigs_with_discordant_readpairs(data, prefix):  # CJJ
-    """Write a file listing supercontigs for which one read maps perfectly and the other has mismatches with the
+    """
+    Write a file listing supercontigs for which one read maps perfectly and the other has mismatches with the
     reference. These per sample files are collated in reads_first.py script after all genes have
-    completed)."""
+    completed).
+    """
     with open("{}/supercontigs_with_discordant_readpairs.csv".format(prefix), 'w') as discordant_supercontig_reportfile:
         discordant_supercontig_reportfile.write(f'{data}\n')
 
 
 def pairwise(iterable):  # CJJ
-    """s -> (s0,s1), (s1,s2), (s2, s3), ...
+    """
+    s -> (s0,s1), (s1,s2), (s2, s3), ...
     Used in the function fullContigs to iterate over overlapping pairs of hit_start_and_end_indices.
     """
     a, b = tee(iterable)
@@ -227,7 +238,8 @@ def pairwise(iterable):  # CJJ
 
 
 def grouped(iterable, n):  # CJJ
-    """s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ...
+    """
+    s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ...
     Used in the function fullContigs to iterate over non-overlapping pairs of reads from a sam file (i.e. reads 1+2,
     then reads 3+4 etc).
     """
@@ -237,9 +249,11 @@ def grouped(iterable, n):  # CJJ
 def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh=55, nosupercontigs=False,
                 interleaved_reads='None', memory=1, discordant_cutoff=100, edit_distance=7, threads=1,
                 bbmap_subfilter=7):
-    """Generates a contig from all hits to a protein.
+    """
+    Generates a contig from all hits to a protein.
     If more than one hit, conduct a second exonerate search with the original contigs
-    stitched together."""
+    stitched together.
+    """
 
     sys.stderr.write(f'\nCJJ from within fullContigs function\n')
     sys.stderr.flush()
