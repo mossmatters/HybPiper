@@ -863,10 +863,22 @@ def reciprocal_best_hit(prot, proteinHits):
 
 def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
     """
-    Gives a warning if there are multiple hits of long length to the same protein
+    Gives a warning if there are multiple hits of long length to the same protein.
+
+    CJJ: arguments are:
+    exonerate_hits = proteinHits[prot]
+    prot = protein_dict[prot]  # CJJ only one protein in this dict
+
+    exonerate_hits["assemblyHits"] e.g.:
+
+    ['NODE_3_length_296_cov_10.136929,sunf-At3g48680,31,117,96.51,(-),260,2',
+    'NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207',
+    'NODE_1_length_495_cov_7.752273,sunf-At3g48680,35,157,95.90,(+),2,368']
+
+    So, Exonerate hit lengths are calculated via their hit range against the query protein.
     """
     logger = logging.getLogger("pipeline")
-    protlength = len(prot)
+    protlength = len(prot)  # CJJ prot is a seqobject
     hitlengths = [abs(int(x.split(",")[2]) - int(x.split(",")[3])) for x in exonerate_hits["assemblyHits"]]
     logger.debug("protein length: {}".format(protlength))
     logger.debug("Hit lengths:")
