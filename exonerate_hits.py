@@ -637,12 +637,10 @@ def keep_indicies(kept_indicies, prot):
 
 def overlapping_contigs(prot, length_pct, depth_multiplier):
     """
-    Given a protein dictionary, determine whether the hit ranges are overlapping,
-    and save only those contigs that are not completely subsumed by other contigs.
-
+    Given a protein dictionary, determine whether the hit ranges are overlapping, and save only those contigs that
+    are not completely subsumed by other contigs.
 
     CJJ:
-
     prot = {'assemblyHits': ['NODE_3_length_296_cov_10.136929,sunf-At3g48680,31,117,96.51,(-),260,2',
     'NODE_1_length_495_cov_7.752273,sunf-At3g48680,35,157,95.90,(+),2,368',
     'NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207'],
@@ -652,18 +650,20 @@ def overlapping_contigs(prot, length_pct, depth_multiplier):
     """
 
     logger = logging.getLogger("pipeline")
-    range_list = [(prot["hit_start"][i], prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]  # CJJ: eg [(31, 117), (35, 157), (88, 157)]
+    range_list = [(prot["hit_start"][i], prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]  # CJJ: eg [(31, 117), (35, 157), (88, 157)].
 
     logger.debug(range_list)
     kept_indicies = range_connectivity(range_list, prot["assemblyHits"], prot_length=prot["reflength"],
                                        length_pct=length_pct, depth_multiplier=depth_multiplier)
     logger.debug(kept_indicies)
-    return keep_indicies(kept_indicies, prot)
+    return keep_indicies(kept_indicies, prot)  # CJJ e.g. will return same as `prot` in help line if all indices kept.
 
 
 def best_by_percent_id(assemblyHits, full_length_indicies):
     """
-    Given a list of contig names, return the one with the best percent identity (fourth comma delimited field)
+    Given a list of contig names, return the one with the best percent identity (fourth comma delimited field).
+
+    CJJ: used in function range_connectivity().
     """
     logger = logging.getLogger("pipeline")
     max_percentid = 0
@@ -678,7 +678,9 @@ def best_by_percent_id(assemblyHits, full_length_indicies):
 
 def best_by_depth(assemblyHits, full_length_indicies, thresh=10):
     """
-    If one contig has a depth that is 10x more than all the others, return that one, else return None
+    If one contig has a depth that is 10x more than all the others, return that one, else return None.
+
+    CJJ: used in function range_connectivity().
     """
     logger = logging.getLogger("pipeline")
     depths = []
@@ -713,36 +715,38 @@ def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_p
 
     logger = logging.getLogger("pipeline")
 
-    starts = [a[0] for a in range_list]  # range_list e.g.: [(25, 108), (32, 66), (100, 201)]
-    ends = [a[1] for a in range_list]
+    # CJJ: range_list e.g.: [(31, 117), (35, 157), (88, 157)]
+    starts = [a[0] for a in range_list]  # CJJ: e.g. [31, 35, 88]
+    ends = [a[1] for a in range_list]  # CJJ: e.g. [117, 157, 157]
 
     if depth_multiplier:
         use_depth = True
 
     subsumed_ranges = []
-    collapsed_ranges = []
+    collapsed_ranges = []  # CJJ: not used, presumably historical
     full_length_indicies = []
-    num_breaks = 0
+    num_breaks = 0  # CJJ not used, presumably historical
     if prot_length:
         max_length = prot_length
     else:
         max_length = max(ends) - min(starts)
 
     for i in range(len(range_list)):
-        if abs(starts[i] - ends[i]) > max_length * length_pct:
+        if abs(starts[i] - ends[i]) > max_length * length_pct:  # CJJ: abs() will return positive value
             logger.debug("including long contig {}".format(range_list[i]))
             full_length_indicies.append(i)
-            subsumed_ranges = [range_list[i]]  # CJJ Note this replaces rather than appends; this means it'll keep the
-            # contig with this range, I think.
+            subsumed_ranges = [range_list[i]]  # CJJ: note this replaces rather than appends; this means it'll keep
+            # the contig with this range. Note `subsumed_ranges` actually refers to a range that subsumes other ranges.
         elif starts[i] == min(starts) and ends[i] == max(ends):
             logger.debug("Contig {} has range that subsumes all others!".format(i))
-            subsumed_ranges = [range_list[i]]
+            subsumed_ranges = [range_list[i]]  # CJJ: note this replaces rather than appends; this means it'll keep the contig with this range.
             full_length_indicies.append(i)
         else:
-            if len(full_length_indicies) > 0:
+            if len(full_length_indicies) > 0:  # CJJ: i.e. range was not above 90% ref length, or was not the longest.
+                # range.
                 logger.debug("removing {}".format(range_list[i]))
             else:
-                subsumed_ranges.append(range_list[i])  # CJJ Note this appends rather than replaces
+                subsumed_ranges.append(range_list[i])  # CJJ: this appends rather than replaces
 
     # If there are multiple full length hits, return the one with the best percent identity.
     if assemblyHits:
@@ -760,20 +764,20 @@ def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_p
 
     # If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
     subsumed_indices = []
-    if len(subsumed_ranges) > 1:
+    if len(subsumed_ranges) > 1:  # CJJ: subsumed_ranges e.g. [(31, 117), (35, 157), (88, 157)]
         logger.debug("SUBSUMING")
         for i, r1 in enumerate(subsumed_ranges):
             for j, r2 in enumerate(subsumed_ranges):
                 if i != j:
-                    if tuple_subsume(r1, r2):
+                    if tuple_subsume(r1, r2):  # CJJ: bug fix in this function
                         subsumed_indices.append(j)
         subsumed_set = set(subsumed_indices)
         kept_indices = [x for x in range(len(subsumed_ranges)) if x not in subsumed_set]
-        return kept_indices
+        return kept_indices  # CJJ e.g. [0, 1, 2]
     else:
         collapsed_ranges = subsumed_ranges
 
-    if False:  # num_breaks == 0:  # CJJ This isn't used
+    if False:  # num_breaks == 0:  # CJJ This isn't used.
         kept_indicies = [range_list.index(i) for i in connected_ranges]
         return kept_indicies
     else:
@@ -793,18 +797,19 @@ def tuple_overlap(a, b):
     """
     Given two tuples of length two, determine if the ranges overlap
 
-    CJJ: used in function reciprocal_best_hit()
+    CJJ: used in function reciprocal_best_hit().
     """
     return a[0] < b[0] < a[1] or b[0] < a[0] < b[1]
 
 
 def tuple_subsume(a, b):
     """
-    Given two tuples of length two, determine if a has a range that includes b
+    Given two tuples of length two, determine if a has a range that includes b.
+
+    CJJ: used in function range_connectivity().
     """
     # if b[0] >= a[0] and b[1] <= a[1]:
-    if b[0] > a[0] and b[1] < a[1]:  # CJJ is using >= and <= and there are two good contigs with the same protein
-        # hit ranges, they both get removed. We don't want this behaviour.
+    if b[0] > a[0] and b[1] < a[1]:  # CJJ is using >= and <= and there are two good contigs with the same protein hit ranges, they both get removed. We don't want this behaviour.
         return True
     else:
         return False
@@ -886,6 +891,9 @@ def myTranslate(nucl):
 
 
 def report_no_sequences(protname):
+    """
+    CJJ: used in function main(). Not sure why this snippet gets its own function.
+    """
     sys.stderr.write("No valid sequences remain for {}!\n".format(protname))
 
 
@@ -919,7 +927,7 @@ def main():
                         type=int)
     parser.add_argument("--length_pct",
                         help="Include an exonerate hit if it is at least as long as X percentage of the reference "
-                             "protein length. Default = 100%%", default=90, type=int)
+                             "protein length. Default = 90%%", default=90, type=int)
     parser.add_argument("--depth_multiplier",
                         help="Accept any full-length hit if it has a coverage depth X times the next best hit. Set to "
                              "zero to not use depth. Default = 10", default=10, type=int)
@@ -1066,6 +1074,7 @@ def main():
         # Delete contigs if their range is completely subsumed by another hit's range.
         ################################################################################################################
         proteinHits[prot] = overlapping_contigs(proteinHits[prot], args.length_pct * 0.01, args.depth_multiplier)
+        # CJJ: this seems okay after bug fixes
         logger.debug("After overlapping_contigs: %d" % len(proteinHits[prot]["assemblyHits"]))
 
         ################################################################################################################
@@ -1079,7 +1088,7 @@ def main():
                                     args.threshold, args.nosupercontigs, interleaved_reads=interleaved_reads,
                                     memory=args.memory, discordant_cutoff=args.discordant_reads_cutoff,
                                     edit_distance=args.discordant_reads_edit_distance, threads=args.threads,
-                                    bbmap_subfilter=args.bbmap_subfilter)
+                                    bbmap_subfilter=args.bbmap_subfilter)  # CJJ: good ol' fullContigs. Lots going on here - refactor in to multiple functions?
 
         ################################################################################################################
         # If a sequence for the locus was returned, translate it, and write nucleotide and protein seqs to file
