@@ -80,7 +80,7 @@ def tailored_target_blast(blastxfilename, exclude=None):
 
 
 def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
-    """Determine, for each protein, the 'best' target protein, by tallying up the blastx (CJJ this shouwl be bwa)
+    """Determine, for each protein, the 'best' target protein, by tallying up the blastx (CJJ this should be bwa)
     hit scores."""
     samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
     child = subprocess.Popen(samtools_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, errno, subprocess
+import sys, os, errno
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
@@ -8,11 +8,11 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 This script is part of a pipeline to extract phylogenetically-useful sequences from 
 Illumina data using the targeted (liquid-phase) sequence enrichment approach.
 
-After a BWA search of the raw reads against the target sequences, the reads neeproteins had no good matchesd to be 
-sorted according to the successful hits. This script takes the BWA output (BAM format)
+After a BLASTx search of the raw reads against the target sequences, the reads need to be 
+sorted according to the successful hits. This script takes the BLASTx output (tabular)
 and the raw read files, and distributes the reads into FASTA files ready for assembly.
 
-If there are multiple results (for example, one for each read direction),
+If there are multiple BLAST results (for example, one for each read direction),
 concatenate them prior to sorting.
 """
 
@@ -27,22 +27,16 @@ def mkdir_p(path):
             raise
 
 
-def read_sorting(bamfilename):
-    samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
-    child = subprocess.Popen(samtools_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
-    # print(f'CJJ child: {child}')
-    bwa_results = child.stdout.readlines()
-    # print(f'CJJ bwa_results: {bwa_results}')
-
+def read_sorting(blastfilename):
     read_hit_dict = {}
-    for line in bwa_results:
+    blastfile = open(blastfilename)
+    for line in blastfile:
         line = line.split()
-        readID = line[0]  # CJJ e.g. A00119:385:H3GYVDSX2:2:1101:1416:1000
-        target = line[2].split("-")[-1]  # CJJ e.g. 6128
+        readID = line[0]
+        target = line[1].split("-")[-1]
         if readID in read_hit_dict:
             if target not in read_hit_dict[readID]:
-                read_hit_dict[readID].append(target)  # CJJ i.e. could have
-                # CJJ key(A00119:385:H3GYVDSX2:2:1101:1416:1000):value(6128, 5968)
+                read_hit_dict[readID].append(target)
         else:
             read_hit_dict[readID] = [target]
     return read_hit_dict
@@ -78,14 +72,11 @@ def write_single_seqs(target, ID1, Seq1):
 
 
 def distribute_reads(readfiles, read_hit_dict, single=True):
-    # print(f'CJJ - read_hit_dict: {read_hit_dict}')
     iterator1 = FastqGeneralIterator(open(readfiles[0]))
     if len(readfiles) == 1:
 
         for ID1_long, Seq1, Qual1 in iterator1:
             ID1 = ID1_long.split()[0]
-            if ID1.endswith("\1") or ID1.endswith("\2"):
-                ID1 = ID1[:-2]
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
                     write_single_seqs(target, ID1, Seq1)
@@ -98,30 +89,63 @@ def distribute_reads(readfiles, read_hit_dict, single=True):
     for ID1_long, Seq1, Qual1 in iterator1:
         ID2_long, Seq2, Qual2 = next(iterator2)
 
-
         ID1 = ID1_long.split()[0]
-        if ID1.endswith("/1") or ID1.endswith("/2"):
-            ID1 = ID1[:-2]
-
         ID2 = ID2_long.split()[0]
-        if ID2.endswith("/1") or ID2.endswith("/2"):
-            ID2 = ID2[:-2]
 
         if ID1 in read_hit_dict:
             for target in read_hit_dict[ID1]:
-                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)  # CJJ i.e. read pairs can get written
-                # CJJ to multiple targets
+                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)
         elif ID2 in read_hit_dict:
             for target in read_hit_dict[ID2]:
                 write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)
 
 
+# def distribute_reads(readfiles, read_hit_dict, single=True):
+#     # print(f'CJJ - read_hit_dict: {read_hit_dict}')
+#     iterator1 = FastqGeneralIterator(open(readfiles[0]))
+#     if len(readfiles) == 1:
+#
+#         for ID1_long, Seq1, Qual1 in iterator1:
+#             ID1 = ID1_long.split()[0]
+#             if ID1.endswith("\1") or ID1.endswith("\2"):
+#                 ID1 = ID1[:-2]
+#             if ID1 in read_hit_dict:
+#                 for target in read_hit_dict[ID1]:
+#                     write_single_seqs(target, ID1, Seq1)
+#         return
+#
+#     elif len(readfiles) == 2:
+#         # print(f'CJJ - two reads files: { readfiles}')
+#         iterator2 = FastqGeneralIterator(open(readfiles[1]))
+#
+#     for ID1_long, Seq1, Qual1 in iterator1:
+#         ID2_long, Seq2, Qual2 = next(iterator2)
+#
+#
+#         ID1 = ID1_long.split()[0]
+#         if ID1.endswith("/1") or ID1.endswith("/2"):
+#             ID1 = ID1[:-2]
+#
+#         ID2 = ID2_long.split()[0]
+#         if ID2.endswith("/1") or ID2.endswith("/2"):
+#             ID2 = ID2[:-2]
+#
+#         if ID1 in read_hit_dict:
+#             for target in read_hit_dict[ID1]:
+#                 write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)  # CJJ i.e. read pairs can get written
+#                 # CJJ to multiple targets
+#         elif ID2 in read_hit_dict:
+#             for target in read_hit_dict[ID2]:
+#                 write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)
+
+
+
+
 def main():
-    bamfilename = sys.argv[1]
-    # print(f'CJJ bamfilename: {bamfilename}')
+    blastfilename = sys.argv[1]
     readfiles = sys.argv[2:]
-    read_hit_dict = read_sorting(bamfilename)
-    # print(f'CJJ:read_hit_dict {read_hit_dict}')
+    read_hit_dict = read_sorting(blastfilename)
+    # print read_hit_dict
     print("Unique reads with hits: {}".format(len(read_hit_dict)))
     distribute_reads(readfiles, read_hit_dict, single=True)
 

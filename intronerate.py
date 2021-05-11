@@ -29,8 +29,8 @@ def get_contig_info():
 def make_intron_supercontig(contig_info, gene, prefix, add_N=False):
     """
     CJJ: reads the SPAdes contigs to a dictionary. If a contig had Exonerate hits after filtering (list recovered via
-    function get_contig_info() above), concatenate such contigs to create an 'intron supercontig' and write it to a
-    fasta file.
+    CJJ: function get_contig_info() above), concatenate such contigs to create an 'intron supercontig' and write it to a
+    CJJ: fasta file.
 
     add_N=False by default.
     """
@@ -53,9 +53,9 @@ def make_intron_supercontig(contig_info, gene, prefix, add_N=False):
 
 def re_run_exonerate(gene, target="new_faa"):
     """
-    CJJ: uses the protien gene.FAA sequence created by reads_first.py, and uses it as a query against the
-    'intron-supercontig' in a protein2genome Exonerate search. Writes a gff file of results called
-    'intronerate_raw.gff'.
+    CJJ: uses the proteen gene.FAA sequence created by reads_first.py, and uses it as a query against the
+    CJJ: 'intron-supercontig' in a protein2genome Exonerate search. Writes a gff file of results called
+    CJJ: 'intronerate_raw.gff'.
 
     target="new_faa" by default.
     """
@@ -94,7 +94,7 @@ def longest_hit(hits):
     Given a list of hits, return the longest one.
 
     CJJ: looks like it returns an integer corresponding to an index, to me - is this a bug? Looks like it'll just
-    return the last value for 'hrange' - meant to return 'longest_hit'?
+    CJJ: return the last value for 'hrange' - meant to return 'longest_hit'?
     """
     print("Using longest hit for {}\n".format(hits[0][0][0]))
     ranges = [(int(hit[0][3]), int(hit[0][4])) for hit in hits]
@@ -105,7 +105,7 @@ def longest_hit(hits):
             max_length = hit_length
             longest_hit = hrange
     # return hrange
-    return longest_hit  # CJJ
+    return longest_hit  # CJJ changed to longest hit
 
 
 def score_filter(hits, score_multiplier=2):
@@ -325,7 +325,7 @@ def main():
 
     ####################################################################################################################
     # CJJ: recover a list of gene names that have seqs recovered via reads_first.py (listed in file
-    # 'genes_with_seqs.txt')
+    # CJJ: 'genes_with_seqs.txt')
     ####################################################################################################################
     if args.genelist:
         genelist = [x.split()[0] for x in open(genelist_fn).readlines()]
@@ -345,22 +345,22 @@ def main():
             if check_for_files(gene, prefix):
                 os.chdir("{}/{}".format(gene, prefix))
                 contig_info = get_contig_info()  # CJJ: get a list of SPAdes contigs that had Exonerate hits after
-                # filtering.
+                # CJJ: filtering.
                 if not os.path.exists("sequences/intron"):
                     os.makedirs("sequences/intron")
                 make_intron_supercontig(contig_info, gene, prefix, add_N=args.addN)  # CJJ: write a fasta file of
-                # concatenated SPADes contigs (i.e. those that had Exonerate hits after filtering).
+                # CJJ: concatenated SPADes contigs (i.e. those that had Exonerate hits after filtering).
                 if not args.no_exonerate:
                     if args.use_target:
                         re_run_exonerate(gene, target="bait")
                     else:
                         re_run_exonerate(gene, target="new_faa")  # CJJ: default via argparse
                 hits = parse_gff("intronerate_raw.gff")  # CJJ: from a gff Exonerate result, return a list of lists
-                # containing the annotation info (split on tabs?).
+                # CJJ: containing the annotation info (split on tabs?).
 
                 # print([h[0] for h in hits])
                 kept_hits = filter_gff(hits, merge=args.merge)  # CJJ: args.merge is False by default. Default is to
-                # pick the longest annotation.
+                # CJJ: pick the longest annotation.
 
                 # print([h[0] for h in kept_hits])
                 with open("intronerate.gff", 'w') as new_gff:

@@ -37,16 +37,19 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     dictionary of results.
 
     Using the ryo option in exonerate, the header should contain all the useful information.
+
     CJJ:
-    >%ti
-    %qi
-    %qab
-    %qae
-    %pi
-    (%tS)
-    %tab
-    %tae
-    %tcs
+    https://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate-manual
+
+    >%ti  = target id
+    %qi   = query id
+    %qab  = query alignment begin
+    %qae  = query alignment end
+    %pi   = percent id
+    (%tS) = target strand
+    %tab  = target alignment begin
+    %tae  = target alignment end
+    %tcs  = target coding sequence
     """
 
     logger = logging.getLogger("pipeline")
@@ -293,8 +296,8 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
     else:
        ################################## CJJ trim supercontigs ########################################################
 
-        # CJJ this is very verbose and convoluted, partly because I have to fit in with how HybPiper was written. But
-        # there's no doubt a more elegant way of doing this. Review...eventually...
+        # CJJ: this is very verbose and convoluted, partly because I have to fit in with how HybPiper was written. But
+        # CJJ: there's no doubt a more elegant way of doing this. Review...eventually...
         hit_start_and_end_indices = []
         nucleotide_slice_indices = {}
         for hit in range(len(prot["assemblyHits"])):
@@ -490,8 +493,8 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
         sys.stderr.write(f'\nSupercontig_reference: {supercontig_reference}\n')
         sys.stderr.flush()
 
-        # CJJ How to specify threads? This script is launched via parallel, so if I specify multiple threads here then
-        # it'll overburden the number of cpus requested by the slurm job.
+        # CJJ: How to specify threads? This script is launched via parallel, so if I specify multiple threads here then
+        # CJJ: it'll overburden the number of cpus requested by the slurm job.
         bbmap_command = f'bbmap.sh -Xmx{memory}g -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
                         f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t ' \
                         f'maxindel={maxindel} strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
