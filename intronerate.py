@@ -94,7 +94,7 @@ def longest_hit(hits):
     Given a list of hits, return the longest one.
 
     CJJ: looks like it returns an integer corresponding to an index, to me - is this a bug? Looks like it'll just
-    CJJ: return the last value for 'hrange' - meant to return 'longest_hit'?
+    CJJ: return the last value for 'hrange' - meant to return 'longest_hit'? Note: this logic is broken regardless...
     """
     print("Using longest hit for {}\n".format(hits[0][0][0]))
     ranges = [(int(hit[0][3]), int(hit[0][4])) for hit in hits]
@@ -105,7 +105,8 @@ def longest_hit(hits):
             max_length = hit_length
             longest_hit = hrange
     # return hrange
-    return longest_hit  # CJJ changed to longest hit
+    # return longest_hit  # CJJ changed to longest hit
+    return ranges[longest_hit]  # CJJ added
 
 
 def score_filter(hits, score_multiplier=2):
@@ -171,7 +172,10 @@ def filter_gff(hits, merge=True):
                 if kept_indicies[ix + 1] not in overlapping_indicies:
                     overlapping_indicies.append(kept_indicies[ix + 1])
             else:
-                non_overlapping_indicies.append(kept_indicies[ix])
+                if kept_indicies[ix] in overlapping_indicies:  # CJJ added
+                    pass
+                else:
+                    non_overlapping_indicies.append(kept_indicies[ix])
 
                 # CJJ inserted check here to add kept_indicies[ix+1] if it doesn't overlap with kept_indicies[ix] and
                 #  kept_indicies[ix+1] is the last hit.
@@ -180,7 +184,7 @@ def filter_gff(hits, merge=True):
 
 
         # print overlapping_indicies
-        if overlapping_indicies:  #CJJ does this actually only deal with cases where there's only one overlap?
+        if overlapping_indicies:  # CJJ does this actually only deal with cases where there's only one overlap?
             best_score = score_filter([hits[x] for x in overlapping_indicies])
             if best_score:
                 non_overlapping_indicies.append(best_score)
@@ -223,10 +227,18 @@ def filter_gff(hits, merge=True):
                     kept_indicies.append(len(hits) - 1)
                     non_overlapping_indicies.append(len(kept_indicies) - 1)
                 else:
+                    # CJJ: This should return one of the index _values_ from the list "overlapping_indicies",
+                    #  not the list index of the chosen sequence...
                     longest = longest_hit([hits[x] for x in overlapping_indicies])
-                    if longest:  #CJJ this will equate to "False" if `longest` is 0
-                        non_overlapping_indicies.append(longest)
-
+                    if longest:  #CJJ this will equate to "False" if `longest` is 0. Note: changed return value in func
+                        print(f'longest is: {longest}')
+                        for index in zip(kept_indicies, kept_range_list):
+                            # print(index)
+                            if longest == index[1]:
+                                print(index)
+                                non_overlapping_indicies.append(index[0])
+                    print(sorted(non_overlapping_indicies))
+                        # non_overlapping_indicies.append(longest)
 
         #         for pair in overlapping_indicies:
         #             if int(gene_annotations[pair[0]][5]) > int(gene_annotations[pair[1]][5]):
@@ -238,7 +250,9 @@ def filter_gff(hits, merge=True):
         # print(kept_indicies)
         # print(non_overlapping_indicies)
 
-        return [hits[kept_indicies[x]] for x in sorted(non_overlapping_indicies)]  # .sort()]
+        # return [hits[kept_indicies[x]] for x in sorted(non_overlapping_indicies)]  # .sort()]
+        # print([hits[x] for x in sorted(non_overlapping_indicies)])
+        return [hits[x] for x in sorted(non_overlapping_indicies)]
 
     # CJJ We want the return value of "[kept_indicies[x]" to iterate over [0,1,2,9] in this case, to pull out the
     #  correct hits from the list "hits". It doesn't.
@@ -375,13 +389,13 @@ def main():
                 # CJJ: containing the annotation info (split on tabs?).
 
                 # print([h[0] for h in hits])
-                try:
+                try:  # CJJ added
                     kept_hits = filter_gff(hits, merge=args.merge)
                     # CJJ: args.merge is False by default. Default is to pick the longest annotation.
-                except IndexError:
+                except IndexError:  # CJJ added
                     print(f"Intronerate couldn't run successfully for gene {gene}")
                     os.chdir(basedir)  # CJJ added
-                    continue
+                    continue  # CJJ added
 
                 # print([h[0] for h in kept_hits])
                 with open("intronerate.gff", 'w') as new_gff:
