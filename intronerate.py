@@ -155,12 +155,14 @@ def filter_gff(hits, merge=True):
     range_list = [(int(x[3]), int(x[4])) for x in gene_annotations]
     # print(range_list)
     kept_indicies = range_connectivity(range_list)
+    final_index = kept_indicies[-1]  # CJJ added
     kept_range_list = [range_list[x] for x in kept_indicies]
     # print(kept_indicies)
     if len(kept_indicies) > 1:
         overlapping_indicies = []
         non_overlapping_indicies = []
-        for ix in range(len(kept_indicies) - 1):
+        for ix in range(len(kept_indicies) - 1):  # CJJ why "-1"? This seems to just disregard the final hit? No,
+            # CJJ it's checked below with range_list[ix+1]. But it doesn't get added even if it's non-overlapping.
             # print range_list[ix],range_list[ix+1],tuple_overlap(range_list[ix],range_list[ix+1])
             if tuple_overlap(kept_range_list[ix], kept_range_list[ix + 1]):
                 if kept_indicies[ix] not in overlapping_indicies:
@@ -170,8 +172,15 @@ def filter_gff(hits, merge=True):
                     overlapping_indicies.append(kept_indicies[ix + 1])
             else:
                 non_overlapping_indicies.append(kept_indicies[ix])
+
+                # CJJ inserted check here to add kept_indicies[ix+1] if it doesn't overlap with kept_indicies[ix] and
+                #  kept_indicies[ix+1] is the last hit.
+                if kept_indicies[ix + 1] == final_index:  # CJJ added
+                    non_overlapping_indicies.append(kept_indicies[ix + 1])  # CJJ added
+
+
         # print overlapping_indicies
-        if overlapping_indicies:
+        if overlapping_indicies:  #CJJ does this actually only deal with cases where there's only one overlap?
             best_score = score_filter([hits[x] for x in overlapping_indicies])
             if best_score:
                 non_overlapping_indicies.append(best_score)
@@ -215,8 +224,9 @@ def filter_gff(hits, merge=True):
                     non_overlapping_indicies.append(len(kept_indicies) - 1)
                 else:
                     longest = longest_hit([hits[x] for x in overlapping_indicies])
-                    if longest:
+                    if longest:  #CJJ this will equate to "False" if `longest` is 0
                         non_overlapping_indicies.append(longest)
+
 
         #         for pair in overlapping_indicies:
         #             if int(gene_annotations[pair[0]][5]) > int(gene_annotations[pair[1]][5]):
@@ -225,10 +235,16 @@ def filter_gff(hits, merge=True):
         #                 non_overlapping_indicies.append(pair[1])
         #         if not tuple_overlap(range_list[-2],range_list[-1]):
         #                 non_overlapping_indicies.append(kept_indicies[-1])
-        # print kept_indicies
-        # print non_overlapping_indicies
+        # print(kept_indicies)
+        # print(non_overlapping_indicies)
 
         return [hits[kept_indicies[x]] for x in sorted(non_overlapping_indicies)]  # .sort()]
+
+    # CJJ We want the return value of "[kept_indicies[x]" to iterate over [0,1,2,9] in this case, to pull out the
+    #  correct hits from the list "hits". It doesn't.
+    #  Here, "non_overlapping_indicies" is [0,1,8], whereas "kept_indices" is [0,1,2,8,9].
+    #  So, there's no index "8" in the list "kept_indices". Sigh.
+    #  Why is the final hit in "kept_indices" ("9") not kept in "non_overlapping_indicies"? CJJ: Fixed
 
     else:
         return [hits[x] for x in kept_indicies]
@@ -359,8 +375,13 @@ def main():
                 # CJJ: containing the annotation info (split on tabs?).
 
                 # print([h[0] for h in hits])
-                kept_hits = filter_gff(hits, merge=args.merge)  # CJJ: args.merge is False by default. Default is to
-                # CJJ: pick the longest annotation.
+                try:
+                    kept_hits = filter_gff(hits, merge=args.merge)
+                    # CJJ: args.merge is False by default. Default is to pick the longest annotation.
+                except IndexError:
+                    print(f"Intronerate couldn't run successfully for gene {gene}")
+                    os.chdir(basedir)  # CJJ added
+                    continue
 
                 # print([h[0] for h in kept_hits])
                 with open("intronerate.gff", 'w') as new_gff:

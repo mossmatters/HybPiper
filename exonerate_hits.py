@@ -894,14 +894,20 @@ def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
 
     So, Exonerate hit lengths are calculated via their hit range against the query protein.
     """
+    # print(f'exonerate_hits["assemblyHits"]: {exonerate_hits["assemblyHits"]}')
     logger = logging.getLogger("pipeline")
     protlength = len(prot)  # CJJ prot is a seqobject
-    hitlengths = [abs(int(x.split(",")[2]) - int(x.split(",")[3])) for x in exonerate_hits["assemblyHits"]]
+    # print(f'line 900: protlength: {protlength}')
+    hitlengths = [abs(int(x.split(",")[2]) - int(x.split(",")[3])) for x in exonerate_hits["assemblyHits"]]  # CJJ e.g.
+    # CJJ [188, 172, 179, 454, 345, 341, 295, 342] for sample EG98, gene074
+    # print(f'line 902: hitlengths: {hitlengths}')
     logger.debug("protein length: {}".format(protlength))
     logger.debug("Hit lengths:")
     logger.debug(hitlengths)
     # longhits = [x > 0.75 * protlength for x in hitlengths]
-    longhits = [x > paralog_warning_min_cutoff * protlength for x in hitlengths]  # CJJ: added user-adjustable param
+    longhits = [x > paralog_warning_min_cutoff * protlength for x in hitlengths]  # CJJ: added user-adjustable param.
+    # CJJ variable contains e.g. [False, False, False, True, True, True, False, True]
+    # print(f'line 909: longhits: {longhits}')
     if sum(longhits) > 1:
         sys.stderr.write("WARNING: Multiple long-length exonerate hits for {}. Check for paralogs!\n".format(prot.id))
         with open("{}/paralog_warning.txt".format(prefix), 'w') as pw:
@@ -1047,7 +1053,7 @@ def main():
     protein_dict = SeqIO.to_dict(SeqIO.parse(proteinfile, 'fasta'))  # CJJ: This will only contain a single protein
 
     ####################################################################################################################
-    # Run the function initial_exonerate, and sort the SPAdes contig hits
+    # Run the function initial_exonerate, and sort(?) the SPAdes contig hits
     ####################################################################################################################
     if os.path.exists(args.first_search_filename):  # Shortcut for Testing purposes
         logger.info("Reading initial exonerate results from file {}.".format(first_search_filename))
@@ -1079,6 +1085,8 @@ def main():
         ################################################################################################################
         # Perform a paralog test and generate warnings
         ################################################################################################################
+        # print(f'line 1088: proteinHits[prot]: {proteinHits[prot]}')
+        # print(f'line 1089: protein_dict[prot]: {protein_dict[prot]}')
         paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
 
         proteinHits[prot]["reflength"] = len(protein_dict[prot])  # CJJ: protein_dict contains a single key
