@@ -93,8 +93,10 @@ def longest_hit(hits):
     """
     Given a list of hits, return the longest one.
 
-    CJJ: looks like it returns an integer corresponding to an index, to me - is this a bug? Looks like it'll just
-    CJJ: return the last value for 'hrange' - meant to return 'longest_hit'? Note: this logic is broken regardless...
+    CJJ: Looks like it returns an integer corresponding to an index - is this a bug? Looks like it'll just
+    CJJ: return the last value for 'hrange' - meant to return 'longest_hit'? Note: this logic is broken regardless.
+    CJJ: I've changed it so that it returns the range (e.g. '1828, 7588') of the longest hit, which gets converted
+    CJJ: to the corresponding index in the filter_gff() function.
     """
     print("Using longest hit for {}\n".format(hits[0][0][0]))
     ranges = [(int(hit[0][3]), int(hit[0][4])) for hit in hits]
@@ -147,122 +149,105 @@ def join_zones(hits):
 
 def filter_gff(hits, merge=True):
     """
-    CJJ:
+    CJJ: This function had lots of bugs and logic errors that could cause crashes and/or return incorrect values.
+     Fixed, I think...
     """
     hits = sorted(hits, key=lambda x: int(x[0][3]))
     # Get only the features annotated as genes
     gene_annotations = [x for y in hits for x in y if x[2] == 'gene']
+    gene_name = gene_annotations[0][0]
     # Get the start,end, and score for each gene annotation
     range_list = [(int(x[3]), int(x[4])) for x in gene_annotations]
-    # print(range_list)
     kept_indicies = range_connectivity(range_list)
-    final_index = kept_indicies[-1]  # CJJ added
+    final_index = kept_indicies[-1]
     kept_range_list = [range_list[x] for x in kept_indicies]
-    # print(kept_indicies)
+    indices_removed = set()
     if len(kept_indicies) > 1:
-        overlapping_indicies = []
-        non_overlapping_indicies = []
-        for ix in range(len(kept_indicies) - 1):  # CJJ why "-1"? This seems to just disregard the final hit? No,
-            # CJJ it's checked below with range_list[ix+1]. But it doesn't get added even if it's non-overlapping.
-            # print range_list[ix],range_list[ix+1],tuple_overlap(range_list[ix],range_list[ix+1])
+        non_overlapping_indicies = set()
+        for ix in range(len(kept_indicies) - 1):
+            print(f'indices_removed SET: {indices_removed}')
+            overlapping_indicies = []
             if tuple_overlap(kept_range_list[ix], kept_range_list[ix + 1]):
-                if kept_indicies[ix] not in overlapping_indicies:
-                    #                    if not tuple_overlap(kept_range_list[ix-1],kept_range_list[ix]):
-                    overlapping_indicies.append(kept_indicies[ix])
-                if kept_indicies[ix + 1] not in overlapping_indicies:
-                    overlapping_indicies.append(kept_indicies[ix + 1])
+                overlapping_indicies = [kept_indicies[ix], kept_indicies[ix + 1]]
             else:
-                if kept_indicies[ix] in overlapping_indicies:  # CJJ added
-                    pass
+                if kept_indicies[ix] in indices_removed:
+                    print(f'Index {kept_indicies[ix]} has already been rejected in a previous pairwise comparison, '
+                          f'skipping this comparison...')
+                    if kept_indicies[ix + 1] == final_index:
+                        non_overlapping_indicies.add(kept_indicies[ix + 1])
                 else:
-                    non_overlapping_indicies.append(kept_indicies[ix])
+                    non_overlapping_indicies.add(kept_indicies[ix])
+                    if kept_indicies[ix + 1] == final_index:
+                        non_overlapping_indicies.add(kept_indicies[ix + 1])
 
-                # CJJ inserted check here to add kept_indicies[ix+1] if it doesn't overlap with kept_indicies[ix] and
-                #  kept_indicies[ix+1] is the last hit.
-                if kept_indicies[ix + 1] == final_index:  # CJJ added
-                    non_overlapping_indicies.append(kept_indicies[ix + 1])  # CJJ added
-
-
-        # print overlapping_indicies
-        if overlapping_indicies:  # CJJ does this actually only deal with cases where there's only one overlap?
-            best_score = score_filter([hits[x] for x in overlapping_indicies])
-            if best_score:
-                non_overlapping_indicies.append(best_score)
-            else:
-                if merge:
-                    # merge the gene first
-                    gene_anno = []
-                    cds_anno = []
-                    exon_anno = []
-                    intron_anno = []
-                    similarity_anno = []
-                    misc_anno = []
-                    # print(hits)
-                    for x in hits:
-                        for l in x:
-                            if l[2] == 'gene':
-                                gene_anno.append(l)
-                            elif l[2] == "cds":
-                                cds_anno.append(l)
-                            elif l[2] == "exon":
-                                exon_anno.append(l)
-                            elif l[2] == "intron":
-                                intron_anno.append(l)
-                            elif l[2] == "similarity":
-                                similarity_anno.append(l)
-                            else:
-                                misc_anno.append(l)
-                    print("Merging {} annotations".format(len(gene_anno)))
-                    joined_gene = join_zones(gene_anno)
-                    joined_cds = join_zones(cds_anno)
-                    joined_exon = join_zones(exon_anno)
-                    joined_similarity = join_zones(similarity_anno)
-                    joined_hit = [joined_gene, joined_cds, joined_exon]
-                    if intron_anno:
-                        joined_intron = join_zones(intron_anno)
-                        joined_hit.append(joined_intron)
-                    joined_hit.append(joined_similarity)
-                    joined_hit += misc_anno
-                    hits.append(joined_hit)
-                    kept_indicies.append(len(hits) - 1)
-                    non_overlapping_indicies.append(len(kept_indicies) - 1)
+            if overlapping_indicies:
+                print(f'gene_name is: {gene_name}')
+                print(f'overlapping_indicies found: {overlapping_indicies}')
+                best_score = score_filter([hits[x] for x in overlapping_indicies])
+                if best_score:
+                    print(f'best_score is: {best_score}')
+                    for index in overlapping_indicies:
+                        if index != best_score:
+                            indices_removed.add(index)
+                    non_overlapping_indicies.add(best_score)
                 else:
-                    # CJJ: This should return one of the index _values_ from the list "overlapping_indicies",
-                    #  not the list index of the chosen sequence...
-                    longest = longest_hit([hits[x] for x in overlapping_indicies])
-                    if longest:  #CJJ this will equate to "False" if `longest` is 0. Note: changed return value in func
-                        print(f'longest is: {longest}')
-                        for index in zip(kept_indicies, kept_range_list):
-                            # print(index)
-                            if longest == index[1]:
-                                print(index)
-                                non_overlapping_indicies.append(index[0])
-                    print(sorted(non_overlapping_indicies))
-                        # non_overlapping_indicies.append(longest)
+                    if merge:
+                        # merge the gene first
+                        gene_anno = []
+                        cds_anno = []
+                        exon_anno = []
+                        intron_anno = []
+                        similarity_anno = []
+                        misc_anno = []
+                        # print(hits)
+                        for x in hits:
+                            for l in x:
+                                if l[2] == 'gene':
+                                    gene_anno.append(l)
+                                elif l[2] == "cds":
+                                    cds_anno.append(l)
+                                elif l[2] == "exon":
+                                    exon_anno.append(l)
+                                elif l[2] == "intron":
+                                    intron_anno.append(l)
+                                elif l[2] == "similarity":
+                                    similarity_anno.append(l)
+                                else:
+                                    misc_anno.append(l)
+                        print("Merging {} annotations".format(len(gene_anno)))
+                        joined_gene = join_zones(gene_anno)
+                        joined_cds = join_zones(cds_anno)
+                        joined_exon = join_zones(exon_anno)
+                        joined_similarity = join_zones(similarity_anno)
+                        joined_hit = [joined_gene, joined_cds, joined_exon]
+                        if intron_anno:
+                            joined_intron = join_zones(intron_anno)
+                            joined_hit.append(joined_intron)
+                        joined_hit.append(joined_similarity)
+                        joined_hit += misc_anno
+                        hits.append(joined_hit)
+                        kept_indicies.append(len(hits) - 1)
+                        # non_overlapping_indicies.append(len(kept_indicies) - 1)
+                        non_overlapping_indicies.add(len(kept_indicies) - 1)  # CJJ added
+                    else:
+                        longest = longest_hit([hits[x] for x in overlapping_indicies])
+                        if longest:
+                            print(f'longest is: {longest}')
+                            for index in zip(kept_indicies, kept_range_list):
+                                if longest == index[1]:
+                                    print(f'zipped index is: {index}')
+                                    index_to_keep = index[0]
+                                    non_overlapping_indicies.add(index_to_keep)
+                            for index in overlapping_indicies:
+                                if index != index_to_keep:
+                                    print(f'index removed: {index}')
+                                    indices_removed.add(index)
 
-        #         for pair in overlapping_indicies:
-        #             if int(gene_annotations[pair[0]][5]) > int(gene_annotations[pair[1]][5]):
-        #                 non_overlapping_indicies.append(pair[0])
-        #             else:
-        #                 non_overlapping_indicies.append(pair[1])
-        #         if not tuple_overlap(range_list[-2],range_list[-1]):
-        #                 non_overlapping_indicies.append(kept_indicies[-1])
-        # print(kept_indicies)
-        # print(non_overlapping_indicies)
-
-        # return [hits[kept_indicies[x]] for x in sorted(non_overlapping_indicies)]  # .sort()]
-        # print([hits[x] for x in sorted(non_overlapping_indicies)])
+        print(f'kept_indicies is: {kept_indicies}')
+        print(f'non_overlapping_indicies SET is: {non_overlapping_indicies}')
         return [hits[x] for x in sorted(non_overlapping_indicies)]
-
-    # CJJ We want the return value of "[kept_indicies[x]" to iterate over [0,1,2,9] in this case, to pull out the
-    #  correct hits from the list "hits". It doesn't.
-    #  Here, "non_overlapping_indicies" is [0,1,8], whereas "kept_indices" is [0,1,2,8,9].
-    #  So, there's no index "8" in the list "kept_indices". Sigh.
-    #  Why is the final hit in "kept_indices" ("9") not kept in "non_overlapping_indicies"? CJJ: Fixed
-
     else:
         return [hits[x] for x in kept_indicies]
-        # print [gene_annotations[x] for x in kept_indicies]
 
 
 def get_new_gff(kept_hits):
