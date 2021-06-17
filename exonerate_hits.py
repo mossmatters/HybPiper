@@ -1087,7 +1087,7 @@ def main():
         ################################################################################################################
         # print(f'line 1088: proteinHits[prot]: {proteinHits[prot]}')
         # print(f'line 1089: protein_dict[prot]: {protein_dict[prot]}')
-        paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
+        # paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
 
         proteinHits[prot]["reflength"] = len(protein_dict[prot])  # CJJ: protein_dict contains a single key
         proteinHits[prot] = get_contig_order(proteinHits[prot])  # CJJ: sorts Exonerate hits by start position in query protein
@@ -1103,6 +1103,11 @@ def main():
         # Filter out contigs with a hit below a threshold
         proteinHits[prot] = filter_by_percentid(proteinHits[prot], args.threshold)
         logger.debug("After filter_by_percent_id: %d" % len(proteinHits[prot]["assemblyHits"]))
+
+        # CJJ: moved paralog_test() to after filter_by_percentid(), as this should get rid of most spurious hits:
+        # print(f'proteinHits[prot]: {proteinHits[prot]}')
+        paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
+
         if len(proteinHits[prot]["assemblyHits"]) == 0:
             report_no_sequences(proteinHits[prot]["name"])
             continue  # All hits have been filtered out
