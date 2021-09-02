@@ -79,7 +79,7 @@ def write_single_seqs(target, ID1, Seq1):
     outfile.close()
     
     
-def distribute_reads(readfiles,read_hit_dict,single=True):
+def distribute_reads(readfiles,read_hit_dict,single=True, merged=False):
     num_reads_to_write = len(read_hit_dict)
     iterator1 = FastqGeneralIterator(open(readfiles[0]))
     reads_written = 0
@@ -110,7 +110,6 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
     for ID1_long, Seq1, Qual1 in iterator1:
         ID2_long, Seq2, Qual2 = next(iterator2)
 
-
         ID1 = ID1_long.split()[0]
         if ID1.endswith("/1") or ID1.endswith("/2"):
             ID1 = ID1[:-2]
@@ -121,22 +120,21 @@ def distribute_reads(readfiles,read_hit_dict,single=True):
 
         if ID1 in read_hit_dict:
             for target in read_hit_dict[ID1]:
-                write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
-            reads_written += 1
-                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)  # CJJ i.e. read pairs can get written
-                # CJJ to multiple targets
+                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                # CJJ i.e. read pairs can get written to multiple targets
+                reads_written += 1
+
         elif ID2 in read_hit_dict:
             for target in read_hit_dict[ID2]:
                 write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-
-                write_paired_seqs(target,ID1,Seq1,ID2,Seq2)
-            reads_written += 1
+                reads_written += 1
         j = (reads_written + 1) / num_reads_to_write
-        if int(100*j) % 5  == 0: 
+        if int(100*j) % 5 == 0:
             sys.stderr.write("\r")
             sys.stderr.write("[%-20s] %d%%" % ('='*int(20*j), 100*j))
             sys.stderr.flush()
     sys.stderr.write("\n")
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
