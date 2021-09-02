@@ -126,10 +126,13 @@ def main():
                         action="store_true", default=False)  # CJJ
     args = parser.parse_args()
 
+    print(f'Running script distribute_reads_to_targets_bwa.py with {args}')
+
     # bamfilename = sys.argv[1]
     # print(f'CJJ bamfilename: {bamfilename}')
     # readfiles = sys.argv[2:]
     readfiles = args.readfiles
+    print(f'readsfiles are {readfiles}')
     read_hit_dict = read_sorting(args.bam_filename)
     # print(f'CJJ:read_hit_dict {read_hit_dict}')
     print("Unique reads with hits: {}".format(len(read_hit_dict)))
