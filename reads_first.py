@@ -707,6 +707,7 @@ def main():
     # Distribute reads to genes for either BLASTx or BWA mappings
     ####################################################################################################################
     if args.distribute:
+        print(f'args.merged is: {args.merged}')
         pre_existing_fastas = glob.glob("./*/*_interleaved.fasta") + glob.glob("./*/*_unpaired.fasta")
         for fn in pre_existing_fastas:
             os.remove(fn)
