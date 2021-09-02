@@ -104,13 +104,16 @@ def distribute_reads(readfiles, read_hit_dict, single=True, merged=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("blast_filename", help="Name of blast file from BLASTX mapping of reads")  # CJJ
+    parser.add_argument('readfiles', nargs='+', help="List of readfiles")  # CJJ
     parser.add_argument("--merged", help="If provided, write fastq files for bbmerge",
                         action="store_true", default=False)  # CJJ
     args = parser.parse_args()
 
-    blastfilename = sys.argv[1]
-    readfiles = sys.argv[2:]
-    read_hit_dict = read_sorting(blastfilename)
+    # blastfilename = sys.argv[1]
+    # readfiles = sys.argv[2:]
+    readfiles = args.readfiles
+    read_hit_dict = read_sorting(args.blast_filename)
     # print read_hit_dict
     print("Unique reads with hits: {}".format(len(read_hit_dict)))
     distribute_reads(readfiles, read_hit_dict, single=True, merged=args.merged)
