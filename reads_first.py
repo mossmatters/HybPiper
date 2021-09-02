@@ -202,13 +202,18 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     return basename + '.blastx'
 
 
-def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unpaired_readfile=None, exclude=None):
+def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unpaired_readfile=None, exclude=None,
+               merged=False):
     """
     CJJ: when using blastx, distribute sample reads to their corresponding target file hits.
     """
     # NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE. # CJJ: I'm not sure what this comment means.
-    read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"), blastx_outputfile,
-                                             " ".join(readfiles))
+    if merged:
+        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
+                                                 blastx_outputfile, " ".join(readfiles), "--merged")
+    else:
+        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
+                                                 blastx_outputfile, " ".join(readfiles))
     exitcode = subprocess.call(read_cmd, shell=True)
     if exitcode:
         print("ERROR: Something went wrong with distributing reads to gene directories.")
@@ -233,13 +238,17 @@ def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unp
     return None
 
 
-def distribute_bwa(bamfile, readfiles, baitfile, run_dir, target=None, unpaired=None, exclude=None):
+def distribute_bwa(bamfile, readfiles, baitfile, run_dir, target=None, unpaired=None, exclude=None, merged=False):
     """
     CJJ: when using BWA mapping, distribute sample reads to their corresponding target file gene matches.
     """
     # NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE. # CJJ: I'm not sure what this comment means.
-    read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"), bamfile,
-                                             " ".join(readfiles))
+    if merged:
+        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
+                                                 bamfile, " ".join(readfiles), "--merged")
+    else:
+        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
+                                                 bamfile, " ".join(readfiles))
     print(("[CMD] {}\n".format(read_cmd)))
     exitcode = subprocess.call(read_cmd, shell=True)
 
@@ -683,8 +692,9 @@ def main():
     if args.blast:
         if args.unpaired:
             unpaired_blastxfile = blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-                                         max_target_seqs=args.max_target_seqs, unpaired=True) # NOTE the
-                # variable {unpaired_blastxfile} isn't used, but the output bamfile is used in function distribute()
+                                         max_target_seqs=args.max_target_seqs, unpaired=True)
+            # NOTE the variable {unpaired_blastxfile} isn't used, but the output bamfile is used in function
+            #  distribute()
         blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
                                    max_target_seqs=args.max_target_seqs)
         if not blastx_outputfile:
@@ -702,10 +712,10 @@ def main():
             os.remove(fn)
         if args.bwa:
             exitcode = distribute_bwa(bamfile, readfiles, baitfile, run_dir, args.target, unpaired_readfile,
-                                      args.exclude)
+                                      args.exclude, merged=args.merged)
         else:  # CJJ: distribute BLASTx results
             exitcode = distribute(blastx_outputfile, readfiles, baitfile, run_dir, args.target, unpaired_readfile,
-                                  args.exclude)
+                                  args.exclude, merged=args.merged)
         if exitcode:
             sys.exit(1)
     if len(readfiles) == 2:

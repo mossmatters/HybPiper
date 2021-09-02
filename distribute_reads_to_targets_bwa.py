@@ -3,12 +3,13 @@
 import sys, os, errno, subprocess
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
+import argparse
 
 """
 This script is part of a pipeline to extract phylogenetically-useful sequences from 
 Illumina data using the targeted (liquid-phase) sequence enrichment approach.
 
-After a BWA search of the raw reads against the target sequences, the reads neeproteins had no good matchesd to be 
+After a BWA search of the raw reads against the target sequences, the reads need to be 
 sorted according to the successful hits. This script takes the BWA output (BAM format)
 and the raw read files, and distributes the reads into FASTA files ready for assembly.
 
@@ -48,13 +49,14 @@ def read_sorting(bamfilename):
     return read_hit_dict
 
 
-def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True):
+def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, merged=False):
     mkdir_p(target)
     if single:
-        outfile = open(os.path.join(target, "{}_interleaved.fastq".format(target)), 'a')
-        outfile.write("@{}\n{}\n{}\n{}\n".format(ID1, Seq1, f'+', Qual1))
-        outfile.write("@{}\n{}\n{}\n{}\n".format(ID2, Seq2, f'+', Qual2))
-        outfile.close()
+        if merged:
+            outfile = open(os.path.join(target, "{}_interleaved.fastq".format(target)), 'a')
+            outfile.write("@{}\n{}\n{}\n{}\n".format(ID1, Seq1, f'+', Qual1))
+            outfile.write("@{}\n{}\n{}\n{}\n".format(ID2, Seq2, f'+', Qual2))
+            outfile.close()
 
         outfile = open(os.path.join(target, "{}_interleaved.fasta".format(target)), 'a')
         outfile.write(">{}\n{}\n".format(ID1, Seq1))
@@ -77,7 +79,7 @@ def write_single_seqs(target, ID1, Seq1):
     outfile.close()
 
 
-def distribute_reads(readfiles, read_hit_dict, single=True):
+def distribute_reads(readfiles, read_hit_dict, single=True, merged=False):
     # print(f'CJJ - read_hit_dict: {read_hit_dict}')
     iterator1 = FastqGeneralIterator(open(readfiles[0]))
     if len(readfiles) == 1:
@@ -109,21 +111,29 @@ def distribute_reads(readfiles, read_hit_dict, single=True):
 
         if ID1 in read_hit_dict:
             for target in read_hit_dict[ID1]:
-                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)  # CJJ i.e. read pairs can get written
+                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)  # CJJ i.e. read pairs can get written
                 # CJJ to multiple targets
         elif ID2 in read_hit_dict:
             for target in read_hit_dict[ID2]:
-                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2)
+                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("--merged", help="If provided, write fastq files for bbmerge",
+                        action="store_true", default=False)  # CJJ
+    args = parser.parse_args()
+
+
+
     bamfilename = sys.argv[1]
     # print(f'CJJ bamfilename: {bamfilename}')
     readfiles = sys.argv[2:]
     read_hit_dict = read_sorting(bamfilename)
     # print(f'CJJ:read_hit_dict {read_hit_dict}')
     print("Unique reads with hits: {}".format(len(read_hit_dict)))
-    distribute_reads(readfiles, read_hit_dict, single=True)
+    distribute_reads(readfiles, read_hit_dict, single=True, merged=args.merged)
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
