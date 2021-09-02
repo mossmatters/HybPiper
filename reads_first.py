@@ -209,7 +209,7 @@ def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unp
     """
     # NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE. # CJJ: I'm not sure what this comment means.
     if merged:
-        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
+        read_cmd = "time python {} {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
                                                  blastx_outputfile, " ".join(readfiles), "--merged")
     else:
         read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
@@ -244,7 +244,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, run_dir, target=None, unpaired=
     """
     # NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE. # CJJ: I'm not sure what this comment means.
     if merged:
-        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
+        read_cmd = "time python {} {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
                                                  bamfile, " ".join(readfiles), "--merged")
     else:
         read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
@@ -571,6 +571,7 @@ def main():
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
     print(("HybPiper was called with these arguments:\n{}\n".format(" ".join(sys.argv))))
+    print(f'args are: {args}')
 
     ####################################################################################################################
     # Check dependencies
@@ -707,7 +708,6 @@ def main():
     # Distribute reads to genes for either BLASTx or BWA mappings
     ####################################################################################################################
     if args.distribute:
-        print(f'args.merged is: {args.merged}')
         pre_existing_fastas = glob.glob("./*/*_interleaved.fasta") + glob.glob("./*/*_unpaired.fasta")
         for fn in pre_existing_fastas:
             os.remove(fn)
