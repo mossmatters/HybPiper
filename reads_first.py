@@ -191,7 +191,7 @@ def check_dependencies():
             i = importlib.import_module(p)
             logger.info(f'Package {p} successfully loaded!')
         except ImportError:
-            logger.info(f'Package {p} not found!')
+            logger.error(f'Package {p} not found!')
             everything_is_awesome = False
     return everything_is_awesome
 
@@ -235,7 +235,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
             if exitcode:
                 return None
     else:
-        logger.info(f'Cannot find baitfile at: {baitfile}')
+        logger.error(f'Cannot find baitfile at: {baitfile}')
         return None
 
     # Remove previous blast results if they exist (because we will be appending)
@@ -322,13 +322,13 @@ def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unp
         logger.info(f'[CMD] {unpaired_cmd}\n')
         exitcode = subprocess.call(unpaired_cmd, shell=True)
         if exitcode:
-            logger.info('ERROR: Something went wrong distributing targets to gene directories.')
+            logger.error('ERROR: Something went wrong distributing targets to gene directories.')
             return exitcode
     target_cmd = ' '.join(target_cmds)
     logger.info(f'[DISTRIBUTE]: {target_cmd}')
     exitcode = subprocess.call(target_cmd, shell=True)
     if exitcode:
-        logger.info('ERROR: Something went wrong distributing targets to gene directories.')
+        logger.error('ERROR: Something went wrong distributing targets to gene directories.')
         return exitcode
     return None
 
@@ -364,7 +364,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, run_dir, target=None, unpaired=
         logger.info(f'[CMD] {unpaired_cmd}\n')
         exitcode = subprocess.call(unpaired_cmd, shell=True)
         if exitcode:
-            logger.info('ERROR: Something went wrong with distributing reads to gene directories.')
+            logger.error('ERROR: Something went wrong with distributing reads to gene directories.')
             return exitcode
     target_cmds = ['time python', os.path.join(run_dir, 'distribute_targets.py'), baitfile, '--bam', bamfile]
     if target:
@@ -377,7 +377,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, run_dir, target=None, unpaired=
     logger.info(f'[DISTRIBUTE]: {target_cmd}')
     exitcode = subprocess.call(target_cmd, shell=True)
     if exitcode:
-        logger.info('ERROR: Something went wrong distributing targets to gene directories.')
+        logger.error('ERROR: Something went wrong distributing targets to gene directories.')
         return exitcode
     return None
 
@@ -454,8 +454,7 @@ def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, time
 
     exitcode = subprocess.call(spades_runner_cmd, shell=True)
     if exitcode:
-        logger.info(
-            'WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n')
+        logger.warning('WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n')
         return None
     else:
         if os.path.isfile('spades_duds.txt'):
@@ -503,7 +502,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
             if os.path.isdir(os.path.join(g, basename)):
                 shutil.rmtree(os.path.join(g, basename))
     if len(genes) == 0:
-        logger.info(f'ERROR: No genes recovered for {basename}!')
+        logger.error(f'ERROR: No genes recovered for {basename}!')
         return 1
 
     if os.path.isfile('genes_with_seqs.txt'):
@@ -558,7 +557,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
 
     if exitcode:
         logger.info(f'exitcode is: {exitcode}')
-        logger.info('ERROR: Something went wrong with Exonerate!')
+        logger.error('ERROR: Something went wrong with Exonerate!')
         return exitcode
     return
 
@@ -583,8 +582,8 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None):
             header = bf.readline()
             seqline = bf.readline().rstrip().upper()
             if set(seqline) - dna:
-                logger.info(
-                    'ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file for BWA!')
+                logger.error('ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file '
+                             'for BWA!')
                 return None
 
         if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
@@ -602,7 +601,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None):
             if exitcode:
                 return None
     else:
-        logger.info(f'ERROR: Cannot find baitfile at: {baitfile}')
+        logger.error(f'ERROR: Cannot find baitfile at: {baitfile}')
         return None
 
     if not cpu:
@@ -630,82 +629,82 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--check-depend", dest='check_depend',
-                        help="Check for dependencies (executables and Python packages) and exit. May not work at all "
-                             "on Windows.", action='store_true')
-    parser.add_argument("--bwa", dest="bwa", action='store_true',
-                        help="Use BWA to search reads for hits to target. Requires BWA and a bait file that is "
-                             "nucleotides!", default=False)
-    parser.add_argument("--no-blast", dest="blast", action="store_false",
-                        help="Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. "
-                             "\nUseful for re-runnning assembly/exonerate steps with different options.")
-    parser.add_argument("--no-distribute", dest="distribute", action="store_false",
-                        help="Do not distribute the reads and bait sequences to sub-directories.")
-    parser.add_argument("--no-exonerate", dest="exonerate", action="store_false",
-                        help="Do not run the Exonerate step, which assembles full length CDS regions and proteins from "
-                             "each gene")
-    parser.add_argument("--no-assemble", dest="assemble", action="store_false", help="Skip the SPAdes assembly stage.")
+    parser.add_argument('--check-depend', dest='check_depend',
+                        help='Check for dependencies (executables and Python packages) and exit. May not work at all '
+                             'on Windows.', action='store_true')
+    parser.add_argument('--bwa', dest='bwa', action='store_true',
+                        help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is  '
+                             'nucleotides!', default=False)
+    parser.add_argument('--no-blast', dest='blast', action='store_false',
+                        help='Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. '
+                             '\nUseful for re-runnning assembly/exonerate steps with different options.')
+    parser.add_argument('--no-distribute', dest='distribute', action='store_false',
+                        help='Do not distribute the reads and bait sequences to sub-directories.')
+    parser.add_argument('--no-exonerate', dest='exonerate', action='store_false',
+                        help='Do not run the Exonerate step, which assembles full length CDS regions and proteins from '
+                             'each gene')
+    parser.add_argument('--no-assemble', dest='assemble', action='store_false', help='Skip the SPAdes assembly stage.')
 
-    parser.add_argument('-r', "--readfiles", nargs='+',
-                        help="One or more read files to start the pipeline. If exactly two are specified, will assume "
-                             "it is paired Illumina reads.",
+    parser.add_argument('-r', '--readfiles', nargs='+',
+                        help='One or more read files to start the pipeline. If exactly two are specified, will assume '
+                             'it is paired Illumina reads.',
                         default=[])
     parser.add_argument('-b', '--baitfile',
-                        help="FASTA file containing bait sequences for each gene. If there are multiple baits for a "
-                             "gene, the id must be of the form: >Taxon-geneName",
+                        help='FASTA file containing bait sequences for each gene. If there are multiple baits for a '
+                             'gene, the id must be of the form: >Taxon-geneName',
                         default=None)
     parser.add_argument('--cpu', type=int, default=0,
-                        help="Limit the number of CPUs. Default is to use all cores available.")
+                        help='Limit the number of CPUs. Default is to use all cores available.')
     parser.add_argument('--evalue', type=float, default=1e-10,
-                        help="e-value threshold for blastx hits, default: %(default)s")
+                        help='e-value threshold for blastx hits, default: %(default)s')
     parser.add_argument('--max_target_seqs', type=int, default=10,
                         help='Max target seqs to save in blast search, default: %(default)s')
-    parser.add_argument('--cov_cutoff', type=int, default=8, help="Coverage cutoff for SPAdes. default: %(default)s")
-    parser.add_argument("--kvals", nargs='+',
-                        help="Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!"
-                             " Default auto-detection by SPAdes.", default=None)
-    parser.add_argument("--thresh", type=int,
-                        help="Percent Identity Threshold for stitching together exonerate results. Default is 55, but "
-                             "increase this if you are worried about contaminant sequences.", default=55)  # CJJ:
-    # changed from 65 to 55 as I noticed cases with real hits falling beneath cutoff threshold
-    parser.add_argument("--paralog_warning_min_length_percentage", default=0.75, type=float,
-                        help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
-                             "to be generated. Default is %(default)s")
-    parser.add_argument("--length_pct", help="Include an exonerate hit if it is at least as long as X percentage of "
-                                             "the reference protein length. Default = 90%%", default=90, type=int)
-    parser.add_argument("--depth_multiplier",
-                        help="Accept any full-length exonerate hit if it has a coverage depth X times the next best "
-                             "hit. Set to zero to not use depth. Default = 10", default=10, type=int)
-    parser.add_argument('--prefix', help="Directory name for pipeline output, default is to use the FASTQ file name.",
+    parser.add_argument('--cov_cutoff', type=int, default=8, help='Coverage cutoff for SPAdes. default: %(default)s')
+    parser.add_argument('--kvals', nargs='+',
+                        help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!'
+                             ' Default auto-detection by SPAdes.', default=None)
+    parser.add_argument('--thresh', type=int,
+                        help='Percent Identity Threshold for stitching together exonerate results. Default is 55, but '
+                             'increase this if you are worried about contaminant sequences.', default=55)
+    # CJJ: changed from 65 to 55 as I noticed cases with real hits falling beneath cutoff threshold
+    parser.add_argument('--paralog_warning_min_length_percentage', default=0.75, type=float,
+                        help='Minimum length percentage of a contig vs reference protein length for a paralog warning '
+                             'to be generated. Default is %(default)s')
+    parser.add_argument('--length_pct', help='Include an exonerate hit if it is at least as long as X percentage of '
+                                             'the reference protein length. Default = 90%%', default=90, type=int)
+    parser.add_argument('--depth_multiplier',
+                        help='Accept any full-length exonerate hit if it has a coverage depth X times the next best '
+                             'hit. Set to zero to not use depth. Default = 10', default=10, type=int)
+    parser.add_argument('--prefix', help='Directory name for pipeline output, default is to use the FASTQ file name.',
                         default=None)
-    parser.add_argument("--timeout",
-                        help="Use GNU Parallel to kill long-running processes if they take longer than X percent of "
-                             "average.", default=0)
-    parser.add_argument("--target",
-                        help="Use this target to align sequences for each gene. Other targets for that gene will be "
-                             "used only for read sorting. Can be a tab-delimited file (one gene per line) or a single "
-                             "sequence name", default=None)
-    parser.add_argument("--unpaired",
-                        help="Include a single FASTQ file with unpaired reads along with the two paired read files",
+    parser.add_argument('--timeout',
+                        help='Use GNU Parallel to kill long-running processes if they take longer than X percent of '
+                             'average.', default=0)
+    parser.add_argument('--target',
+                        help='Use this target to align sequences for each gene. Other targets for that gene will be '
+                             'used only for read sorting. Can be a tab-delimited file (one gene per line) or a single '
+                             'sequence name', default=None)
+    parser.add_argument('--unpaired',
+                        help='Include a single FASTQ file with unpaired reads along with the two paired read files',
                         default=False)
-    parser.add_argument("--exclude",
-                        help="Do not use any sequence with the specified string as a target sequence for exonerate. "
-                             "The sequence will be used for read sorting.", default=None)
-    parser.add_argument("--nosupercontigs", dest="nosupercontigs", action='store_true',
-                        help="Do not create any supercontigs. The longest single Exonerate hit will be used",
-                        default=False)  # CJJ
-    parser.add_argument("--memory", help="GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1",
-                        default=1, type=int)  # CJJ
-    parser.add_argument("--bbmap_subfilter", default=7, type=int,
-                        help="Ban alignments with more than this many substitutions. Default is %(default)s")  # CJJ
-    parser.add_argument("--discordant_reads_edit_distance",
-                        help="Minimum number of differences between one read of a read pair vs the supercontig "
-                             "reference for a read pair to be flagged as discordant", default=5, type=int)  # CJJ
-    parser.add_argument("--discordant_reads_cutoff",
-                        help="minimum number of discordant reads pairs required to flag a supercontigs as a potential "
-                             "hybrid of contigs from multiple paralogs", default=5, type=int)  # CJJ
-    parser.add_argument("--merged", help="For assembly with both merged and unmerged (interleaved) reads",
-                        action="store_true", default=False)  # CJJ
+    parser.add_argument('--exclude',
+                        help='Do not use any sequence with the specified string as a target sequence for exonerate. '
+                             'The sequence will be used for read sorting.', default=None)
+    parser.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
+                        help='Do not create any supercontigs. The longest single Exonerate hit will be used',
+                        default=False)
+    parser.add_argument('--memory', help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1',
+                        default=1, type=int)
+    parser.add_argument('--bbmap_subfilter', default=7, type=int,
+                        help='Ban alignments with more than this many substitutions. Default is %(default)s')
+    parser.add_argument('--discordant_reads_edit_distance',
+                        help='Minimum number of differences between one read of a read pair vs the supercontig '
+                             'reference for a read pair to be flagged as discordant', default=5, type=int)
+    parser.add_argument('--discordant_reads_cutoff',
+                        help='minimum number of discordant reads pairs required to flag a supercontigs as a potential '
+                             'hybrid of contigs from multiple paralogs', default=5, type=int)
+    parser.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
+                        action='store_true', default=False)
 
     parser.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
 
@@ -715,27 +714,26 @@ def main():
     args = parser.parse_args()
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
-    print(("HybPiper was called with these arguments:\n{}\n".format(" ".join(sys.argv))))
-    print(f'args are: {args}')
+    logger.info(f'HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
     ####################################################################################################################
     # Check dependencies
     ####################################################################################################################
     if args.check_depend:
         if check_dependencies():
-            other_scripts = ["distribute_reads_to_targets.py", "distribute_targets.py", "exonerate_hits.py"]
+            other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
+                             'distribute_targets.py', 'exonerate_hits.py']
             for script in other_scripts:
                 if os.path.isfile(os.path.join(run_dir, script)):
-                    pass
+                    logger.debug(f'Found script {script}, continuing...')
                 else:
-                    print((
-                              "ERROR: Script {} not found! Please make sure it is in the same directory as this "
-                              "one!".format(script)))
+                    logger.error(f'ERROR: Script {script} not found! Please make sure it is in the same directory as '
+                                f'this one!')
                     return
-            print("Everything looks good!")
+            logger.info('Everything looks good!')
             return
         else:
-            print("ERROR: One or more dependencies not found!")
+            logger.error('ERROR: One or more dependencies not found!')
             return
 
     ####################################################################################################################
@@ -752,10 +750,10 @@ def main():
     else:
         unpaired_readfile = None
     if len(args.readfiles) < 1:
-        print("ERROR: Please specify readfiles with -r")
+        logger.error('ERROR: Please specify readfiles with -r')
         return
     if not args.baitfile:
-        print("ERROR: Please specify a FASTA file containing target sequences.")
+        logger.error('ERROR: Please specify a FASTA file containing target sequences.')
         return
 
     # Generate directory
@@ -763,22 +761,22 @@ def main():
     os.chdir(os.path.join(basedir, basename))
 
     ####################################################################################################################
-    # CJJ unzip read files if they're provided as .gz
+    # Unzip read files if they're provided as .gz
     ####################################################################################################################
     if unpaired_readfile:
         filename, file_extension = os.path.splitext(unpaired_readfile)
         if file_extension == '.gz':
-            print(f'Unzipping read file {unpaired_readfile}...')
+            logger.info(f'Unzipping read file {unpaired_readfile}...')
             with open(filename, 'w') as outfile:
                 with gzip.open(unpaired_readfile, 'rt') as infile:
                     outfile.write(infile.read())
             unpaired_readfile = filename
-    print(unpaired_readfile)
+    logger.debug(f'unpaired_readfile is: {unpaired_readfile}')
 
     if len(readfiles) == 2:
         filename, file_extension = os.path.splitext(readfiles[0])
         if file_extension == '.gz':
-            print(f'Unzipping read file  {readfiles[0]}...')
+            logger.info(f'Unzipping read file  {readfiles[0]}...')
             with open(filename, 'w') as outfile:
                 with gzip.open(readfiles[0], 'rt') as infile:
                     outfile.write(infile.read())
@@ -788,7 +786,7 @@ def main():
 
         filename, file_extension = os.path.splitext(readfiles[1])
         if file_extension == '.gz':
-            print(f'Unzipping read file  {readfiles[1]}...')
+            logger.info(f'Unzipping read file  {readfiles[1]}...')
             with open(filename, 'w') as outfile:
                 with gzip.open(readfiles[1], 'rt') as infile:
                     outfile.write(infile.read())
@@ -801,7 +799,7 @@ def main():
     elif len(readfiles) == 1:
         filename, file_extension = os.path.splitext(readfiles[0])
         if file_extension == '.gz':
-            print(f'Unzipping read file  {readfiles[0]}...')
+            logger.info(f'Unzipping read file  {readfiles[0]}...')
             with open(filename, 'w') as outfile:
                 with gzip.open(readfiles[0], 'rt') as infile:
                     outfile.write(infile.read())
@@ -809,8 +807,7 @@ def main():
         else:
             reads_single = readfiles[0]
         readfiles = [reads_single]
-
-    print(f'CJJ readfiles are: {readfiles}')
+    logger.debug(f'readfiles are: {readfiles}')
 
     ####################################################################################################################
     # Map reads to nucleotide targets with BWA
@@ -819,87 +816,81 @@ def main():
         if args.blast:
             args.blast = False
             bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu)
-            # bamfile = basename + ".bam" #CJJ added
-            print(f'CJJ: bamfile is: {bamfile}')
+            # bamfile = f'{basename}.bam'
+            logger.debug(f'bamfile is: {bamfile}')
             if args.unpaired:
-                unpaired_bamfile = bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True)  # NOTE the
-                # variable {unpaired_bamfile} isn't used, but the output bamfile is used in function distribute_bwa()
+                bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True)
 
             if not bamfile:
-                print("ERROR: Something went wrong with the BWA step, exiting!")
+                logger.error('ERROR: Something went wrong with the BWA step, exiting!')
                 return
         else:
-            bamfile = basename + ".bam"
+            bamfile = f'{basename}.bam'
 
     ####################################################################################################################
     # Map reads to protein targets with BLASTx
     ####################################################################################################################
-    # bamfile = basename + ".bam" CJJ: used this as a speedup when troubleshooting
     if args.blast:
         if args.unpaired:
-            unpaired_blastxfile = blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-                                         max_target_seqs=args.max_target_seqs, unpaired=True)
-            # NOTE the variable {unpaired_blastxfile} isn't used, but the output bamfile is used in function
-            #  distribute()
+            blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
+                   max_target_seqs=args.max_target_seqs, unpaired=True)
+
         blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
                                    max_target_seqs=args.max_target_seqs)
+
         if not blastx_outputfile:
-            print("ERROR: Something is wrong with the Blastx step, exiting!")
+            logger.error('ERROR: Something is wrong with the Blastx step, exiting!')
             return
     else:
-        blastx_outputfile = basename + ".blastx"
+        blastx_outputfile = f'{basename}.blastx'
 
     ####################################################################################################################
     # Distribute reads to genes for either BLASTx or BWA mappings
     ####################################################################################################################
     if args.distribute:
-        pre_existing_fastas = glob.glob("./*/*_interleaved.fasta") + glob.glob("./*/*_unpaired.fasta")
+        pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
         for fn in pre_existing_fastas:
             os.remove(fn)
         if args.bwa:
             exitcode = distribute_bwa(bamfile, readfiles, baitfile, run_dir, args.target, unpaired_readfile,
                                       args.exclude, merged=args.merged)
-        else:  # CJJ: distribute BLASTx results
+        else:  # distribute BLASTx results
             exitcode = distribute(blastx_outputfile, readfiles, baitfile, run_dir, args.target, unpaired_readfile,
                                   args.exclude, merged=args.merged)
         if exitcode:
             sys.exit(1)
     if len(readfiles) == 2:
-        genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x, x + "_interleaved.fasta"))]
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
     else:
-        genes = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x, x + "_unpaired.fasta"))]
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
     if len(genes) == 0:
-        print("ERROR: No genes with BLAST hits! Exiting!")
+        logger.error('ERROR: No genes with BLAST hits! Exiting!')
         return
 
     ####################################################################################################################
     # Assemble reads using SPAdes
     ####################################################################################################################
-    # Merge reads for SPAdes assembly CJJ
+    # If the --merged flag is provided, merge reads for SPAdes assembly
     if args.merged:
-        print(f'Merging reads for SPAdes assembly')
+        logger.info(f'Merging reads for SPAdes assembly')
         for gene in genes:
             interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
-            print(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
+            logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
             merged_out = f'{gene}/{gene}_merged.fastq'
             unmerged_out = f'{gene}/{gene}_unmerged.fastq'
             bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out} ' \
                               f'outu={unmerged_out}'
-            # bbmerge_capture = subprocess.run(bbmerge_command, capture_output=True, shell=True)
-            bbmerge_capture = subprocess.run(bbmerge_command, shell=True)
+            subprocess.run(bbmerge_command, shell=True)
 
     if args.assemble:
         if len(readfiles) == 1:
             spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                      paired=False, timeout=args.timeout)
         elif len(readfiles) == 2:
-            # if unpaired_readfile:
-            #     spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-            #                              timeout=args.timeout, unpaired=True)
-            if args.merged and not unpaired_readfile:  # CJJ
+            if args.merged and not unpaired_readfile:
                 spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True)
-            elif args.merged and unpaired_readfile:  # CJJ
+            elif args.merged and unpaired_readfile:
                 spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True, unpaired=True)
             elif unpaired_readfile and not args.merged:
@@ -910,18 +901,25 @@ def main():
                                          timeout=args.timeout)
 
         else:
-            print("ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!")
+            logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
             return
         if not spades_genelist:
-            print("ERROR: No genes had assembled contigs! Exiting!")
+            logger.error('ERROR: No genes had assembled contigs! Exiting!')
             return
+
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs
     ####################################################################################################################
     if args.exonerate:
         genes = [x.rstrip() for x in open(exonerate_genefilename).readlines()]
-        exitcode = exonerate(genes, basename, run_dir, cpu=args.cpu, thresh=args.thresh, length_pct=args.length_pct,
-                             depth_multiplier=args.depth_multiplier, timeout=args.timeout,
+        exitcode = exonerate(genes,
+                             basename,
+                             run_dir,
+                             cpu=args.cpu,
+                             thresh=args.thresh,
+                             length_pct=args.length_pct,
+                             depth_multiplier=args.depth_multiplier,
+                             timeout=args.timeout,
                              nosupercontigs=args.nosupercontigs,
                              memory=args.memory,
                              discordant_reads_edit_distance=args.discordant_reads_edit_distance,
@@ -945,17 +943,17 @@ def main():
     ####################################################################################################################
     # Report paralog warning and write a paralog warning file
     ####################################################################################################################
-    sys.stderr.write("Generated sequences from {} genes!\n".format(len(open("genes_with_seqs.txt").readlines())))
-    paralog_warnings = [x for x in os.listdir(".") if os.path.isfile(os.path.join(x, basename, "paralog_warning.txt"))]
-    with open("genes_with_paralog_warnings.txt", 'w') as pw:
-        pw.write("\n".join(paralog_warnings))
-    sys.stderr.write("WARNING: Potential paralogs detected for {} genes!".format(len(paralog_warnings)))
+    logger.info('Generated sequences from {} genes!\n'.format(len(open('genes_with_seqs.txt').readlines())))
+    paralog_warnings = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, basename, 'paralog_warning.txt'))]
+    with open('genes_with_paralog_warnings.txt', 'w') as pw:
+        pw.write('\n'.join(paralog_warnings))
+    logger.info('WARNING: Potential paralogs detected for {} genes!'.format(len(paralog_warnings)))
 
 
 ########################################################################################################################
 # Run the script
 #######################################################################################################################
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
 
 ################################################## END OF SCRIPT #######################################################
