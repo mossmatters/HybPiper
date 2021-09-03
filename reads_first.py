@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 1.2 (March 2017)
+HybPiper Version 1.4 release candidate (September 2021)
 
-RBGV modified 2021 - Chris Jackson chris.jackson@rbg.vic.gov.au
-
-This script is a wrapper around several scripts in the HybSeqPipeline.
+This script is a wrapper around several scripts in the HybPiper pipline.
 It can check whether you have the appropriate dependencies available (see --check-depend).
 It makes sure that the other scripts needed are in the same directory as this one.
 Command line options are passed to the other executables.
@@ -16,18 +14,81 @@ To see parameters and help type:
 python reads_first.py -h
 """
 
-import argparse, os, sys, importlib, shutil, subprocess, glob, re
+import argparse
+import os
+import sys
+import importlib
+import shutil
+import subprocess
+import glob
+import re
 import gzip
+import logging
+import fnmatch
 
 
-# Hard coded filenames used in function below:
-exonerate_genefilename = "exonerate_genelist.txt"
-spades_genefilename = "spades_genelist.txt"
+# f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
+f'Must be using Python 3.6 or higher.'
+
+# Hard coded filenames used in functions below:
+exonerate_genefilename = 'exonerate_genelist.txt'
+spades_genefilename = 'spades_genelist.txt'
 
 
 ########################################################################################################################
 # Define functions
 ########################################################################################################################
+
+def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.DEBUG,
+                 logger_object_level=logging.DEBUG):
+    """
+    Function to create a logger instance.
+
+    By default, logs level DEBUG and above to file.
+    By default, Logs level INFO and above to stderr.
+
+    :param string name: name for the logger instance
+    :param string log_file: filename for log file
+    :param string console_level: level for logging to console
+    :param string file_level: level for logging to file
+    :param string logger_object_level: level for logger object
+    :return: a logger object
+    """
+
+    # Check for existing log files and increment filename integer as necessary:
+    existing_log_file_numbers = [int(file.split('_')[-1]) for file in os.listdir('.') if
+                                 fnmatch.fnmatch(file, '*.log_[0-9]')]
+    if not existing_log_file_numbers:
+        new_log_number = 1
+    else:
+        new_log_number = sorted(existing_log_file_numbers)[-1] + 1
+
+    # Log to file:
+    file_handler = logging.FileHandler(f'{log_file}.log_{new_log_number}', mode='w')
+    file_handler.setLevel(file_level)
+    file_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(file_format)
+
+    # Log to Terminal (stdout):
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(console_level)
+    console_format = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_format)
+
+    # Setup logger:
+    logger_object = logging.getLogger(name)
+    logger_object.setLevel(logger_object_level)  # Default level is 'WARNING'
+
+    # Add handlers to the logger
+    logger_object.addHandler(console_handler)
+    logger_object.addHandler(file_handler)
+
+    return logger_object
+
+
+# Create logger(s):
+logger = setup_logger(__name__, 'reads_first')
+
 
 def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     """
@@ -38,6 +99,11 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
     of os.environ.get("PATH"), or can be overridden with a custom search
     path.
+
+    :param string cmd:
+    :param string mode:
+    :param string path:
+    :return None
     """
 
     # Check that a given file can be accessed with the correct mode.
@@ -56,18 +122,18 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
         return None
 
     if path is None:
-        path = os.environ.get("PATH", os.defpath)
+        path = os.environ.get('PATH', os.defpath)
     if not path:
         return None
     path = path.split(os.pathsep)
 
-    if sys.platform == "win32":
+    if sys.platform == 'win32':
         # The current directory takes precedence on Windows.
         if not os.curdir in path:
             path.insert(0, os.curdir)
 
         # PATHEXT is necessary to check on Windows.
-        pathext = os.environ.get("PATHEXT", "").split(os.pathsep)
+        pathext = os.environ.get('PATHEXT', '').split(os.pathsep)
         # See if the given file matches any of the expected path extensions.
         # This will allow us to short circuit when given "python.exe".
         # If it does match, only test that one, otherwise we have to try
@@ -96,70 +162,85 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
 def check_dependencies():
     """
     Checks for the presence of executables and Python packages.
-    """
-    executables = ["blastx",
-                   "exonerate",
-                   "parallel",
-                   "makeblastdb",
-                   "spades.py",
-                   "bwa",
-                   "samtools"]
 
-    python_packages = ["Bio"]
+    return: boolean: everything_is_awesome
+    """
+    executables = ['blastx',
+                   'exonerate',
+                   'parallel',
+                   'makeblastdb',
+                   'spades.py',
+                   'bwa',
+                   'samtools',
+                   'bbmap.sh',
+                   'bbmerge.sh']
+
+    python_packages = ['Bio']
 
     everything_is_awesome = True
     for e in executables:
         e_loc = py_which(e)
         if e_loc:
-            print(("{} found at {}".format(e, e_loc)))
+            logger.info(f'{e} found at {e_loc}"')
         else:
-            print(("{} not found in your $PATH!".format(e)))
+            logger.info(f'{e} not found in your $PATH!')
             everything_is_awesome = False
 
     for p in python_packages:
         try:
             i = importlib.import_module(p)
-            print(("Package {} successfully loaded!".format(p)))
+            logger.info(f'Package {p} successfully loaded!')
         except ImportError:
-            print(("Package {} not found!".format(p)))
+            logger.info(f'Package {p} not found!')
             everything_is_awesome = False
     return everything_is_awesome
 
 
 def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False):
     """
-    CJJ: creates a blast database from the complete protein target file, and performs BLASTx searches of sample
+    Creates a blast database from the complete protein target file, and performs BLASTx searches of sample
     nucleotide read files against the protein database.
+
+    :param readfiles:
+    :param baitfile:
+    :param evalue:
+    :param basename:
+    :param cpu:
+    :param max_target_seqs:
+    :param unpaired:
+    :return:
     """
-    dna = set("ATCGN")
+
+    dna = set('ATCGN')
     if os.path.isfile(baitfile):
         # Quick detection of whether baitfile is DNA.
         with open(baitfile) as bf:
             header = bf.readline()
             seqline = bf.readline().rstrip().upper()
             if not set(seqline) - dna:
-                print("ERROR: only ATCGN characters found in first line. You need a protein bait file for BLASTx!")
+                logger.info('ERROR: only ATCGN characters found in first line. You need a protein bait file for '
+                            'BLASTx!')
                 return None
 
         if os.path.isfile(os.path.split(baitfile)[0] + '.psq'):
             db_file = baitfile
         else:
-            print("Making protein blastdb in current directory.")
+            logger.info('Making protein blastdb in current directory.')
             if os.path.split(baitfile)[0]:
                 shutil.copy(baitfile, '.')
             db_file = os.path.split(baitfile)[1]
-            makeblastdb_cmd = "makeblastdb -dbtype prot -in {}".format(db_file)
-            print(makeblastdb_cmd)
+            makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
+            logger.info(makeblastdb_cmd)
             exitcode = subprocess.call(makeblastdb_cmd, shell=True)
             if exitcode:
                 return None
     else:
-        print(("Cannot find baitfile at: {}".format(baitfile)))
+        logger.info(f'Cannot find baitfile at: {baitfile}')
         return None
 
     # Remove previous blast results if they exist (because we will be appending)
-    if os.path.isfile(basename + ".blastx"):
-        os.remove(basename + ".blastx")
+    if os.path.isfile(f'{basename}.blastx'):
+        os.remove(f'{basename}.blastx')
 
     if unpaired:
         read_file = readfiles
@@ -172,15 +253,14 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
         else:
             full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> " \
                            "{}_unpaired.blastx ".format(pipe_cmd, blastx_command, basename)
-        print(full_command)
+        logger.info(full_command)
         exitcode = subprocess.call(full_command, shell=True)
         if exitcode:
             return None
-        return basename + "_unpaired.blastx"
+        return f'{basename}_unpaired.blastx'
 
     else:
         for read_file in readfiles:
-
             # Piping commands for Fastq -> FASTA
             # Curly braces must be doubled within a formatted string.
             pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(
@@ -194,86 +274,110 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
             else:
                 full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> " \
                                "{}.blastx ".format(pipe_cmd, blastx_command, basename)
-            print(full_command)
+            logger.info(full_command)
             exitcode = subprocess.call(full_command, shell=True)
             if exitcode:
                 return None
-
-    return basename + '.blastx'
+    return f'{basename}.blastx'
 
 
 def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unpaired_readfile=None, exclude=None,
                merged=False):
     """
-    CJJ: when using blastx, distribute sample reads to their corresponding target file hits.
+    When using blastx, distribute sample reads to their corresponding target file hits.
+
+    :param blastx_outputfile:
+    :param readfiles:
+    :param baitfile:
+    :param run_dir:
+    :param target:
+    :param unpaired_readfile:
+    :param exclude:
+    :param merged:
+    :return:
     """
-    # NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE. # CJJ: I'm not sure what this comment means.
+
     if merged:
-        read_cmd = "time python {} {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
-                                                 blastx_outputfile, " ".join(readfiles), "--merged")
+        read_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets.py")} {blastx_outputfile} ' \
+                   f'{" ".join(readfiles)} --merged'
     else:
-        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
-                                                 blastx_outputfile, " ".join(readfiles))
+        read_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets.py")} {blastx_outputfile} ' \
+                   f'{" ".join(readfiles)}'
+    logger.info(f'[CMD] {read_cmd}\n')
+
     exitcode = subprocess.call(read_cmd, shell=True)
     if exitcode:
-        print("ERROR: Something went wrong with distributing reads to gene directories.")
+        logger.info('ERROR: Something went wrong with distributing reads to gene directories.')
         return exitcode
-    target_cmds = ["time python", os.path.join(run_dir, "distribute_targets.py"), baitfile, "--blastx",
+    target_cmds = ['time python', os.path.join(run_dir, 'distribute_targets.py'), baitfile, '--blastx',
                    blastx_outputfile]
     if target:
-        target_cmds.append("--target {}".format(target))
+        target_cmds.append(f'--target {target}')
     if exclude:
-        target_cmds.append("-- exclude {}".format(exclude))
+        target_cmds.append(f'--exclude {exclude}')
     if unpaired_readfile:
-        blastx_outputfile = blastx_outputfile.replace(".blastx", "_unpaired.blastx")
-        unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets.py"),
-                                                     blastx_outputfile, unpaired_readfile)
-        print(("[CMD] {}\n".format(unpaired_cmd)))
+        blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
+        unpaired_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets.py")} {blastx_outputfile}' \
+                       f' {unpaired_readfile}'
+        logger.info(f'[CMD] {unpaired_cmd}\n')
         exitcode = subprocess.call(unpaired_cmd, shell=True)
-    target_cmd = " ".join(target_cmds)
+        if exitcode:
+            logger.info('ERROR: Something went wrong distributing targets to gene directories.')
+            return exitcode
+    target_cmd = ' '.join(target_cmds)
+    logger.info(f'[DISTRIBUTE]: {target_cmd}')
     exitcode = subprocess.call(target_cmd, shell=True)
     if exitcode:
-        print("ERROR: Something went wrong distributing targets to gene directories.")
+        logger.info('ERROR: Something went wrong distributing targets to gene directories.')
         return exitcode
     return None
 
 
 def distribute_bwa(bamfile, readfiles, baitfile, run_dir, target=None, unpaired=None, exclude=None, merged=False):
     """
-    CJJ: when using BWA mapping, distribute sample reads to their corresponding target file gene matches.
+    When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
+
+    :param bamfile:
+    :param readfiles:
+    :param baitfile:
+    :param run_dir:
+    :param target:
+    :param unpaired:
+    :param exclude:
+    :param merged:
+    :return:
     """
-    # NEED TO ADD SOMETHING ABOUT DIRECTORIES HERE. # CJJ: I'm not sure what this comment means.
+
     if merged:
-        read_cmd = "time python {} {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
-                                                 bamfile, " ".join(readfiles), "--merged")
+        read_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets_bwa.py")} {bamfile} ' \
+                   f'{" ".join(readfiles)} --merged'
     else:
-        read_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
-                                                 bamfile, " ".join(readfiles))
-    print(("[CMD] {}\n".format(read_cmd)))
+        read_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets_bwa.py")} {bamfile} ' \
+                   f'{" ".join(readfiles)}'
+    logger.info(f'[CMD] {read_cmd}\n')
+
     exitcode = subprocess.call(read_cmd, shell=True)
-
     if unpaired:
-        up_bamfile = bamfile.replace(".bam", "_unpaired.bam")
-        unpaired_cmd = "time python {} {} {}".format(os.path.join(run_dir, "distribute_reads_to_targets_bwa.py"),
-                                                     up_bamfile, unpaired)
-        print(("[CMD] {}\n".format(unpaired_cmd)))
+        up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
+        unpaired_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets_bwa.py")}' \
+                       f' {up_bamfile} {unpaired}'
+        logger.info(f'[CMD] {unpaired_cmd}\n')
         exitcode = subprocess.call(unpaired_cmd, shell=True)
-
-    if exitcode:
-        print("ERROR: Something went wrong with distributing reads to gene directories.")
-        return exitcode
-    target_cmds = ["time python", os.path.join(run_dir, "distribute_targets.py"), baitfile, "--bam", bamfile]
+        if exitcode:
+            logger.info('ERROR: Something went wrong with distributing reads to gene directories.')
+            return exitcode
+    target_cmds = ['time python', os.path.join(run_dir, 'distribute_targets.py'), baitfile, '--bam', bamfile]
     if target:
-        target_cmds.append("--target {}".format(target))
+        target_cmds.append(f'--target {target}')
     if unpaired:
-        target_cmds.append("--unpaired")
+        target_cmds.append('--unpaired')
     if exclude:
-        target_cmds.append("--exclude {}".format(exclude))
-    target_cmd = " ".join(target_cmds)
-    print("[DISTRIBUTE]: {}".format(target_cmd))
+        target_cmds.append(f'--exclude {exclude}')
+    target_cmd = ' '.join(target_cmds)
+    logger.info(f'[DISTRIBUTE]: {target_cmd}')
     exitcode = subprocess.call(target_cmd, shell=True)
     if exitcode:
-        print("ERROR: Something went wrong distributing targets to gene directories.")
+        logger.info('ERROR: Something went wrong distributing targets to gene directories.')
         return exitcode
     return None
 
@@ -282,7 +386,12 @@ def make_basename(readfiles, prefix=None):
     """
     Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore.
     If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
+
+    :param readfiles:
+    :param prefix:
+    :return:
     """
+
     if prefix:
         if not os.path.exists(prefix):
             os.makedirs(prefix)
@@ -293,7 +402,7 @@ def make_basename(readfiles, prefix=None):
             prefix = os.path.split(prefixParentDir)[1]
         return prefixParentDir, prefix
 
-    ## --prefix is not set on cmd line;  Write output to subdir in .
+    # --prefix is not set on cmd line;  Write output to subdir in .
     basename = os.path.split(readfiles[0])[1].split('_')[0]
     if not os.path.exists(basename):
         os.makedirs(basename)
@@ -303,44 +412,54 @@ def make_basename(readfiles, prefix=None):
 def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False, merged=False):
     """
     Run SPAdes on each gene separately using GNU parallel.
+
+    :param genes:
+    :param run_dir:
+    :param cov_cutoff:
+    :param cpu:
+    :param paired:
+    :param kvals:
+    :param timeout:
+    :param unpaired:
+    :param merged:
+    :return:
     """
 
-    with open(spades_genefilename, 'w') as spadesfile:  # CJJ Note <spades_genefilename> is defined as a global variable
-        spadesfile.write("\n".join(genes) + "\n")
+    with open(spades_genefilename, 'w') as spadesfile:  # Note <spades_genefilename> is hardcoded at top of script.
+        spadesfile.write('\n'.join(genes) + '\n')
 
-    if os.path.isfile("spades.log"):
-        os.remove("spades.log")
-    if os.path.isfile("spades_redo.log"):
-        os.remove("spades_redo.log")
+    if os.path.isfile('spades.log'):
+        os.remove('spades.log')
+    if os.path.isfile('spades_redo.log'):
+        os.remove('spades_redo.log')
 
-    spades_runner_list = ["python", "{}/spades_runner.py".format(run_dir), spades_genefilename, "--cov_cutoff",
-                          str(cov_cutoff)]
+    spades_runner_list = ['python', f'{run_dir}/spades_runner.py', spades_genefilename, '--cov_cutoff', str(cov_cutoff)]
     if cpu:
-        spades_runner_list.append("--cpu")
+        spades_runner_list.append('--cpu')
         spades_runner_list.append(str(cpu))
     if not paired:
-        spades_runner_list.append("--single")
+        spades_runner_list.append('--single')
     if unpaired:
-        spades_runner_list.append("--unpaired")
+        spades_runner_list.append('--unpaired')
     if timeout:
-        spades_runner_list.append("--timeout")
-        spades_runner_list.append("{}%".format(timeout))
+        spades_runner_list.append('--timeout')
+        spades_runner_list.append(f'{timeout}%')
     if kvals:
-        spades_runner_list.append("--kvals")
-        spades_runner_list.append("{}".format(",".join(kvals)))
+        spades_runner_list.append('--kvals')
+        spades_runner_list.append(','.join(kvals))
     if merged:
-        spades_runner_list.append("--merged")
+        spades_runner_list.append('--merged')
 
-    spades_runner_cmd = " ".join(spades_runner_list)
+    spades_runner_cmd = ' '.join(spades_runner_list)
 
     exitcode = subprocess.call(spades_runner_cmd, shell=True)
     if exitcode:
-        sys.stderr.write(
-            "WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n")
+        logger.info(
+            'WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n')
         return None
     else:
-        if os.path.isfile("spades_duds.txt"):
-            spades_duds = [x.rstrip() for x in open("spades_duds.txt")]
+        if os.path.isfile('spades_duds.txt'):
+            spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
         else:
             spades_duds = []
 
@@ -349,9 +468,8 @@ def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, time
         if gene not in set(spades_duds):
             spades_genelist.append(gene)
 
-    with open(exonerate_genefilename, 'w') as genefile:  # CJJ 'exonerate_genefilename' is hardcoded at top of script.
+    with open(exonerate_genefilename, 'w') as genefile:  # Note <exonerate_genefilename> is hardcoded at top of script.
         genefile.write("\n".join(spades_genelist) + "\n")
-
     return spades_genelist
 
 
@@ -359,68 +477,88 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
               length_pct=100, timeout=None, nosupercontigs=False, memory=1, discordant_reads_edit_distance=7,
               discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, bbmap_subfilter=7):
     """
-    CJJ: runs the `exonerate_hits.py script via GNU parallel.
+    Runs the `exonerate_hits.py script via GNU parallel.
+
+    :param genes:
+    :param basename:
+    :param run_dir:
+    :param replace:
+    :param cpu:
+    :param thresh:
+    :param use_velvet:
+    :param depth_multiplier:
+    :param length_pct:
+    :param timeout:
+    :param nosupercontigs:
+    :param memory:
+    :param discordant_reads_edit_distance:
+    :param discordant_reads_cutoff:
+    :param paralog_warning_min_cutoff:
+    :param bbmap_subfilter:
+    :return:
     """
+
     if replace:
         for g in genes:
             if os.path.isdir(os.path.join(g, basename)):
                 shutil.rmtree(os.path.join(g, basename))
     if len(genes) == 0:
-        print(("ERROR: No genes recovered for {}!".format(basename)))
+        logger.info(f'ERROR: No genes recovered for {basename}!')
         return 1
 
-    if os.path.isfile("genes_with_seqs.txt"):
-        os.remove("genes_with_seqs.txt")
+    if os.path.isfile('genes_with_seqs.txt'):
+        os.remove('genes_with_seqs.txt')
 
-    if use_velvet:
-        file_stem = "cap3ed.fa"
-    else:
-        file_stem = "contigs.fasta"
+    file_stem = "contigs.fasta"
 
-    parallel_cmd_list = ["time parallel", "--eta", "--joblog parallel.log"]
+    parallel_cmd_list = ['time parallel', '--eta', '--joblog parallel.log']
     if cpu:
-        parallel_cmd_list.append("-j {}".format(cpu))
+        parallel_cmd_list.append(f'-j {cpu}')
     if timeout:
-        parallel_cmd_list.append("--timeout {}%".format(timeout))
+        parallel_cmd_list.append(f'--timeout {timeout}%')
 
     if nosupercontigs:
-        print(f'CJJ -exonerate- Running Exonerate to generate sequences for {len(genes)} genes, without supercontigs')
-        exonerate_cmd_list = ["python", "{}/exonerate_hits.py".format(run_dir),
-                              "{}/{}_baits.fasta", "{{}}/{{}}_{}".format(file_stem),
-                              "--prefix {{}}/{}".format(basename),
-                              "-t {}".format(thresh),
-                              "--depth_multiplier {}".format(depth_multiplier),
-                              "--length_pct {}".format(length_pct), "--nosupercontigs",
-                              "--paralog_warning_min_cutoff {}".format(paralog_warning_min_cutoff),
-                              "--bbmap_subfilter {}".format(bbmap_subfilter),
-                              "::::",
+        logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes, without creating supercontigs')
+        exonerate_cmd_list = ['python',
+                              f'{run_dir}/exonerate_hits.py',
+                              '{}/{}_baits.fasta',
+                              '{{}}/{{}}_{}'.format(file_stem),
+                              '--prefix {{}}/{}'.format(basename),
+                              f'-t {thresh}',
+                              f'--depth_multiplier {depth_multiplier}',
+                              f'--length_pct {length_pct}',
+                              '--nosupercontigs',
+                              f'--paralog_warning_min_cutoff {paralog_warning_min_cutoff}',
+                              f'--bbmap_subfilter {bbmap_subfilter}',
+                              '::::',
                               exonerate_genefilename,
-                              "> genes_with_seqs.txt"]
+                              '> genes_with_seqs.txt']
     else:
-        print(("Running Exonerate to generate sequences for {} genes".format(len(genes))))
-        exonerate_cmd_list = ["python", "{}/exonerate_hits.py".format(run_dir),
-                              "{}/{}_baits.fasta", "{{}}/{{}}_{}".format(file_stem),
-                              "--prefix {{}}/{}".format(basename),
-                              "-t {}".format(thresh),
-                              "--depth_multiplier {}".format(depth_multiplier),
-                              "--length_pct {}".format(length_pct),
-                              "--memory {}".format(memory),
-                              "--discordant_reads_edit_distance {}".format(discordant_reads_edit_distance),
-                              "--discordant_reads_cutoff {}".format(discordant_reads_cutoff),
-                              "--paralog_warning_min_cutoff {}".format(paralog_warning_min_cutoff),
-                              "--bbmap_subfilter {}".format(bbmap_subfilter),
-                              "--debug",
-                              "::::",
+        logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes')
+        exonerate_cmd_list = ['python',
+                              f'{run_dir}/exonerate_hits.py',
+                              '{}/{}_baits.fasta',
+                              '{{}}/{{}}_{}'.format(file_stem),
+                              '--prefix {{}}/{}'.format(basename),
+                              f'-t {thresh}',
+                              f'--depth_multiplier {depth_multiplier}',
+                              f'--length_pct {length_pct}',
+                              f'--memory {memory}',
+                              f'--discordant_reads_edit_distance {discordant_reads_edit_distance}',
+                              f'--discordant_reads_cutoff {discordant_reads_cutoff}',
+                              f'--paralog_warning_min_cutoff {paralog_warning_min_cutoff}',
+                              f'--bbmap_subfilter {bbmap_subfilter}',
+                              '::::',
                               exonerate_genefilename,
                               "> genes_with_seqs.txt"]
 
-    exonerate_cmd = " ".join(parallel_cmd_list) + " " + " ".join(exonerate_cmd_list)
-    print(exonerate_cmd)
+    exonerate_cmd = ' '.join(parallel_cmd_list) + ' ' + ' '.join(exonerate_cmd_list)
+    logger.info(exonerate_cmd)
     exitcode = subprocess.call(exonerate_cmd, shell=True)
 
     if exitcode:
-        print(f'exitcode is: {exitcode}')
-        print("ERROR: Something went wrong with Exonerate!")
+        logger.info(f'exitcode is: {exitcode}')
+        logger.info('ERROR: Something went wrong with Exonerate!')
         return exitcode
     return
 
@@ -429,35 +567,42 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None):
     """
     Conduct BWA search of reads against the baitfile. Returns an error if the second line of the baitfile contains
     characters other than ACTGN.
+
+    :param readfiles:
+    :param baitfile:
+    :param basename:
+    :param cpu:
+    :param unpaired:
+    :return:
     """
 
-    dna = set("ATCGN")
+    dna = set('ATCGN')
     if os.path.isfile(baitfile):
         # Quick detection of whether baitfile is DNA.
         with open(baitfile) as bf:
             header = bf.readline()
             seqline = bf.readline().rstrip().upper()
             if set(seqline) - dna:
-                print(
-                    "ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file for BWA!")
+                logger.info(
+                    'ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file for BWA!')
                 return None
 
         if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
             db_file = baitfile
         else:
-            print("Making nucleotide bwa index in current directory.")
+            logger.info('Making nucleotide bwa index in current directory.')
             baitfileDir = os.path.split(baitfile)[0]
             if baitfileDir:
                 if os.path.realpath(baitfileDir) != os.path.realpath('.'):
                     shutil.copy(baitfile, '.')
             db_file = os.path.split(baitfile)[1]
-            make_bwa_index_cmd = "bwa index {}".format(db_file)
-            print(("[CMD]: {}".format(make_bwa_index_cmd)))
+            make_bwa_index_cmd = f'bwa index {db_file}'
+            logger.info(f'[CMD]: {make_bwa_index_cmd}')
             exitcode = subprocess.call(make_bwa_index_cmd, shell=True)
             if exitcode:
                 return None
     else:
-        print(("ERROR: Cannot find baitfile at: {}".format(baitfile)))
+        logger.info(f'ERROR: Cannot find baitfile at: {baitfile}')
         return None
 
     if not cpu:
@@ -465,22 +610,22 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None):
         cpu = multiprocessing.cpu_count()
 
     if len(readfiles) < 3:
-        bwa_fastq = " ".join(readfiles)
+        bwa_fastq = ' '.join(readfiles)
     else:
         bwa_fastq = readfiles
 
-    bwa_commands = ["time bwa mem", "-t", str(cpu), db_file, bwa_fastq, " | samtools view -h -b -S - > "]
+    bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
     if unpaired:
-        bwa_commands.append(basename + "_unpaired.bam")
+        bwa_commands.append(f'{basename}_unpaired.bam')
     else:
-        bwa_commands.append(basename + ".bam")
-    full_command = " ".join(bwa_commands)
-    print(("[CMD]: {}".format(full_command)))
+        bwa_commands.append(f'{basename}.bam')
+    full_command = ' '.join(bwa_commands)
+    logger.info(f'[CMD]: {full_command}')
     exitcode = subprocess.call(full_command, shell=True)
     if exitcode:
         return None
 
-    return basename + '.bam'
+    return f'{basename}.bam'
 
 
 def main():
