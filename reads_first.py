@@ -25,7 +25,7 @@ import gzip
 import logging
 import fnmatch
 import distribute_reads_to_targets_bwa
-import distribute_targets
+import distribute_reads_to_targets
 import distribute_targets
 
 
@@ -105,16 +105,14 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     :return None
     """
 
-    # Check that a given file can be accessed with the correct mode.
-    # Additionally check that `file` is not a directory, as on Windows
-    # directories pass the os.access check.
+    # Check that a given file can be accessed with the correct mode. Additionally check that `file` is not a
+    # directory, as on Windows directories pass the os.access check.
     def _access_check(fn, mode):
         return (os.path.exists(fn) and os.access(fn, mode)
                 and not os.path.isdir(fn))
 
-    # If we're given a path with a directory part, look it up directly rather
-    # than referring to PATH directories. This includes checking relative to the
-    # current directory, e.g. ./script
+    # If we're given a path with a directory part, look it up directly rather than referring to PATH directories.
+    # This includes checking relative to the current directory, e.g. ./script
     if os.path.dirname(cmd):
         if _access_check(cmd, mode):
             return cmd
@@ -133,17 +131,15 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
 
         # PATHEXT is necessary to check on Windows.
         pathext = os.environ.get('PATHEXT', '').split(os.pathsep)
-        # See if the given file matches any of the expected path extensions.
-        # This will allow us to short circuit when given "python.exe".
-        # If it does match, only test that one, otherwise we have to try
-        # others.
+        # See if the given file matches any of the expected path extensions. This will allow us to short circuit when
+        # given "python.exe".  If it does match, only test that one, otherwise we have to try others.
         if any([cmd.lower().endswith(ext.lower()) for ext in pathext]):
             files = [cmd]
         else:
             files = [cmd + ext for ext in pathext]
     else:
-        # On other platforms you don't have things like PATHEXT to tell you
-        # what file suffixes are executable, so just pass on cmd as-is.
+        # On other platforms you don't have things like PATHEXT to tell you what file suffixes are executable,
+        # so just pass on cmd as-is.
         files = [cmd]
 
     seen = set()
@@ -196,6 +192,89 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
+def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
+    """
+    Conduct BWA search of reads against the baitfile. Returns an error if the second line of the baitfile contains
+    characters other than ACTGN.
+
+    :param readfiles:
+    :param baitfile:
+    :param basename:
+    :param cpu:
+    :param unpaired:
+    :param logger:
+    :return:
+    """
+
+    dna = set('ATCGN')
+    if os.path.isfile(baitfile):
+        # Quick detection of whether baitfile is DNA.
+        with open(baitfile) as bf:
+            header = bf.readline()
+            seqline = bf.readline().rstrip().upper()
+            if set(seqline) - dna:
+                logger.error('ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file '
+                             'for BWA!')
+                return None
+
+        if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
+            db_file = baitfile
+        else:
+            logger.info('Making nucleotide bwa index in current directory.')
+            baitfileDir = os.path.split(baitfile)[0]
+            if baitfileDir:
+                if os.path.realpath(baitfileDir) != os.path.realpath('.'):
+                    shutil.copy(baitfile, '.')
+            db_file = os.path.split(baitfile)[1]
+            make_bwa_index_cmd = f'bwa index {db_file}'
+            logger.info(f'[CMD]: {make_bwa_index_cmd}')
+
+            try:
+                result = subprocess.run(make_bwa_index_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'BWA index check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'BWA index stdout is: {result.stdout}')
+                logger.debug(f'BWA index stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'BWA index check_returncode() is: {exc}')
+                return None
+
+    else:
+        logger.error(f'ERROR: Cannot find baitfile at: {baitfile}')
+        return None
+
+    if not cpu:
+        import multiprocessing
+        cpu = multiprocessing.cpu_count()
+
+    if len(readfiles) < 3:
+        bwa_fastq = ' '.join(readfiles)
+    else:
+        bwa_fastq = readfiles
+
+    bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
+    if unpaired:
+        bwa_commands.append(f'{basename}_unpaired.bam')
+    else:
+        bwa_commands.append(f'{basename}.bam')
+    full_command = ' '.join(bwa_commands)
+    logger.info(f'[CMD]: {full_command}')
+
+    try:
+        result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        logger.debug(f'BWA mapping check_returncode() is: {result.check_returncode()}')
+        logger.debug(f'BWA mapping stdout is: {result.stdout}')
+        logger.debug(f'BWA mapping stderr is: {result.stderr}')
+
+    except subprocess.CalledProcessError as exc:
+        logger.error(f'BWA mapping check_returncode() is: {exc}')
+        return None
+
+    return f'{basename}.bam'
+
+
 def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None):
     """
     Creates a blast database from the complete protein target file, and performs BLASTx searches of sample
@@ -231,10 +310,22 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 shutil.copy(baitfile, '.')
             db_file = os.path.split(baitfile)[1]
             makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-            logger.info(makeblastdb_cmd)
-            exitcode = subprocess.call(makeblastdb_cmd, shell=True)
-            if exitcode:
+            logger.info(f'[CMD]: {makeblastdb_cmd}')
+
+            try:
+                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'makeblastdb stdout is: {result.stdout}')
+                logger.debug(f'makeblastdb stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'makeblastdb check_returncode() is: {exc}')
                 return None
+            #
+            # exitcode = subprocess.call(makeblastdb_cmd, shell=True)
+            # if exitcode:
+            #     return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
         return None
@@ -245,52 +336,73 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
     if unpaired:
         read_file = readfiles
-        pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(read_file)
-        blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file, evalue,
-                                                                                                  max_target_seqs)
+        # Piping commands for Fastq -> FASTA. Curly braces must be doubled within a formatted string.
+        pipe_cmd = f"cat {read_file} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
+        blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs {max_target_seqs}'
         if cpu:
-            full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> " \
-                           "{}_unpaired.blastx ".format(pipe_cmd, cpu, blastx_command, basename)
+            full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
+                           f"'{blastx_command}' >> {basename}_unpaired.blastx"
         else:
-            full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> " \
-                           "{}_unpaired.blastx ".format(pipe_cmd, blastx_command, basename)
-        logger.info(full_command)
-        exitcode = subprocess.call(full_command, shell=True)
-        if exitcode:
+            full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >> " \
+                           "{basename}_unpaired.blastx"
+        logger.info(f'[CMD]: {full_command}')
+
+        try:
+            result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    universal_newlines=True)
+            logger.debug(f'blastx unpaired check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'blastx unpaired stdout is: {result.stdout}')
+            logger.debug(f'blastx unpaired stderr is: {result.stderr}')
+
+        except subprocess.CalledProcessError as exc:
+            logger.error(f'blastx unpaired check_returncode() is: {exc}')
             return None
+        # exitcode = subprocess.call(full_command, shell=True)
+        # if exitcode:
+        #     return None
         return f'{basename}_unpaired.blastx'
 
     else:
         for read_file in readfiles:
-            # Piping commands for Fastq -> FASTA
-            # Curly braces must be doubled within a formatted string.
-            pipe_cmd = "cat {} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'".format(
-                read_file)
+            # Piping commands for Fastq -> FASTA. Curly braces must be doubled within a formatted string.
+            pipe_cmd = f"cat {read_file} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
 
-            blastx_command = "blastx -db {} -query - -evalue {} -outfmt 6 -max_target_seqs {}".format(db_file, evalue,
-                                                                                                      max_target_seqs)
+            blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs ' \
+                             f'{max_target_seqs}'
             if cpu:
-                full_command = "time {} | parallel -j {} -k --block 200K --recstart '>' --pipe '{}' >> " \
-                               "{}.blastx ".format(pipe_cmd, cpu, blastx_command, basename)
+                full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
+                               f"'{blastx_command}' >> {basename}.blastx"
             else:
-                full_command = "time {} | parallel -k --block 200K --recstart '>' --pipe '{}' >> " \
-                               "{}.blastx ".format(pipe_cmd, blastx_command, basename)
-            logger.info(full_command)
-            exitcode = subprocess.call(full_command, shell=True)
-            if exitcode:
+                full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
+                               f"'{blastx_command}' >> {basename}.blastx"
+
+            logger.info(f'[CMD]: {full_command}')
+
+            try:
+                result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'blastx paired check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'blastx paired stdout is: {result.stdout}')
+                logger.debug(f'blastx paired stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'blastx paired check_returncode() is: {exc}')
                 return None
+
+            # exitcode = subprocess.call(full_command, shell=True)
+            # if exitcode:
+            #     return None
     return f'{basename}.blastx'
 
 
-def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unpaired_readfile=None, exclude=None,
-               merged=False, logger=None):
+def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpaired_readfile=None, exclude=None,
+                      merged=False, logger=None):
     """
     When using blastx, distribute sample reads to their corresponding target file hits.
 
     :param blastx_outputfile:
     :param readfiles:
     :param baitfile:
-    :param run_dir:
     :param target:
     :param unpaired_readfile:
     :param exclude:
@@ -299,43 +411,37 @@ def distribute(blastx_outputfile, readfiles, baitfile, run_dir, target=None, unp
     :return:
     """
 
-    if merged:
-        read_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets.py")} {blastx_outputfile} ' \
-                   f'{" ".join(readfiles)} --merged'
-    else:
-        read_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets.py")} {blastx_outputfile} ' \
-                   f'{" ".join(readfiles)}'
-    logger.info(f'[CMD] {read_cmd}\n')
+    # Distribute reads to gene directories:
+    read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
+    logger.info(f'Unique reads with hits: {len(read_hit_dict_paired)}')
+    distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
-    exitcode = subprocess.call(read_cmd, shell=True)
-    if exitcode:
-        logger.info('ERROR: Something went wrong with distributing reads to gene directories.')
-        return exitcode
-    target_cmds = ['time python', os.path.join(run_dir, 'distribute_targets.py'), baitfile, '--blastx',
-                   blastx_outputfile]
-    if target:
-        target_cmds.append(f'--target {target}')
-    if exclude:
-        target_cmds.append(f'--exclude {exclude}')
     if unpaired_readfile:
         blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
-        unpaired_cmd = f'time python {os.path.join(run_dir, "distribute_reads_to_targets.py")} {blastx_outputfile}' \
-                       f' {unpaired_readfile}'
-        logger.info(f'[CMD] {unpaired_cmd}\n')
-        exitcode = subprocess.call(unpaired_cmd, shell=True)
-        if exitcode:
-            logger.error('ERROR: Something went wrong distributing targets to gene directories.')
-            return exitcode
-    target_cmd = ' '.join(target_cmds)
-    logger.info(f'[DISTRIBUTE]: {target_cmd}')
-    exitcode = subprocess.call(target_cmd, shell=True)
-    if exitcode:
-        logger.error('ERROR: Something went wrong distributing targets to gene directories.')
-        return exitcode
+        read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
+        distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
+
+    # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
+    if target:
+        target_string = f'--target {target}'
+    else:
+        target_string = None
+    # if unpaired:  # blastX doesn't use unpaired file to calculate best target seq?
+    #     unpaired_bool = True
+    # else:
+    #     unpaired_bool = False
+    if exclude:
+        exclude_string = f'--exclude {exclude}'
+    else:
+        exclude_string = None
+
+    besthits = distribute_targets.tailored_target_blast(blastx_outputfile, exclude_string)
+    distribute_targets.distribute_targets(baitfile, dirs=True, delim='-', besthits=besthits, translate=False,
+                                          target=target_string)
     return None
 
 
-def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired=None, exclude=None, merged=False,
+def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=None, exclude=None, merged=False,
                    logger=None):
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
@@ -346,7 +452,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired=None, exc
     :param readfiles:
     :param baitfile:
     :param target:
-    :param unpaired:
+    :param unpaired_readfile:
     :param exclude:
     :param merged:
     :param logger:
@@ -358,17 +464,17 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired=None, exc
     logger.info(f'Unique reads with hits: {len(read_hit_dict_paired)}')
     distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
-    if unpaired:
+    if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
         read_hit_dict_unpaired = distribute_reads_to_targets_bwa.read_sorting(up_bamfile)
-        distribute_reads_to_targets_bwa.distribute_reads([unpaired], read_hit_dict_unpaired)
+        distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
         target_string = f'--target {target}'
     else:
         target_string = None
-    if unpaired:
+    if unpaired_readfile:
         unpaired_bool = True
     else:
         unpaired_bool = False
@@ -564,89 +670,6 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
         logger.error('ERROR: Something went wrong with Exonerate!')
         return exitcode
     return
-
-
-def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
-    """
-    Conduct BWA search of reads against the baitfile. Returns an error if the second line of the baitfile contains
-    characters other than ACTGN.
-
-    :param readfiles:
-    :param baitfile:
-    :param basename:
-    :param cpu:
-    :param unpaired:
-    :param logger:
-    :return:
-    """
-
-    dna = set('ATCGN')
-    if os.path.isfile(baitfile):
-        # Quick detection of whether baitfile is DNA.
-        with open(baitfile) as bf:
-            header = bf.readline()
-            seqline = bf.readline().rstrip().upper()
-            if set(seqline) - dna:
-                logger.error('ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file '
-                             'for BWA!')
-                return None
-
-        if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
-            db_file = baitfile
-        else:
-            logger.info('Making nucleotide bwa index in current directory.')
-            baitfileDir = os.path.split(baitfile)[0]
-            if baitfileDir:
-                if os.path.realpath(baitfileDir) != os.path.realpath('.'):
-                    shutil.copy(baitfile, '.')
-            db_file = os.path.split(baitfile)[1]
-            make_bwa_index_cmd = f'bwa index {db_file}'
-            logger.info(f'[CMD]: {make_bwa_index_cmd}')
-
-            try:
-                result = subprocess.run(make_bwa_index_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
-                logger.debug(f'BWA index check_returncode() is: {result.check_returncode()}')
-                logger.debug(f'BWA index stdout is: {result.stdout}')
-                logger.debug(f'BWA index stderr is: {result.stderr}')
-
-            except subprocess.CalledProcessError as exc:
-                logger.error(f'BWA index check_returncode() is: {exc}')
-                return None
-
-    else:
-        logger.error(f'ERROR: Cannot find baitfile at: {baitfile}')
-        return None
-
-    if not cpu:
-        import multiprocessing
-        cpu = multiprocessing.cpu_count()
-
-    if len(readfiles) < 3:
-        bwa_fastq = ' '.join(readfiles)
-    else:
-        bwa_fastq = readfiles
-
-    bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
-    if unpaired:
-        bwa_commands.append(f'{basename}_unpaired.bam')
-    else:
-        bwa_commands.append(f'{basename}.bam')
-    full_command = ' '.join(bwa_commands)
-    logger.info(f'[CMD]: {full_command}')
-
-    try:
-        result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
-        logger.debug(f'BWA mapping check_returncode() is: {result.check_returncode()}')
-        logger.debug(f'BWA mapping stdout is: {result.stdout}')
-        logger.debug(f'BWA mapping stderr is: {result.stderr}')
-
-    except subprocess.CalledProcessError as exc:
-        logger.error(f'BWA mapping check_returncode() is: {exc}')
-        return None
-
-    return f'{basename}.bam'
 
 
 def main():
@@ -845,12 +868,14 @@ def main():
     if args.bwa:
         if args.blast:
             args.blast = False
-            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+            # bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
             # bamfile = f'{basename}.bam'
-            logger.debug(f'bamfile is: {bamfile}')
+            # logger.debug(f'bamfile is: {bamfile}')
             if args.unpaired:
                 bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
 
+            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+            logger.debug(f'bamfile is: {bamfile}')
             if not bamfile:
                 logger.error('ERROR: Something went wrong with the BWA step, exiting. Check the reads_first.log file!')
                 return
@@ -885,8 +910,8 @@ def main():
             distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
                            merged=args.merged, logger=logger)
         else:  # distribute BLASTx results
-            exitcode = distribute(blastx_outputfile, readfiles, baitfile, run_dir, args.target, unpaired_readfile,
-                                  args.exclude, merged=args.merged, logger=logger)
+            distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                              merged=args.merged, logger=logger)
         # if exitcode:
         #     sys.exit(1)
     if len(readfiles) == 2:

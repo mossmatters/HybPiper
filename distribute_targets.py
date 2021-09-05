@@ -26,6 +26,23 @@ import errno
 import argparse
 import subprocess
 from Bio import SeqIO
+from Bio.Seq import Seq
+import logging
+
+# Create logger:
+logger = logging.getLogger(f'__main__.{__name__}')
+
+
+def pad_seq(sequence):
+    """
+    Pads a sequence Seq object to a multiple of 3 with 'N'.
+
+    :param sequence:
+    :return:
+    """
+
+    remainder = len(sequence) % 3
+    return sequence if remainder == 0 else sequence + Seq('N' * (3 - remainder))
 
 
 def mkdir_p(path):
@@ -46,18 +63,22 @@ def mkdir_p(path):
 def tailored_target_blast(blastxfilename, exclude=None):
     """
     Determine, for each protein, the 'best' target protein, by tallying up the blastx hit scores.
+
+    :param blastxfilename:
+    :param exclude:
+    :return:
     """
     blastxfile = open(blastxfilename)
     
     hitcounts = {}
     for result in blastxfile:
         result = result.split()
-        hitname = result[1].split("-")
+        hitname = result[1].split('-')
         bitscore = float(result[-1])
         try: 
             protname = hitname[1]
         except IndexError:
-            raise IndexError("Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n")
+            raise IndexError('Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n')
         taxon = hitname[0]
         if exclude and exclude in taxon:
             continue
@@ -69,7 +90,7 @@ def tailored_target_blast(blastxfilename, exclude=None):
                     hitcounts[protname][taxon] = bitscore
             else:
                 hitcounts[protname] = {taxon: 1}
-    #For each protein, find the taxon with the highest total hit bitscore.
+    # For each protein, find the taxon with the highest total hit bitscore.
     besthits = {}
     besthit_counts = {}
     for prot in hitcounts:
@@ -79,9 +100,9 @@ def tailored_target_blast(blastxfilename, exclude=None):
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
-    tallyfile = open("bait_tallies.txt", 'w')
+    tallyfile = open('bait_tallies.txt', 'w')
     for x in besthit_counts:
-        tallyfile.write("{}\t{}\n".format(x, besthit_counts[x]))
+        tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
     return besthits        
 
@@ -89,13 +110,18 @@ def tailored_target_blast(blastxfilename, exclude=None):
 def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
     """
     Determine, for each protein, the 'best' target protein, by tallying up the BWA map scores.
+
+    :param bamfilename:
+    :param unpaired:
+    :param exclude:
+    :return:
     """
 
-    samtools_cmd = "samtools view -F 4 {}".format(bamfilename)
+    samtools_cmd = 'samtools view -F 4 {}'.format(bamfilename)
     child = subprocess.Popen(samtools_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
     bwa_results = child.stdout.readlines()
     if unpaired:
-        up_samtools_cmd = "samtools view -F 4 {}".format(bamfilename.replace('.bam', '_unpaired.bam'))
+        up_samtools_cmd = f'samtools view -F 4 {bamfilename.replace(".bam", "_unpaired.bam")}'
         up_child = subprocess.Popen(up_samtools_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
         bwa_results += up_child.stdout.readlines()    
     hitcounts = {}
@@ -118,7 +144,7 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
                     hitcounts[protname][taxon] = mapscore
             else:
                 hitcounts[protname] = {taxon: 1}
-    #For each protein, find the taxon with the highest total hit mapscore.
+    # For each protein, find the taxon with the highest total hit mapscore.
     besthits = {}
     besthit_counts = {}
     for prot in hitcounts:
@@ -130,15 +156,25 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
             besthit_counts[top_taxon] = 1
     tallyfile = open('bait_tallies.txt', 'w')
     for x in besthit_counts:
-        tallyfile.write('{}\t{}\n'.format(x, besthit_counts[x]))
+        tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
     return besthits    
 
      
 def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=None):
+    """
+
+    :param baitfile:
+    :param dirs:
+    :param delim:
+    :param besthits:
+    :param translate:
+    :param target:
+    :return:
+    """
     if target:
         if os.path.isfile(target):
-            print(("[DISTRIBUTE]: Reading preferred target names from {} \n".format(target)))
+            print(('[DISTRIBUTE]: Reading preferred target names from {} \n'.format(target)))
             genes_to_targets = {x.split()[0]: x.rstrip().split()[1] for x in open(target)}
             target_is_file = True
         else:
@@ -147,10 +183,10 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
     targets = SeqIO.parse(baitfile, 'fasta')
     no_matches = []
     for prot in targets:
-        #Get the 'basename' of the protein
+        # Get the 'basename' of the protein
         prot_cat = prot.id.split(delim)[-1]
         if translate:
-            prot.seq = prot.seq.translate()  # CJJ add seq padding here
+            prot.seq = pad_seq(prot.seq).translate()  # seq padded to avoid BioPython warning
         
         if dirs:
             mkdir_p(prot_cat)
@@ -164,13 +200,12 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
             else:       
                 besthit_taxon = besthits[prot_cat]
             if prot.id.split("-")[0] == besthit_taxon:
-                #print "Protein {} is a best match to {}".format(prot_cat,besthit_taxon)
-                outfile = open(os.path.join(prot_cat, "{}_baits.fasta".format(prot_cat)), 'w')
+                outfile = open(os.path.join(prot_cat, '{prot_cat}_baits.fasta'), 'w')
                 SeqIO.write(prot, outfile, 'fasta')
                 outfile.close()
         else:
             no_matches.append(prot_cat)
-    print("[DISTRIBUTE]: {} proteins had no good matches.".format(len(set(no_matches))))
+    logger.info(f'[DISTRIBUTE]: {len(set(no_matches))} proteins had no good matches.')
 
 
 def help():
@@ -180,16 +215,16 @@ def help():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-d", "--delimiter", help="Field separating FASTA ids for multiple sequences per target. "
-                                                  "Default is '-' . For no delimeter, write None", default="-")
-    parser.add_argument("baitfile", help="FASTA file containing bait sequences")
-    parser.add_argument("--blastx", help="tabular blastx results file, used to select the best target for each gene",
+    parser.add_argument('-d', '--delimiter', help='Field separating FASTA ids for multiple sequences per target. '
+                                                  'Default is '-' . For no delimeter, write None', default='-')
+    parser.add_argument('baitfile', help='FASTA file containing bait sequences')
+    parser.add_argument('--blastx', help='tabular blastx results file, used to select the best target for each gene',
                         default=None)
-    parser.add_argument("--bam", help="BAM file from BWA search, alternative to the BLASTx method", default=None)
-    parser.add_argument("--target", help="Choose this version of the target always", default=None)
-    parser.add_argument("--unpaired", help="Indicate whether to expect a file containing results from unpaired "
-                                           "reads.", action="store_true", default=False)
-    parser.add_argument("--exclude", help="Do not use any sequence with the specified string as the chosen target.",
+    parser.add_argument('--bam', help='BAM file from BWA search, alternative to the BLASTx method', default=None)
+    parser.add_argument('--target', help='Choose this version of the target always', default=None)
+    parser.add_argument('--unpaired', help='Indicate whether to expect a file containing results from unpaired '
+                                           'reads.', action='store_true', default=False)
+    parser.add_argument('--exclude', help='Do not use any sequence with the specified string as the chosen target.',
                         default=None)
     args = parser.parse_args()
 
@@ -208,5 +243,5 @@ def main():
                        target=args.target)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

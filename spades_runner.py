@@ -1,49 +1,76 @@
 #!/usr/bin/env python
 
-import argparse, os, sys, shutil, subprocess, re
-
-helptext = '''Run the assembler SPAdes with re-dos if any of the k-mers are unsuccessful.
+"""
+Run the assembler SPAdes with re-dos if any of the k-mers are unsuccessful.
 The re-runs are attempted by removing the largest k-mer and re-running spades. If a final
-contigs.fasta file is generated, a 'spades.ok' file is saved.'''
+contigs.fasta file is generated, a 'spades.ok' file is saved.
+"""
+
+import argparse
+import os
+import sys
+import shutil
+import subprocess
+import re
+import logging
 
 
-def file_exists_and_not_empty(file_name):  # CJJ
+# Create logger:
+logger = logging.getLogger(f'__main__.{__name__}')
+
+
+def file_exists_and_not_empty(file_name):
     """
     Check if file exists and is not empty by confirming that its size is not 0 bytes
+
+    :param file_name:
+    :return:
     """
-    # Check if file exist and is not empty
+
     return os.path.isfile(file_name) and not os.path.getsize(file_name) == 0
 
 
 def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, redo=False, timeout=None,
                     unpaired=False, merged=False):
+    """
+
+    :param genelist:
+    :param cov_cutoff:
+    :param cpu:
+    :param paired:
+    :param kvals:
+    :param redo:
+    :param timeout:
+    :param unpaired:
+    :param merged:
+    :return:
+    """
+
     if kvals:
-        kvals = ",".join(kvals)
+        kvals = ','.join(kvals)
 
-    parallel_cmd_list = ["time", "parallel", "--eta"]
+    parallel_cmd_list = ['time', 'parallel', '--eta']
     if cpu:
-        parallel_cmd_list.append("-j {}".format(cpu))
+        parallel_cmd_list.append(f'-j {cpu}')
     if timeout:
-        parallel_cmd_list.append("--timeout {}%".format(timeout))
+        parallel_cmd_list.append(f'--timeout {timeout}%')
 
-    spades_cmd_list = ["spades.py --only-assembler --threads 1 --cov-cutoff", str(cov_cutoff)]
+    spades_cmd_list = ['spades.py --only-assembler --threads 1 --cov-cutoff', str(cov_cutoff)]
     # spades_cmd_list = ["spades.py --only-assembler --sc --threads 1 --cov-cutoff", str(cov_cutoff)]  # CJJ added --sc
     if kvals:
-        spades_cmd_list.append("-k {}".format(kvals))
+        spades_cmd_list.append(f'-k {kvals}')
     if unpaired:
-        spades_cmd_list.append("-s {}/{}_unpaired.fasta")
+        spades_cmd_list.append('-s {}/{}_unpaired.fasta')
     if paired and not merged:
-        spades_cmd_list.append("--12 {}/{}_interleaved.fasta")
+        spades_cmd_list.append('--12 {}/{}_interleaved.fasta')
     elif not merged:  # i.e. a single file of single-end reads was provided
-        spades_cmd_list.append("-s {}/{}_unpaired.fasta")
+        spades_cmd_list.append('-s {}/{}_unpaired.fasta')
     if merged:
-        spades_cmd_list.append("--merged {}/{}_merged.fastq")
-        spades_cmd_list.append("--12 {}/{}_unmerged.fastq")
+        spades_cmd_list.append('--merged {}/{}_merged.fastq')
+        spades_cmd_list.append('--12 {}/{}_unmerged.fastq')
 
-    # spades_cmd_list.append("-o {{}}/{{}}_spades :::: {} > spades.log".format(genelist))
-
-    # CJJ Write separate gene name files for those that have merged reads and those that don't. Format the SPAdes
-    #  command accordingly and run as two separate subprocess commands in spades_initial().
+    # Write separate gene name files for those that have merged reads and those that don't. Format the SPAdes
+    # command accordingly and run as two separate subprocess commands in spades_initial():
     if merged:
         with open(genelist, 'r') as gene_file:
             contents = gene_file.readlines()
@@ -61,39 +88,44 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, r
             for gene in genes_without_merged_reads:
                 without_merged.write(f'{gene}\n')
 
-        sys.stderr.write(f'With merged: {len(genes_with_merged_reads)}\n')
-        sys.stderr.flush()
-
-        sys.stderr.write(f'Without merged: {len(genes_without_merged_reads)}\n')
-        sys.stderr.flush()
+        logger.info(f'Genes with merged reads: {len(genes_with_merged_reads)}\n')
+        logger.info(f'Genes without merged reads: {len(genes_without_merged_reads)}\n')
 
     if merged:
         spades_cmd_list_with_merged = spades_cmd_list.copy()
-        spades_cmd_list_with_merged.append("-o {{}}/{{}}_spades :::: {} >> spades.log".format(
+        spades_cmd_list_with_merged.append('-o {{}}/{{}}_spades :::: {} >> spades.log'.format(
             'spades_genelist_with_merged.txt'))
-        # print(spades_cmd_list_with_merged)
         spades_cmd_list_without_merged = spades_cmd_list.copy()
         spades_cmd_list_without_merged = [re.sub('--merged {}/{}_merged.fastq', '', item) for item in
-                                          spades_cmd_list_without_merged]
+                                          spades_cmd_list_without_merged]  # Hacky - refactor
         spades_cmd_list_without_merged.append(
             "-o {{}}/{{}}_spades :::: {} >> spades.log".format('spades_genelist_without_merged.txt'))
-        # print(spades_cmd_list_without_merged)
 
         spades_cmd_with_merged = " ".join(parallel_cmd_list) + " " + " ".join(spades_cmd_list_with_merged)
         spades_cmd_without_merged = " ".join(parallel_cmd_list) + " " + " ".join(spades_cmd_list_without_merged)
-        # print(spades_cmd_with_merged)
-        # print(spades_cmd_without_merged)
         return spades_cmd_with_merged, spades_cmd_without_merged
     else:
         spades_cmd_list.append("-o {{}}/{{}}_spades :::: {} > spades.log".format(genelist))
-        spades_cmd = " ".join(parallel_cmd_list) + " " + " ".join(spades_cmd_list)
+        spades_cmd = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list)}'
         return spades_cmd
-    # return spades_cmd
 
 
 def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
                    merged=False):
-    "Run SPAdes on each gene separately using GNU paralell."""
+    """
+    Run SPAdes on each gene separately using GNU paralell.
+
+    :param genelist:
+    :param cov_cutoff:
+    :param cpu:
+    :param paired:
+    :param kvals:
+    :param timeout:
+    :param unpaired:
+    :param merged:
+    :return:
+    """
+
     if os.path.isfile("spades.log"):
         os.remove("spades.log")
 
@@ -215,7 +247,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None, paired=True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=helptext, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('genelist',
                         help="Text file containing the name of each gene to conduct SPAdes assembly. One gene per line, should correspond to directories within the current directory.")
     parser.add_argument('--cpu', type=int, default=0,

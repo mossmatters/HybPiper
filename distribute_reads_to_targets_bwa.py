@@ -82,7 +82,7 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
     """
 
     mkdir_p(target)
-    if single: # If True, write paired reads in interleaved format
+    if single:  # If True, write paired reads in interleaved format
         if merged:
             outfile = open(os.path.join(target, f'{target}_interleaved.fastq'), 'a')
             outfile.write(f'@{ID1}\n{Seq1}\n+\n{Qual1}\n')
@@ -191,15 +191,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('bam_filename', help='Name of bam file from BWA mapping of reads')
     parser.add_argument('readfiles', nargs='+', help='List of readfiles')
-    parser.add_argument("--merged", help="If provided, write fastq files for bbmerge",
-                        action="store_true", default=False)
+    parser.add_argument("--merged", help="If provided, write fastq files for bbmerge", action="store_true",
+                        default=False)
     args = parser.parse_args()
 
     logging.info(f'Running script distribute_reads_to_targets_bwa.py with {args}')
     readfiles = args.readfiles
     logging.info(f'readsfiles are {readfiles}')
     read_hit_dict = read_sorting(args.bam_filename)
-    logging.info('Unique reads with hits: {}'.format(len(read_hit_dict)))
+    logging.info(f'Unique reads with hits: {len(read_hit_dict)}')
     distribute_reads(readfiles, read_hit_dict, merged=args.merged)
 
 
