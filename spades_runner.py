@@ -34,7 +34,7 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, r
         spades_cmd_list.append("-s {}/{}_unpaired.fasta")
     if paired and not merged:
         spades_cmd_list.append("--12 {}/{}_interleaved.fasta")
-    elif not merged:
+    elif not merged:  # i.e. a single file of single-end reads was provided
         spades_cmd_list.append("-s {}/{}_unpaired.fasta")
     if merged:
         spades_cmd_list.append("--merged {}/{}_merged.fastq")
@@ -42,8 +42,8 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, r
 
     # spades_cmd_list.append("-o {{}}/{{}}_spades :::: {} > spades.log".format(genelist))
 
-    # CJJ WRite separate gene name files for those that have merged reads and those that don't. Format the SPAdes
-    # command accordingly and run as two separate subprocess commands in spades_initial().
+    # CJJ Write separate gene name files for those that have merged reads and those that don't. Format the SPAdes
+    #  command accordingly and run as two separate subprocess commands in spades_initial().
     if merged:
         with open(genelist, 'r') as gene_file:
             contents = gene_file.readlines()

@@ -66,7 +66,10 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
 
 
 def write_single_seqs(target, ID1, Seq1):
-    """Distributing targets from single-end sequencing"""
+    """
+    Distributing targets from single-end sequencing
+    """
+
     mkdir_p(target)
     outfile = open(os.path.join(target, "{}_unpaired.fasta".format(target)), 'a')
     outfile.write(">{}\n{}\n".format(ID1, Seq1))
