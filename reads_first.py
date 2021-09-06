@@ -279,6 +279,8 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
     else:
         bwa_fastq = readfiles
 
+    print(f'bwa_fastq is: {bwa_fastq}')
+
     bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
     if unpaired:
         bwa_commands.append(f'{basename}_unpaired.bam')
@@ -362,15 +364,22 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
     if unpaired:
         read_file = readfiles
-        # Piping commands for Fastq -> FASTA. Curly braces must be doubled within a formatted string.
-        pipe_cmd = f"cat {read_file} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
+        # Check if read file is gzipped:
+        filename, file_extension = os.path.splitext(read_file)
+        if file_extension == '.gz':
+            logger.debug(f'Processing gzipped file {os.path.basename(read_file)}')
+            pipe_cmd = f"gunzip -c {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} " \
+                       f"}}'"
+        else:
+            pipe_cmd = f"cat {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
+
         blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs {max_target_seqs}'
         if cpu:
             full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
                            f"'{blastx_command}' >> {basename}_unpaired.blastx"
         else:
-            full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >> " \
-                           "{basename}_unpaired.blastx"
+            full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
+                           f" {basename}_unpaired.blastx"
         logger.info(f'[CMD]: {full_command}')
 
         try:
@@ -390,8 +399,15 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
     else:
         for read_file in readfiles:
-            # Piping commands for Fastq -> FASTA. Curly braces must be doubled within a formatted string.
-            pipe_cmd = f"cat {read_file} |  awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
+            # Check if read file is gzipped:
+            filename, file_extension = os.path.splitext(read_file)
+            if file_extension == '.gz':
+                logger.debug(f'Processing gzipped file {os.path.basename(read_file)}')
+                pipe_cmd = f"gunzip -c {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; " \
+                           f"}} }}'"
+            else:
+                pipe_cmd = f"cat {read_file} | \
+                awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
 
             blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs ' \
                              f'{max_target_seqs}'
@@ -435,6 +451,8 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     :param logger:
     :return:
     """
+
+    logger.info(f'READFILES are: {readfiles}')
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
@@ -818,51 +836,51 @@ def main():
     ####################################################################################################################
     # Unzip read files if they're provided as .gz
     ####################################################################################################################
-    if unpaired_readfile:
-        filename, file_extension = os.path.splitext(unpaired_readfile)
-        if file_extension == '.gz':
-            logger.info(f'Unzipping read file {unpaired_readfile}...')
-            with open(filename, 'w') as outfile:
-                with gzip.open(unpaired_readfile, 'rt') as infile:
-                    outfile.write(infile.read())
-            unpaired_readfile = filename
-    logger.debug(f'unpaired_readfile is: {unpaired_readfile}')
-
-    if len(readfiles) == 2:
-        filename, file_extension = os.path.splitext(readfiles[0])
-        if file_extension == '.gz':
-            logger.info(f'Unzipping read file  {readfiles[0]}...')
-            with open(filename, 'w') as outfile:
-                with gzip.open(readfiles[0], 'rt') as infile:
-                    outfile.write(infile.read())
-            reads_r1 = filename
-        else:
-            reads_r1 = readfiles[0]
-
-        filename, file_extension = os.path.splitext(readfiles[1])
-        if file_extension == '.gz':
-            logger.info(f'Unzipping read file  {readfiles[1]}...')
-            with open(filename, 'w') as outfile:
-                with gzip.open(readfiles[1], 'rt') as infile:
-                    outfile.write(infile.read())
-            reads_r2 = filename
-        else:
-            reads_r2 = readfiles[1]
-
-        readfiles = [reads_r1, reads_r2]
-
-    elif len(readfiles) == 1:
-        filename, file_extension = os.path.splitext(readfiles[0])
-        if file_extension == '.gz':
-            logger.info(f'Unzipping read file  {readfiles[0]}...')
-            with open(filename, 'w') as outfile:
-                with gzip.open(readfiles[0], 'rt') as infile:
-                    outfile.write(infile.read())
-            reads_single = filename
-        else:
-            reads_single = readfiles[0]
-        readfiles = [reads_single]
-    logger.debug(f'readfiles are: {readfiles}')
+    # if unpaired_readfile:
+    #     filename, file_extension = os.path.splitext(unpaired_readfile)
+    #     if file_extension == '.gz':
+    #         logger.info(f'Unzipping read file {unpaired_readfile}...')
+    #         with open(filename, 'w') as outfile:
+    #             with gzip.open(unpaired_readfile, 'rt') as infile:
+    #                 outfile.write(infile.read())
+    #         unpaired_readfile = filename
+    # logger.debug(f'unpaired_readfile is: {unpaired_readfile}')
+    #
+    # if len(readfiles) == 2:
+    #     filename, file_extension = os.path.splitext(readfiles[0])
+    #     if file_extension == '.gz':
+    #         logger.info(f'Unzipping read file  {readfiles[0]}...')
+    #         with open(filename, 'w') as outfile:
+    #             with gzip.open(readfiles[0], 'rt') as infile:
+    #                 outfile.write(infile.read())
+    #         reads_r1 = filename
+    #     else:
+    #         reads_r1 = readfiles[0]
+    #
+    #     filename, file_extension = os.path.splitext(readfiles[1])
+    #     if file_extension == '.gz':
+    #         logger.info(f'Unzipping read file  {readfiles[1]}...')
+    #         with open(filename, 'w') as outfile:
+    #             with gzip.open(readfiles[1], 'rt') as infile:
+    #                 outfile.write(infile.read())
+    #         reads_r2 = filename
+    #     else:
+    #         reads_r2 = readfiles[1]
+    #
+    #     readfiles = [reads_r1, reads_r2]
+    #
+    # elif len(readfiles) == 1:
+    #     filename, file_extension = os.path.splitext(readfiles[0])
+    #     if file_extension == '.gz':
+    #         logger.info(f'Unzipping read file  {readfiles[0]}...')
+    #         with open(filename, 'w') as outfile:
+    #             with gzip.open(readfiles[0], 'rt') as infile:
+    #                 outfile.write(infile.read())
+    #         reads_single = filename
+    #     else:
+    #         reads_single = readfiles[0]
+    #     readfiles = [reads_single]
+    # logger.debug(f'readfiles are: {readfiles}')
 
     ####################################################################################################################
     # Map reads to nucleotide targets with BWA

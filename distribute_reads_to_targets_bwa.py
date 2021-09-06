@@ -19,6 +19,7 @@ import subprocess
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 import argparse
 import logging
+import gzip
 
 
 # Create logger:
@@ -131,7 +132,17 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         logger.info('Writing fastq files for merging with BBmerge.sh')
 
     num_reads_to_write = len(read_hit_dict)
-    iterator1 = FastqGeneralIterator(open(readfiles[0]))
+
+    # Check if read file is gzipped:
+    filename, file_extension = os.path.splitext(readfiles[0])
+    if file_extension == '.gz':
+        logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[0])}')
+        iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
+    else:
+        iterator1 = FastqGeneralIterator(open(readfiles[0]))
+
+    # iterator1 = FastqGeneralIterator(open(readfiles[0]))
+
     reads_written = 0
     sys.stderr.write('Read distributing progress:\n')
 
@@ -156,34 +167,43 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
 
     elif len(readfiles) == 2:
         logger.info('Distributing paired reads to gene directories')
-        iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
-    for ID1_long, Seq1, Qual1 in iterator1:
-        ID2_long, Seq2, Qual2 = next(iterator2)
+        # Check if read file is gzipped:
+        filename, file_extension = os.path.splitext(readfiles[1])
+        if file_extension == '.gz':
+            logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[1])}')
+            iterator2 = FastqGeneralIterator(gzip.open(readfiles[1], 'rt'))
+        else:
+            iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
-        ID1 = ID1_long.split()[0]
-        if ID1.endswith('/1') or ID1.endswith('/2'):
-            ID1 = ID1[:-2]
+        # iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
-        ID2 = ID2_long.split()[0]
-        if ID2.endswith('/1') or ID2.endswith('/2'):
-            ID2 = ID2[:-2]
+        for ID1_long, Seq1, Qual1 in iterator1:
+            ID2_long, Seq2, Qual2 = next(iterator2)
 
-        if ID1 in read_hit_dict:
-            for target in read_hit_dict[ID1]:
-                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                # Note that read pairs can get written to multiple targets
-                reads_written += 1
+            ID1 = ID1_long.split()[0]
+            if ID1.endswith('/1') or ID1.endswith('/2'):
+                ID1 = ID1[:-2]
 
-        elif ID2 in read_hit_dict:
-            for target in read_hit_dict[ID2]:
-                write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                reads_written += 1
-        j = (reads_written + 1) / num_reads_to_write
-        if int(100*j) % 5 == 0:
-            sys.stderr.write('\r')
-            sys.stderr.write('[%-20s] %d%%' % ('='*int(20*j), 100*j))
-            sys.stderr.flush()
+            ID2 = ID2_long.split()[0]
+            if ID2.endswith('/1') or ID2.endswith('/2'):
+                ID2 = ID2[:-2]
+
+            if ID1 in read_hit_dict:
+                for target in read_hit_dict[ID1]:
+                    write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                    # Note that read pairs can get written to multiple targets
+                    reads_written += 1
+
+            elif ID2 in read_hit_dict:
+                for target in read_hit_dict[ID2]:
+                    write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                    reads_written += 1
+            j = (reads_written + 1) / num_reads_to_write
+            if int(100*j) % 5 == 0:
+                sys.stderr.write('\r')
+                sys.stderr.write('[%-20s] %d%%' % ('='*int(20*j), 100*j))
+                sys.stderr.flush()
     sys.stderr.write('\n')
 
 
