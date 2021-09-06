@@ -20,7 +20,6 @@ Output directories can also be created, one for each target category (the defaul
 The field delimiter may also be changed.
 """
 
-import sys
 import os
 import errno
 import argparse
@@ -78,7 +77,8 @@ def tailored_target_blast(blastxfilename, exclude=None):
         try: 
             protname = hitname[1]
         except IndexError:
-            raise IndexError('Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n')
+            raise IndexError('Gene name not found! FASTA headers should be formatted like this:\n '
+                             '>SpeciesName-GeneName\n')
         taxon = hitname[0]
         if exclude and exclude in taxon:
             continue
@@ -132,7 +132,8 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
         try: 
             protname = hitname[1]
         except IndexError:
-            raise IndexError('Gene name not found! FASTA headers should be formatted like this:\n >SpeciesName-GeneName\n')
+            raise IndexError('Gene name not found! FASTA headers should be formatted like this:\n '
+                             '>SpeciesName-GeneName\n')
         taxon = hitname[0]
         if exclude and exclude in taxon:
             continue
@@ -216,7 +217,7 @@ def help():
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-d', '--delimiter', help='Field separating FASTA ids for multiple sequences per target. '
-                                                  'Default is '-' . For no delimeter, write None', default='-')
+                                                  'Default is "-" . For no delimeter, write None', default='-')
     parser.add_argument('baitfile', help='FASTA file containing bait sequences')
     parser.add_argument('--blastx', help='tabular blastx results file, used to select the best target for each gene',
                         default=None)

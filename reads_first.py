@@ -3,7 +3,7 @@
 """
 HybPiper Version 1.4 release candidate (September 2021)
 
-This script is a wrapper around several scripts in the HybPiper pipline.
+This script is a wrapper around several scripts in the HybPiper pipeline.
 It can check whether you have the appropriate dependencies available (see --check-depend).
 It makes sure that the other scripts needed are in the same directory as this one.
 Command line options are passed to the other executables.
@@ -21,13 +21,13 @@ import importlib
 import shutil
 import subprocess
 import glob
-import gzip
 import logging
 import fnmatch
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
 import spades_runner
+import datetime
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -44,26 +44,28 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     Function to create a logger instance.
 
     By default, logs level DEBUG and above to file.
-    By default, Logs level INFO and above to stderr.
+    By default, logs level INFO and above to stderr and file.
 
     :param string name: name for the logger instance
     :param string log_file: filename for log file
-    :param string console_level: level for logging to console
-    :param string file_level: level for logging to file
-    :param string logger_object_level: level for logger object
+    :param string console_level: logger level for logging to console
+    :param string file_level: logger level for logging to file
+    :param string logger_object_level: logger level for logger object
     :return: a logger object
     """
 
     # Check for existing log files and increment filename integer as necessary:
     existing_log_file_numbers = [int(file.split('_')[-1]) for file in os.listdir('.') if
-                                 fnmatch.fnmatch(file, '*.log_[0-9]')]
+                                 fnmatch.fnmatch(file, '*.log_*')]
     if not existing_log_file_numbers:
         new_log_number = 1
     else:
         new_log_number = sorted(existing_log_file_numbers)[-1] + 1
 
+    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+
     # Log to file:
-    file_handler = logging.FileHandler(f'{log_file}.log_{new_log_number}', mode='w')
+    file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log_{new_log_number}', mode='w')
     file_handler.setLevel(file_level)
     file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
                                     'message)s')
@@ -88,18 +90,14 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
 
 def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     """
-    Given a command, mode, and a PATH string, return the path which
-    conforms to the given mode on the PATH, or None if there is no such
-    file.
+    Given a command, mode, and a PATH string, return the path which conforms to the given mode on the PATH,
+    or None if there is no such file. `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
+    of os.environ.get("PATH"), or can be overridden with a custom search path.
 
-    `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
-    of os.environ.get("PATH"), or can be overridden with a custom search
-    path.
-
-    :param string cmd:
-    :param string mode:
-    :param string path:
-    :return None
+    :param str cmd: executable name to search for
+    :param int mode: bitwise OR of integers from os.F_OK (existence of path) and os.X_OK (executable) access checks
+    :param str path: None, or contents of $PATH variable (as recovered in function body)
+    :return None or path of executable
     """
 
     # Check that a given file can be accessed with the correct mode. Additionally check that `file` is not a
@@ -153,10 +151,10 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
 
 def check_dependencies(logger=None):
     """
-    Checks for the presence of executables and Python packages.
+    Checks for the presence of executables and Python packages. Returns a boolean.
 
-    :param logger:
-    return: boolean: everything_is_awesome
+    :param logging.Logger logger: a logger object
+    return: bool everything_is_awesome
     """
     executables = ['blastx',
                    'exonerate',
@@ -174,7 +172,7 @@ def check_dependencies(logger=None):
     for e in executables:
         e_loc = py_which(e)
         if e_loc:
-            logger.info(f'{e} found at {e_loc}"')
+            logger.info(f'{e} found at {e_loc}')
         else:
             logger.info(f'{e} not found in your $PATH!')
             everything_is_awesome = False
@@ -194,9 +192,9 @@ def make_basename(readfiles, prefix=None):
     Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore.
     If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
 
-    :param readfiles:
-    :param prefix:
-    :return:
+    :param list readfiles: one or more read files to start the pipeline
+    :param str prefix: directory name for pipeline output
+    :return: parent directory, directory name
     """
 
     if prefix:
@@ -216,19 +214,21 @@ def make_basename(readfiles, prefix=None):
     return '.', basename
 
 
-def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
+def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     """
     Conduct BWA search of reads against the baitfile. Returns an error if the second line of the baitfile contains
     characters other than ACTGN.
 
-    :param readfiles:
-    :param baitfile:
-    :param basename:
-    :param cpu:
-    :param unpaired:
-    :param logger:
-    :return:
+    :param list readfiles: one or more read files to start the pipeline
+    :param str baitfile: path to baitfile (target file)
+    :param str basename: directory name for sample
+    :param int cpu: number of threads/cpus to use
+    :param bool unpaired: True is an unpaired file has been provided, False if not
+    :param logging.Logger logger: a logger object
+    :return: None, or the *.bam output file from BWA alignment of sample reads to the bait file
     """
+
+    print(type(unpaired))
 
     dna = set('ATCGN')
     if os.path.isfile(baitfile):
@@ -310,14 +310,14 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     Creates a blast database from the complete protein target file, and performs BLASTx searches of sample
     nucleotide read files against the protein database.
 
-    :param readfiles:
-    :param baitfile:
-    :param evalue:
-    :param basename:
-    :param cpu:
-    :param max_target_seqs:
-    :param unpaired:
-    :param logger:
+    :param list readfiles: one or more read files to start the pipeline
+    :param str baitfile: path to baitfile (target file)
+    :param float evalue:
+    :param str basename:
+    :param int cpu:
+    :param int max_target_seqs:
+    :param bool unpaired:
+    :param logging.Logger logger: a logger object
     :return:
     """
 
@@ -441,14 +441,14 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     """
     When using blastx, distribute sample reads to their corresponding target file hits.
 
-    :param blastx_outputfile:
-    :param readfiles:
-    :param baitfile:
+    :param str blastx_outputfile:
+    :param list readfiles: one or more read files to start the pipeline
+    :param str baitfile: path to baitfile (target file)
     :param target:
     :param unpaired_readfile:
     :param exclude:
     :param merged:
-    :param logger:
+    :param logger: a logger object
     :return:
     """
 
@@ -492,13 +492,13 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     Distribute the 'best' target file sequence (translated if necessary) to each gene directory
 
     :param bamfile:
-    :param readfiles:
-    :param baitfile:
+    :param list readfiles: one or more read files to start the pipeline
+    :param str baitfile: path to baitfile (target file)
     :param target:
     :param unpaired_readfile:
     :param exclude:
     :param merged:
-    :param logger:
+    :param logger: a logger object
     :return:
     """
 
@@ -545,7 +545,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     :param timeout:
     :param unpaired:
     :param merged:
-    :param logger:
+    :param logger: a logger object
     :return: spades_genelist
     """
 
@@ -620,7 +620,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
     :param discordant_reads_cutoff:
     :param paralog_warning_min_cutoff:
     :param bbmap_subfilter:
-    :param logger:
+    :param logger: a logger object
     :return:
     """
 
@@ -789,13 +789,14 @@ def main():
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
     logger.info(f'HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
+
     ####################################################################################################################
     # Check dependencies
     ####################################################################################################################
     if args.check_depend:
         if check_dependencies(logger=logger):
             other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
-                             'distribute_targets.py', 'exonerate_hits.py']
+                             'distribute_targets.py', 'exonerate_hits.py', 'spades_runner.py']
             for script in other_scripts:
                 if os.path.isfile(os.path.join(run_dir, script)):
                     logger.debug(f'Found script {script}, continuing...')
@@ -832,7 +833,6 @@ def main():
     # Generate directory
     basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
     os.chdir(os.path.join(basedir, basename))
-
 
     ####################################################################################################################
     # Map reads to nucleotide targets with BWA
