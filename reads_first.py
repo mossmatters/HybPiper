@@ -833,54 +833,6 @@ def main():
     basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
     os.chdir(os.path.join(basedir, basename))
 
-    ####################################################################################################################
-    # Unzip read files if they're provided as .gz
-    ####################################################################################################################
-    # if unpaired_readfile:
-    #     filename, file_extension = os.path.splitext(unpaired_readfile)
-    #     if file_extension == '.gz':
-    #         logger.info(f'Unzipping read file {unpaired_readfile}...')
-    #         with open(filename, 'w') as outfile:
-    #             with gzip.open(unpaired_readfile, 'rt') as infile:
-    #                 outfile.write(infile.read())
-    #         unpaired_readfile = filename
-    # logger.debug(f'unpaired_readfile is: {unpaired_readfile}')
-    #
-    # if len(readfiles) == 2:
-    #     filename, file_extension = os.path.splitext(readfiles[0])
-    #     if file_extension == '.gz':
-    #         logger.info(f'Unzipping read file  {readfiles[0]}...')
-    #         with open(filename, 'w') as outfile:
-    #             with gzip.open(readfiles[0], 'rt') as infile:
-    #                 outfile.write(infile.read())
-    #         reads_r1 = filename
-    #     else:
-    #         reads_r1 = readfiles[0]
-    #
-    #     filename, file_extension = os.path.splitext(readfiles[1])
-    #     if file_extension == '.gz':
-    #         logger.info(f'Unzipping read file  {readfiles[1]}...')
-    #         with open(filename, 'w') as outfile:
-    #             with gzip.open(readfiles[1], 'rt') as infile:
-    #                 outfile.write(infile.read())
-    #         reads_r2 = filename
-    #     else:
-    #         reads_r2 = readfiles[1]
-    #
-    #     readfiles = [reads_r1, reads_r2]
-    #
-    # elif len(readfiles) == 1:
-    #     filename, file_extension = os.path.splitext(readfiles[0])
-    #     if file_extension == '.gz':
-    #         logger.info(f'Unzipping read file  {readfiles[0]}...')
-    #         with open(filename, 'w') as outfile:
-    #             with gzip.open(readfiles[0], 'rt') as infile:
-    #                 outfile.write(infile.read())
-    #         reads_single = filename
-    #     else:
-    #         reads_single = readfiles[0]
-    #     readfiles = [reads_single]
-    # logger.debug(f'readfiles are: {readfiles}')
 
     ####################################################################################################################
     # Map reads to nucleotide targets with BWA

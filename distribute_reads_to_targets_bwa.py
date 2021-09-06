@@ -141,8 +141,6 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
     else:
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
-    # iterator1 = FastqGeneralIterator(open(readfiles[0]))
-
     reads_written = 0
     sys.stderr.write('Read distributing progress:\n')
 
@@ -175,8 +173,6 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
             iterator2 = FastqGeneralIterator(gzip.open(readfiles[1], 'rt'))
         else:
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
-
-        # iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
         for ID1_long, Seq1, Qual1 in iterator1:
             ID2_long, Seq2, Qual2 = next(iterator2)
