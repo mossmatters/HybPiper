@@ -93,14 +93,10 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, r
 
     if merged:
         spades_cmd_list_with_merged = spades_cmd_list.copy()
-        # spades_cmd_list_with_merged.append('-o {{}}/{{}}_spades :::: {} >> spades.log'.format(
-        #     'spades_genelist_with_merged.txt'))
         spades_cmd_list_with_merged.append('-o {{}}/{{}}_spades :::: spades_genelist_with_merged.txt >> spades.log')
         spades_cmd_list_without_merged = spades_cmd_list.copy()
         spades_cmd_list_without_merged = [re.sub('--merged {}/{}_merged.fastq', '', item) for item in
                                           spades_cmd_list_without_merged]  # Hacky - refactor
-        # spades_cmd_list_without_merged.append(
-        #     "-o {{}}/{{}}_spades :::: {} >> spades.log".format('spades_genelist_without_merged.txt'))
         spades_cmd_list_without_merged.append(
             '-o {{}}/{{}}_spades :::: spades_genelist_without_merged.txt >> spades.log')
 
@@ -108,7 +104,6 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, r
         spades_cmd_without_merged = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list_without_merged)}'
         return spades_cmd_with_merged, spades_cmd_without_merged
     else:
-        # spades_cmd_list.append("-o {{}}/{{}}_spades :::: {} > spades.log".format(genelist))
         spades_cmd_list.append(f'-o {{}}/{{}}_spades :::: {genelist} > spades.log')
         spades_cmd = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list)}'
         return spades_cmd
@@ -148,15 +143,11 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd with merged stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
-            logger.error(f'spades_cmd with merged check_returncode() is: {exc}')
+            logger.error(f'spades_cmd with merged FAILED. Output is: {exc}')
+            logger.debug(f'spades_cmd with merged stdout is: {exc.stdout}')
+            logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
             logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
-
-        # exitcode = subprocess.call(spades_cmd_with_merged, shell=True)
-        # if exitcode:
-        #     sys.stderr.write(
-        #         "ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No "
-        #         "contigs found for the following genes:\n")
 
         logger.info(f'[CMD]: {spades_cmd_without_merged}\n')
         try:
@@ -167,15 +158,12 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd without merged stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
-            logger.error(f'spades_cmd without merged check_returncode() is: {exc}')
+            logger.error(f'spades_cmd without merged FAILED. Output is: {exc}')
+            logger.debug(f'spades_cmd without merged stdout is: {exc.stdout}')
+            logger.debug(f'spades_cmd without merged stderr is: {exc.stderr}')
             logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
 
-        # exitcode = subprocess.call(spades_cmd_without_merged, shell=True)
-        # if exitcode:
-        #     sys.stderr.write(
-        #         "ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No "
-        #         "contigs found for the following genes:\n")
     else:
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged)
@@ -191,15 +179,11 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
-            logger.error(f'spades_cmd check_returncode() is: {exc}')
+            logger.error(f'spades_cmd FAILED. Output is: {exc}')
+            logger.debug(f'spades_cmd stdout is: {exc.stdout}')
+            logger.debug(f'spades_cmd stderr is: {exc.stderr}')
             logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage.'
                         f'No contigs found for the following genes:\n')
-
-        # exitcode = subprocess.call(spades_cmd, shell=True)
-        # if exitcode:
-        #     sys.stderr.write(
-        #         "ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No "
-        #         "contigs found for the following genes:\n")
 
     spades_successful = []
     spades_failed = []
@@ -267,16 +251,11 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         logger.debug(f'redo_spades_cmd stderr is: {result.stderr}')
 
     except subprocess.CalledProcessError as exc:
-        logger.error(f'redo_spades_cmd check_returncode() is: {exc}')
+        logger.error(f'redo_spades_cmd FAILED. Output is: {exc}')
+        logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
+        logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
         logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No'
                     f'contigs found for the following genes:\n')
-
-    # exitcode = subprocess.call(redo_spades_cmd, shell=True)
-    #
-    # if exitcode:
-    #     sys.stderr.write(
-    #         "ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No contigs "
-    #         "found for the following genes:\n")
 
     for gene in genes_redos:
         gene_failed = False

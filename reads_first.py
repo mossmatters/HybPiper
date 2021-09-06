@@ -261,7 +261,9 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
                 logger.debug(f'BWA index stderr is: {result.stderr}')
 
             except subprocess.CalledProcessError as exc:
-                logger.error(f'BWA index check_returncode() is: {exc}')
+                logger.error(f'BWA index FAILED. Output is: {exc}')
+                logger.debug(f'BWA index stdout is: {exc.stdout}')
+                logger.debug(f'BWA index stderr is: {exc.stderr}')
                 return None
 
     else:
@@ -293,7 +295,9 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
         logger.debug(f'BWA mapping stderr is: {result.stderr}')
 
     except subprocess.CalledProcessError as exc:
-        logger.error(f'BWA mapping check_returncode() is: {exc}')
+        logger.error(f'BWA mapping FAILED. Output is: {exc}')
+        logger.debug(f'BWA mapping stdout is: {exc.stdout}')
+        logger.debug(f'BWA mapping stderr is: {exc.stderr}')
         return None
 
     return f'{basename}.bam'
@@ -344,7 +348,9 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 logger.debug(f'makeblastdb stderr is: {result.stderr}')
 
             except subprocess.CalledProcessError as exc:
-                logger.error(f'makeblastdb check_returncode() is: {exc}')
+                logger.error(f'makeblastdb FAILED. Output is: {exc}')
+                logger.debug(f'makeblastdb stdout is: {exc.stdout}')
+                logger.debug(f'makeblastdb stderr is: {exc.stderr}')
                 return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
@@ -375,7 +381,9 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
             logger.debug(f'blastx unpaired stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
-            logger.error(f'blastx unpaired check_returncode() is: {exc}')
+            logger.error(f'blastx unpaired FAILED. Output is: {exc}')
+            logger.debug(f'blastx unpaired stdout is: {exc.stdout}')
+            logger.debug(f'blastx unpaired stderr is: {exc.stderr}')
             return None
 
         return f'{basename}_unpaired.blastx'
@@ -404,7 +412,9 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 logger.debug(f'blastx paired stderr is: {result.stderr}')
 
             except subprocess.CalledProcessError as exc:
-                logger.error(f'blastx paired check_returncode() is: {exc}')
+                logger.error(f'blastx paired FAILED. Output is: {exc}')
+                logger.debug(f'blastx paired stdout is: {exc.stdout}')
+                logger.debug(f'blastx paired stderr is: {exc.stderr}')
                 return None
 
     return f'{basename}.blastx'
@@ -750,6 +760,9 @@ def main():
 
     # Create logger:
     readfiles = [os.path.abspath(x) for x in args.readfiles]
+
+    # CJJ Add check for --merged flag when only one readfile is provided!
+
     if args.prefix:
         logger = setup_logger(__name__, f'{args.prefix}_reads_first')
     else:
@@ -861,10 +874,12 @@ def main():
                 bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
 
             bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
-            logger.debug(f'bamfile is: {bamfile}')
             if not bamfile:
-                logger.error('ERROR: Something went wrong with the BWA step, exiting. Check the reads_first.log file!')
+                logger.error(f'ERROR: Something went wrong with the BWA step, exiting. Check the reads_first.log '
+                             f'file!')
                 return
+
+            logger.debug(f'bamfile is: {bamfile}')
         else:
             bamfile = f'{basename}.bam'
 
