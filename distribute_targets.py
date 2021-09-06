@@ -200,7 +200,7 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
             else:       
                 besthit_taxon = besthits[prot_cat]
             if prot.id.split("-")[0] == besthit_taxon:
-                outfile = open(os.path.join(prot_cat, '{prot_cat}_baits.fasta'), 'w')
+                outfile = open(os.path.join(prot_cat, f'{prot_cat}_baits.fasta'), 'w')
                 SeqIO.write(prot, outfile, 'fasta')
                 outfile.close()
         else:

@@ -498,7 +498,22 @@ def main():
     parser.add_argument("-t","--threshold",help="Threshold for Percent Identity between contigs and proteins. default = 55%%",default=55,type=int)
     parser.add_argument("--length_pct",help="Include an exonerate hit if it is at least as long as X percentage of the reference protein length. Default = 100%%",default=90,type=int)
     parser.add_argument("--depth_multiplier",help="Accept any full-length hit if it has a coverage depth X times the next best hit. Set to zero to not use depth. Default = 10",default=10,type=int)
-    
+    parser.add_argument("--nosupercontigs",
+                        help="Do not create any supercontigs. The longest single Exonerate hit will be used",
+                        action="store_true", dest='nosupercontigs', default=False)  # CJJ
+    parser.add_argument("--memory", help="memory (RAM ) to use for bbmap.sh", default=1, type=int)  # CJJ
+    parser.add_argument("--threads", help="threads to use for bbmap.sh", default=4, type=int)  # CJJ
+    parser.add_argument("--bbmap_subfilter", default=7, type=int,
+                        help="Ban alignments with more than this many substitutions. Default is %(default)s")  # CJJ
+    parser.add_argument("--discordant_reads_edit_distance",
+                        help="Minimum number of differences between one read of a read pair vs the supercontig "
+                             "reference for a read pair to be flagged as discordant", default=7, type=int)  # CJJ
+    parser.add_argument("--discordant_reads_cutoff",
+                        help="minimum number of discordant reads pairs required to flag a supercontigs as a potential "
+                             "hybrid of contigs from multiple paralogs", default=100, type=int)  # CJJ
+    parser.add_argument("--paralog_warning_min_cutoff", default=0.75, type=float,
+                        help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
+                             "to be generated. Default is %(default)s")  # CJJ
     
     args = parser.parse_args()
 

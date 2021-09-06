@@ -27,14 +27,11 @@ import fnmatch
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
+import spades_runner
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'Must be using Python 3.6 or higher.'
-
-# Hard coded filenames used in functions below:
-exonerate_genefilename = 'exonerate_genelist.txt'
-spades_genefilename = 'spades_genelist.txt'
 
 
 ########################################################################################################################
@@ -192,6 +189,33 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
+def make_basename(readfiles, prefix=None):
+    """
+    Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore.
+    If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
+
+    :param readfiles:
+    :param prefix:
+    :return:
+    """
+
+    if prefix:
+        if not os.path.exists(prefix):
+            os.makedirs(prefix)
+        prefixParentDir, prefix = os.path.split(prefix)
+        if not prefix:
+            # if prefix has a trailing /, prefixParentDir will have the / stripped and prefix will be empty.
+            # so try again
+            prefix = os.path.split(prefixParentDir)[1]
+        return prefixParentDir, prefix
+
+    # --prefix is not set on cmd line;  Write output to subdir in .
+    basename = os.path.split(readfiles[0])[1].split('_')[0]
+    if not os.path.exists(basename):
+        os.makedirs(basename)
+    return '.', basename
+
+
 def bwa(readfiles, baitfile, basename, cpu, unpaired=None, logger=None):
     """
     Conduct BWA search of reads against the baitfile. Returns an error if the second line of the baitfile contains
@@ -322,10 +346,6 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
             except subprocess.CalledProcessError as exc:
                 logger.error(f'makeblastdb check_returncode() is: {exc}')
                 return None
-            #
-            # exitcode = subprocess.call(makeblastdb_cmd, shell=True)
-            # if exitcode:
-            #     return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
         return None
@@ -357,9 +377,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
         except subprocess.CalledProcessError as exc:
             logger.error(f'blastx unpaired check_returncode() is: {exc}')
             return None
-        # exitcode = subprocess.call(full_command, shell=True)
-        # if exitcode:
-        #     return None
+
         return f'{basename}_unpaired.blastx'
 
     else:
@@ -389,9 +407,6 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 logger.error(f'blastx paired check_returncode() is: {exc}')
                 return None
 
-            # exitcode = subprocess.call(full_command, shell=True)
-            # if exitcode:
-            #     return None
     return f'{basename}.blastx'
 
 
@@ -489,40 +504,12 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     return None
 
 
-def make_basename(readfiles, prefix=None):
-    """
-    Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore.
-    If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
-
-    :param readfiles:
-    :param prefix:
-    :return:
-    """
-
-    if prefix:
-        if not os.path.exists(prefix):
-            os.makedirs(prefix)
-        prefixParentDir, prefix = os.path.split(prefix)
-        if not prefix:
-            # if prefix has a trailing /, prefixParentDir will have the / stripped and prefix will be empty.
-            # so try again
-            prefix = os.path.split(prefixParentDir)[1]
-        return prefixParentDir, prefix
-
-    # --prefix is not set on cmd line;  Write output to subdir in .
-    basename = os.path.split(readfiles[0])[1].split('_')[0]
-    if not os.path.exists(basename):
-        os.makedirs(basename)
-    return '.', basename
-
-
-def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
+def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
            merged=False, logger=None):
     """
     Run SPAdes on each gene separately using GNU parallel.
 
     :param genes:
-    :param run_dir:
     :param cov_cutoff:
     :param cpu:
     :param paired:
@@ -531,10 +518,10 @@ def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, time
     :param unpaired:
     :param merged:
     :param logger:
-    :return:
+    :return: spades_genelist
     """
 
-    with open(spades_genefilename, 'w') as spadesfile:  # Note <spades_genefilename> is hardcoded at top of script.
+    with open('spades_genelist.txt', 'w') as spadesfile:
         spadesfile.write('\n'.join(genes) + '\n')
 
     if os.path.isfile('spades.log'):
@@ -542,41 +529,43 @@ def spades(genes, run_dir, cov_cutoff=8, cpu=None, paired=True, kvals=None, time
     if os.path.isfile('spades_redo.log'):
         os.remove('spades_redo.log')
 
-    spades_runner_list = ['python', f'{run_dir}/spades_runner.py', spades_genefilename, '--cov_cutoff', str(cov_cutoff)]
-    if cpu:
-        spades_runner_list.append('--cpu')
-        spades_runner_list.append(str(cpu))
-    if not paired:
-        spades_runner_list.append('--single')
-    if unpaired:
-        spades_runner_list.append('--unpaired')
-    if timeout:
-        spades_runner_list.append('--timeout')
-        spades_runner_list.append(f'{timeout}%')
-    if kvals:
-        spades_runner_list.append('--kvals')
-        spades_runner_list.append(','.join(kvals))
-    if merged:
-        spades_runner_list.append('--merged')
+    logger.debug(f'args.merged is: {merged}')
+    logger.debug(f'args.unpaired is:  {unpaired}')
 
-    spades_runner_cmd = ' '.join(spades_runner_list)
+    if unpaired:  # Create empty unpaired file if it doesn't exist
+        for gene in open('spades_genelist.txt'):
+            gene = gene.rstrip()
+            if os.path.isfile(f'{gene}/{gene}_interleaved.fasta'):
+                if not os.path.isfile(f'{gene}/{gene}_unpaired.fasta'):
+                    open(f'{gene}/{gene}_unpaired.fasta', 'a').close()
 
-    exitcode = subprocess.call(spades_runner_cmd, shell=True)
-    if exitcode:
-        logger.warning('WARNING: Something went wrong with the assemblies! Check for failed assemblies and re-run! \n')
-        return None
-    else:
-        if os.path.isfile('spades_duds.txt'):
-            spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
+    print(f'kvals are: {kvals}')
+
+    spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
+                                                 kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
+                                                 merged=merged)
+    if len(spades_failed) > 0:
+        with open('failed_spades.txt', 'w') as failed_spadefile:
+            failed_spadefile.write('\n'.join(spades_failed))
+
+        spades_failed, spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
+
+        if len(spades_failed) == 0:
+            logger.info('All redos completed successfully!\n')
         else:
-            spades_duds = []
+            sys.exit(1)
+
+    if os.path.isfile('spades_duds.txt'):
+        spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
+    else:
+        spades_duds = []
 
     spades_genelist = []
     for gene in genes:
         if gene not in set(spades_duds):
             spades_genelist.append(gene)
 
-    with open(exonerate_genefilename, 'w') as genefile:  # Note <exonerate_genefilename> is hardcoded at top of script.
+    with open('exonerate_genelist.txt', 'w') as genefile:
         genefile.write("\n".join(spades_genelist) + "\n")
     return spades_genelist
 
@@ -640,7 +629,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
                               f'--paralog_warning_min_cutoff {paralog_warning_min_cutoff}',
                               f'--bbmap_subfilter {bbmap_subfilter}',
                               '::::',
-                              exonerate_genefilename,
+                              'exonerate_genelist.txt',
                               '> genes_with_seqs.txt']
     else:
         logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes')
@@ -658,7 +647,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_v
                               f'--paralog_warning_min_cutoff {paralog_warning_min_cutoff}',
                               f'--bbmap_subfilter {bbmap_subfilter}',
                               '::::',
-                              exonerate_genefilename,
+                              'exonerate_genelist.txt',
                               "> genes_with_seqs.txt"]
 
     exonerate_cmd = ' '.join(parallel_cmd_list) + ' ' + ' '.join(exonerate_cmd_list)
@@ -797,7 +786,7 @@ def main():
     else:
         print(__doc__)
         return
-    # readfiles = [os.path.abspath(x) for x in args.readfiles] # Moved to above for logger name if no prefix specified
+
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
     else:
@@ -868,9 +857,6 @@ def main():
     if args.bwa:
         if args.blast:
             args.blast = False
-            # bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
-            # bamfile = f'{basename}.bam'
-            # logger.debug(f'bamfile is: {bamfile}')
             if args.unpaired:
                 bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
 
@@ -912,8 +898,6 @@ def main():
         else:  # distribute BLASTx results
             distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
                               merged=args.merged, logger=logger)
-        # if exitcode:
-        #     sys.exit(1)
     if len(readfiles) == 2:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
     else:
@@ -940,20 +924,20 @@ def main():
 
     if args.assemble:
         if len(readfiles) == 1:
-            spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                      paired=False, timeout=args.timeout, logger=logger)
         elif len(readfiles) == 2:
             if args.merged and not unpaired_readfile:
-                spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True, logger=logger)
             elif args.merged and unpaired_readfile:
-                spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True, unpaired=True, logger=logger)
             elif unpaired_readfile and not args.merged:
-                spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, unpaired=True, logger=logger)
             else:
-                spades_genelist = spades(genes, run_dir, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, logger=logger)
 
         else:
@@ -962,12 +946,12 @@ def main():
         if not spades_genelist:
             logger.error('ERROR: No genes had assembled contigs! Exiting!')
             return
-    return
+
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs
     ####################################################################################################################
     if args.exonerate:
-        genes = [x.rstrip() for x in open(exonerate_genefilename).readlines()]
+        genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
         exitcode = exonerate(genes,
                              basename,
                              run_dir,
