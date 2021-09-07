@@ -87,17 +87,20 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
             for gene in genes_without_merged_reads:
                 without_merged.write(f'{gene}\n')
 
-        logger.info(f'Genes with merged reads: {len(genes_with_merged_reads)}\n')
-        logger.info(f'Genes without merged reads: {len(genes_without_merged_reads)}\n')
+        logger.info(f'Genes with merged reads: {len(genes_with_merged_reads)}')
+        logger.info(f'Genes without merged reads: {len(genes_without_merged_reads)}')
 
     if merged:
         spades_cmd_list_with_merged = spades_cmd_list.copy()
-        spades_cmd_list_with_merged.append('-o {{}}/{{}}_spades :::: spades_genelist_with_merged.txt >> spades.log')
+        # spades_cmd_list_with_merged.append('-o {{}}/{{}}_spades :::: spades_genelist_with_merged.txt >> spades.log')
+        spades_cmd_list_with_merged.append('-o {}/{}_spades :::: spades_genelist_with_merged.txt >> spades.log')
         spades_cmd_list_without_merged = spades_cmd_list.copy()
         spades_cmd_list_without_merged = [re.sub('--merged {}/{}_merged.fastq', '', item) for item in
                                           spades_cmd_list_without_merged]  # Hacky - refactor
+        # spades_cmd_list_without_merged.append(
+        #     '-o {{}}/{{}}_spades :::: spades_genelist_without_merged.txt >> spades.log')
         spades_cmd_list_without_merged.append(
-            '-o {{}}/{{}}_spades :::: spades_genelist_without_merged.txt >> spades.log')
+            '-o {}/{}_spades :::: spades_genelist_without_merged.txt >> spades.log')
 
         spades_cmd_with_merged = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list_with_merged)}'
         spades_cmd_without_merged = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list_without_merged)}'
@@ -200,7 +203,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             gene_failed = True
 
         if gene_failed:
-            logger.info(f'{gene}\n')
+            logger.info(f'{gene}')
             spades_failed.append(gene)
     return spades_failed
 

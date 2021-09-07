@@ -195,12 +195,12 @@ def make_basename(readfiles, prefix=None):
             os.makedirs(prefix)
         prefixParentDir, prefix = os.path.split(prefix)
         if not prefix:
-            # if prefix has a trailing /, prefixParentDir will have the / stripped and prefix will be empty.
+            # if prefix has a trailing /, prefixParentDir will have the / stripped and prefix will be empty,
             # so try again
             prefix = os.path.split(prefixParentDir)[1]
         return prefixParentDir, prefix
 
-    # --prefix is not set on cmd line;  Write output to subdir in .
+    # --prefix is not set on cmd line;  Write output to subdir in "."
     basename = os.path.split(readfiles[0])[1].split('_')[0]
     if not os.path.exists(basename):
         os.makedirs(basename)
@@ -602,7 +602,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
             spades_genelist.append(gene)
 
     with open('exonerate_genelist.txt', 'w') as genefile:
-        genefile.write("\n".join(spades_genelist) + "\n")
+        genefile.write('\n'.join(spades_genelist) + '\n')
     return spades_genelist
 
 
