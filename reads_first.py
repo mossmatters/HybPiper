@@ -22,7 +22,6 @@ import shutil
 import subprocess
 import glob
 import logging
-import fnmatch
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
@@ -54,18 +53,11 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     :return: a logger object
     """
 
-    # Check for existing log files and increment filename integer as necessary:
-    existing_log_file_numbers = [int(file.split('_')[-1]) for file in os.listdir('.') if
-                                 fnmatch.fnmatch(file, '*.log_*')]
-    if not existing_log_file_numbers:
-        new_log_number = 1
-    else:
-        new_log_number = sorted(existing_log_file_numbers)[-1] + 1
-
+    # Get date and time string for log filename:
     date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
 
     # Log to file:
-    file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log_{new_log_number}', mode='w')
+    file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log', mode='w')
     file_handler.setLevel(file_level)
     file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
                                     'message)s')
@@ -261,8 +253,8 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
 
             except subprocess.CalledProcessError as exc:
                 logger.error(f'BWA index FAILED. Output is: {exc}')
-                logger.debug(f'BWA index stdout is: {exc.stdout}')
-                logger.debug(f'BWA index stderr is: {exc.stderr}')
+                logger.error(f'BWA index stdout is: {exc.stdout}')
+                logger.error(f'BWA index stderr is: {exc.stderr}')
                 return None
 
     else:
@@ -295,8 +287,8 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
 
     except subprocess.CalledProcessError as exc:
         logger.error(f'BWA mapping FAILED. Output is: {exc}')
-        logger.debug(f'BWA mapping stdout is: {exc.stdout}')
-        logger.debug(f'BWA mapping stderr is: {exc.stderr}')
+        logger.error(f'BWA mapping stdout is: {exc.stdout}')
+        logger.error(f'BWA mapping stderr is: {exc.stderr}')
         return None
 
     return f'{basename}.bam'
@@ -348,8 +340,8 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
             except subprocess.CalledProcessError as exc:
                 logger.error(f'makeblastdb FAILED. Output is: {exc}')
-                logger.debug(f'makeblastdb stdout is: {exc.stdout}')
-                logger.debug(f'makeblastdb stderr is: {exc.stderr}')
+                logger.error(f'makeblastdb stdout is: {exc.stdout}')
+                logger.error(f'makeblastdb stderr is: {exc.stderr}')
                 return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
@@ -388,8 +380,8 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
         except subprocess.CalledProcessError as exc:
             logger.error(f'blastx unpaired FAILED. Output is: {exc}')
-            logger.debug(f'blastx unpaired stdout is: {exc.stdout}')
-            logger.debug(f'blastx unpaired stderr is: {exc.stderr}')
+            logger.error(f'blastx unpaired stdout is: {exc.stdout}')
+            logger.error(f'blastx unpaired stderr is: {exc.stderr}')
             return None
 
         return f'{basename}_unpaired.blastx'
@@ -426,8 +418,8 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
             except subprocess.CalledProcessError as exc:
                 logger.error(f'blastx paired FAILED. Output is: {exc}')
-                logger.debug(f'blastx paired stdout is: {exc.stdout}')
-                logger.debug(f'blastx paired stderr is: {exc.stderr}')
+                logger.error(f'blastx paired stdout is: {exc.stdout}')
+                logger.error(f'blastx paired stderr is: {exc.stderr}')
                 return None
 
     return f'{basename}.blastx'
@@ -772,19 +764,26 @@ def main():
 
     args = parser.parse_args()
 
-    # Create logger:
+    # Generate a directory for the sample:
+    basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
+
+    # Get a list opf read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
-    # CJJ Add check for --merged flag when only one readfile is provided!
-
+    # Create logger:
     if args.prefix:
-        logger = setup_logger(__name__, f'{args.prefix}_reads_first')
+        logger = setup_logger(__name__, f'{basename}/{args.prefix}_reads_first')
     else:
-        logger = setup_logger(__name__, f'{os.path.split(readfiles[0])[1].split("_")[0]}_reads_first')
+        logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_reads_first')
+
+    # If only a single readfile is supplied, set --merged to False regardless of user input:
+    if len(readfiles) == 1 and args.merged:
+        logger.info(f'The flag --merged has been provided but only a single read file has been supplied. Setting '
+                    f'--merged to False')
+        args.merged = False
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
     logger.info(f'HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
-
 
     ####################################################################################################################
     # Check dependencies
@@ -826,8 +825,7 @@ def main():
         logger.error('ERROR: Please specify a FASTA file containing target sequences.')
         return
 
-    # Generate directory
-    basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
+    # Move in to the sample directory:
     os.chdir(os.path.join(basedir, basename))
 
     ####################################################################################################################
@@ -886,9 +884,6 @@ def main():
     if len(genes) == 0:
         logger.error('ERROR: No genes with BLAST hits! Exiting!')
         return
-
-    print(genes)
-
 
     ####################################################################################################################
     # Assemble reads using SPAdes

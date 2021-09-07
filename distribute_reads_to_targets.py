@@ -14,7 +14,6 @@ concatenate them prior to sorting.
 
 import os
 import errno
-from Bio.SeqIO.QualityIO import FastqGeneralIterator
 import argparse
 import logging
 from distribute_reads_to_targets_bwa import distribute_reads
@@ -109,63 +108,6 @@ def write_single_seqs(target, ID1, Seq1):
     outfile = open(os.path.join(target, f'{target}_unpaired.fasta'), 'a')
     outfile.write(f'>{ID1}\n{Seq1}\n')
     outfile.close()
-
-
-# def distribute_reads(readfiles, read_hit_dict, single=True, merged=False):
-#     """
-#
-#     :param readfiles:
-#     :param read_hit_dict:
-#     :param single:
-#     :param merged:
-#     :return:
-#     """
-#
-#     if merged:
-#         logger.info('Writing fastq files for merging with BBmerge.sh')
-#
-#     # Check if read file is gzipped:
-#     filename, file_extension = os.path.splitext(readfiles[0])
-#     if file_extension == '.gz':
-#         logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[0])}')
-#         iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
-#     else:
-#         iterator1 = FastqGeneralIterator(open(readfiles[0]))
-#
-#     # iterator1 = FastqGeneralIterator(open(readfiles[0]))
-#     if len(readfiles) == 1:
-#
-#         for ID1_long, Seq1, Qual1 in iterator1:
-#             ID1 = ID1_long.split()[0]
-#             if ID1 in read_hit_dict:
-#                 for target in read_hit_dict[ID1]:
-#                     write_single_seqs(target, ID1, Seq1)
-#         return
-#
-#     elif len(readfiles) == 2:
-#         # Check if read file is gzipped:
-#         filename, file_extension = os.path.splitext(readfiles[1])
-#         if file_extension == '.gz':
-#             logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[1])}')
-#             iterator2 = FastqGeneralIterator(gzip.open(readfiles[1], 'rt'))
-#         else:
-#             iterator2 = FastqGeneralIterator(open(readfiles[1]))
-#
-#         # iterator2 = FastqGeneralIterator(open(readfiles[1]))
-#
-#     for ID1_long, Seq1, Qual1 in iterator1:
-#         ID2_long, Seq2, Qual2 = next(iterator2)
-#
-#         ID1 = ID1_long.split()[0]
-#         ID2 = ID2_long.split()[0]
-#
-#         if ID1 in read_hit_dict:
-#             for target in read_hit_dict[ID1]:
-#                 write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-#                 # Note that read pairs can get written to multiple targets
-#         elif ID2 in read_hit_dict:
-#             for target in read_hit_dict[ID2]:
-#                 write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
 
 
 def main():
