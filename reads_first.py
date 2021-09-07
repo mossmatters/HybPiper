@@ -294,7 +294,8 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     return f'{basename}.bam'
 
 
-def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None):
+def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None,
+           diamond=False, diamond_sensitivity=False):
     """
     Creates a blast database from the complete protein target file, and performs BLASTx searches of sample
     nucleotide read files against the protein database.
@@ -307,7 +308,9 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     :param int max_target_seqs: maximum target sequences specified for BLASTx searches
     :param str/bool unpaired: a path if an unpaired file has been provided, False if not
     :param logging.Logger logger: a logger object
-    :return: None, or the *.blastx output file from BLASTx searches of sample reads against the bait file
+    :param bool diamond: if True use DIAMOND instead of BLASTX
+    :param bool/str diamond_sensitivity: sensitivity to use for DIAMOND. Default is False; uses default DIAMOND
+    :return: None, or the *.blastx output file from DIAMOND/BLASTx searches of sample reads against the bait file
     """
 
     dna = set('ATCGN')
@@ -321,28 +324,32 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                             'BLASTx!')
                 return None
 
-        if os.path.isfile(os.path.split(baitfile)[0] + '.psq'):
-            db_file = baitfile
+        # if os.path.isfile(os.path.split(baitfile)[0] + '.psq'):
+        #     db_file = baitfile
+        # else:
+        logger.info('Making protein blastdb in current directory.')
+        if os.path.split(baitfile)[0]:
+            shutil.copy(baitfile, '.')
+        db_file = os.path.split(baitfile)[1]
+        if diamond:
+            logger.info(f'Using DIAMOND instead of BLASTx!')
+            if diamond_sensitivity:
+                logger.info(f'Using DIAMOND sensitivity "{diamond_sensitivity}"')
+            makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
         else:
-            logger.info('Making protein blastdb in current directory.')
-            if os.path.split(baitfile)[0]:
-                shutil.copy(baitfile, '.')
-            db_file = os.path.split(baitfile)[1]
             makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-            logger.info(f'[CMD]: {makeblastdb_cmd}')
-
-            try:
-                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
-                logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
-                logger.debug(f'makeblastdb stdout is: {result.stdout}')
-                logger.debug(f'makeblastdb stderr is: {result.stderr}')
-
-            except subprocess.CalledProcessError as exc:
-                logger.error(f'makeblastdb FAILED. Output is: {exc}')
-                logger.error(f'makeblastdb stdout is: {exc.stdout}')
-                logger.error(f'makeblastdb stderr is: {exc.stderr}')
-                return None
+        logger.info(f'[CMD]: {makeblastdb_cmd}')
+        try:
+            result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    universal_newlines=True)
+            logger.debug(f'makeblastdb/makedb check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'makeblastdb/makedb stdout is: {result.stdout}')
+            logger.debug(f'makeblastdb/makedb stderr is: {result.stderr}')
+        except subprocess.CalledProcessError as exc:
+            logger.error(f'makeblastdb/makedb FAILED. Output is: {exc}')
+            logger.error(f'makeblastdb/makedb stdout is: {exc.stdout}')
+            logger.error(f'makeblastdb/makedb stderr is: {exc.stderr}')
+            return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
         return None
@@ -361,8 +368,15 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                        f"}}'"
         else:
             pipe_cmd = f"cat {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
-
-        blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs {max_target_seqs}'
+        if diamond and diamond_sensitivity:
+            blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 --max-target-seqs' \
+                             f' {max_target_seqs} --{diamond_sensitivity}'
+        elif diamond:
+            blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 --max-target-seqs' \
+                             f' {max_target_seqs}'
+        else:
+            blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
+                             f' {max_target_seqs}'
         if cpu:
             full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
                            f"'{blastx_command}' >> {basename}_unpaired.blastx"
@@ -398,8 +412,15 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 pipe_cmd = f"cat {read_file} | \
                 awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
 
-            blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs ' \
-                             f'{max_target_seqs}'
+            if diamond and diamond_sensitivity:
+                blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 ' \
+                                 f'--max-target-seqs {max_target_seqs} --{diamond_sensitivity}'
+            elif diamond:
+                blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 ' \
+                                 f'--max-target-seqs {max_target_seqs}'
+            else:
+                blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
+                                 f' {max_target_seqs}'
             if cpu:
                 full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
                                f"'{blastx_command}' >> {basename}.blastx"
@@ -682,9 +703,15 @@ def main():
     parser.add_argument('--check-depend', dest='check_depend',
                         help='Check for dependencies (executables and Python packages) and exit. May not work at all '
                              'on Windows.', action='store_true')
-    parser.add_argument('--bwa', dest='bwa', action='store_true',
-                        help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is  '
-                             'nucleotides!', default=False)
+    group_1 = parser.add_mutually_exclusive_group()
+    group_1.add_argument('--bwa', dest='bwa', action='store_true',
+                       help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
+                            'nucleotides!', default=False)
+    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx',
+                         default=False)
+    parser.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
+                                                          'very-sensitive', 'ultra-sensitive'],
+                        help='Use the provided sensitivity for DIAMOND searches', default=False)
     parser.add_argument('--no-blast', dest='blast', action='store_false',
                         help='Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. '
                              '\nUseful for re-runnning assembly/exonerate steps with different options.')
@@ -694,7 +721,6 @@ def main():
                         help='Do not run the Exonerate step, which assembles full length CDS regions and proteins from '
                              'each gene')
     parser.add_argument('--no-assemble', dest='assemble', action='store_false', help='Skip the SPAdes assembly stage.')
-
     parser.add_argument('-r', '--readfiles', nargs='+',
                         help='One or more read files to start the pipeline. If exactly two are specified, will assume '
                              'it is paired Illumina reads.',
@@ -713,10 +739,11 @@ def main():
     parser.add_argument('--kvals', nargs='+',
                         help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!'
                              ' Default auto-detection by SPAdes.', default=None)
+    # CJJ: changed from 65 to 55 as I noticed cases with real hits falling beneath cutoff threshold:
     parser.add_argument('--thresh', type=int,
                         help='Percent Identity Threshold for stitching together exonerate results. Default is 55, but '
                              'increase this if you are worried about contaminant sequences.', default=55)
-    # CJJ: changed from 65 to 55 as I noticed cases with real hits falling beneath cutoff threshold
+
     parser.add_argument('--paralog_warning_min_length_percentage', default=0.75, type=float,
                         help='Minimum length percentage of a contig vs reference protein length for a paralog warning '
                              'to be generated. Default is %(default)s')
@@ -763,11 +790,12 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+    run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
     # Generate a directory for the sample:
     basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
 
-    # Get a list opf read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
+    # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
     # Create logger:
@@ -776,14 +804,13 @@ def main():
     else:
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_reads_first')
 
+    logger.info(f'HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
+
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
         logger.info(f'The flag --merged has been provided but only a single read file has been supplied. Setting '
-                    f'--merged to False')
+                    f'--merged to False.')
         args.merged = False
-
-    run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
-    logger.info(f'HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
     ####################################################################################################################
     # Check dependencies
@@ -853,16 +880,18 @@ def main():
     if args.blast:
         if args.unpaired:
             blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger)
+                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
+                   diamond_sensitivity=args.diamond_sensitivity)
 
         blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
-                                   max_target_seqs=args.max_target_seqs, logger=logger)
+                                   max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
+                                   diamond_sensitivity=args.diamond_sensitivity)
 
         if not blastx_outputfile:
             logger.error('ERROR: Something is wrong with the Blastx step, exiting!')
             return
-    else:
-        blastx_outputfile = f'{basename}.blastx'
+        else:
+            blastx_outputfile = f'{basename}.blastx'
 
     ####################################################################################################################
     # Distribute reads to gene directories for either BLASTx or BWA mapping
@@ -896,9 +925,20 @@ def main():
             logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
             merged_out = f'{gene}/{gene}_merged.fastq'
             unmerged_out = f'{gene}/{gene}_unmerged.fastq'
-            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out} ' \
+            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
                               f'outu={unmerged_out}'
-            subprocess.run(bbmerge_command, shell=True)
+            try:
+                result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'bbmerge paired stdout is: {result.stdout}')
+                logger.debug(f'bbmerge paired stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'bbmerge paired FAILED. Output is: {exc}')
+                logger.error(f'bbmerge paired stdout is: {exc.stdout}')
+                logger.error(f'bbmerge paired stderr is: {exc.stderr}')
+                sys.exit('There was an issue when merging reads. Check read files!')
 
     if args.assemble:
         if len(readfiles) == 1:
