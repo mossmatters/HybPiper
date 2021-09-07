@@ -479,7 +479,7 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
         target_string = f'--target {target}'
     else:
         target_string = None
-    # if unpaired:  # blastX doesn't use unpaired file to calculate best target seq?
+    # if unpaired:  # CJJ blastX doesn't use unpaired file to calculate best target seq?
     #     unpaired_bool = True
     # else:
     #     unpaired_bool = False
@@ -576,8 +576,6 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
             if os.path.isfile(f'{gene}/{gene}_interleaved.fasta'):
                 if not os.path.isfile(f'{gene}/{gene}_unpaired.fasta'):
                     open(f'{gene}/{gene}_unpaired.fasta', 'a').close()
-
-    print(f'kvals are: {kvals}')
 
     spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
                                                  kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
@@ -1002,11 +1000,11 @@ def main():
     ####################################################################################################################
     # Report paralog warning and write a paralog warning file
     ####################################################################################################################
-    logger.info('Generated sequences from {} genes!\n'.format(len(open('genes_with_seqs.txt').readlines())))
+    logger.info(f'Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
     paralog_warnings = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, basename, 'paralog_warning.txt'))]
     with open('genes_with_paralog_warnings.txt', 'w') as pw:
         pw.write('\n'.join(paralog_warnings))
-    logger.info('WARNING: Potential paralogs detected for {} genes!'.format(len(paralog_warnings)))
+    logger.info(f'WARNING: Potential paralogs detected for {len(paralog_warnings)} genes!')
 
 
 ########################################################################################################################

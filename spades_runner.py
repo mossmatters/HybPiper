@@ -167,8 +167,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged, timeout=timeout)
 
-        logger.info(f'Running SPAdes on {len(genes)} genes\n')
-        logger.info(f'[CMD]: {spades_cmd}\n')
+        logger.info(f'Running SPAdes on {len(genes)} genes')
+        logger.info(f'[CMD]: {spades_cmd}')
 
         try:
             result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
