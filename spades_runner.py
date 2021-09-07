@@ -30,7 +30,7 @@ def file_exists_and_not_empty(file_name):
     return os.path.isfile(file_name) and not os.path.getsize(file_name) == 0
 
 
-def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, redo=False, timeout=None,
+def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
                     unpaired=False, merged=False):
     """
 
@@ -39,7 +39,6 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, r
     :param cpu:
     :param paired:
     :param kvals:
-    :param redo:
     :param timeout:
     :param unpaired:
     :param merged:
@@ -132,7 +131,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
     if merged:
         spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
-            genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged)
+            genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout)
         logger.info(f'[CMD]: {spades_cmd_with_merged}\n')
 
         try:
@@ -166,7 +165,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
     else:
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
-                                     merged=merged)
+                                     merged=merged, timeout=timeout)
 
         logger.info(f'Running SPAdes on {len(genes)} genes\n')
         logger.info(f'[CMD]: {spades_cmd}\n')

@@ -175,7 +175,7 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
     """
     if target:
         if os.path.isfile(target):
-            print(('[DISTRIBUTE]: Reading preferred target names from {} \n'.format(target)))
+            logger.info(('[DISTRIBUTE]: Reading preferred target names from {} \n'.format(target)))
             genes_to_targets = {x.split()[0]: x.rstrip().split()[1] for x in open(target)}
             target_is_file = True
         else:

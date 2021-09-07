@@ -154,8 +154,9 @@ def check_dependencies(logger=None):
     Checks for the presence of executables and Python packages. Returns a boolean.
 
     :param logging.Logger logger: a logger object
-    return: bool everything_is_awesome
+    return: bool everything_is_awesome: True if all dependencies are found and are executable
     """
+
     executables = ['blastx',
                    'exonerate',
                    'parallel',
@@ -222,13 +223,11 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     :param list readfiles: one or more read files to start the pipeline
     :param str baitfile: path to baitfile (target file)
     :param str basename: directory name for sample
-    :param int cpu: number of threads/cpus to use
-    :param bool unpaired: True is an unpaired file has been provided, False if not
+    :param int cpu: number of threads/cpus to use for BWA mapping
+    :param str/bool unpaired: a path if an unpaired file has been provided, False if not
     :param logging.Logger logger: a logger object
     :return: None, or the *.bam output file from BWA alignment of sample reads to the bait file
     """
-
-    print(type(unpaired))
 
     dna = set('ATCGN')
     if os.path.isfile(baitfile):
@@ -279,8 +278,6 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     else:
         bwa_fastq = readfiles
 
-    print(f'bwa_fastq is: {bwa_fastq}')
-
     bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
     if unpaired:
         bwa_commands.append(f'{basename}_unpaired.bam')
@@ -312,13 +309,13 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
 
     :param list readfiles: one or more read files to start the pipeline
     :param str baitfile: path to baitfile (target file)
-    :param float evalue:
-    :param str basename:
-    :param int cpu:
-    :param int max_target_seqs:
-    :param bool unpaired:
+    :param float evalue: evalue to use for BLASTx searches
+    :param str basename: directory name for sample
+    :param int cpu: number of threads/cpus to use for BLASTx searches
+    :param int max_target_seqs: maximum target sequences specified for BLASTx searches
+    :param str/bool unpaired: a path if an unpaired file has been provided, False if not
     :param logging.Logger logger: a logger object
-    :return:
+    :return: None, or the *.blastx output file from BLASTx searches of sample reads against the bait file
     """
 
     dna = set('ATCGN')
@@ -444,12 +441,12 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     :param str blastx_outputfile:
     :param list readfiles: one or more read files to start the pipeline
     :param str baitfile: path to baitfile (target file)
-    :param target:
-    :param unpaired_readfile:
-    :param exclude:
-    :param merged:
-    :param logger: a logger object
-    :return:
+    :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
+    :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
+    :param str exclude: specify sequence not to be used as a target sequence for Exonerate
+    :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
+    :param logging.Logger logger: a logger object
+    :return: None
     """
 
     logger.info(f'READFILES are: {readfiles}')
@@ -489,17 +486,17 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
 
-    Distribute the 'best' target file sequence (translated if necessary) to each gene directory
+    Distribute the 'best' target file sequence (translated if necessary) to each gene directory.
 
-    :param bamfile:
+    :param str bamfile: *.bam output file from BWA alignment of sample reads to the bait file
     :param list readfiles: one or more read files to start the pipeline
     :param str baitfile: path to baitfile (target file)
-    :param target:
-    :param unpaired_readfile:
-    :param exclude:
-    :param merged:
-    :param logger: a logger object
-    :return:
+    :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
+    :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
+    :param str exclude: specify sequence not to be used as a target sequence for Exonerate
+    :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
+    :param logging.Logger logger: a logger object
+    :return: None
     """
 
     # Distribute reads to gene directories:
@@ -537,16 +534,16 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     """
     Run SPAdes on each gene separately using GNU parallel.
 
-    :param genes:
-    :param cov_cutoff:
-    :param cpu:
-    :param paired:
-    :param kvals:
-    :param timeout:
-    :param unpaired:
-    :param merged:
-    :param logger: a logger object
-    :return: spades_genelist
+    :param list genes: a list of genes names that have reads distributed to their directories
+    :param int cov_cutoff: coverage cutoff for SPAdes assembler
+    :param int cpu: number of threads/cpus to use for GNU Parallel
+    :param bool paired: True if len(readfiles) == 2
+    :param list kvals: values of k for SPAdes assemblies
+    :param int timeout: value for GNU parallel --timeout percentage
+    :param bool unpaired: True is an unpaired readfile has been provided for the sample
+    :param bool merged: True if parameter --merged is used
+    :param logging.Logger logger: a logger object
+    :return: list spades_genelist: a list of gene names that had successful SPAdes assemblies
     """
 
     with open('spades_genelist.txt', 'w') as spadesfile:
@@ -598,30 +595,29 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     return spades_genelist
 
 
-def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, use_velvet=False, depth_multiplier=0,
+def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth_multiplier=0,
               length_pct=100, timeout=None, nosupercontigs=False, memory=1, discordant_reads_edit_distance=7,
               discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, bbmap_subfilter=7, logger=None):
     """
     Runs the `exonerate_hits.py script via GNU parallel.
 
-    :param genes:
-    :param basename:
-    :param run_dir:
-    :param replace:
-    :param cpu:
-    :param thresh:
-    :param use_velvet:
-    :param depth_multiplier:
-    :param length_pct:
-    :param timeout:
-    :param nosupercontigs:
-    :param memory:
-    :param discordant_reads_edit_distance:
-    :param discordant_reads_cutoff:
-    :param paralog_warning_min_cutoff:
-    :param bbmap_subfilter:
-    :param logger: a logger object
-    :return:
+    :param list genes: list of genes that had successful SPAdes runs
+    :param str basename: directory name for sample
+    :param run_dir: CJJ will be removed after refactor
+    :param bool replace: CJJ hardcoded as True, remove after refactor
+    :param int cpu: number of threads/cpus to use for GNU Parallel
+    :param int thresh: percent identity threshold for stitching together Exonerate hits
+    :param int depth_multiplier: if Exonerate hit if it has coverage depth X times the next best hit, accept
+    :param int length_pct: Include Exonerate hit if >= long as X percentage of the reference protein length
+    :param int timeout: value for GNU parallel --timeout percentage
+    :param bool nosupercontigs: If True, no not produce supercontigs; use longest Exonerate hit only
+    :param int memory: GB memory (RAM ) to use for bbmap.sh
+    :param int discordant_reads_edit_distance: minimum number of edits for discordant read pair flagging
+    :param int discordant_reads_cutoff: number of discordant reads for supercontig to be flagged as a chimera
+    :param float paralog_warning_min_cutoff: min length % of a contig vs reference protein length for paralog warning
+    :param int bbmap_subfilter: ban alignments with more than this many substitutions
+    :param logging.Logger logger: a logger object
+    :return: None
     """
 
     if replace:
@@ -741,7 +737,7 @@ def main():
                         default=None)
     parser.add_argument('--timeout',
                         help='Use GNU Parallel to kill long-running processes if they take longer than X percent of '
-                             'average.', default=0)
+                             'average.', default=0, type=int)
     parser.add_argument('--target',
                         help='Use this target to align sequences for each gene. Other targets for that gene will be '
                              'used only for read sorting. Can be a tab-delimited file (one gene per line) or a single '
@@ -822,7 +818,7 @@ def main():
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
     else:
-        unpaired_readfile = None
+        unpaired_readfile = False
     if len(args.readfiles) < 1:
         logger.error('ERROR: Please specify readfiles with -r')
         return
@@ -890,6 +886,8 @@ def main():
     if len(genes) == 0:
         logger.error('ERROR: No genes with BLAST hits! Exiting!')
         return
+
+    print(genes)
 
 
     ####################################################################################################################
