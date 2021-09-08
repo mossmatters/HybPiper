@@ -1,20 +1,16 @@
 #!/usr/bin/env python
 
 """
-usage: python distribute_targets.py baitfile\n
+usage: python distribute_targets.py baitfile
 
-Given a file containing all of the "baits" for a target enrichment, create separate
-FASTA files with all copies of that bait. Multiple copies of the same bait can be 
-specified using a "-" delimiter. For example, the following will be sorted in to the same
-file:
+Taks a file containing all of the "baits" for a target enrichment. The file can contain multiple copies of the same
+bait as specified using a "-" delimiter. For example, the following:
 
 Anomodon-rbcl
 Physcomitrella-rbcl
 
-The results can come from either BLASTx or BWA.
-
 Given multiple baits, the script will choose the most appropriate 'reference' sequence
-using the highest cumulative BLAST scores or Mapping Quality across all hits.
+using the highest cumulative BLAST scores or Mapping Quality (BWA) across all hits.
 
 Output directories can also be created, one for each target category (the default is to put them all in the current one)
 The field delimiter may also be changed.
@@ -36,8 +32,8 @@ def pad_seq(sequence):
     """
     Pads a sequence Seq object to a multiple of 3 with 'N'.
 
-    :param sequence:
-    :return:
+    :param Bio.Seq.Seq sequence: sequence to pad
+    :return: sequence padded with Ns if required
     """
 
     remainder = len(sequence) % 3
@@ -46,8 +42,9 @@ def pad_seq(sequence):
 
 def mkdir_p(path):
     """
+    Creates a directory corresponding the the given path, if it doesn't already exist.
 
-    :param path:
+    :param str path: path of directory to create
     :return:
     """
     try:
@@ -63,9 +60,9 @@ def tailored_target_blast(blastxfilename, exclude=None):
     """
     Determine, for each protein, the 'best' target protein, by tallying up the blastx hit scores.
 
-    :param blastxfilename:
-    :param exclude:
-    :return:
+    :param str blastxfilename: path the BLASTx tabular output file
+    :param str exclude: no not use any target sequence specified by this string
+    :return: dict besthits: dictionary of besthits[prot] = top_taxon
     """
     blastxfile = open(blastxfilename)
     
@@ -111,10 +108,10 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
     """
     Determine, for each protein, the 'best' target protein, by tallying up the BWA map scores.
 
-    :param bamfilename:
-    :param unpaired:
-    :param exclude:
-    :return:
+    :param str bamfilename: path to *.bam output of BWA mapping
+    :param bool unpaired: if True, process a *_unpaired.bam file
+    :param str exclude: no not use any target sequence specified by this string
+    :return: dict besthits: dictionary of besthits[prot] = top_taxon
     """
 
     samtools_cmd = 'samtools view -F 4 {}'.format(bamfilename)
@@ -165,12 +162,12 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
 def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=None):
     """
 
-    :param baitfile:
-    :param dirs:
-    :param delim:
-    :param besthits:
-    :param translate:
-    :param target:
+    :param str baitfile: path to baitfile
+    :param bool dirs: # CJJ hardcoded - remove?
+    :param str delim: symbol to use as gene delimeter; default is '-'
+    :param dict besthits: dictionary of besthits[prot] = top_taxon
+    :param bool translate: If True, translate nucleotide target SeqObject
+    :param str target:always choose the target specified by this string
     :return:
     """
     if target:
@@ -207,11 +204,6 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
         else:
             no_matches.append(prot_cat)
     logger.info(f'[DISTRIBUTE]: {len(set(no_matches))} proteins had no good matches.')
-
-
-def help():
-    print(__doc__)
-    return
 
 
 def main():

@@ -28,8 +28,9 @@ logger = logging.getLogger(f'__main__.{__name__}')
 
 def mkdir_p(path):
     """
+    Creates a directory corresponding the the given path, if it doesn't already exist.
 
-    :param path:
+    :param str path: path of directory to create
     :return:
     """
 
@@ -44,9 +45,10 @@ def mkdir_p(path):
 
 def read_sorting(bamfilename):
     """
+    Returns a dictionary of read_hit_dict[readID] = [target1, target2, ...]
 
-    :param bamfilename:
-    :return:
+    :param str bamfilename: path the *.bam file output by BWA
+    :return: dict read_hit_dict: dictionary of read_hit_dict[readID] = [target1, target2, ...]
     """
 
     samtools_cmd = f'samtools view -F 4 {bamfilename}'
@@ -69,16 +71,17 @@ def read_sorting(bamfilename):
 
 def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, merged=False):
     """
+    Writes interleaved fasta files, and also interleaved fastq files if merged=True
 
-    :param target:
-    :param ID1:
-    :param Seq1:
-    :param Qual1:
-    :param ID2:
-    :param Seq2:
-    :param Qual2:
-    :param single:
-    :param merged:
+    :param str target: gene name e.g. gene001
+    :param str ID1: fasta/fastq header for R1
+    :param str Seq1: fasta/fastq sequence for R1
+    :param str Qual1: fastq quality scores for R1
+    :param str ID2: fasta/fastq head for R2
+    :param str Seq2: fasta/fastq sequence for R2
+    :param str Qual2: fastq quality scores for R2
+    :param bool single: # CJJ hardcoded as True - remove?
+    :param bool merged: If True, write fastq seqs as well as fasta
     :return:
     """
 
@@ -105,12 +108,12 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
 
 def write_single_seqs(target, ID1, Seq1):
     """
-    Distributing targets from single-end sequencing
+    Writes a fasta filesfo single end reads to the corresponding gene directory
 
-    :param target:
-    :param ID1:
-    :param Seq1:
-    :return:
+    :param str target: gene name e.g. gene001
+    :param str ID1: fasta/fastq header for R1
+    :param str Seq1: fasta/fastq sequence for R1
+    :return::
     """
 
     mkdir_p(target)
@@ -158,7 +161,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
             j = (reads_written + 1) / num_reads_to_write
             if int(100*j) % 5 == 0:
                 sys.stderr.write('\r')
-                sys.stderr.write('[%-20s] %d%%' % ('='*int(20*j), 100*j))
+                sys.stderr.write(f'[{"=" * int(20 * j):20}] {100 * j:0.0f}%')
                 sys.stderr.flush()
         sys.stderr.write('\n')
         return
@@ -187,6 +190,8 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
 
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
+                    print(target)
+                    print(type(target))
                     write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
                     # Note that read pairs can get written to multiple targets
                     reads_written += 1
@@ -198,7 +203,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
             j = (reads_written + 1) / num_reads_to_write
             if int(100*j) % 5 == 0:
                 sys.stderr.write('\r')
-                sys.stderr.write('[%-20s] %d%%' % ('='*int(20*j), 100*j))
+                sys.stderr.write(f'[{"=" * int(20 * j):20}] {100 * j:0.0f}%')
                 sys.stderr.flush()
     sys.stderr.write('\n')
 

@@ -22,6 +22,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from itertools import tee
 import re
+from collections import defaultdict
 
 
 # Create logger:
@@ -68,37 +69,37 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     exonerate_ryo = '">%ti,%qi,%qab,%qae,%pi,(%tS),%tab,%tae\\n%tcs\\n"'
 
     exonerate_command = f'exonerate -m protein2genome --showalignment no --showvulgar no -V 0 --refine full --ryo' \
-                        f'{exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'1
+                        f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
 
-    try:
-        result = subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
+    try:  # with --refine
+        subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                       universal_newlines=True)
     except subprocess.CalledProcessError as exc:
-        logger.error(f'Exonerate with "--refine" FAILED for {prefix}. Output is: {exc}')
-        return None
+        logger.debug(f'Exonerate with "--refine" FAILED for {prefix}. Output is: {exc}')
 
-
-
-    try:
-        subprocess.call(exonerate_command, shell=True)
-    except:
-        logger.debug(f'Exonerate_command with option "--refine" failed for {outputfilename}')
-    if file_exists_and_not_empty(outputfilename):
+    if file_exists_and_not_empty(outputfilename):  # Exonerate with --refine can fail with no error
         exonerate_hits_dict = SeqIO.to_dict(SeqIO.parse(outputfilename, 'fasta'))
         return exonerate_hits_dict
-    else:
+
+    try:  # without --refine
         exonerate_command = f'exonerate -m protein2genome --showalignment no --showvulgar no -V 0 --ryo' \
                             f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
-        subprocess.call(exonerate_command, shell=True)
+        subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                       universal_newlines=True)
         exonerate_hits_dict = SeqIO.to_dict(SeqIO.parse(outputfilename, 'fasta'))
         return exonerate_hits_dict
+    except subprocess.CalledProcessError as exc:
+        logger.debug(f'Exonerate without "--refine" FAILED for {prefix}. Output is: {exc}')
+        logger.error(f'Exonerate without "--refine" stdout is: {exc.stdout}')
+        logger.error(f'Exonerate without "--refine" stderr is: {exc.stderr}')
 
 
-def protein_sort(records):
+# def protein_sort(exonerate_hits_sequence_dict):
+def parse_initial_exonerate_hits(exonerate_hits_sequence_dict):
     """
-    Given the Biopython dictionary, return a dictionary of proteins indexed by their hits.
 
-    CJJ: I don't understand the above help text. This function:
+    :param exonerate_hits_sequence_dict:
+    :return:
 
     Takes: the seq dictionary of exonerate hits returned by initial_exonerate() above.
 
@@ -111,13 +112,12 @@ def protein_sort(records):
     'hit_start': [31, 88, 35], 'hit_end': [117, 157, 157], 'percentid': [96.51, 92.75, 95.9],
     'hit_strand': ['-', '+', '+'], 'target_begin': [260, 0, 2], 'target_end': [2, 207, 368], 'name': 'sunf-At3g48680'}}
 
-    Unclear why this function is called protein_sort() - it doesn't do any sorting.
     """
 
     proteinHits = {}
-    for contig in records:  # CJJ e.g. `NODE_2_length_336_cov_8.391459,sunf-At3g48680,88,157,92.75,(+),0,207', etc
-        hit = records[contig].id.split(",")
-        protein = hit[1]  # CJJ this will be the same protein for all contigs e.g. 'sunf-At3g48680'
+    for contig in exonerate_hits_sequence_dict:
+        hit = exonerate_hits_sequence_dict[contig].id.split(",")
+        protein = hit[1]
         if protein in proteinHits:
             proteinHits[protein]["assemblyHits"].append(",".join(hit))
             proteinHits[protein]["hit_start"].append(int(hit[2]))
@@ -978,8 +978,8 @@ def set_supercontig_chimera_test(nosupercontigs_bool, prefix):
 
 def parse_spades_and_best_reference(assemblyfile, proteinfile):
     """
-    Return a SeqIO dictionary for the SPAdes contigs (assemblyfile) and a SeqRecord object for the 'best' protein
-    reference for the sample/gene (protienfile).
+    Return a SeqIO dictionary for the SPAdes contigs (assemblyfile) and the 'best' protein
+    reference for the sample/gene (proteinfile).
 
     :param assemblyfile:
     :type assemblyfile:
@@ -1001,9 +1001,9 @@ def parse_spades_and_best_reference(assemblyfile, proteinfile):
         return
 
     spades_assembly_dict = SeqIO.to_dict(SeqIO.parse(assemblyfile, 'fasta'))
-    best_protein_ref_seq = SeqIO.parse(proteinfile, 'fasta')
+    best_protein_ref_dict = SeqIO.to_dict(SeqIO.parse(proteinfile, 'fasta'))
 
-    return spades_assembly_dict, best_protein_ref_seq
+    return spades_assembly_dict, best_protein_ref_dict
 
 
 def create_output_directories(prefix, assemblyfile):
@@ -1095,46 +1095,26 @@ def main():
     perform_supercontig_chimera_test, path_to_interleaved_fasta = set_supercontig_chimera_test(args.nosupercontigs,
                                                                                                prefix)
 
-    # Read the SPAdes contigs and the 'best' protein reference seq into a SeqIO dictionary and SeqRecord object:
-    spades_assembly_dict, best_protein_ref_seq = parse_spades_and_best_reference(args.assemblyfile, args.proteinfile)
+    # Read the SPAdes contigs and the 'best' protein reference seq into SeqIO dictionaries:
+    spades_assembly_dict, best_protein_ref_dict = parse_spades_and_best_reference(args.assemblyfile, args.proteinfile)
 
-    # Run the function initial_exonerate, and sort(?) the SPAdes contig hits
-    sequence_dict = initial_exonerate(args.proteinfile, args.assemblyfile, prefix)
-    return
+    # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects
+    exonerate_hits_sequence_dict = initial_exonerate(args.proteinfile, args.assemblyfile, prefix)
+    proteinHits = parse_initial_exonerate_hits(exonerate_hits_sequence_dict)
+    logger.debug(f'There were {len(exonerate_hits_sequence_dict)} Exonerate hits for {args.proteinfile}.')
 
-
-
-
-    proteinHits = protein_sort(sequence_dict)  # CJJ: Unclear why this function is called protein_sort() - it doesn't
-        # do any sorting.
-    logger.debug(f'There were {len(sequence_dict)} Exonerate hits for {proteinfilename}.')
-
-    # ####################################################################################################################
-    # # Create directories for nucleotide (FNA) and amino acid (FAA) sequences
-    # ####################################################################################################################
-    # directory_name = "%s/sequences/FNA" % prefix
-    # if not os.path.exists(directory_name):
-    #     os.makedirs(directory_name)
-    #
-    # directory_name = "%s/sequences/FAA" % prefix
-    # if not os.path.exists(directory_name):
-    #     os.makedirs(directory_name)
-
-    ####################################################################################################################
     # Filter the Exonerate SPAdes contig hits
     ####################################################################################################################
     for prot in proteinHits:  # CJJ: again, note that this will be a single key for a single protein seq
         logger.debug(prot)
-        logger.debug("Initial hits: %s" % len(proteinHits[prot]["assemblyHits"]))
+        logger.debug(f'Initial hits: {len(proteinHits[prot]["assemblyHits"])}')
 
         ################################################################################################################
         # Perform a paralog test and generate warnings
         ################################################################################################################
-        # print(f'line 1088: proteinHits[prot]: {proteinHits[prot]}')
-        # print(f'line 1089: protein_dict[prot]: {protein_dict[prot]}')
-        # paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
 
-        proteinHits[prot]["reflength"] = len(protein_dict[prot])  # CJJ: protein_dict contains a single key
+
+        proteinHits[prot]["reflength"] = len(best_protein_ref_dict[prot])  # CJJ: protein_dict contains a single key
         proteinHits[prot] = get_contig_order(proteinHits[prot])  # CJJ: sorts Exonerate hits by start position in query protein
         logger.debug("After get_contig_order: %d" % len(proteinHits[prot]["assemblyHits"]))
         # Remove contigs that are suboptimal hits. Only one protein hit allowed per contig.
@@ -1151,7 +1131,7 @@ def main():
 
         # CJJ: moved paralog_test() to after filter_by_percentid(), as this should get rid of most spurious hits:
         # print(f'proteinHits[prot]: {proteinHits[prot]}')
-        paralog_test(proteinHits[prot], protein_dict[prot], prefix, args.paralog_warning_min_cutoff)
+        paralog_test(proteinHits[prot], best_protein_ref_dict[prot], prefix, args.paralog_warning_min_cutoff)
 
         if len(proteinHits[prot]["assemblyHits"]) == 0:
             report_no_sequences(proteinHits[prot]["name"])
@@ -1171,8 +1151,8 @@ def main():
             report_no_sequences(proteinHits[prot]["name"])
             continue  # All hits have been filtered out
 
-        nucl_sequence = fullContigs(proteinHits[prot], sequence_dict, assembly_dict, protein_dict, prefix,
-                                    args.threshold, args.nosupercontigs, interleaved_reads=interleaved_reads,
+        nucl_sequence = fullContigs(proteinHits[prot], exonerate_hits_sequence_dict, spades_assembly_dict, best_protein_ref_dict, prefix,
+                                    args.threshold, args.nosupercontigs, interleaved_reads=path_to_interleaved_fasta,
                                     memory=args.memory, discordant_cutoff=args.discordant_reads_cutoff,
                                     edit_distance=args.discordant_reads_edit_distance, threads=args.threads,
                                     bbmap_subfilter=args.bbmap_subfilter)  # CJJ: good ol' fullContigs. Lots going on here - refactor in to multiple functions?
@@ -1197,8 +1177,6 @@ def main():
                 nucleo_file = open(nucleo_filename, 'w')
                 nucleo_file.write(">%s\n%s\n" % (seqID, nucl_sequence))
                 nucleo_file.close()
-    proteinfile.close()
-    assemblyfile.close()
 
     sys.stderr.write(f"\nCJJ Finishing exonerate_hits.py \n")
     sys.stderr.flush()

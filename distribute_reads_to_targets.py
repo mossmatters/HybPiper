@@ -9,7 +9,7 @@ sorted according to the successful hits. This script takes the BLASTx output (ta
 and the raw read files, and distributes the reads into FASTA files ready for assembly.
 
 If there are multiple BLAST results (for example, one for each read direction),
-concatenate them prior to sorting.
+concatenate them prior to sorting. # CJJ not still true?
 """
 
 import os
@@ -25,8 +25,9 @@ logger = logging.getLogger(f'__main__.{__name__}')
 
 def mkdir_p(path):
     """
+    Creates a directory corresponding the the given path, if it doesn't already exist.
 
-    :param path:
+    :param str path: path of directory to create
     :return:
     """
     try:
@@ -40,9 +41,10 @@ def mkdir_p(path):
 
 def read_sorting(blastfilename):
     """
+    Returns a dictionary of read_hit_dict[readID] = [target1, target2, ...]
 
-    :param blastfilename:
-    :return:
+    :param str blastfilename: path the BLASTx tabular output file
+    :return: dict read_hit_dict: dictionary of read_hit_dict[readID] = [target1, target2, ...]
     """
 
     read_hit_dict = {}
@@ -61,18 +63,20 @@ def read_sorting(blastfilename):
 
 def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, merged=False):
     """
+    Writes interleaved fasta files, and also interleaved fastq files if merged=True, to the corresponding gene directory
 
-    :param target:
-    :param ID1:
-    :param Seq1:
-    :param Qual1:
-    :param ID2:
-    :param Seq2:
-    :param Qual2:
-    :param single:
-    :param merged:
-    :return:
+    :param str target: gene name e.g. gene001
+    :param str ID1: fasta/fastq header for R1
+    :param str Seq1: fasta/fastq sequence for R1
+    :param str Qual1: fastq quality scores for R1
+    :param str ID2: fasta/fastq head for R2
+    :param str Seq2: fasta/fastq sequence for R2
+    :param str Qual2: fastq quality scores for R2
+    :param bool single: # CJJ hardcoded as True - remove?
+    :param bool merged: If True, write fastq seqs as well as fasta
+    :return::
     """
+
     mkdir_p(target)
     if single:  # If True, write paired reads in interleaved format
         if merged:
@@ -96,11 +100,11 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
 
 def write_single_seqs(target, ID1, Seq1):
     """
-    Distributing targets from single-end sequencing
+    Writes a fasta filesfo single end reads to the corresponding gene directory
 
-    :param target:
-    :param ID1:
-    :param Seq1:
+    :param str target: gene name e.g. gene001
+    :param str ID1: fasta/fastq header for R1
+    :param str Seq1: fasta/fastq sequence for R1
     :return:
     """
 
@@ -122,7 +126,7 @@ def main():
     readfiles = args.readfiles
     read_hit_dict = read_sorting(args.blast_filename)
     logging.info(f'Unique reads with hits: {len(read_hit_dict)}')
-    distribute_reads(readfiles, read_hit_dict, single=True, merged=args.merged)
+    distribute_reads(readfiles, read_hit_dict, merged=args.merged)
 
 
 if __name__ == '__main__':
