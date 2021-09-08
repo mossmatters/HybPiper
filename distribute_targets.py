@@ -47,6 +47,7 @@ def mkdir_p(path):
     :param str path: path of directory to create
     :return:
     """
+
     try:
         os.makedirs(path)
     except OSError as exc:  # Python >2.5
@@ -64,6 +65,7 @@ def tailored_target_blast(blastxfilename, exclude=None):
     :param str exclude: no not use any target sequence specified by this string
     :return: dict besthits: dictionary of besthits[prot] = top_taxon
     """
+
     blastxfile = open(blastxfilename)
     
     hitcounts = {}
@@ -161,6 +163,8 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
      
 def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=None):
     """
+    Writes the single 'best' protein sequence from the target file (translated if neccessary) as a fasta file for each
+    gene.
 
     :param str baitfile: path to baitfile
     :param bool dirs: # CJJ hardcoded - remove?
@@ -170,6 +174,7 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
     :param str target:always choose the target specified by this string
     :return:
     """
+
     if target:
         if os.path.isfile(target):
             logger.info(('[DISTRIBUTE]: Reading preferred target names from {} \n'.format(target)))

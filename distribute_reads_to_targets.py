@@ -100,7 +100,7 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
 
 def write_single_seqs(target, ID1, Seq1):
     """
-    Writes a fasta filesfo single end reads to the corresponding gene directory
+    Writes a fasta file of single end reads to the corresponding gene directory
 
     :param str target: gene name e.g. gene001
     :param str ID1: fasta/fastq header for R1

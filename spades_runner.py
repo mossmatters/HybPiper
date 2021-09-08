@@ -35,13 +35,13 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
     """
 
     :param genelist:
-    :param cov_cutoff:
-    :param cpu:
+    :param int cov_cutoff:
+    :param int cpu:
     :param paired:
     :param kvals:
     :param timeout:
     :param unpaired:
-    :param merged:
+    :param bool merged:
     :return:
     """
 
@@ -301,11 +301,8 @@ def main():
                         action='store_true', default=False)
     args = parser.parse_args()
 
-    if args.merged:
-        logger.debug(f'args.merged is: {args.merged}')
-
-    if args.unpaired:
-        logger.debug(f'args.unpaired is:  {args.unpaired}')
+    logger.debug(f'args.merged is: {args.merged}')
+    logger.debug(f'args.unpaired is: {args.unpaired}')
 
     if args.single:
         is_paired = False

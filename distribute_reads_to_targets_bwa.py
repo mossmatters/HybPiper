@@ -125,9 +125,9 @@ def write_single_seqs(target, ID1, Seq1):
 def distribute_reads(readfiles, read_hit_dict, merged=False):
     """
 
-    :param readfiles:
-    :param read_hit_dict:
-    :param merged:
+    :param list readfiles: a list of one or more readfiles
+    :param dict read_hit_dict: dictionary of read_hit_dict[readID] = [target1, target2, ...]
+    :param bool merged: boolean passed to function write_paired_seqs()
     :return:
     """
 
