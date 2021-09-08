@@ -145,10 +145,10 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
     reads_written = 0
-    sys.stderr.write('Read distributing progress:\n')
+    sys.stderr.write('[NOTE]: Read distributing progress:\n')
 
     if len(readfiles) == 1:
-        logger.info('Distributing unpaired reads to gene directories')
+        logger.info('[NOTE]: Distributing unpaired reads to gene directories')
 
         for ID1_long, Seq1, Qual1 in iterator1:
             ID1 = ID1_long.split()[0]
@@ -167,12 +167,12 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         return
 
     elif len(readfiles) == 2:
-        logger.info('Distributing paired reads to gene directories')
+        logger.info('[NOTE]: Distributing paired reads to gene directories')
 
         # Check if read file is gzipped:
         filename, file_extension = os.path.splitext(readfiles[1])
         if file_extension == '.gz':
-            logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[1])}')
+            logger.debug(f'[NOTE]: Distributing reads from gzipped file {os.path.basename(readfiles[1])}')
             iterator2 = FastqGeneralIterator(gzip.open(readfiles[1], 'rt'))
         else:
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
@@ -190,8 +190,6 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
 
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
-                    print(target)
-                    print(type(target))
                     write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
                     # Note that read pairs can get written to multiple targets
                     reads_written += 1
@@ -220,7 +218,7 @@ def main():
     readfiles = args.readfiles
     logging.info(f'readsfiles are {readfiles}')
     read_hit_dict = read_sorting(args.bam_filename)
-    logging.info(f'Unique reads with hits: {len(read_hit_dict)}')
+    logging.info(f'[NOTE]: Unique reads with hits: {len(read_hit_dict)}')
     distribute_reads(readfiles, read_hit_dict, merged=args.merged)
 
 

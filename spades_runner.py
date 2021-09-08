@@ -33,16 +33,18 @@ def file_exists_and_not_empty(file_name):
 def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
                     unpaired=False, merged=False):
     """
+    Generates a string for running SPAdes via GNU parallel. Returns either a single string, or if merged=True
+    returns two strings correspodning to genes with merged and no merged sequences
 
     :param genelist:
-    :param int cov_cutoff:
-    :param int cpu:
-    :param paired:
-    :param kvals:
-    :param timeout:
-    :param unpaired:
-    :param bool merged:
-    :return:
+    :param int cov_cutoff: coverage cutoff for SPAdes assembler
+    :param int cpu: number of threads/cpus to use for GNU Parallel
+    :param bool paired: True if len(readfiles) == 2
+    :param list kvals: values of k for SPAdes assemblies
+    :param int timeout: value for GNU parallel --timeout percentage
+    :param bool unpaired: True is an unpaired readfile has been provided for the sample
+    :param bool merged: True if parameter --merged is used
+    :return: str spades_cmd_with_merged, spades_cmd_without_merged, OR str spades_cmd
     """
 
     if kvals:
@@ -111,17 +113,18 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
 def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
                    merged=False):
     """
-    Run SPAdes on each gene separately using GNU paralell.
+    Run SPAdes on each gene separately using GNU paralell. Returns a list of genes for which the SPAdes assemblies
+    failed.
 
-    :param genelist:
-    :param cov_cutoff:
-    :param cpu:
-    :param paired:
-    :param kvals:
-    :param timeout:
-    :param unpaired:
-    :param merged:
-    :return:
+    :param list genelist: a list of genes names that have reads distributed to their directories
+    :param int cov_cutoff: coverage cutoff for SPAdes assembler
+    :param int cpu: number of threads/cpus to use for GNU Parallel
+    :param bool paired: True if len(readfiles) == 2
+    :param list kvals: values of k for SPAdes assemblies
+    :param int timeout: value for GNU parallel --timeout percentage
+    :param bool unpaired: True is an unpaired readfile has been provided for the sample
+    :param bool merged: True if parameter --merged is used
+    :return: list spades_failed: list of genes for which the SPAdes assemblies failed.
     """
 
     if os.path.isfile("spades.log"):
@@ -161,13 +164,13 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.error(f'spades_cmd without merged stdout is: {exc.stdout}')
             logger.error(f'spades_cmd without merged stderr is: {exc.stderr}')
             logger.error(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low '
-                        f'coverage. No contigs found for the following genes:\n')
+                         f'coverage. No contigs found for the following genes:\n')
 
     else:
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged, timeout=timeout)
 
-        logger.info(f'Running SPAdes on {len(genes)} genes')
+        logger.info(f'[NOTE]: Running SPAdes on {len(genes)} genes')
         logger.info(f'[CMD]: {spades_cmd}')
 
         try:
@@ -206,12 +209,21 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
 
 def rerun_spades(genelist, cov_cutoff=8, cpu=None):
+    """
+    Re-run SPAdes assemblies for genes that failed in the first round, removing the largest Kmer size for the failed
+    run.
+
+    :param str genelist: path to file with list of genes with failed SPAdes assemblies
+    :param int cov_cutoff: coverage cutoff for SPAdes assembler
+    :param int cpu: number of threads/cpus to use for GNU Parallel
+    :return: list spades_duds: spades_duds is a list of genes with failed SPAdes redo assemblies.
+    """
+
     genes = [x.rstrip() for x in open(genelist)]
 
     redo_cmds_file = open('redo_spades_commands.txt', 'w')
 
     spades_successful = []
-    spades_failed = []
     spades_duds = []
     genes_redos = []
 
@@ -273,7 +285,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
 
-    return spades_failed, spades_duds
+    return spades_duds
 
 
 def main():

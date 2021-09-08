@@ -236,7 +236,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
         if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
             db_file = baitfile
         else:
-            logger.info('Making nucleotide bwa index in current directory.')
+            logger.info(f'{"[NOTE]:":10} Making nucleotide bwa index in current directory.')
             baitfileDir = os.path.split(baitfile)[0]
             if baitfileDir:
                 if os.path.realpath(baitfileDir) != os.path.realpath('.'):
@@ -467,7 +467,7 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
-    logger.info(f'Unique reads with hits: {len(read_hit_dict_paired)}')
+    logger.info(f'[NOTE]: Unique reads with hits: {len(read_hit_dict_paired)}')
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
@@ -515,7 +515,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets_bwa.read_sorting(bamfile)
-    logger.info(f'Unique reads with hits: {len(read_hit_dict_paired)}')
+    logger.info(f'[NOTE]: Unique reads with hits: {len(read_hit_dict_paired)}')
     distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
@@ -585,14 +585,15 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
         with open('failed_spades.txt', 'w') as failed_spadefile:
             failed_spadefile.write('\n'.join(spades_failed))
 
-        spades_failed, spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
+        spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
 
-        if len(spades_failed) == 0:
+        if len(spades_duds) == 0:
             logger.info('All redos completed successfully!\n')
         else:
+            logger.error(f'SPAdes redos failed for genes {" ".join(spades_duds)}')
             sys.exit(1)
 
-    if os.path.isfile('spades_duds.txt'):
+    if os.path.isfile('spades_duds.txt'):  # Written by spades_runner.rerun_spades()
         spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
     else:
         spades_duds = []
