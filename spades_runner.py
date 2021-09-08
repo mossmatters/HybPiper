@@ -21,10 +21,10 @@ logger = logging.getLogger(f'__main__.{__name__}')
 
 def file_exists_and_not_empty(file_name):
     """
-    Check if file exists and is not empty by confirming that its size is not 0 bytes
+    Check if file exists and is not empty by confirming that its size is not 0 bytes. Returns a boolean.
 
-    :param file_name:
-    :return:
+    :param str file_name: path to filename to check
+    :return: bool
     """
 
     return os.path.isfile(file_name) and not os.path.getsize(file_name) == 0
@@ -92,13 +92,10 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
 
     if merged:
         spades_cmd_list_with_merged = spades_cmd_list.copy()
-        # spades_cmd_list_with_merged.append('-o {{}}/{{}}_spades :::: spades_genelist_with_merged.txt >> spades.log')
         spades_cmd_list_with_merged.append('-o {}/{}_spades :::: spades_genelist_with_merged.txt >> spades.log')
         spades_cmd_list_without_merged = spades_cmd_list.copy()
         spades_cmd_list_without_merged = [re.sub('--merged {}/{}_merged.fastq', '', item) for item in
                                           spades_cmd_list_without_merged]  # Hacky - refactor
-        # spades_cmd_list_without_merged.append(
-        #     '-o {{}}/{{}}_spades :::: spades_genelist_without_merged.txt >> spades.log')
         spades_cmd_list_without_merged.append(
             '-o {}/{}_spades :::: spades_genelist_without_merged.txt >> spades.log')
 

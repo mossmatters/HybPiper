@@ -157,7 +157,8 @@ def check_dependencies(logger=None):
                    'bwa',
                    'samtools',
                    'bbmap.sh',
-                   'bbmerge.sh']
+                   'bbmerge.sh',
+                   'diamond']
 
     python_packages = ['Bio']
 
@@ -610,7 +611,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth
               length_pct=100, timeout=None, nosupercontigs=False, memory=1, discordant_reads_edit_distance=7,
               discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, bbmap_subfilter=7, logger=None):
     """
-    Runs the `exonerate_hits.py script via GNU parallel.
+    Runs the `exonerate_hits.py.mossmatters script via GNU parallel.
 
     :param list genes: list of genes that had successful SPAdes runs
     :param str basename: directory name for sample
@@ -653,7 +654,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth
     if nosupercontigs:
         logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes, without creating supercontigs')
         exonerate_cmd_list = ['python',
-                              f'{run_dir}/exonerate_hits.py',
+                              f'{run_dir}/exonerate_hits.py.mossmatters',
                               '{}/{}_baits.fasta',
                               '{{}}/{{}}_{}'.format(file_stem),
                               '--prefix {{}}/{}'.format(basename),
@@ -669,7 +670,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth
     else:
         logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes')
         exonerate_cmd_list = ['python',
-                              f'{run_dir}/exonerate_hits.py',
+                              f'{run_dir}/exonerate_hits.py.mossmatters',
                               '{}/{}_baits.fasta',
                               '{{}}/{{}}_{}'.format(file_stem),
                               '--prefix {{}}/{}'.format(basename),
@@ -768,7 +769,7 @@ def main():
     parser.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
                         help='Do not create any supercontigs. The longest single Exonerate hit will be used',
                         default=False)
-    parser.add_argument('--memory', help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1',
+    parser.add_argument('--memory', help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py.mossmatters. Default is 1',
                         default=1, type=int)
     parser.add_argument('--bbmap_subfilter', default=7, type=int,
                         help='Ban alignments with more than this many substitutions. Default is %(default)s')
@@ -816,7 +817,7 @@ def main():
     if args.check_depend:
         if check_dependencies(logger=logger):
             other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
-                             'distribute_targets.py', 'exonerate_hits.py', 'spades_runner.py']
+                             'distribute_targets.py', 'exonerate_hits.py.mossmatters', 'spades_runner.py']
             for script in other_scripts:
                 if os.path.isfile(os.path.join(run_dir, script)):
                     logger.debug(f'Found script {script}, continuing...')
@@ -865,7 +866,7 @@ def main():
             bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
             if not bamfile:
                 logger.error(f'ERROR: Something went wrong with the BWA step, exiting. Check the reads_first.log '
-                             f'file!')
+                             f'file for sample {basename}!')
                 return
 
             logger.debug(f'bamfile is: {bamfile}')
@@ -886,7 +887,8 @@ def main():
                                    diamond_sensitivity=args.diamond_sensitivity)
 
         if not blastx_outputfile:
-            logger.error('ERROR: Something is wrong with the Blastx step, exiting!')
+            logger.error(f'ERROR: Something went wrong with the Blastx step, exiting. Check the reads_first.log file '
+                         f'for sample {basename}!')
             return
         else:
             blastx_outputfile = f'{basename}.blastx'
