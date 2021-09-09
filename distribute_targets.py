@@ -177,7 +177,7 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
 
     if target:
         if os.path.isfile(target):
-            logger.info(('[DISTRIBUTE]: Reading preferred target names from {} \n'.format(target)))
+            logger.info(f'{"[NOTE]:":10} Reading preferred target names from {target}')
             genes_to_targets = {x.split()[0]: x.rstrip().split()[1] for x in open(target)}
             target_is_file = True
         else:
@@ -208,7 +208,7 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
                 outfile.close()
         else:
             no_matches.append(prot_cat)
-    logger.info(f'[DISTRIBUTE]: {len(set(no_matches))} proteins had no good matches.')
+    logger.info(f'{"[NOTE]:":10} {len(set(no_matches))} proteins had no good matches.')
 
 
 def main():

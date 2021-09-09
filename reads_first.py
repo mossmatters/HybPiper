@@ -243,7 +243,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
                     shutil.copy(baitfile, '.')
             db_file = os.path.split(baitfile)[1]
             make_bwa_index_cmd = f'bwa index {db_file}'
-            logger.info(f'[CMD]: {make_bwa_index_cmd}')
+            logger.info(f'{"[CMD]:":10} {make_bwa_index_cmd}')
 
             try:
                 result = subprocess.run(make_bwa_index_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -277,7 +277,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     else:
         bwa_commands.append(f'{basename}.bam')
     full_command = ' '.join(bwa_commands)
-    logger.info(f'[CMD]: {full_command}')
+    logger.info(f'{"[CMD]:":10} {full_command}')
 
     try:
         result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -321,25 +321,26 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
             header = bf.readline()
             seqline = bf.readline().rstrip().upper()
             if not set(seqline) - dna:
-                logger.info('ERROR: only ATCGN characters found in first line. You need a protein bait file for '
+                logger.info(f'{"ERROR:":10} only ATCGN characters found in first line. You need a protein bait file '
+                            f'for '
                             'BLASTx!')
                 return None
 
         # if os.path.isfile(os.path.split(baitfile)[0] + '.psq'):
         #     db_file = baitfile
         # else:
-        logger.info('Making protein blastdb in current directory.')
+        logger.info(f'{"[NOTE]:":10} Making protein blastdb in current directory.')
         if os.path.split(baitfile)[0]:
             shutil.copy(baitfile, '.')
         db_file = os.path.split(baitfile)[1]
         if diamond:
-            logger.info(f'Using DIAMOND instead of BLASTx!')
+            logger.info(f'{"[NOTE]:":10} Using DIAMOND instead of BLASTx!')
             if diamond_sensitivity:
-                logger.info(f'Using DIAMOND sensitivity "{diamond_sensitivity}"')
+                logger.info(f'{"[NOTE]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
             makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
         else:
             makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-        logger.info(f'[CMD]: {makeblastdb_cmd}')
+        logger.info(f'{"[NOTE]:":10} {makeblastdb_cmd}')
         try:
             result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     universal_newlines=True)
@@ -384,7 +385,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
         else:
             full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
                            f" {basename}_unpaired.blastx"
-        logger.info(f'[CMD]: {full_command}')
+        logger.info(f'{"[CMD]:":10} {full_command}')
 
         try:
             result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -429,7 +430,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
                                f"'{blastx_command}' >> {basename}.blastx"
 
-            logger.info(f'[CMD]: {full_command}')
+            logger.info(f'{"[CMD]:":10} {full_command}')
 
             try:
                 result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -467,7 +468,7 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
-    logger.info(f'[NOTE]: Unique reads with hits: {len(read_hit_dict_paired)}')
+    logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
@@ -515,7 +516,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets_bwa.read_sorting(bamfile)
-    logger.info(f'[NOTE]: Unique reads with hits: {len(read_hit_dict_paired)}')
+    logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
     distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
@@ -653,7 +654,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth
         parallel_cmd_list.append(f'--timeout {timeout}%')
 
     if nosupercontigs:
-        logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes, without creating supercontigs')
+        logger.info(f'{"[NOTE]:":10} Running Exonerate to generate sequences for {len(genes)} genes, without creating supercontigs')
         exonerate_cmd_list = ['python',
                               f'{run_dir}/exonerate_hits.py.mossmatters',
                               '{}/{}_baits.fasta',
@@ -669,7 +670,7 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth
                               'exonerate_genelist.txt',
                               '> genes_with_seqs.txt']
     else:
-        logger.info(f'Running Exonerate to generate sequences for {len(genes)} genes')
+        logger.info(f'{"[NOTE]:":10} Running Exonerate to generate sequences for {len(genes)} genes')
         exonerate_cmd_list = ['python',
                               f'{run_dir}/exonerate_hits.py.mossmatters',
                               '{}/{}_baits.fasta',
@@ -804,12 +805,12 @@ def main():
     else:
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_reads_first')
 
-    logger.info(f'HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
+    logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
-        logger.info(f'The flag --merged has been provided but only a single read file has been supplied. Setting '
-                    f'--merged to False.')
+        logger.info(f'{"[NOTE]:":10} The flag --merged has been provided but only a single read file has been '
+                    f'supplied. Setting --merged to False.')
         args.merged = False
 
     ####################################################################################################################
@@ -826,7 +827,7 @@ def main():
                     logger.error(f'ERROR: Script {script} not found! Please make sure it is in the same directory as '
                                  f'this one!')
                     return
-            logger.info('Everything looks good!')
+            logger.info(f'{"[NOTE]:":10} Everything looks good!')
             return
         else:
             logger.error('ERROR: One or more dependencies not found!')
@@ -920,7 +921,7 @@ def main():
     ####################################################################################################################
     # If the --merged flag is provided, merge reads for SPAdes assembly
     if args.merged:
-        logger.info(f'Merging reads for SPAdes assembly')
+        logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
         for gene in genes:
             interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
             logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
@@ -1003,11 +1004,11 @@ def main():
     ####################################################################################################################
     # Report paralog warning and write a paralog warning file
     ####################################################################################################################
-    logger.info(f'Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
+    logger.info(f'{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
     paralog_warnings = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, basename, 'paralog_warning.txt'))]
     with open('genes_with_paralog_warnings.txt', 'w') as pw:
         pw.write('\n'.join(paralog_warnings))
-    logger.info(f'WARNING: Potential paralogs detected for {len(paralog_warnings)} genes!')
+    logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected for {len(paralog_warnings)} genes!')
 
 
 ########################################################################################################################

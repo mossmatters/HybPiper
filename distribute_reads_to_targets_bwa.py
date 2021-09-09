@@ -132,7 +132,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
     """
 
     if merged:
-        logger.info('Writing fastq files for merging with BBmerge.sh')
+        logger.info(f'{"[NOTE]:":10} Writing fastq files for merging with BBmerge.sh')
 
     num_reads_to_write = len(read_hit_dict)
 
@@ -145,10 +145,10 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
     reads_written = 0
-    sys.stderr.write('[NOTE]: Read distributing progress:\n')
+    sys.stderr.write(f'{"[NOTE]:":10} Read distributing progress:\n')
 
     if len(readfiles) == 1:
-        logger.info('[NOTE]: Distributing unpaired reads to gene directories')
+        logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
 
         for ID1_long, Seq1, Qual1 in iterator1:
             ID1 = ID1_long.split()[0]
@@ -167,12 +167,12 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         return
 
     elif len(readfiles) == 2:
-        logger.info('[NOTE]: Distributing paired reads to gene directories')
+        logger.info(f'{"[NOTE]:":10} Distributing paired reads to gene directories')
 
         # Check if read file is gzipped:
         filename, file_extension = os.path.splitext(readfiles[1])
         if file_extension == '.gz':
-            logger.debug(f'[NOTE]: Distributing reads from gzipped file {os.path.basename(readfiles[1])}')
+            logger.debug(f'{"[NOTE]:":10} Distributing reads from gzipped file {os.path.basename(readfiles[1])}')
             iterator2 = FastqGeneralIterator(gzip.open(readfiles[1], 'rt'))
         else:
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
@@ -214,11 +214,11 @@ def main():
                         default=False)
     args = parser.parse_args()
 
-    logging.info(f'Running script distribute_reads_to_targets_bwa.py with {args}')
+    logging.info(f'{"[NOTE]:":10} Running script distribute_reads_to_targets_bwa.py with {args}')
     readfiles = args.readfiles
-    logging.info(f'readsfiles are {readfiles}')
+    logging.info(f'{"[NOTE]:":10} readsfiles are {readfiles}')
     read_hit_dict = read_sorting(args.bam_filename)
-    logging.info(f'[NOTE]: Unique reads with hits: {len(read_hit_dict)}')
+    logging.info(f'{"[NOTE]:":10} [NOTE]: Unique reads with hits: {len(read_hit_dict)}')
     distribute_reads(readfiles, read_hit_dict, merged=args.merged)
 
 

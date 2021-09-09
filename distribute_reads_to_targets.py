@@ -122,10 +122,10 @@ def main():
                         default=False)
     args = parser.parse_args()
 
-    logging.info(f'Running script distribute_reads_to_targets.py with {args}')
+    logging.info(f'{"[NOTE]:":10} Running script distribute_reads_to_targets.py with {args}')
     readfiles = args.readfiles
     read_hit_dict = read_sorting(args.blast_filename)
-    logging.info(f'Unique reads with hits: {len(read_hit_dict)}')
+    logging.info(f'{"[NOTE]":10} Unique reads with hits: {len(read_hit_dict)}')
     distribute_reads(readfiles, read_hit_dict, merged=args.merged)
 
 

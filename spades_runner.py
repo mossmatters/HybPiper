@@ -89,8 +89,8 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
             for gene in genes_without_merged_reads:
                 without_merged.write(f'{gene}\n')
 
-        logger.info(f'Genes with merged reads: {len(genes_with_merged_reads)}')
-        logger.info(f'Genes without merged reads: {len(genes_without_merged_reads)}')
+        logger.info(f'{"[NOTE]:":10} Genes with merged reads: {len(genes_with_merged_reads)}')
+        logger.info(f'{"[NOTE]:":10} Genes without merged reads: {len(genes_without_merged_reads)}')
 
     if merged:
         spades_cmd_list_with_merged = spades_cmd_list.copy()
@@ -113,7 +113,7 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
 def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
                    merged=False):
     """
-    Run SPAdes on each gene separately using GNU paralell. Returns a list of genes for which the SPAdes assemblies
+    Run SPAdes on each gene separately using GNU parallel. Returns a list of genes for which the SPAdes assemblies
     failed.
 
     :param list genelist: a list of genes names that have reads distributed to their directories
@@ -135,7 +135,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     if merged:
         spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
             genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout)
-        logger.info(f'[CMD]: {spades_cmd_with_merged}\n')
+        logger.info(f'{"[CMD:]":10} {spades_cmd_with_merged}\n')
 
         try:
             result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -170,8 +170,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged, timeout=timeout)
 
-        logger.info(f'[NOTE]: Running SPAdes on {len(genes)} genes')
-        logger.info(f'[CMD]: {spades_cmd}')
+        logger.info(f'{"[NOTE]:":10} Running SPAdes on {len(genes)} genes')
+        logger.info(f'{"[CMD]:":10} {spades_cmd}')
 
         try:
             result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -233,7 +233,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         all_kmers.sort()
 
         if len(all_kmers) < 2:
-            logger.info(f'WARNING: All Kmers failed for {gene}!\n')
+            logger.info(f'{"[NOTE]:":10} WARNING: All Kmers failed for {gene}!\n')
             spades_duds.append(gene)
             continue
         else:
@@ -251,7 +251,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     else:
         redo_spades_cmd = 'parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
-    logger.info(f'Re-running SPAdes for {len(genes_redos)} genes\n')
+    logger.info(f'{"[NOTE]:":10} Re-running SPAdes for {len(genes_redos)} genes\n')
     logger.info(redo_spades_cmd + '\n')
 
     try:
