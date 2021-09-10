@@ -116,7 +116,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     Run SPAdes on each gene separately using GNU parallel. Returns a list of genes for which the SPAdes assemblies
     failed.
 
-    :param list genelist: a list of genes names that have reads distributed to their directories
+    :param str genelist: path to file containing the name of each gene that has reads distributed to its directory
     :param int cov_cutoff: coverage cutoff for SPAdes assembler
     :param int cpu: number of threads/cpus to use for GNU Parallel
     :param bool paired: True if len(readfiles) == 2
@@ -323,7 +323,7 @@ def main():
 
     if os.path.isfile('failed_spades.txt') and args.redos_only:  # Only gets used (optional) when running standalone
         # script
-        spades_failed = rerun_spades('failed_spades.txt', cpu=args.cpu, paired=is_paired)
+        spades_failed = rerun_spades('failed_spades.txt', cpu=args.cpu)
     else:
         if args.unpaired:  # Create empty unpaired file if it doesn't exist
             for gene in open(args.genelist):
@@ -340,8 +340,7 @@ def main():
             with open('failed_spades.txt', 'w') as failed_spadefile:
                 failed_spadefile.write('\n'.join(spades_failed))
 
-            spades_failed, spades_duds = rerun_spades('failed_spades.txt', cov_cutoff=args.cov_cutoff, paired=is_paired,
-                                                      cpu=args.cpu)
+            spades_failed, spades_duds = rerun_spades('failed_spades.txt', cov_cutoff=args.cov_cutoff, cpu=args.cpu)
             if len(spades_failed) == 0:
                 sys.stderr.write('All redos completed successfully!\n')
             else:

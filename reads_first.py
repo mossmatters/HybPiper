@@ -17,16 +17,22 @@ python reads_first.py -h
 import argparse
 import os
 import sys
-import importlib
 import shutil
 import subprocess
 import glob
 import logging
+from collections import defaultdict
+import re
+import textwrap
+import datetime
+try:
+    import Bio
+except ImportError:
+    sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python used to run this script?")
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
 import spades_runner
-import datetime
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -45,12 +51,12 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     By default, logs level DEBUG and above to file.
     By default, logs level INFO and above to stderr and file.
 
-    :param string name: name for the logger instance
-    :param string log_file: filename for log file
-    :param string console_level: logger level for logging to console
-    :param string file_level: logger level for logging to file
-    :param string logger_object_level: logger level for logger object
-    :return: a logger object
+    :param str name: name for the logger instance
+    :param str log_file: filename for log file
+    :param str console_level: logger level for logging to console
+    :param str file_level: logger level for logging to file
+    :param str logger_object_level: logger level for logger object
+    :return: logging.Logger: logger object
     """
 
     # Get date and time string for log filename:
@@ -160,25 +166,108 @@ def check_dependencies(logger=None):
                    'bbmerge.sh',
                    'diamond']
 
-    python_packages = ['Bio']
-
+    logger.info(f'{"[NOTE]:":10} Checking for external dependencies:\n')
     everything_is_awesome = True
     for e in executables:
         e_loc = py_which(e)
         if e_loc:
-            logger.info(f'{e} found at {e_loc}')
+            logger.info(f'{e:20} found at {e_loc}')
         else:
-            logger.info(f'{e} not found in your $PATH!')
+            logger.info(f'{e:20} not found in your $PATH!')
             everything_is_awesome = False
-
-    for p in python_packages:
-        try:
-            i = importlib.import_module(p)
-            logger.info(f'Package {p} successfully loaded!')
-        except ImportError:
-            logger.error(f'Package {p} not found!')
-            everything_is_awesome = False
+    logger.info('')
     return everything_is_awesome
+
+
+def check_baitfile(baitfile, using_bwa, logger=None):
+    """
+    Checks bait-file fasta header formatting ("taxon*-unique_gene_ID").
+    Reports the number of unique genes represented in the baitfile.
+    Performs a quick detection of whether baitfile is DNA or amino-acid.
+    Checks that seqs in bait file can be translated from the first codon position in the forwards frame (multiple of
+    three, no unexpected stop codons), and logs a warning if not.
+
+    :param str baitfile: path to the not file
+    :param bool using_bwa: True if the --bwa flag is used; corresponds to nucleotide target file
+    :param logging.Logger logger: a logger object
+    :return:
+    """
+
+    # Check bait-file fasta header formatting:
+    logger.info(f'{"[NOTE]:":10} Checking baitfile FASTA header formatting...')
+    gene_lists = defaultdict(list)
+    with open(baitfile, 'r') as bait_file:
+        seqs = list(Bio.SeqIO.parse(bait_file, 'fasta'))
+        incorrectly_formatted_fasta_headers = []
+        for seq in seqs:
+            if not re.match('.+-[^-]+', seq.name):
+                incorrectly_formatted_fasta_headers.append(seq.name)
+            gene_id = re.split('-', seq.name)[-1]
+            gene_lists[gene_id].append(seq)
+    if incorrectly_formatted_fasta_headers:
+        seq_list = ' '.join(incorrectly_formatted_fasta_headers)
+        logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile have incorrectly formatted fasta '
+                    f'headers:\n')
+        fill = textwrap.fill(f'{seq_list}')
+        logger.info(textwrap.indent(fill, ' ' * 11))
+        logger.info('')
+    else:
+        logger.info(f'{"[NOTE]:":10} The baitfile FASTA header formatting looks good!')
+
+    # Report the number of unique genes represented in the baitfile:
+    logger.info(f'{"[NOTE]:":10} The baitfile contains at least one sequence for {len(gene_lists)} '
+                f'unique genes.')
+
+    # Quick detection of whether baitfile is DNA or amino-acid:
+    dna = set('ATCGN')
+    if os.path.isfile(baitfile):
+        with open(baitfile) as bf:
+            header = bf.readline()
+            seqline = bf.readline().rstrip().upper()
+            if using_bwa and set(seqline) - dna:
+                sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide bait '
+                         f'file for BWA!')
+            elif not using_bwa and not set(seqline) - dna:
+                sys.exit(f'{"ERROR:":10} Only ATCGN characters found in first line. You need a protein bait file for '
+                         f'BLASTx!')
+
+    # Check that seqs in bait file can be translated from the first codon position in the forwards frame:
+    if using_bwa:
+        seqs_needed_padding_dict = defaultdict(list)
+        seqs_with_stop_codons_dict = defaultdict(list)
+
+        for seq in seqs:
+            gene_name = seq.name.split('-')[-1]
+            sequence, needed_padding = distribute_targets.pad_seq(seq)
+            translated_seq = sequence.seq.translate()
+            num_stop_codons = translated_seq.count('*')
+
+            if needed_padding:
+                seqs_needed_padding_dict[gene_name].append(seq)
+
+            if num_stop_codons == 1 and re.search('[*]', str(translated_seq)[-5:]):
+                logger.debug(f'Translated sequence {seq.name} contains a single stop codon in the last 5 amino-acids, '
+                             f'proceeding...')
+            elif num_stop_codons >= 1:
+                seqs_with_stop_codons_dict[gene_name].append(seq)
+
+        if seqs_with_stop_codons_dict:
+            seq_list = ' '.join([seq.name for gene_name, bait_file_Sequence_list in seqs_with_stop_codons_dict.items()
+                                 for seq in bait_file_Sequence_list])
+            logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile contain unexpected stop codons when '
+                        f'translated in the first forwards frame. If your baitfile contains only protein-coding '
+                        f'sequences, please check:\n')
+            fill = textwrap.fill(f'{seq_list}')
+            logger.info(textwrap.indent(fill, ' ' * 11))
+            logger.info('')
+        if seqs_needed_padding_dict:
+            seq_list = ' '.join([seq.name for gene_name, bait_file_Sequence_list in seqs_needed_padding_dict.items()
+                                 for seq in bait_file_Sequence_list])
+            logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile are not multiple of three. If your '
+                        f'baitfile contains only protein-coding sequences, please check:\n')
+            fill = textwrap.fill(f'{seq_list}')
+            logger.info(textwrap.indent(fill, ' ' * 11))
+            logger.info('')
 
 
 def make_basename(readfiles, prefix=None):
@@ -210,8 +299,7 @@ def make_basename(readfiles, prefix=None):
 
 def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     """
-    Conduct BWA search of reads against the baitfile. Returns an error if the second line of the baitfile contains
-    characters other than ACTGN.
+    Conduct BWA search of reads against the baitfile.
 
     :param list readfiles: one or more read files to start the pipeline
     :param str baitfile: path to baitfile (target file)
@@ -222,17 +310,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     :return: None, or the *.bam output file from BWA alignment of sample reads to the bait file
     """
 
-    dna = set('ATCGN')
     if os.path.isfile(baitfile):
-        # Quick detection of whether baitfile is DNA.
-        with open(baitfile) as bf:
-            header = bf.readline()
-            seqline = bf.readline().rstrip().upper()
-            if set(seqline) - dna:
-                logger.error('ERROR: characters other than ACTGN found in first line. You need a nucleotide bait file '
-                             'for BWA!')
-                return None
-
         if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
             db_file = baitfile
         else:
@@ -301,7 +379,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     Creates a blast database from the complete protein target file, and performs BLASTx searches of sample
     nucleotide read files against the protein database.
 
-    :param list readfiles: one or more read files to start the pipeline
+    :param list/str readfiles: list of paired read files OR  path to unpaired readfile if unpaired is True
     :param str baitfile: path to baitfile (target file)
     :param float evalue: evalue to use for BLASTx searches
     :param str basename: directory name for sample
@@ -314,18 +392,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     :return: None, or the *.blastx output file from DIAMOND/BLASTx searches of sample reads against the bait file
     """
 
-    dna = set('ATCGN')
     if os.path.isfile(baitfile):
-        # Quick detection of whether baitfile is DNA.
-        with open(baitfile) as bf:
-            header = bf.readline()
-            seqline = bf.readline().rstrip().upper()
-            if not set(seqline) - dna:
-                logger.info(f'{"ERROR:":10} only ATCGN characters found in first line. You need a protein bait file '
-                            f'for '
-                            'BLASTx!')
-                return None
-
         # if os.path.isfile(os.path.split(baitfile)[0] + '.psq'):
         #     db_file = baitfile
         # else:
@@ -411,8 +478,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 pipe_cmd = f"gunzip -c {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; " \
                            f"}} }}'"
             else:
-                pipe_cmd = f"cat {read_file} | \
-                awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
+                pipe_cmd = f"cat {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
 
             if diamond and diamond_sensitivity:
                 blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 ' \
@@ -453,7 +519,7 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     """
     When using blastx, distribute sample reads to their corresponding target file hits.
 
-    :param str blastx_outputfile:
+    :param str blastx_outputfile: tabular format output file of BLASTx search
     :param list readfiles: one or more read files to start the pipeline
     :param str baitfile: path to baitfile (target file)
     :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
@@ -464,16 +530,14 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     :return: None
     """
 
-    logger.info(f'READFILES are: {readfiles}')
-
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
     logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
-        blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
-        read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
+        up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
+        read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(up_blastx_outputfile)
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
@@ -481,18 +545,17 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
         target_string = f'--target {target}'
     else:
         target_string = None
-    # if unpaired:  # CJJ blastX doesn't use unpaired file to calculate best target seq?
-    #     unpaired_bool = True
-    # else:
-    #     unpaired_bool = False
+    if unpaired_readfile:
+        unpaired_bool = True
+    else:
+        unpaired_bool = False
     if exclude:
         exclude_string = f'--exclude {exclude}'
     else:
         exclude_string = None
 
-    besthits = distribute_targets.tailored_target_blast(blastx_outputfile, exclude_string)
-    distribute_targets.distribute_targets(baitfile, dirs=True, delim='-', besthits=besthits, translate=False,
-                                          target=target_string)
+    besthits = distribute_targets.tailored_target_blast(blastx_outputfile, unpaired_bool, exclude_string)
+    distribute_targets.distribute_targets(baitfile, delim='-', besthits=besthits, translate=False, target=target_string)
     return None
 
 
@@ -539,8 +602,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_bwa(bamfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(baitfile, dirs=True, delim='-', besthits=besthits, translate=True,
-                                          target=target_string)
+    distribute_targets.distribute_targets(baitfile, delim='-', besthits=besthits, translate=True, target=target_string)
     return None
 
 
@@ -694,16 +756,13 @@ def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth
 
     if exitcode:
         logger.info(f'exitcode is: {exitcode}')
-        logger.error('ERROR: Something went wrong with Exonerate!')
+        logger.error(f'{"[ERROR]:":10} Something went wrong with Exonerate!')
         return exitcode
     return
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--check-depend', dest='check_depend',
-                        help='Check for dependencies (executables and Python packages) and exit. May not work at all '
-                             'on Windows.', action='store_true')
     group_1 = parser.add_mutually_exclusive_group()
     group_1.add_argument('--bwa', dest='bwa', action='store_true',
                        help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
@@ -791,6 +850,7 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
     # Generate a directory for the sample:
@@ -816,22 +876,20 @@ def main():
     ####################################################################################################################
     # Check dependencies
     ####################################################################################################################
-    if args.check_depend:
-        if check_dependencies(logger=logger):
-            other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
-                             'distribute_targets.py', 'exonerate_hits.py.mossmatters', 'spades_runner.py']
-            for script in other_scripts:
-                if os.path.isfile(os.path.join(run_dir, script)):
-                    logger.debug(f'Found script {script}, continuing...')
-                else:
-                    logger.error(f'ERROR: Script {script} not found! Please make sure it is in the same directory as '
-                                 f'this one!')
-                    return
-            logger.info(f'{"[NOTE]:":10} Everything looks good!')
-            return
-        else:
-            logger.error('ERROR: One or more dependencies not found!')
-            return
+    if check_dependencies(logger=logger):
+        other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
+                         'distribute_targets.py', 'exonerate_hits.py.mossmatters', 'spades_runner.py']
+        for script in other_scripts:
+            if os.path.isfile(os.path.join(run_dir, script)):
+                logger.debug(f'Found script {script}, continuing...')
+            else:
+                logger.error(f'ERROR: Script {script} not found! Please make sure it is in the same directory as '
+                             f'this one!')
+                return
+        logger.info(f'{"[NOTE]:":10} Everything looks good!')
+    else:
+        logger.error('ERROR: One or more dependencies not found!')
+        return
 
     ####################################################################################################################
     # Read in the target file (called baitfile here) and read files
@@ -841,6 +899,10 @@ def main():
     else:
         print(__doc__)
         return
+
+    # Check that the bait file is formatted correctly, translates correctly:
+    check_baitfile(baitfile, args.bwa, logger=logger)
+
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
@@ -867,8 +929,8 @@ def main():
 
             bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
             if not bamfile:
-                logger.error(f'ERROR: Something went wrong with the BWA step, exiting. Check the reads_first.log '
-                             f'file for sample {basename}!')
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
+                             f'reads_first.log file for sample {basename}!')
                 return
 
             logger.debug(f'bamfile is: {bamfile}')
@@ -889,7 +951,8 @@ def main():
                                    diamond_sensitivity=args.diamond_sensitivity)
 
         if not blastx_outputfile:
-            logger.error(f'ERROR: Something went wrong with the Blastx step, exiting. Check the reads_first.log file '
+            logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
+                         f'reads_first.log file '
                          f'for sample {basename}!')
             return
         else:

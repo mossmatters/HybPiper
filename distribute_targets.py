@@ -32,12 +32,17 @@ def pad_seq(sequence):
     """
     Pads a sequence Seq object to a multiple of 3 with 'N'.
 
-    :param Bio.Seq.Seq sequence: sequence to pad
-    :return: sequence padded with Ns if required
+    :param Bio.SeqRecord.SeqRecord sequence: sequence to pad
+    :return: Bio.SeqRecord.SeqRecord sequence padded with Ns if required, bool True if sequence needed padding
     """
 
-    remainder = len(sequence) % 3
-    return sequence if remainder == 0 else sequence + Seq('N' * (3 - remainder))
+    remainder = len(sequence.seq) % 3
+    if remainder == 0:
+        return sequence, False
+    else:
+        # logger.info(f'{"[WARN!]:":10} The baitfile nucleotide sequence {sequence.id} is not a multiple of 3!')
+        sequence.seq = sequence.seq + Seq('N' * (3 - remainder))
+        return sequence, True
 
 
 def mkdir_p(path):
@@ -57,19 +62,25 @@ def mkdir_p(path):
             raise
 
 
-def tailored_target_blast(blastxfilename, exclude=None):
+def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
     """
     Determine, for each protein, the 'best' target protein, by tallying up the blastx hit scores.
 
     :param str blastxfilename: path the BLASTx tabular output file
+    :param bool unpaired: if True, process a *_unpaired.bam file
     :param str exclude: no not use any target sequence specified by this string
     :return: dict besthits: dictionary of besthits[prot] = top_taxon
     """
 
-    blastxfile = open(blastxfilename)
-    
+    with open(blastxfilename) as blastxfile_handle:
+        blastx_results = blastxfile_handle.readlines()
+    if unpaired:
+        with open(blastxfilename.replace('.blastx', '_unpaired.blastx')) as blastxfile_unpaired_handle:
+            blastx_results_unpaired = blastxfile_unpaired_handle.readlines()
+        blastx_results += blastx_results_unpaired
+
     hitcounts = {}
-    for result in blastxfile:
+    for result in blastx_results:
         result = result.split()
         hitname = result[1].split('-')
         bitscore = float(result[-1])
@@ -89,6 +100,7 @@ def tailored_target_blast(blastxfilename, exclude=None):
                     hitcounts[protname][taxon] = bitscore
             else:
                 hitcounts[protname] = {taxon: 1}
+
     # For each protein, find the taxon with the highest total hit bitscore.
     besthits = {}
     besthit_counts = {}
@@ -144,6 +156,7 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
                     hitcounts[protname][taxon] = mapscore
             else:
                 hitcounts[protname] = {taxon: 1}
+
     # For each protein, find the taxon with the highest total hit mapscore.
     besthits = {}
     besthit_counts = {}
@@ -161,13 +174,12 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
     return besthits    
 
      
-def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=None):
+def distribute_targets(baitfile, delim, besthits, translate=False, target=None):
     """
     Writes the single 'best' protein sequence from the target file (translated if neccessary) as a fasta file for each
     gene.
 
     :param str baitfile: path to baitfile
-    :param bool dirs: # CJJ hardcoded - remove?
     :param str delim: symbol to use as gene delimeter; default is '-'
     :param dict besthits: dictionary of besthits[prot] = top_taxon
     :param bool translate: If True, translate nucleotide target SeqObject
@@ -189,10 +201,10 @@ def distribute_targets(baitfile, dirs, delim, besthits, translate=False, target=
         # Get the 'basename' of the protein
         prot_cat = prot.id.split(delim)[-1]
         if translate:
-            prot.seq = pad_seq(prot.seq).translate()  # seq padded to avoid BioPython warning
-        
-        if dirs:
-            mkdir_p(prot_cat)
+            seq, needed_padding = pad_seq(prot)
+            prot.seq = seq.translate()
+
+        mkdir_p(prot_cat)
         
         if prot_cat in besthits:
             if target:
@@ -227,14 +239,13 @@ def main():
     args = parser.parse_args()
 
     if args.blastx:
-        besthits = tailored_target_blast(args.blastx, args.exclude)
+        besthits = tailored_target_blast(args.blastx, args.unpaired, args.exclude)
         translate = False            
     if args.bam:
         translate = True
         besthits = tailored_target_bwa(args.bam, args.unpaired, args.exclude)
 
     distribute_targets(args.baitfile,
-                       dirs=True,
                        delim=args.delimiter,
                        besthits=besthits,
                        translate=translate,
