@@ -21,10 +21,15 @@ import shutil
 import subprocess
 import glob
 import logging
+import logging.handlers
 from collections import defaultdict
 import re
 import textwrap
 import datetime
+from concurrent.futures.process import ProcessPoolExecutor
+import multiprocessing
+from multiprocessing import Manager
+from concurrent.futures import wait
 try:
     import Bio
 except ImportError:
@@ -33,6 +38,7 @@ import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
 import spades_runner
+import exonerate_hits
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -64,6 +70,7 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
 
     # Log to file:
     file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log', mode='w')
+    # file_handler = logging.FileHandler(f'{log_file}.log', mode='w')
     file_handler.setLevel(file_level)
     file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
                                     'message)s')
@@ -77,6 +84,7 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
 
     # Setup logger:
     logger_object = logging.getLogger(name)
+    # logger_object = logging.getLogger()
     logger_object.setLevel(logger_object_level)  # Default level is 'WARNING'
 
     # Add handlers to the logger
@@ -671,102 +679,305 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     return spades_genelist
 
 
-def exonerate(genes, basename, run_dir, replace=True, cpu=None, thresh=55, depth_multiplier=0,
-              length_pct=100, timeout=None, nosupercontigs=False, memory=1, discordant_reads_edit_distance=7,
-              discordant_reads_cutoff=100, paralog_warning_min_cutoff=0.75, bbmap_subfilter=7, logger=None):
+def done_callback(future_returned, logger=None):
     """
-    Runs the `exonerate_hits.py.mossmatters script via GNU parallel.
+    Callback function for ProcessPoolExecutor futures; gets called when a future is cancelled or 'done'.
+
+    :param future_returned:
+    :type future_returned:
+    :return:
+    :rtype:
+    """
+
+    if future_returned.cancelled():
+        # logger.error(f'{future_returned}: cancelled')
+        print(f'{future_returned}: cancelled')
+        return
+    elif future_returned.done():
+        error = future_returned.exception()
+        if error:
+            # logger.error(f'{future_returned}: error returned: {error}')
+            print(f'{future_returned}: error returned: {error}')
+            result = Exception('Error in multiprocessing')
+            return
+        else:
+            result = future_returned.result()
+    return result
+
+
+def exonerate(gene_name,
+              basename,
+              thresh=55,
+              paralog_warning_min_length_percentage=0.75,
+              length_pct=100,
+              depth_multiplier=10,
+              nosupercontigs=False,
+              memory=1,
+              bbmap_subfilter=7,
+              bbmap_threads=2,
+              discordant_reads_edit_distance=5,
+              discordant_reads_cutoff=5,
+              queue=None,
+              worker_configurer=None,
+              counter=None,
+              lock=None,
+              genes_to_process=0):
+    """
+    :param str gene_name: name of a gene that had at least one SPAdes contig
+    :param str basename: directory name for sample
+    :param int thresh: percent identity threshold for stitching together Exonerate results
+    :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
+    :param int length_pct: min % of Exonerate hit vs prot query for Exonerate hit to be included as 'full-length'
+    :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
+    :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
+    :param int memory: GB memory (RAM ) to use for bbmap.sh
+    :param int bbmap_subfilter: ban alignments with more than this many substitutions
+    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
+    :param int discordant_reads_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
+    :param multiprocessing.managers.AutoProxy[Queue] queue: shared queue for logging
+    :param function worker_configurer: function to configure logging via QueueHandler
+    :param multiprocessing.managers.ValueProxy counter:
+    :param multiprocessing.managers.AcquirerProxy lock:
+    :param int genes_to_process: total number of genes to be processed via Exonerate
+    :return: str gene_name, str prot_length
+    """
+
+    logger = logging.getLogger()  # Root logger from inside the new Python process via ProcessPoolExecutor pool
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    worker_configurer(queue)  # set up QueueHandler
+    logger = logging.getLogger(gene_name)
+    logger.setLevel(logging.DEBUG)
+
+    # Create directories for output files based on the prefix name, or assemblyfile name:
+    prefix = exonerate_hits.create_output_directories(f'{gene_name}/{basename}', f'{gene_name}/'
+                                                                                 f'{gene_name}_contigs.fasta')
+    logger.debug(f'prefix is: {prefix}')
+
+    # Set whether the chimeric supercontigs test will be performed, and whether a file of interleaved reads is found:
+    perform_supercontig_chimera_test, path_to_interleaved_fasta = exonerate_hits.set_supercontig_chimera_test(
+        nosupercontigs,
+        prefix)
+    logger.debug(f'perform_supercontig_chimera_test is: {perform_supercontig_chimera_test}')
+    logger.debug(f'path_to_interleaved_fasta is: {path_to_interleaved_fasta}')
+
+    # Read the SPAdes contigs and the 'best' protein reference seq into SeqIO dictionaries:
+    spades_assembly_dict, best_protein_ref_dict = exonerate_hits.parse_spades_and_best_reference(
+        f'{gene_name}/{gene_name}_contigs.fasta',
+        f'{gene_name}/{gene_name}_baits.fasta',
+        prefix)
+    logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
+    logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
+
+    # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
+    exonerate_hits_sequence_dict = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_baits.fasta',
+                                                                    f'{gene_name}/{gene_name}_contigs.fasta',
+                                                                    prefix)
+    logger.debug(f'exonerate_hits_sequence_dict is: {exonerate_hits_sequence_dict}')
+
+    # Parse the initial Exonerate results:
+    proteinHits = exonerate_hits.parse_initial_exonerate_hits(exonerate_hits_sequence_dict,
+                                                              prefix)
+    logger.debug(f'proteinHits is: {proteinHits}')
+    logger.debug(f'There were {len(exonerate_hits_sequence_dict)} Exonerate hits for {gene_name}'
+                 f'/{gene_name}_baits.fasta.')
+
+    # Filter the Exonerate SPAdes contig hits and produce FNA and FAA files:
+    gene_name, prot_length = exonerate_hits.filter_exonerate_hits_and_construct_fna_faa(
+        proteinHits,
+        best_protein_ref_dict,
+        thresh,
+        paralog_warning_min_length_percentage,
+        length_pct,
+        depth_multiplier,
+        prefix,
+        exonerate_hits_sequence_dict,
+        spades_assembly_dict,
+        nosupercontigs,
+        perform_supercontig_chimera_test,
+        path_to_interleaved_fasta,
+        memory,
+        bbmap_subfilter,
+        bbmap_threads,
+        discordant_reads_edit_distance,
+        discordant_reads_cutoff,
+        no_sequences=False)
+
+    with lock:
+        counter.value += 1
+        # sys.stderr.write(f'\rFinished running Exonerate for gene {gene_name}, {counter.value}', end='')
+        sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+                         f'/{genes_to_process}')
+
+    return gene_name, prot_length
+
+
+def listener_configurer(log_filename):
+    """
+    Configures logging for the listener process (which captures logging events from the worker processes)
+
+    :param str log_filename: name of the log file used by main()
+    :return:
+    """
+
+    # print(f'listener_configurer log_filename: {log_filename}')
+    filename = log_filename.split()[1]
+    # print(f'listener_configurer filename: {filename}')
+    root = logging.getLogger()
+    # file_handler = logging.FileHandler(f'lucy.log', mode='w')
+    file_handler = logging.FileHandler(filename, mode='a')
+    file_handler.setLevel(logging.DEBUG)
+    f = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(f)
+    root.addHandler(file_handler)
+
+    # Log to Terminal (stdout):
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_format = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_format)
+    root.addHandler(console_handler)
+
+
+def worker_configurer(queue):
+    """
+    Configures logging via a QueueHandler handler for the worker processes
+
+    :param multiprocessing.managers.AutoProxy[Queue] queue: shared queue for logging
+    :return:
+    """
+
+    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
+    logger = logging.getLogger()
+    logger.addHandler(h)
+    # send all messages, for demo; no other level or filter logic applied.
+    logger.setLevel(logging.DEBUG)
+
+
+def listener_process(queue, listener_configurer, logger=None, log_filename=None):
+    """
+    Captures logging events from the worker processes via a queue
+
+    :param multiprocessing.managers.AutoProxy[Queue] queue: shared queue for logging
+    :param function listener_configurer: function to configure logging for the listener process
+    :param logging.Logger logger: a logger object
+    :param str log_filename: name of the log file used by main()
+    :return:
+    """
+
+    # print(f'listener_process log_filename: {log_filename}')
+    listener_configurer(log_filename)
+    # print(f'listener_process logger.handlers: {logger.handlers}')
+    while True:
+        try:
+            record = queue.get()
+            if record is None:  # We send this as a sentinel to tell the listener to quit.
+                break
+            # print(f'From within listener_process, record is: {record}')
+            # logger = logging.getLogger(record.name)
+            logger.handle(record)  # No level or filter logic applied - just do it!
+        except Exception:
+            import sys
+            import traceback
+            print('Whoops! Problem:', file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
+
+def exonerate_multiprocessing(genes,
+                              basename,
+                              thresh=55,
+                              paralog_warning_min_length_percentage=0.75,
+                              pool_threads=None,
+                              length_pct=90,
+                              depth_multiplier=10,
+                              nosupercontigs=False,
+                              memory=1,
+                              bbmap_subfilter=7,
+                              bbmap_threads=2,
+                              discordant_reads_edit_distance=5,
+                              discordant_reads_cutoff=5,
+                              logger=None):
+    """
+    Runs the function exonerate() using multiprocessing.
 
     :param list genes: list of genes that had successful SPAdes runs
     :param str basename: directory name for sample
-    :param run_dir: CJJ will be removed after refactor
-    :param bool replace: CJJ hardcoded as True, remove after refactor
-    :param int cpu: number of threads/cpus to use for GNU Parallel
-    :param int thresh: percent identity threshold for stitching together Exonerate hits
-    :param int depth_multiplier: if Exonerate hit if it has coverage depth X times the next best hit, accept
-    :param int length_pct: Include Exonerate hit if >= long as X percentage of the reference protein length
-    :param int timeout: value for GNU parallel --timeout percentage
-    :param bool nosupercontigs: If True, no not produce supercontigs; use longest Exonerate hit only
+    :param int thresh: percent identity threshold for stitching together Exonerate results
+    :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
+    :param int pool_threads: number of threads/cpus to use for the ProcessPoolExecutor pool
+    :param int length_pct: min % of Exonerate hit vs prot query for Exonerate hit to be included as 'full-length'
+    :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
+    :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
     :param int memory: GB memory (RAM ) to use for bbmap.sh
-    :param int discordant_reads_edit_distance: minimum number of edits for discordant read pair flagging
-    :param int discordant_reads_cutoff: number of discordant reads for supercontig to be flagged as a chimera
-    :param float paralog_warning_min_cutoff: min length % of a contig vs reference protein length for paralog warning
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
+    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
+    :param int discordant_reads_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
     :param logging.Logger logger: a logger object
-    :return: None
+    :return:
     """
 
-    if replace:
-        for g in genes:
-            if os.path.isdir(os.path.join(g, basename)):
-                shutil.rmtree(os.path.join(g, basename))
-    if len(genes) == 0:
-        logger.error(f'ERROR: No genes recovered for {basename}!')
-        return 1
+    logger.info(f'{"[NOTE]:":10} Running exonerate_hits for {len(genes)} genes...')
+    genes_to_process = len(genes)
 
-    if os.path.isfile('genes_with_seqs.txt'):
-        os.remove('genes_with_seqs.txt')
+    if not pool_threads:
+        import multiprocessing
+        pool_threads = multiprocessing.cpu_count()
+    logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
-    file_stem = "contigs.fasta"
+    with ProcessPoolExecutor(max_workers=pool_threads) as pool:
+        manager = Manager()
+        queue = manager.Queue(-1)
+        lock = manager.Lock()
+        counter = manager.Value('i', 0)
+        watcher = pool.submit(listener_process, queue, listener_configurer, logger=logger,
+                              log_filename=str(logger.handlers[1]))
+        future_results = [pool.submit(exonerate,
+                                      gene_name,
+                                      basename,
+                                      thresh=thresh,
+                                      paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
+                                      length_pct=length_pct,
+                                      depth_multiplier=depth_multiplier,
+                                      nosupercontigs=nosupercontigs,
+                                      memory=memory,
+                                      bbmap_subfilter=bbmap_subfilter,
+                                      bbmap_threads=bbmap_threads,
+                                      discordant_reads_edit_distance=discordant_reads_edit_distance,
+                                      discordant_reads_cutoff=discordant_reads_cutoff,
+                                      queue=queue,
+                                      worker_configurer=worker_configurer,
+                                      counter=counter,
+                                      lock=lock,
+                                      genes_to_process=genes_to_process)
+                          for gene_name in genes]
+        for future in future_results:
+            future.add_done_callback(done_callback)
+        wait(future_results, return_when="ALL_COMPLETED")
 
-    parallel_cmd_list = ['time parallel', '--eta', '--joblog parallel.log']
-    if cpu:
-        parallel_cmd_list.append(f'-j {cpu}')
-    if timeout:
-        parallel_cmd_list.append(f'--timeout {timeout}%')
-
-    if nosupercontigs:
-        logger.info(f'{"[NOTE]:":10} Running Exonerate to generate sequences for {len(genes)} genes, without creating supercontigs')
-        exonerate_cmd_list = ['python',
-                              f'{run_dir}/exonerate_hits.py.mossmatters',
-                              '{}/{}_baits.fasta',
-                              '{{}}/{{}}_{}'.format(file_stem),
-                              '--prefix {{}}/{}'.format(basename),
-                              f'-t {thresh}',
-                              f'--depth_multiplier {depth_multiplier}',
-                              f'--length_pct {length_pct}',
-                              '--nosupercontigs',
-                              f'--paralog_warning_min_cutoff {paralog_warning_min_cutoff}',
-                              f'--bbmap_subfilter {bbmap_subfilter}',
-                              '::::',
-                              'exonerate_genelist.txt',
-                              '> genes_with_seqs.txt']
-    else:
-        logger.info(f'{"[NOTE]:":10} Running Exonerate to generate sequences for {len(genes)} genes')
-        exonerate_cmd_list = ['python',
-                              f'{run_dir}/exonerate_hits.py.mossmatters',
-                              '{}/{}_baits.fasta',
-                              '{{}}/{{}}_{}'.format(file_stem),
-                              '--prefix {{}}/{}'.format(basename),
-                              f'-t {thresh}',
-                              f'--depth_multiplier {depth_multiplier}',
-                              f'--length_pct {length_pct}',
-                              f'--memory {memory}',
-                              f'--discordant_reads_edit_distance {discordant_reads_edit_distance}',
-                              f'--discordant_reads_cutoff {discordant_reads_cutoff}',
-                              f'--paralog_warning_min_cutoff {paralog_warning_min_cutoff}',
-                              f'--bbmap_subfilter {bbmap_subfilter}',
-                              '::::',
-                              'exonerate_genelist.txt',
-                              "> genes_with_seqs.txt"]
-
-    exonerate_cmd = ' '.join(parallel_cmd_list) + ' ' + ' '.join(exonerate_cmd_list)
-    logger.info(exonerate_cmd)
-    exitcode = subprocess.call(exonerate_cmd, shell=True)
-
-    if exitcode:
-        logger.info(f'exitcode is: {exitcode}')
-        logger.error(f'{"[ERROR]:":10} Something went wrong with Exonerate!')
-        return exitcode
-    return
+        # Write the stdout of each process to file:
+        with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
+            for future in future_results:
+                try:
+                    gene_name, prot_length = future.result()
+                    genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+                except ValueError:
+                    logger.info(future.result())
+        queue.put(None)
 
 
-def main():
+def parse_arguments():
+    """
+    Parse command line arguments.
+
+    :return: argparse.Namespace arguments
+    """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     group_1 = parser.add_mutually_exclusive_group()
     group_1.add_argument('--bwa', dest='bwa', action='store_true',
-                       help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
-                            'nucleotides!', default=False)
+                         help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
+                              'nucleotides!', default=False)
     group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx',
                          default=False)
     parser.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
@@ -803,7 +1014,6 @@ def main():
     parser.add_argument('--thresh', type=int,
                         help='Percent Identity Threshold for stitching together exonerate results. Default is 55, but '
                              'increase this if you are worried about contaminant sequences.', default=55)
-
     parser.add_argument('--paralog_warning_min_length_percentage', default=0.75, type=float,
                         help='Minimum length percentage of a contig vs reference protein length for a paralog warning '
                              'to be generated. Default is %(default)s')
@@ -830,26 +1040,35 @@ def main():
     parser.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
                         help='Do not create any supercontigs. The longest single Exonerate hit will be used',
                         default=False)
-    parser.add_argument('--memory', help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py.mossmatters. Default is 1',
+    parser.add_argument('--memory', help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1',
                         default=1, type=int)
     parser.add_argument('--bbmap_subfilter', default=7, type=int,
                         help='Ban alignments with more than this many substitutions. Default is %(default)s')
+    parser.add_argument('--bbmap_threads', default=2, type=int,
+                        help='Number of threads to use for BBmap when searching for chimeric supercontigs. Default '
+                             'is %(default)s')
     parser.add_argument('--discordant_reads_edit_distance',
                         help='Minimum number of differences between one read of a read pair vs the supercontig '
                              'reference for a read pair to be flagged as discordant', default=5, type=int)
     parser.add_argument('--discordant_reads_cutoff',
-                        help='minimum number of discordant reads pairs required to flag a supercontigs as a potential '
-                             'hybrid of contigs from multiple paralogs', default=5, type=int)
+                        help='Minimum number of discordant reads pairs required to flag a supercontig as a potential '
+                             'chimera of contigs from multiple paralogs', default=5, type=int)
     parser.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
                         action='store_true', default=False)
 
     parser.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
 
+    arguments = parser.parse_args()
+    return arguments
+
+
+def main():
+
     if len(sys.argv) == 1:
         print(__doc__)
         sys.exit(1)
 
-    args = parser.parse_args()
+    args = parse_arguments()
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
@@ -903,7 +1122,6 @@ def main():
     # Check that the bait file is formatted correctly, translates correctly:
     check_baitfile(baitfile, args.bwa, logger=logger)
 
-
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
     else:
@@ -918,156 +1136,190 @@ def main():
     # Move in to the sample directory:
     os.chdir(os.path.join(basedir, basename))
 
-    ####################################################################################################################
-    # Map reads to nucleotide targets with BWA
-    ####################################################################################################################
-    if args.bwa:
-        if args.blast:
-            args.blast = False
-            if args.unpaired:
-                bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
-
-            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
-            if not bamfile:
-                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-                             f'reads_first.log file for sample {basename}!')
-                return
-
-            logger.debug(f'bamfile is: {bamfile}')
-        else:
-            bamfile = f'{basename}.bam'
-
-    ####################################################################################################################
-    # Map reads to protein targets with BLASTx
-    ####################################################################################################################
-    if args.blast:
-        if args.unpaired:
-            blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
-                   diamond_sensitivity=args.diamond_sensitivity)
-
-        blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
-                                   max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
-                                   diamond_sensitivity=args.diamond_sensitivity)
-
-        if not blastx_outputfile:
-            logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-                         f'reads_first.log file '
-                         f'for sample {basename}!')
-            return
-        else:
-            blastx_outputfile = f'{basename}.blastx'
-
-    ####################################################################################################################
-    # Distribute reads to gene directories for either BLASTx or BWA mapping
-    ####################################################################################################################
-    if args.distribute:
-        pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
-        for fn in pre_existing_fastas:
-            os.remove(fn)
-        if args.bwa:
-            distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-                           merged=args.merged, logger=logger)
-        else:  # distribute BLASTx results
-            distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-                              merged=args.merged, logger=logger)
-    if len(readfiles) == 2:
-        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
-    else:
-        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
-    if len(genes) == 0:
-        logger.error('ERROR: No genes with BLAST hits! Exiting!')
-        return
-
-    ####################################################################################################################
-    # Assemble reads using SPAdes
-    ####################################################################################################################
-    # If the --merged flag is provided, merge reads for SPAdes assembly
-    if args.merged:
-        logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
-        for gene in genes:
-            interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
-            logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
-            merged_out = f'{gene}/{gene}_merged.fastq'
-            unmerged_out = f'{gene}/{gene}_unmerged.fastq'
-            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
-                              f'outu={unmerged_out}'
-            try:
-                result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
-                logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
-                logger.debug(f'bbmerge paired stdout is: {result.stdout}')
-                logger.debug(f'bbmerge paired stderr is: {result.stderr}')
-
-            except subprocess.CalledProcessError as exc:
-                logger.error(f'bbmerge paired FAILED. Output is: {exc}')
-                logger.error(f'bbmerge paired stdout is: {exc.stdout}')
-                logger.error(f'bbmerge paired stderr is: {exc.stderr}')
-                sys.exit('There was an issue when merging reads. Check read files!')
-
-    if args.assemble:
-        if len(readfiles) == 1:
-            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                     paired=False, timeout=args.timeout, logger=logger)
-        elif len(readfiles) == 2:
-            if args.merged and not unpaired_readfile:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, logger=logger)
-            elif args.merged and unpaired_readfile:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger)
-            elif unpaired_readfile and not args.merged:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, unpaired=True, logger=logger)
-            else:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, logger=logger)
-
-        else:
-            logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
-            return
-        if not spades_genelist:
-            logger.error('ERROR: No genes had assembled contigs! Exiting!')
-            return
+    # ####################################################################################################################
+    # # Map reads to nucleotide targets with BWA
+    # ####################################################################################################################
+    # if args.bwa:
+    #     if args.blast:
+    #         args.blast = False
+    #         if args.unpaired:
+    #             bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
+    #
+    #         bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+    #         if not bamfile:
+    #             logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
+    #                          f'reads_first.log file for sample {basename}!')
+    #             return
+    #
+    #         logger.debug(f'bamfile is: {bamfile}')
+    #     else:
+    #         bamfile = f'{basename}.bam'
+    #
+    # ####################################################################################################################
+    # # Map reads to protein targets with BLASTx
+    # ####################################################################################################################
+    # if args.blast:
+    #     if args.unpaired:
+    #         blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
+    #                max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
+    #                diamond_sensitivity=args.diamond_sensitivity)
+    #
+    #     blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
+    #                                max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
+    #                                diamond_sensitivity=args.diamond_sensitivity)
+    #
+    #     if not blastx_outputfile:
+    #         logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
+    #                      f'reads_first.log file '
+    #                      f'for sample {basename}!')
+    #         return
+    #     else:
+    #         blastx_outputfile = f'{basename}.blastx'
+    #
+    # ####################################################################################################################
+    # # Distribute reads to gene directories for either BLASTx or BWA mapping
+    # ####################################################################################################################
+    # if args.distribute:
+    #     pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
+    #     for fn in pre_existing_fastas:
+    #         os.remove(fn)
+    #     if args.bwa:
+    #         distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+    #                        merged=args.merged, logger=logger)
+    #     else:  # distribute BLASTx results
+    #         distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+    #                           merged=args.merged, logger=logger)
+    # if len(readfiles) == 2:
+    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
+    # else:
+    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
+    # if len(genes) == 0:
+    #     logger.error('ERROR: No genes with BLAST hits! Exiting!')
+    #     return
+    #
+    # ####################################################################################################################
+    # # Assemble reads using SPAdes
+    # ####################################################################################################################
+    # # If the --merged flag is provided, merge reads for SPAdes assembly
+    # if args.merged:
+    #     logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
+    #     for gene in genes:
+    #         interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
+    #         logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
+    #         merged_out = f'{gene}/{gene}_merged.fastq'
+    #         unmerged_out = f'{gene}/{gene}_unmerged.fastq'
+    #         bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
+    #                           f'outu={unmerged_out}'
+    #         try:
+    #             result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    #                                     universal_newlines=True)
+    #             logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
+    #             logger.debug(f'bbmerge paired stdout is: {result.stdout}')
+    #             logger.debug(f'bbmerge paired stderr is: {result.stderr}')
+    #
+    #         except subprocess.CalledProcessError as exc:
+    #             logger.error(f'bbmerge paired FAILED. Output is: {exc}')
+    #             logger.error(f'bbmerge paired stdout is: {exc.stdout}')
+    #             logger.error(f'bbmerge paired stderr is: {exc.stderr}')
+    #             sys.exit('There was an issue when merging reads. Check read files!')
+    #
+    # if args.assemble:
+    #     if len(readfiles) == 1:
+    #         spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+    #                                  paired=False, timeout=args.timeout, logger=logger)
+    #     elif len(readfiles) == 2:
+    #         if args.merged and not unpaired_readfile:
+    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+    #                                      timeout=args.timeout, merged=True, logger=logger)
+    #         elif args.merged and unpaired_readfile:
+    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+    #                                      timeout=args.timeout, merged=True, unpaired=True, logger=logger)
+    #         elif unpaired_readfile and not args.merged:
+    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+    #                                      timeout=args.timeout, unpaired=True, logger=logger)
+    #         else:
+    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+    #                                      timeout=args.timeout, logger=logger)
+    #
+    #     else:
+    #         logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
+    #         return
+    #     if not spades_genelist:
+    #         logger.error('ERROR: No genes had assembled contigs! Exiting!')
+    #         return
 
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs
     ####################################################################################################################
+
+    # return
     if args.exonerate:
         genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
-        exitcode = exonerate(genes,
-                             basename,
-                             run_dir,
-                             cpu=args.cpu,
-                             thresh=args.thresh,
-                             length_pct=args.length_pct,
-                             depth_multiplier=args.depth_multiplier,
-                             timeout=args.timeout,
-                             nosupercontigs=args.nosupercontigs,
-                             memory=args.memory,
-                             discordant_reads_edit_distance=args.discordant_reads_edit_distance,
-                             discordant_reads_cutoff=args.discordant_reads_cutoff,
-                             paralog_warning_min_cutoff=args.paralog_warning_min_length_percentage,
-                             bbmap_subfilter=args.bbmap_subfilter,
-                             logger=logger)
-        if exitcode:
-            return
+
+        # Remove any pre-existing directories:
+        for g in genes:
+            if os.path.isdir(os.path.join(g, basename)):
+                shutil.rmtree(os.path.join(g, basename))
+
+        if os.path.isfile('genes_with_seqs.txt'):
+            os.remove('genes_with_seqs.txt')
+
+        if len(genes) == 0:
+            logger.error(f'{"[ERROR]:":10} No genes recovered for {basename}!')
+            return 1
+
+        exonerate_multiprocessing(genes,
+                                  basename,
+                                  thresh=args.thresh,
+                                  paralog_warning_min_length_percentage=args.paralog_warning_min_length_percentage,
+                                  length_pct=args.length_pct,
+                                  depth_multiplier=args.depth_multiplier,
+                                  nosupercontigs=args.nosupercontigs,
+                                  memory=args.memory,
+                                  bbmap_subfilter=args.bbmap_subfilter,
+                                  discordant_reads_edit_distance=args.discordant_reads_edit_distance,
+                                  discordant_reads_cutoff=args.discordant_reads_cutoff,
+                                  bbmap_threads=args.bbmap_threads,
+                                  pool_threads=args.cpu,
+                                  logger=logger)
 
     ####################################################################################################################
     # Collate all supercontig and discordant read reports into one file
     ####################################################################################################################
+    logger.info(f'\n{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
+
     collate_supercontig_reports = f'find .  -name "genes_with_supercontigs.csv" -exec cat {{}} \; | tee ' \
                                   f'{basename}_genes_with_supercontigs.csv'
-    subprocess.call(collate_supercontig_reports, shell=True)
+    try:
+        result = subprocess.run(collate_supercontig_reports, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        logger.debug(f'collate_supercontig_reports check_returncode() is: {result.check_returncode()}')
+        logger.debug(f'collate_supercontig_reports stdout is: {result.stdout}')
+        logger.debug(f'collate_supercontig_reports stderr is: {result.stderr}')
+
+    except subprocess.CalledProcessError as exc:
+        logger.error(f'collate_supercontig_reports FAILED. Output is: {exc}')
+        logger.error(f'collate_supercontig_reports stdout is: {exc.stdout}')
+        logger.error(f'collate_supercontig_reports stderr is: {exc.stderr}')
+
     collate_discordant_supercontig_reports = f'find .  -name "supercontigs_with_discordant_readpairs.csv" ' \
                                              f'-exec cat {{}} \; | tee ' \
                                              f'{basename}_supercontigs_with_discordant_reads.csv'
-    subprocess.call(collate_discordant_supercontig_reports, shell=True)
+    try:
+        result = subprocess.run(collate_discordant_supercontig_reports, shell=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, universal_newlines=True)
+        logger.debug(f'collate_discordant_supercontig_reports check_returncode() is: {result.check_returncode()}')
+        logger.debug(f'collate_discordant_supercontig_reports stdout is: {result.stdout}')
+        logger.debug(f'collate_discordant_supercontig_reports stderr is: {result.stderr}')
+
+    except subprocess.CalledProcessError as exc:
+        logger.error(f'collate_discordant_supercontig_reports FAILED. Output is: {exc}')
+        logger.error(f'collate_discordant_supercontig_reports stdout is: {exc.stdout}')
+        logger.error(f'collate_discordant_supercontig_reports stderr is: {exc.stderr}')
 
     ####################################################################################################################
     # Report paralog warning and write a paralog warning file
     ####################################################################################################################
-    logger.info(f'{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
     paralog_warnings = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, basename, 'paralog_warning.txt'))]
     with open('genes_with_paralog_warnings.txt', 'w') as pw:
         pw.write('\n'.join(paralog_warnings))

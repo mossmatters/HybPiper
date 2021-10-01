@@ -26,7 +26,7 @@ from collections import defaultdict
 
 
 # Create logger:
-logger = logging.getLogger(f'__main__.{__name__}')
+# logger = logging.getLogger(f'__main__.{__name__}')
 
 
 def file_exists_and_not_empty(file_name):
@@ -65,11 +65,14 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     :return:
     """
 
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     outputfilename = f'{prefix}/exonerate_results.fasta'
     exonerate_ryo = '">%ti,%qi,%qab,%qae,%pi,(%tS),%tab,%tae\\n%tcs\\n"'
 
     exonerate_command = f'exonerate -m protein2genome --showalignment no --showvulgar no -V 0 --refine full --ryo' \
                         f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
+    logger.debug(f'Exonerate command is: {exonerate_command}')
 
     try:  # with --refine
         subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -84,6 +87,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     try:  # without --refine
         exonerate_command = f'exonerate -m protein2genome --showalignment no --showvulgar no -V 0 --ryo' \
                             f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
+        logger.debug(f'Exonerate command is: {exonerate_command}')
         subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        universal_newlines=True)
         exonerate_hits_dict = SeqIO.to_dict(SeqIO.parse(outputfilename, 'fasta'))
@@ -94,8 +98,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         logger.error(f'Exonerate without "--refine" stderr is: {exc.stderr}')
 
 
-# def protein_sort(exonerate_hits_sequence_dict):
-def parse_initial_exonerate_hits(exonerate_hits_sequence_dict):
+def parse_initial_exonerate_hits(exonerate_hits_sequence_dict, prefix):
     """
 
     :param exonerate_hits_sequence_dict:
@@ -113,6 +116,8 @@ def parse_initial_exonerate_hits(exonerate_hits_sequence_dict):
     'hit_strand': ['-', '+', '+'], 'target_begin': [260, 0, 2], 'target_end': [2, 207, 368], 'name': 'sunf-At3g48680'}}
 
     """
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
     proteinHits = {}
     for contig in exonerate_hits_sequence_dict:
@@ -148,11 +153,13 @@ def sort_key(elem):
     return elem[0], elem[1], -elem[2]
 
 
-def get_contig_order(prot):
+def get_contig_order(prot, prefix):
     """
     Given the dictionary of hits for a protein, return the dictionary with the fields sorted by start location.
     """
-    logger = logging.getLogger("pipeline")
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     tuplist = [(prot["hit_start"][i], prot["hit_end"][i], float(prot["assemblyHits"][i].split(",")[0].split("_")[5]))
                for i in range(len(prot["hit_start"]))]
     logger.debug("before sorting: {}".format(" ".join(prot["assemblyHits"])))
@@ -184,7 +191,9 @@ def supercontig_exonerate(supercontig, protseq, prefix, thresh=55):
     """
     Given a long, joined contig and a protein sequence, return the exonerate hit(s)
     """
-    logger = logging.getLogger("pipeline")
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     exonerate_ryo = '>%ti,%qi,%qab,%qae,%pi,(%tS)\\n%tcs\\n'
     temp_prot_filename = "%s/temp.prot.fa" % prefix
     temp_contig_filename = "%s/temp.contig.fa" % prefix
@@ -204,19 +213,22 @@ def sort_byhitloc(seqrecord):
     """
     Key function for sorting based on the start location of a hit record.
     """
+
     return int(seqrecord.id.split(",")[2])
 
 
-def subsume_supercontigs(supercontigs):
+def subsume_supercontigs(supercontigs, prefix):
     """
     If one supercontig has a start and end location greater than all the others, throw the rest out
     """
-    logger = logging.getLogger("pipeline")
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     supercontig_rangelist = [(int(x.id.split(",")[2]), int(x.id.split(",")[3])) for x in supercontigs]
     supercontig_ids = [x.id for x in supercontigs]
     logger.debug("Checking these ranges for supercontig: ")
     logger.debug(supercontig_rangelist)
-    seqs_to_keep = range_connectivity(supercontig_rangelist, supercontig_ids)
+    seqs_to_keep = range_connectivity(supercontig_rangelist, supercontig_ids, prefix=prefix)
     logger.debug("Keeping these contigs: ")
     logger.debug([supercontigs[x].id for x in seqs_to_keep])
     return [supercontigs[x] for x in seqs_to_keep]
@@ -226,6 +238,7 @@ def write_exonerate_stats(contig_id_list, prefix):
     """
     Given a list of IDs from initial exonerate search, write info to a standard file
     """
+
     with open("{}/exonerate_stats.csv".format(prefix), 'w') as exonerate_statsfile:
         exonerate_statsfile.write("\n".join(contig_id_list) + '\n')
 
@@ -235,6 +248,7 @@ def write_genes_with_supercontigs(data, prefix):  # CJJ
     Write a file listing genes for which a supercontig was created. These per sample files are collated
     in the reads_first.py script after all genes have completed).
     """
+
     with open("{}/genes_with_supercontigs.csv".format(prefix), 'w') as supercontig_reportfile:
         supercontig_reportfile.write(f'{data}\n')
 
@@ -245,6 +259,7 @@ def write_supercontigs_with_discordant_readpairs(data, prefix):  # CJJ
     reference. These per sample files are collated in reads_first.py script after all genes have
     completed).
     """
+
     with open("{}/supercontigs_with_discordant_readpairs.csv".format(prefix), 'w') as discordant_supercontig_reportfile:
         discordant_supercontig_reportfile.write(f'{data}\n')
 
@@ -254,6 +269,7 @@ def pairwise(iterable):  # CJJ
     s -> (s0,s1), (s1,s2), (s2, s3), ...
     Used in the function fullContigs to iterate over overlapping pairs of hit_start_and_end_indices.
     """
+
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
@@ -265,22 +281,21 @@ def grouped(iterable, n):  # CJJ
     Used in the function fullContigs to iterate over non-overlapping pairs of reads from a sam file (i.e. reads 1+2,
     then reads 3+4 etc).
     """
+
     return zip(*[iter(iterable)]*n)
 
 
 def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh=55, nosupercontigs=False,
                 interleaved_reads='None', memory=1, discordant_cutoff=100, edit_distance=7, threads=1,
-                bbmap_subfilter=7):
+                bbmap_subfilter=7, perform_supercontig_chimera_test=True):
     """
     Generates a contig from all hits to a protein.
     If more than one hit, conduct a second exonerate search with the original contigs
     stitched together.
     """
 
-    sys.stderr.write(f'\nCJJ from within fullContigs function\n')
-    sys.stderr.flush()
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
-    logger = logging.getLogger("pipeline")
     numHits = len(prot["assemblyHits"])
     sequence_list = []
     contigHits = []
@@ -492,42 +507,77 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
     joined_supercontig_cds = [b for b in supercontig_cds]  # CJJ: does this do anything? 07March2021
     joined_supercontig_cds.sort(key=sort_byhitloc)
     # Get rid of supercontig sequences that are subsumed by longer sequences on the same stretch.
-    joined_supercontig_cds = subsume_supercontigs(joined_supercontig_cds)
-    SeqIO.write(joined_supercontig_cds, '%s/supercontig_exonerate.fasta' % prefix, 'fasta') # This can be multiple
+    joined_supercontig_cds = subsume_supercontigs(joined_supercontig_cds, prefix)
+    SeqIO.write(joined_supercontig_cds, '%s/supercontig_exonerate.fasta' % prefix, 'fasta')  # This can be multiple
     # fasta seqs written to the same file.
     discordant_reads = 0
     discordant_cutoff = discordant_cutoff    # CJJ user modifiable
     edit_distance = edit_distance            # CJJ user modifiable
     maxindel = 0
-    # minid = 0.76                             # CJJ should be user modifiable
-    # minid = min_id
     subfilter = bbmap_subfilter
+
     if len(joined_supercontig_cds) == 1:  # CJJ: i.e. if file supercontig_exonerate.fasta contains a single fast seq.
+        logger.debug("One sequence remaining")
 
         ################ CJJ mapping check 1: if only one sequence left after filtering above ##########################
-        supercontig_reference = joined_supercontig_cds
+        if perform_supercontig_chimera_test:  # i.e. only a file of single-end reads was used as input
+            logger.debug(f'Performing supercontig chimera test!')
+            supercontig_reference = joined_supercontig_cds
+            SeqIO.write(supercontig_reference, '%s/CJJ_supercontig.fasta' % prefix, 'fasta')
+            logger.debug(f'Interleaved_reads: {interleaved_reads}\n')
+
+            # CJJ: How to specify threads? This script is launched via parallel, so if I specify multiple threads here
+            #  then it'll overburden the number of cpus requested by the slurm job.
+            bbmap_command = f'bbmap.sh -Xmx{memory}g -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
+                            f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t ' \
+                            f'maxindel={maxindel} strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
+            logger.debug(f'bbmap_command: {bbmap_command}\n')
+            exitcode = subprocess.call(bbmap_command, shell=True)
+            samfile_reads = []
+            with open(f'{prefix}/CJJ_supercontig.sam') as samfile:
+                lines = samfile.readlines()
+                for line in lines:
+                    if not line.startswith('@'):
+                        samfile_reads.append(line)
+
+            with open(f'{prefix}/diagnostic_reads.sam', 'w') as diagnostic_reads:
+                for forward, reverse in grouped(samfile_reads, 2):
+                    forward_edit_distance = (forward.split('\t')[11]).split(':')[2]
+                    reverse_edit_distance = (reverse.split('\t')[11]).split(':')[2]
+                    if int(forward_edit_distance) == 0 and int(reverse_edit_distance) >= edit_distance:
+                        discordant_reads += 1
+                        diagnostic_reads.write(forward)
+                        diagnostic_reads.write(reverse)
+                    elif int(reverse_edit_distance) == 0 and int(forward_edit_distance) >= edit_distance:
+                        discordant_reads += 1
+                        diagnostic_reads.write(forward)
+                        diagnostic_reads.write(reverse)
+
+            if discordant_reads > discordant_cutoff:
+                log_entry = f'{log_sample_and_gene},POTENTIAL MULTIPLE PARALOGS PRESENT IN SUPERCONTIG'
+                write_supercontigs_with_discordant_readpairs(log_entry, prefix)
+
+        return str(joined_supercontig_cds[0].seq)
+    # One more Exonerate, just to be sure.
+    superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)), id=prot["name"])
+    logger.debug(">joined_supercontig\n{}".format(superdupercontig.seq))
+
+
+    ##############  CJJ mapping check 2: if multiple sequences left after filtering above  #############################
+    if perform_supercontig_chimera_test:  # i.e. only a file of single-end reads was used as input
+        logger.debug(f'Performing supercontig chimera test!')
+        supercontig_reference = superdupercontig
         SeqIO.write(supercontig_reference, '%s/CJJ_supercontig.fasta' % prefix, 'fasta')
-        logger.debug("One sequence remaining")
-        sys.stderr.write(f'\nInterleaved_reads: {interleaved_reads}\n')
-        sys.stderr.write(f'\nSupercontig_reference: {supercontig_reference}\n')
-        sys.stderr.flush()
+        logger.debug(f'\nInterleaved_reads: {interleaved_reads}\n')
 
-        # CJJ: How to specify threads? This script is launched via parallel, so if I specify multiple threads here then
-        # CJJ: it'll overburden the number of cpus requested by the slurm job.
-        bbmap_command = f'bbmap.sh -Xmx{memory}g -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
-                        f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t ' \
-                        f'maxindel={maxindel} strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
-        # sys.stderr.write(f'\nbbmap_command: {bbmap_command}\n')
-        # sys.stderr.flush()
+        bbmap_command = f'bbmap.sh -Xmx{memory}g  -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
+                        f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t maxindel={maxindel} ' \
+                        f'strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
+
+        logger.debug(f'bbmap_command: {bbmap_command}\n')
         exitcode = subprocess.call(bbmap_command, shell=True)
-
-        samtools_proper_pair = f'samtools view -f 3 -h {prefix}/CJJ_supercontig.sam > ' \
-                               f'{prefix}/CJJ_supercontig_properPair.sam'
-        # sys.stderr.write(f'\nbwa samtools_proper_pair command: {samtools_proper_pair}\n')
-        # sys.stderr.flush()
-        exitcode = subprocess.call(samtools_proper_pair, shell=True)
         samfile_reads = []
-        with open(f'{prefix}/CJJ_supercontig_properPair.sam') as samfile:
+        with open(f'{prefix}/CJJ_supercontig.sam') as samfile:
             lines = samfile.readlines()
             for line in lines:
                 if not line.startswith('@'):
@@ -550,56 +600,6 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
             log_entry = f'{log_sample_and_gene},POTENTIAL MULTIPLE PARALOGS PRESENT IN SUPERCONTIG'
             write_supercontigs_with_discordant_readpairs(log_entry, prefix)
 
-        return str(joined_supercontig_cds[0].seq)
-    # One more Exonerate, just to be sure.
-    superdupercontig = SeqRecord(Seq("".join(str(b.seq) for b in joined_supercontig_cds)), id=prot["name"])
-    logger.debug(">joined_supercontig\n{}".format(superdupercontig.seq))
-
-
-    ##############  CJJ mapping check 2: if multiple sequences left after filtering above  #############################
-    supercontig_reference = superdupercontig
-    SeqIO.write(supercontig_reference, '%s/CJJ_supercontig.fasta' % prefix, 'fasta')
-    sys.stderr.write(f'\nInterleaved_reads: {interleaved_reads}\n')
-    sys.stderr.write(f'\nSuperdupercontig_reference: {supercontig_reference}\n')
-    sys.stderr.flush()
-
-    bbmap_command = f'bbmap.sh -Xmx{memory}g  -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
-                    f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t maxindel={maxindel} ' \
-                    f'strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
-
-    # sys.stderr.write(f'\nbbmap_command: {bbmap_command}\n')
-    # sys.stderr.flush()
-    exitcode = subprocess.call(bbmap_command, shell=True)
-
-    samtools_proper_pair = f'samtools view -f 3 -h {prefix}/CJJ_supercontig.sam > ' \
-                           f'{prefix}/CJJ_supercontig_properPair.sam'
-    # sys.stderr.write(f'\nbwa samtools_proper_pair command: {samtools_proper_pair}\n')
-    # sys.stderr.flush()
-    exitcode = subprocess.call(samtools_proper_pair, shell=True)
-    samfile_reads = []
-    with open(f'{prefix}/CJJ_supercontig_properPair.sam') as samfile:
-        lines = samfile.readlines()
-        for line in lines:
-            if not line.startswith('@'):
-                samfile_reads.append(line)
-
-    with open(f'{prefix}/diagnostic_reads.sam', 'w') as diagnostic_reads:
-        for forward, reverse in grouped(samfile_reads, 2):
-            forward_edit_distance = (forward.split('\t')[11]).split(':')[2]
-            reverse_edit_distance = (reverse.split('\t')[11]).split(':')[2]
-            if int(forward_edit_distance) == 0 and int(reverse_edit_distance) >= edit_distance:
-                discordant_reads += 1
-                diagnostic_reads.write(forward)
-                diagnostic_reads.write(reverse)
-            elif int(reverse_edit_distance) == 0 and int(forward_edit_distance) >= edit_distance:
-                discordant_reads += 1
-                diagnostic_reads.write(forward)
-                diagnostic_reads.write(reverse)
-
-    if discordant_reads > discordant_cutoff:
-        log_entry = f'{log_sample_and_gene},POTENTIAL MULTIPLE PARALOGS PRESENT IN SUPERCONTIG'
-        write_supercontigs_with_discordant_readpairs(log_entry, prefix)
-
     return str(Seq("".join(str(b.seq) for b in joined_supercontig_cds)))
 
 
@@ -607,6 +607,7 @@ def find_longest_hit(prot):
     """
     Given a protein dictionary, determine the assembly hit with the longest sequence
     """
+
     max_hit_length = 0
     max_hit_loc = 0
     for i in range(len(prot["hit_start"])):
@@ -671,7 +672,7 @@ def keep_indicies(kept_indicies, prot):
     return prot
 
 
-def overlapping_contigs(prot, length_pct, depth_multiplier):
+def overlapping_contigs(prot, length_pct, depth_multiplier, prefix):
     """
     Given a protein dictionary, determine whether the hit ranges are overlapping, and save only those contigs that
     are not completely subsumed by other contigs.
@@ -685,23 +686,26 @@ def overlapping_contigs(prot, length_pct, depth_multiplier):
     'name': 'sunf-At3g48680', 'reflength': 157}
     """
 
-    logger = logging.getLogger("pipeline")
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     range_list = [(prot["hit_start"][i], prot["hit_end"][i]) for i in range(len(prot["hit_start"]))]  # CJJ: eg [(31, 117), (35, 157), (88, 157)].
 
     logger.debug(range_list)
     kept_indicies = range_connectivity(range_list, prot["assemblyHits"], prot_length=prot["reflength"],
-                                       length_pct=length_pct, depth_multiplier=depth_multiplier)
+                                       length_pct=length_pct, depth_multiplier=depth_multiplier, prefix=prefix)
     logger.debug(kept_indicies)
     return keep_indicies(kept_indicies, prot)  # CJJ e.g. will return same as `prot` in help line if all indices kept.
 
 
-def best_by_percent_id(assemblyHits, full_length_indicies):
+def best_by_percent_id(assemblyHits, full_length_indicies, prefix):
     """
     Given a list of contig names, return the one with the best percent identity (fourth comma delimited field).
 
     CJJ: used in function range_connectivity().
     """
-    logger = logging.getLogger("pipeline")
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     max_percentid = 0
     for i in range(len(full_length_indicies)):
         percentid = float(assemblyHits[full_length_indicies[i]].split(",")[4])
@@ -712,13 +716,15 @@ def best_by_percent_id(assemblyHits, full_length_indicies):
     return to_keep
 
 
-def best_by_depth(assemblyHits, full_length_indicies, thresh=10):
+def best_by_depth(assemblyHits, full_length_indicies, thresh=10, prefix=False):
     """
     If one contig has a depth that is 10x more than all the others, return that one, else return None.
 
     CJJ: used in function range_connectivity().
     """
-    logger = logging.getLogger("pipeline")
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     depths = []
     for i in range(len(full_length_indicies)):
         depths.append(
@@ -739,7 +745,7 @@ def best_by_depth(assemblyHits, full_length_indicies, thresh=10):
 
 
 def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_pct=1, depth_multiplier=None,
-                       use_depth=False):
+                       use_depth=False, prefix=False):
     """
     Given two sorted lists, representing the beginning and end of a range,
     Determine "connectivity" between consecutive elements of the list.
@@ -749,7 +755,7 @@ def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_p
     Used in functions overlapping_contigs() and subsume_supercontigs()
     """
 
-    logger = logging.getLogger("pipeline")
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
     # CJJ: range_list e.g.: [(31, 117), (35, 157), (88, 157)]
     starts = [a[0] for a in range_list]  # CJJ: e.g. [31, 35, 88]
@@ -788,14 +794,14 @@ def range_connectivity(range_list, assemblyHits=None, prot_length=None, length_p
     if assemblyHits:
         if len(full_length_indicies) > 1:
             if use_depth:
-                to_keep = best_by_depth(assemblyHits, full_length_indicies, depth_multiplier)
+                to_keep = best_by_depth(assemblyHits, full_length_indicies, depth_multiplier, prefix)
                 if to_keep:
                     return [to_keep]
                 else:
-                    to_keep = best_by_percent_id(assemblyHits, full_length_indicies)
+                    to_keep = best_by_percent_id(assemblyHits, full_length_indicies, prefix)
                     return [to_keep]
             else:
-                to_keep = best_by_percent_id(assemblyHits, full_length_indicies)
+                to_keep = best_by_percent_id(assemblyHits, full_length_indicies, prefix)
                 return [to_keep]
 
     # If multiple contigs start at the same minimum (or end at the same maximum), keep the longest ones.
@@ -851,52 +857,6 @@ def tuple_subsume(a, b):
         return False
 
 
-def reciprocal_best_hit(prot, proteinHits):
-    """
-    Given a protein dictionary and the dictionary of all protein dictionaries, return the protein dictionary minus
-    any contigs that have higher percentage hits to other proteins.
-
-    CJJ: I think this is a historical function which no longer has an effect as there's only one protein in the dict.
-
-    Note that arguments:
-    prot = proteinHits[prot]
-    proteinHits = proteinHits
-    """
-    logger = logging.getLogger("pipeline")
-
-    protname = prot["name"]
-    kept_indicies = []
-
-    for contig in prot["assemblyHits"]:
-        contigname = contig.split(",")[0]
-        contig_idx = prot["assemblyHits"].index(contig)
-        maxProt = protname
-        for otherProt in proteinHits:
-            otherprot_contiglist = [x.split(",")[0] for x in proteinHits[otherProt]["assemblyHits"]]
-            if proteinHits[otherProt]["name"] != protname:
-                if contigname in otherprot_contiglist:
-                    full_contigname = [b for b in proteinHits[otherProt]["assemblyHits"] if contigname in b][0]
-                    logger.debug("%s %s" % (contig, full_contigname))
-                    otherHit_idx = proteinHits[otherProt]["assemblyHits"].index(full_contigname)
-
-                    target_ranges = [sorted((prot["target_begin"][contig_idx], prot["target_end"][contig_idx])), sorted(
-                        (proteinHits[otherProt]["target_begin"][otherHit_idx],
-                         proteinHits[otherProt]["target_end"][otherHit_idx]))]
-                    logger.debug(repr(target_ranges))
-                    # Check that the two contig hits have overlapping ranges.
-                    if tuple_overlap(target_ranges[0], target_ranges[1]):
-                        logger.debug("%s %s" % (
-                        repr(prot["percentid"][contig_idx]), repr(proteinHits[otherProt]["percentid"][otherHit_idx])))
-                        if prot["percentid"][contig_idx] < proteinHits[otherProt]["percentid"][otherHit_idx]:
-                            logger.debug("contig %s is a better hit to %s" % (contigname, otherProt))
-                            maxProt = proteinHits[otherProt]["name"]
-                    else:
-                        logger.debug("ranges did not overlap")
-        if maxProt == protname:
-            kept_indicies.append(contig_idx)
-    return keep_indicies(kept_indicies, prot)
-
-
 def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
     """
     Gives a warning if there are multiple hits of long length to the same protein.
@@ -913,8 +873,9 @@ def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
 
     So, Exonerate hit lengths are calculated via their hit range against the query protein.
     """
-    # print(f'exonerate_hits["assemblyHits"]: {exonerate_hits["assemblyHits"]}')
-    logger = logging.getLogger("pipeline")
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     protlength = len(prot)  # CJJ prot is a seqobject
     # print(f'line 900: protlength: {protlength}')
     hitlengths = [abs(int(x.split(",")[2]) - int(x.split(",")[3])) for x in exonerate_hits["assemblyHits"]]  # CJJ e.g.
@@ -961,6 +922,8 @@ def set_supercontig_chimera_test(nosupercontigs_bool, prefix):
     :return: bool, str path to interleaved fasta file for gene
     """
 
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
     if not nosupercontigs_bool:
         gene_folder = os.path.split(prefix)[0]
         interleaved_reads = f'{gene_folder}/{gene_folder}_interleaved.fasta'
@@ -976,7 +939,7 @@ def set_supercontig_chimera_test(nosupercontigs_bool, prefix):
         return False, None
 
 
-def parse_spades_and_best_reference(assemblyfile, proteinfile):
+def parse_spades_and_best_reference(assemblyfile, proteinfile, prefix):
     """
     Return a SeqIO dictionary for the SPAdes contigs (assemblyfile) and the 'best' protein
     reference for the sample/gene (proteinfile).
@@ -988,6 +951,8 @@ def parse_spades_and_best_reference(assemblyfile, proteinfile):
     :return:
     :rtype:
     """
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
     try:
         assemblyfile = open(assemblyfile)
@@ -1033,6 +998,132 @@ def create_output_directories(prefix, assemblyfile):
     return prefix
 
 
+def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
+                                                best_protein_ref_dict,
+                                                threshold,
+                                                paralog_warning_min_length_percentage,
+                                                length_pct,
+                                                depth_multiplier,
+                                                prefix,
+                                                exonerate_hits_sequence_dict,
+                                                spades_assembly_dict,
+                                                nosupercontigs,
+                                                perform_supercontig_chimera_test,
+                                                path_to_interleaved_fasta,
+                                                memory,
+                                                bbmap_subfilter,
+                                                bbmap_threads,
+                                                discordant_reads_edit_distance,
+                                                discordant_reads_cutoff,
+                                                no_sequences):
+    """
+
+    :param proteinHits:
+    :param best_protein_ref_dict:
+    :param threshold:
+    :param paralog_warning_min_length_percentage:
+    :param length_pct:
+    :param depth_multiplier:
+    :param prefix:
+    :param exonerate_hits_sequence_dict:
+    :param spades_assembly_dict:
+    :param nosupercontigs:
+    :param perform_supercontig_chimera_test:
+    :param path_to_interleaved_fasta:
+    :param memory:
+    :param bbmap_subfilter:
+    :param bbmap_threads:
+    :param discordant_reads_edit_distance:
+    :param discordant_reads_cutoff:
+    :param no_sequences:
+    :return:
+    """
+
+    logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
+
+    for prot in proteinHits:  # CJJ: again, note that this will be a single key for a single protein seq
+        logger.debug(f'prot is {prot}')
+        logger.debug(f'Initial hits: {len(proteinHits[prot]["assemblyHits"])}')
+
+        proteinHits[prot]["reflength"] = len(best_protein_ref_dict[prot])  # CJJ: protein_dict contains a single key
+        proteinHits[prot] = get_contig_order(proteinHits[prot], prefix)  # CJJ: sorts Exonerate hits by start position
+        # in query protein
+        logger.debug("After get_contig_order: %d" % len(proteinHits[prot]["assemblyHits"]))
+        # Remove contigs that are suboptimal hits. Only one protein hit allowed per contig.
+
+        # proteinHits[prot] = reciprocal_best_hit(proteinHits[prot], proteinHits)  # CJJ: I don't think this function has an effect anymore, as there's only one prot in the dictionary
+        # logger.debug("After RBH: %d" % len(proteinHits[prot]["assemblyHits"]))
+        if len(proteinHits[prot]["assemblyHits"]) == 0:
+            report_no_sequences(proteinHits[prot]["name"])
+            continue  # All hits have been filtered out
+
+        # Filter out contigs with a hit below a threshold
+        proteinHits[prot] = filter_by_percentid(proteinHits[prot], threshold)
+        logger.debug("After filter_by_percent_id: %d" % len(proteinHits[prot]["assemblyHits"]))
+
+        ################################################################################################################
+        # Perform a paralog test and generate warnings
+        ################################################################################################################
+        # CJJ: moved paralog_test() to after filter_by_percentid(), as this should get rid of most spurious hits:
+        paralog_test(proteinHits[prot], best_protein_ref_dict[prot], prefix, paralog_warning_min_length_percentage)
+
+        if len(proteinHits[prot]["assemblyHits"]) == 0:
+            report_no_sequences(proteinHits[prot]["name"])
+            continue  # All hits have been filtered out
+
+        ################################################################################################################
+        # Delete contigs if their range is completely subsumed by another hit's range.
+        ################################################################################################################
+        proteinHits[prot] = overlapping_contigs(proteinHits[prot], length_pct * 0.01, depth_multiplier, prefix)
+        # CJJ: this seems okay after bug fixes
+        logger.debug("After overlapping_contigs: %d" % len(proteinHits[prot]["assemblyHits"]))
+
+        ################################################################################################################
+        # Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.
+        ################################################################################################################
+        if len(proteinHits[prot]["assemblyHits"]) == 0:
+            report_no_sequences(proteinHits[prot]["name"])
+            continue  # All hits have been filtered out
+
+        nucl_sequence = fullContigs(proteinHits[prot],
+                                    exonerate_hits_sequence_dict,
+                                    spades_assembly_dict,
+                                    best_protein_ref_dict,
+                                    prefix,
+                                    threshold,
+                                    nosupercontigs,
+                                    interleaved_reads=path_to_interleaved_fasta,
+                                    memory=memory,
+                                    discordant_cutoff=discordant_reads_cutoff,
+                                    edit_distance=discordant_reads_edit_distance,
+                                    threads=bbmap_threads,
+                                    bbmap_subfilter=bbmap_subfilter,  # CJJ: good ol' fullContigs. Lots going on here - refactor in to multiple functions?
+                                    perform_supercontig_chimera_test=perform_supercontig_chimera_test)
+
+        ################################################################################################################
+        # If a sequence for the locus was returned, translate it, and write nucleotide and protein seqs to file
+        ################################################################################################################
+        if nucl_sequence:
+            if no_sequences:
+                continue
+            else:
+                amino_sequence = myTranslate(nucl_sequence)
+                seqID = prefix.split("/")[-1].strip("/")
+                logger.debug("Writing amino acid sequence, length: {}\n".format(len(amino_sequence)))
+                # sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1], len(amino_sequence)))
+                amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix, prot.split("-")[-1])
+                amino_file = open(amino_filename, 'w')
+                amino_file.write(">%s\n%s\n" % (seqID, amino_sequence))
+                amino_file.close()
+
+                nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix, prot.split("-")[-1])
+                nucleo_file = open(nucleo_filename, 'w')
+                nucleo_file.write(">%s\n%s\n" % (seqID, nucl_sequence))
+                nucleo_file.close()
+
+                return prot.split("-")[-1], len(amino_sequence)  # gene name and length of the translated protein
+
+
 def help():
     print("USAGE: python hybseq_pipeline.py proteinfile assemblyfile prefix")
     print("The program Exonerate must be in your $PATH.")
@@ -1058,7 +1149,7 @@ def main():
                         action="store_true", default=False)
     parser.add_argument("--first_search_filename",
                         help="Location of previously completed Exonerate results. Useful for testing.", default="no")
-    parser.add_argument("-t", "--threshold",
+    parser.add_argument("-t", "--thresh",
                         help="Threshold for Percent Identity between contigs and proteins. default = 55%%", default=55,
                         type=int)
     parser.add_argument("--length_pct",
@@ -1071,7 +1162,7 @@ def main():
                         help="Do not create any supercontigs. The longest single Exonerate hit will be used",
                         action="store_true", dest='nosupercontigs', default=False)  # CJJ
     parser.add_argument("--memory", help="memory (RAM ) to use for bbmap.sh", default=1, type=int)  # CJJ
-    parser.add_argument("--threads", help="threads to use for bbmap.sh", default=4, type=int)  # CJJ
+    parser.add_argument("--bbmap_threads", help="threads to use for bbmap.sh", default=2, type=int)  # CJJ
     parser.add_argument("--bbmap_subfilter", default=7, type=int,
                         help="Ban alignments with more than this many substitutions. Default is %(default)s")  # CJJ
     parser.add_argument("--discordant_reads_edit_distance",
@@ -1080,107 +1171,50 @@ def main():
     parser.add_argument("--discordant_reads_cutoff",
                         help="minimum number of discordant reads pairs required to flag a supercontigs as a potential "
                              "hybrid of contigs from multiple paralogs", default=100, type=int)  # CJJ
-    parser.add_argument("--paralog_warning_min_cutoff", default=0.75, type=float,
+    parser.add_argument("--paralog_warning_min_length_percentage", default=0.75, type=float,
                         help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
                              "to be generated. Default is %(default)s")  # CJJ
 
-
     args = parser.parse_args()
+
+    logger = logging.getLogger()
 
     # Create directories for output files based on the prefix name, or assemblyfile name:
     prefix = create_output_directories(args.prefix, args.assemblyfile)
-
 
     # Set whether the chimeric supercontigs test will be performed, and whether a file of interleaved reads is found:
     perform_supercontig_chimera_test, path_to_interleaved_fasta = set_supercontig_chimera_test(args.nosupercontigs,
                                                                                                prefix)
 
     # Read the SPAdes contigs and the 'best' protein reference seq into SeqIO dictionaries:
-    spades_assembly_dict, best_protein_ref_dict = parse_spades_and_best_reference(args.assemblyfile, args.proteinfile)
+    spades_assembly_dict, best_protein_ref_dict = parse_spades_and_best_reference(args.assemblyfile,
+                                                                                  args.proteinfile,
+                                                                                  prefix)
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects
     exonerate_hits_sequence_dict = initial_exonerate(args.proteinfile, args.assemblyfile, prefix)
-    proteinHits = parse_initial_exonerate_hits(exonerate_hits_sequence_dict)
+    proteinHits = parse_initial_exonerate_hits(exonerate_hits_sequence_dict, prefix)
     logger.debug(f'There were {len(exonerate_hits_sequence_dict)} Exonerate hits for {args.proteinfile}.')
 
-    # Filter the Exonerate SPAdes contig hits
-    ####################################################################################################################
-    for prot in proteinHits:  # CJJ: again, note that this will be a single key for a single protein seq
-        logger.debug(prot)
-        logger.debug(f'Initial hits: {len(proteinHits[prot]["assemblyHits"])}')
-
-        ################################################################################################################
-        # Perform a paralog test and generate warnings
-        ################################################################################################################
-
-
-        proteinHits[prot]["reflength"] = len(best_protein_ref_dict[prot])  # CJJ: protein_dict contains a single key
-        proteinHits[prot] = get_contig_order(proteinHits[prot])  # CJJ: sorts Exonerate hits by start position in query protein
-        logger.debug("After get_contig_order: %d" % len(proteinHits[prot]["assemblyHits"]))
-        # Remove contigs that are suboptimal hits. Only one protein hit allowed per contig.
-
-        proteinHits[prot] = reciprocal_best_hit(proteinHits[prot], proteinHits)  # CJJ: I don't think this function has an effect anymore, as there's only one prot in the dictionary
-        logger.debug("After RBH: %d" % len(proteinHits[prot]["assemblyHits"]))
-        if len(proteinHits[prot]["assemblyHits"]) == 0:
-            report_no_sequences(proteinHits[prot]["name"])
-            continue  # All hits have been filtered out
-
-        # Filter out contigs with a hit below a threshold
-        proteinHits[prot] = filter_by_percentid(proteinHits[prot], args.threshold)
-        logger.debug("After filter_by_percent_id: %d" % len(proteinHits[prot]["assemblyHits"]))
-
-        # CJJ: moved paralog_test() to after filter_by_percentid(), as this should get rid of most spurious hits:
-        # print(f'proteinHits[prot]: {proteinHits[prot]}')
-        paralog_test(proteinHits[prot], best_protein_ref_dict[prot], prefix, args.paralog_warning_min_cutoff)
-
-        if len(proteinHits[prot]["assemblyHits"]) == 0:
-            report_no_sequences(proteinHits[prot]["name"])
-            continue  # All hits have been filtered out
-
-        ################################################################################################################
-        # Delete contigs if their range is completely subsumed by another hit's range.
-        ################################################################################################################
-        proteinHits[prot] = overlapping_contigs(proteinHits[prot], args.length_pct * 0.01, args.depth_multiplier)
-        # CJJ: this seems okay after bug fixes
-        logger.debug("After overlapping_contigs: %d" % len(proteinHits[prot]["assemblyHits"]))
-
-        ################################################################################################################
-        # Stitch together a "supercontig" containing all the hits and conduct a second exonerate search.
-        ################################################################################################################
-        if len(proteinHits[prot]["assemblyHits"]) == 0:
-            report_no_sequences(proteinHits[prot]["name"])
-            continue  # All hits have been filtered out
-
-        nucl_sequence = fullContigs(proteinHits[prot], exonerate_hits_sequence_dict, spades_assembly_dict, best_protein_ref_dict, prefix,
-                                    args.threshold, args.nosupercontigs, interleaved_reads=path_to_interleaved_fasta,
-                                    memory=args.memory, discordant_cutoff=args.discordant_reads_cutoff,
-                                    edit_distance=args.discordant_reads_edit_distance, threads=args.threads,
-                                    bbmap_subfilter=args.bbmap_subfilter)  # CJJ: good ol' fullContigs. Lots going on here - refactor in to multiple functions?
-
-        ################################################################################################################
-        # If a sequence for the locus was returned, translate it, and write nucleotide and protein seqs to file
-        ################################################################################################################
-        if nucl_sequence:
-            if args.no_sequences:
-                continue
-            else:
-                amino_sequence = myTranslate(nucl_sequence)
-                seqID = prefix.split("/")[-1].strip("/")
-                sys.stderr.write("Writing amino acid sequence, length: {}\n".format(len(amino_sequence)))
-                sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1], len(amino_sequence)))
-                amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix, prot.split("-")[-1])
-                amino_file = open(amino_filename, 'w')
-                amino_file.write(">%s\n%s\n" % (seqID, amino_sequence))
-                amino_file.close()
-
-                nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix, prot.split("-")[-1])
-                nucleo_file = open(nucleo_filename, 'w')
-                nucleo_file.write(">%s\n%s\n" % (seqID, nucl_sequence))
-                nucleo_file.close()
-
-    sys.stderr.write(f"\nCJJ Finishing exonerate_hits.py \n")
-    sys.stderr.flush()
-
+    # Filter the Exonerate SPAdes contig hits and produce FNA and FAA files:
+    gene_name, prot_length = filter_exonerate_hits_and_construct_fna_faa(proteinHits,
+                                                                         best_protein_ref_dict,
+                                                                         args.thresh,
+                                                                         args.paralog_warning_min_length_percentage,
+                                                                         args.length_pct,
+                                                                         args.depth_multiplier,
+                                                                         prefix,
+                                                                         exonerate_hits_sequence_dict,
+                                                                         spades_assembly_dict,
+                                                                         args.nosupercontigs,
+                                                                         perform_supercontig_chimera_test,
+                                                                         path_to_interleaved_fasta,
+                                                                         args.memory,
+                                                                         args.bbmap_subfilter,
+                                                                         args.bbmap_threads,
+                                                                         args.discordant_reads_edit_distance,
+                                                                         args.discordant_reads_cutoff,
+                                                                         args.no_sequences)
 
 ########################################################################################################################
 # Run the script

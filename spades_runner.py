@@ -33,8 +33,8 @@ def file_exists_and_not_empty(file_name):
 def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
                     unpaired=False, merged=False):
     """
-    Generates a string for running SPAdes via GNU parallel. Returns either a single string, or if merged=True
-    returns two strings correspodning to genes with merged and no merged sequences
+    Generates a command string for running SPAdes via GNU parallel. Returns either a single string, or if merged=True
+    returns two command strings corresponding to genes with merged and without merged sequences
 
     :param genelist:
     :param int cov_cutoff: coverage cutoff for SPAdes assembler

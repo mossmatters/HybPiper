@@ -183,7 +183,7 @@ def distribute_targets(baitfile, delim, besthits, translate=False, target=None):
     :param str delim: symbol to use as gene delimeter; default is '-'
     :param dict besthits: dictionary of besthits[prot] = top_taxon
     :param bool translate: If True, translate nucleotide target SeqObject
-    :param str target:always choose the target specified by this string
+    :param str target: always choose the target specified by this string
     :return:
     """
 
@@ -197,29 +197,29 @@ def distribute_targets(baitfile, delim, besthits, translate=False, target=None):
         
     targets = SeqIO.parse(baitfile, 'fasta')
     no_matches = []
-    for prot in targets:
+    for sequence in targets:
         # Get the 'basename' of the protein
-        prot_cat = prot.id.split(delim)[-1]
+        gene_id = sequence.id.split(delim)[-1]
         if translate:
-            seq, needed_padding = pad_seq(prot)
-            prot.seq = seq.translate()
+            seq, needed_padding = pad_seq(sequence)
+            sequence.seq = seq.seq.translate()
+        # print(prot)
 
-        mkdir_p(prot_cat)
+        mkdir_p(gene_id)
         
-        if prot_cat in besthits:
+        if gene_id in besthits:
             if target:
                 if target_is_file:
-                    besthit_taxon = genes_to_targets[prot_cat]
+                    besthit_taxon = genes_to_targets[gene_id]
                 else:
                     besthit_taxon = target
             else:       
-                besthit_taxon = besthits[prot_cat]
-            if prot.id.split("-")[0] == besthit_taxon:
-                outfile = open(os.path.join(prot_cat, f'{prot_cat}_baits.fasta'), 'w')
-                SeqIO.write(prot, outfile, 'fasta')
-                outfile.close()
+                besthit_taxon = besthits[gene_id]
+            if sequence.id.split("-")[0] == besthit_taxon:
+                with open(os.path.join(gene_id, f'{gene_id}_baits.fasta'), 'w') as ref_bait_seq_file:
+                    SeqIO.write(sequence, ref_bait_seq_file, 'fasta')
         else:
-            no_matches.append(prot_cat)
+            no_matches.append(gene_id)
     logger.info(f'{"[NOTE]:":10} {len(set(no_matches))} proteins had no good matches.')
 
 
