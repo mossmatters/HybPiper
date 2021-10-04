@@ -29,11 +29,13 @@ import datetime
 from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing
 from multiprocessing import Manager
-from concurrent.futures import wait
+from concurrent.futures import wait, as_completed
 try:
     import Bio
 except ImportError:
     sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python used to run this script?")
+
+# Import HybPiper modules required for reads_first.py:
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
@@ -190,15 +192,15 @@ def check_dependencies(logger=None):
 def check_baitfile(baitfile, using_bwa, logger=None):
     """
     Checks bait-file fasta header formatting ("taxon*-unique_gene_ID").
-    Reports the number of unique genes represented in the baitfile.
+    Reports the number of unique genes (each can have multiple representatives) in the baitfile.
     Performs a quick detection of whether baitfile is DNA or amino-acid.
     Checks that seqs in bait file can be translated from the first codon position in the forwards frame (multiple of
     three, no unexpected stop codons), and logs a warning if not.
 
-    :param str baitfile: path to the not file
-    :param bool using_bwa: True if the --bwa flag is used; corresponds to nucleotide target file
+    :param str baitfile: path to the baitfile
+    :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param logging.Logger logger: a logger object
-    :return:
+    :return: None
     """
 
     # Check bait-file fasta header formatting:
@@ -230,7 +232,7 @@ def check_baitfile(baitfile, using_bwa, logger=None):
     dna = set('ATCGN')
     if os.path.isfile(baitfile):
         with open(baitfile) as bf:
-            header = bf.readline()
+            header = bf.readline() # skip the first fasta header
             seqline = bf.readline().rstrip().upper()
             if using_bwa and set(seqline) - dna:
                 sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide bait '
@@ -271,7 +273,7 @@ def check_baitfile(baitfile, using_bwa, logger=None):
         if seqs_needed_padding_dict:
             seq_list = ' '.join([seq.name for gene_name, bait_file_Sequence_list in seqs_needed_padding_dict.items()
                                  for seq in bait_file_Sequence_list])
-            logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile are not multiple of three. If your '
+            logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile are not multiples of three. If your '
                         f'baitfile contains only protein-coding sequences, please check:\n')
             fill = textwrap.fill(f'{seq_list}')
             logger.info(textwrap.indent(fill, ' ' * 11))
@@ -280,11 +282,11 @@ def check_baitfile(baitfile, using_bwa, logger=None):
 
 def make_basename(readfiles, prefix=None):
     """
-    Unless prefix is set, generate a directory based off the readfiles, using everything up to the first underscore.
-    If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
+    Unless prefix is set, generate a directory based off the readfiles name, using everything up to the first
+    underscore. If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
 
-    :param list readfiles: one or more read files to start the pipeline
-    :param str prefix: directory name for pipeline output
+    :param list readfiles: one or more read files used as input to the pipeline
+    :param str prefix: directory name for sample pipeline output
     :return: parent directory, directory name
     """
 
@@ -307,15 +309,15 @@ def make_basename(readfiles, prefix=None):
 
 def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     """
-    Conduct BWA search of reads against the baitfile.
+    Conduct a BWA search of input reads against the baitfile.
 
-    :param list readfiles: one or more read files to start the pipeline
-    :param str baitfile: path to baitfile (target file)
+    :param list readfiles: one or more read files used as input to the pipeline
+    :param str baitfile: path to baitfile (i.e. the target file)
     :param str basename: directory name for sample
     :param int cpu: number of threads/cpus to use for BWA mapping
-    :param str/bool unpaired: a path if an unpaired file has been provided, False if not
+    :param str/bool unpaired: a path if an unpaired file has been provided, boolean False if not
     :param logging.Logger logger: a logger object
-    :return: None, or the *.bam output file from BWA alignment of sample reads to the bait file
+    :return: None, or the path to the *.bam output file from BWA alignment of sample reads to the bait file
     """
 
     if os.path.isfile(baitfile):
@@ -384,26 +386,23 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
 def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None,
            diamond=False, diamond_sensitivity=False):
     """
-    Creates a blast database from the complete protein target file, and performs BLASTx searches of sample
+    Creates a blast database from the full protein target file, and performs BLASTx searches of sample
     nucleotide read files against the protein database.
 
     :param list/str readfiles: list of paired read files OR  path to unpaired readfile if unpaired is True
-    :param str baitfile: path to baitfile (target file)
+    :param str baitfile: path to baitfile (i.e. the target file)
     :param float evalue: evalue to use for BLASTx searches
     :param str basename: directory name for sample
     :param int cpu: number of threads/cpus to use for BLASTx searches
     :param int max_target_seqs: maximum target sequences specified for BLASTx searches
-    :param str/bool unpaired: a path if an unpaired file has been provided, False if not
+    :param str/bool unpaired: a path if an unpaired file has been provided, boolean False if not
     :param logging.Logger logger: a logger object
     :param bool diamond: if True use DIAMOND instead of BLASTX
     :param bool/str diamond_sensitivity: sensitivity to use for DIAMOND. Default is False; uses default DIAMOND
-    :return: None, or the *.blastx output file from DIAMOND/BLASTx searches of sample reads against the bait file
+    :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs baitfile
     """
 
     if os.path.isfile(baitfile):
-        # if os.path.isfile(os.path.split(baitfile)[0] + '.psq'):
-        #     db_file = baitfile
-        # else:
         logger.info(f'{"[NOTE]:":10} Making protein blastdb in current directory.')
         if os.path.split(baitfile)[0]:
             shutil.copy(baitfile, '.')
@@ -419,13 +418,13 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
         try:
             result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     universal_newlines=True)
-            logger.debug(f'makeblastdb/makedb check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'makeblastdb/makedb stdout is: {result.stdout}')
-            logger.debug(f'makeblastdb/makedb stderr is: {result.stderr}')
+            logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'makeblastdb stdout is: {result.stdout}')
+            logger.debug(f'makeblastdb stderr is: {result.stderr}')
         except subprocess.CalledProcessError as exc:
-            logger.error(f'makeblastdb/makedb FAILED. Output is: {exc}')
-            logger.error(f'makeblastdb/makedb stdout is: {exc.stdout}')
-            logger.error(f'makeblastdb/makedb stderr is: {exc.stderr}')
+            logger.error(f'makeblastdb FAILED. Output is: {exc}')
+            logger.error(f'makeblastdb stdout is: {exc.stdout}')
+            logger.error(f'makeblastdb stderr is: {exc.stderr}')
             return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
@@ -528,8 +527,8 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     When using blastx, distribute sample reads to their corresponding target file hits.
 
     :param str blastx_outputfile: tabular format output file of BLASTx search
-    :param list readfiles: one or more read files to start the pipeline
-    :param str baitfile: path to baitfile (target file)
+    :param list readfiles: one or more read files used as input to the pipeline
+    :param str baitfile: path to baitfile (i.e. the target file)
     :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
@@ -575,8 +574,8 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     Distribute the 'best' target file sequence (translated if necessary) to each gene directory.
 
     :param str bamfile: *.bam output file from BWA alignment of sample reads to the bait file
-    :param list readfiles: one or more read files to start the pipeline
-    :param str baitfile: path to baitfile (target file)
+    :param list readfiles: one or more read files used as input to the pipeline
+    :param str baitfile: path to baitfile (i.e. the target file)
     :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
@@ -628,7 +627,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
     :param logging.Logger logger: a logger object
-    :return: list spades_genelist: a list of gene names that had successful SPAdes assemblies
+    :return: list spades_genelist: a list of gene names that had successful SPAdes assemblies (contigs.fasta produced)
     """
 
     with open('spades_genelist.txt', 'w') as spadesfile:
@@ -642,7 +641,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     logger.debug(f'args.merged is: {merged}')
     logger.debug(f'args.unpaired is:  {unpaired}')
 
-    if unpaired:  # Create empty unpaired file if it doesn't exist
+    if unpaired:  # Create an empty unpaired file if it doesn't exist
         for gene in open('spades_genelist.txt'):
             gene = gene.rstrip()
             if os.path.isfile(f'{gene}/{gene}_interleaved.fasta'):
@@ -683,10 +682,8 @@ def done_callback(future_returned, logger=None):
     """
     Callback function for ProcessPoolExecutor futures; gets called when a future is cancelled or 'done'.
 
-    :param future_returned:
-    :type future_returned:
-    :return:
-    :rtype:
+    :param concurrent.futures._base.Future future_returned: future object returned by ProcessPoolExecutor
+    :return: None if future cancelled or error, future_returned.result() as result if successful
     """
 
     if future_returned.cancelled():
@@ -717,8 +714,7 @@ def exonerate(gene_name,
               bbmap_threads=2,
               discordant_reads_edit_distance=5,
               discordant_reads_cutoff=5,
-              queue=None,
-              worker_configurer=None,
+              worker_configurer_func=None,
               counter=None,
               lock=None,
               genes_to_process=0):
@@ -735,18 +731,17 @@ def exonerate(gene_name,
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
     :param int discordant_reads_edit_distance: min num differences for a read pair to be flagged as discordant
     :param int discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
-    :param multiprocessing.managers.AutoProxy[Queue] queue: shared queue for logging
-    :param function worker_configurer: function to configure logging via QueueHandler
+    :param function worker_configurer_func: function to configure logging to file
     :param multiprocessing.managers.ValueProxy counter:
     :param multiprocessing.managers.AcquirerProxy lock:
     :param int genes_to_process: total number of genes to be processed via Exonerate
     :return: str gene_name, str prot_length
     """
 
-    logger = logging.getLogger()  # Root logger from inside the new Python process via ProcessPoolExecutor pool
+    logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
     if logger.hasHandlers():
         logger.handlers.clear()
-    worker_configurer(queue)  # set up QueueHandler
+    worker_configurer_func(gene_name)  # set up process-specific logging to file
     logger = logging.getLogger(gene_name)
     logger.setLevel(logging.DEBUG)
 
@@ -777,15 +772,15 @@ def exonerate(gene_name,
     logger.debug(f'exonerate_hits_sequence_dict is: {exonerate_hits_sequence_dict}')
 
     # Parse the initial Exonerate results:
-    proteinHits = exonerate_hits.parse_initial_exonerate_hits(exonerate_hits_sequence_dict,
+    protein_hits = exonerate_hits.parse_initial_exonerate_hits(exonerate_hits_sequence_dict,
                                                               prefix)
-    logger.debug(f'proteinHits is: {proteinHits}')
+    logger.debug(f'proteinHits is: {protein_hits}')
     logger.debug(f'There were {len(exonerate_hits_sequence_dict)} Exonerate hits for {gene_name}'
                  f'/{gene_name}_baits.fasta.')
 
     # Filter the Exonerate SPAdes contig hits and produce FNA and FAA files:
     gene_name, prot_length = exonerate_hits.filter_exonerate_hits_and_construct_fna_faa(
-        proteinHits,
+        protein_hits,
         best_protein_ref_dict,
         thresh,
         paralog_warning_min_length_percentage,
@@ -806,82 +801,42 @@ def exonerate(gene_name,
 
     with lock:
         counter.value += 1
-        # sys.stderr.write(f'\rFinished running Exonerate for gene {gene_name}, {counter.value}', end='')
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
     return gene_name, prot_length
 
 
-def listener_configurer(log_filename):
+def worker_configurer(gene_name):
     """
-    Configures logging for the listener process (which captures logging events from the worker processes)
+    Configures logging to file and screen for the worker processes
 
-    :param str log_filename: name of the log file used by main()
-    :return:
+    :param str gene_name: name of the gene being processing by the worker process
+    :return: None
     """
 
-    # print(f'listener_configurer log_filename: {log_filename}')
-    filename = log_filename.split()[1]
-    # print(f'listener_configurer filename: {filename}')
-    root = logging.getLogger()
-    # file_handler = logging.FileHandler(f'lucy.log', mode='w')
-    file_handler = logging.FileHandler(filename, mode='a')
+    # Get date and time string for log filename:
+    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+
+    # Log to file:
+    file_handler = logging.FileHandler(f'{gene_name}/{gene_name}_{date_and_time}.log', mode='w')
     file_handler.setLevel(logging.DEBUG)
-    f = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(f)
-    root.addHandler(file_handler)
+    file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
+                                    'message)s')
+    file_handler.setFormatter(file_format)
 
     # Log to Terminal (stdout):
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(logging.INFO)
     console_format = logging.Formatter('%(message)s')
     console_handler.setFormatter(console_format)
-    root.addHandler(console_handler)
 
+    # Setup logger:
+    logger_object = logging.getLogger(gene_name)
 
-def worker_configurer(queue):
-    """
-    Configures logging via a QueueHandler handler for the worker processes
-
-    :param multiprocessing.managers.AutoProxy[Queue] queue: shared queue for logging
-    :return:
-    """
-
-    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
-    logger = logging.getLogger()
-    logger.addHandler(h)
-    # send all messages, for demo; no other level or filter logic applied.
-    logger.setLevel(logging.DEBUG)
-
-
-def listener_process(queue, listener_configurer, logger=None, log_filename=None):
-    """
-    Captures logging events from the worker processes via a queue
-
-    :param multiprocessing.managers.AutoProxy[Queue] queue: shared queue for logging
-    :param function listener_configurer: function to configure logging for the listener process
-    :param logging.Logger logger: a logger object
-    :param str log_filename: name of the log file used by main()
-    :return:
-    """
-
-    # print(f'listener_process log_filename: {log_filename}')
-    listener_configurer(log_filename)
-    # print(f'listener_process logger.handlers: {logger.handlers}')
-    while True:
-        try:
-            record = queue.get()
-            if record is None:  # We send this as a sentinel to tell the listener to quit.
-                break
-            # print(f'From within listener_process, record is: {record}')
-            # logger = logging.getLogger(record.name)
-            logger.handle(record)  # No level or filter logic applied - just do it!
-        except Exception:
-            import sys
-            import traceback
-            print('Whoops! Problem:', file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
+    # Add handlers to the logger
+    logger_object.addHandler(console_handler)
+    logger_object.addHandler(file_handler)
 
 
 def exonerate_multiprocessing(genes,
@@ -928,11 +883,8 @@ def exonerate_multiprocessing(genes,
 
     with ProcessPoolExecutor(max_workers=pool_threads) as pool:
         manager = Manager()
-        queue = manager.Queue(-1)
         lock = manager.Lock()
         counter = manager.Value('i', 0)
-        watcher = pool.submit(listener_process, queue, listener_configurer, logger=logger,
-                              log_filename=str(logger.handlers[1]))
         future_results = [pool.submit(exonerate,
                                       gene_name,
                                       basename,
@@ -946,17 +898,29 @@ def exonerate_multiprocessing(genes,
                                       bbmap_threads=bbmap_threads,
                                       discordant_reads_edit_distance=discordant_reads_edit_distance,
                                       discordant_reads_cutoff=discordant_reads_cutoff,
-                                      queue=queue,
-                                      worker_configurer=worker_configurer,
+                                      worker_configurer_func=worker_configurer,
                                       counter=counter,
                                       lock=lock,
                                       genes_to_process=genes_to_process)
                           for gene_name in genes]
         for future in future_results:
             future.add_done_callback(done_callback)
+
+        # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
+        for future in as_completed(future_results):
+            gene_name, prot_length = future.result()
+            gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+            gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+            gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+            with open(gene_log_file_to_cat) as gene_log_handle:
+                lines = gene_log_handle.readlines()
+                for line in lines:
+                    logger.debug(line.strip())  # log contents to main logger
+            os.remove(gene_log_file_to_cat)
+
         wait(future_results, return_when="ALL_COMPLETED")
 
-        # Write the stdout of each process to file:
+        # Write the 'gene_name', 'prot_length' strings returned by each process to file:
         with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
             for future in future_results:
                 try:
@@ -964,7 +928,6 @@ def exonerate_multiprocessing(genes,
                     genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
                 except ValueError:
                     logger.info(future.result())
-        queue.put(None)
 
 
 def parse_arguments():
@@ -1136,117 +1099,117 @@ def main():
     # Move in to the sample directory:
     os.chdir(os.path.join(basedir, basename))
 
-    # ####################################################################################################################
-    # # Map reads to nucleotide targets with BWA
-    # ####################################################################################################################
-    # if args.bwa:
-    #     if args.blast:
-    #         args.blast = False
-    #         if args.unpaired:
-    #             bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
-    #
-    #         bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
-    #         if not bamfile:
-    #             logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-    #                          f'reads_first.log file for sample {basename}!')
-    #             return
-    #
-    #         logger.debug(f'bamfile is: {bamfile}')
-    #     else:
-    #         bamfile = f'{basename}.bam'
-    #
-    # ####################################################################################################################
-    # # Map reads to protein targets with BLASTx
-    # ####################################################################################################################
-    # if args.blast:
-    #     if args.unpaired:
-    #         blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-    #                max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
-    #                diamond_sensitivity=args.diamond_sensitivity)
-    #
-    #     blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
-    #                                max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
-    #                                diamond_sensitivity=args.diamond_sensitivity)
-    #
-    #     if not blastx_outputfile:
-    #         logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-    #                      f'reads_first.log file '
-    #                      f'for sample {basename}!')
-    #         return
-    #     else:
-    #         blastx_outputfile = f'{basename}.blastx'
-    #
-    # ####################################################################################################################
-    # # Distribute reads to gene directories for either BLASTx or BWA mapping
-    # ####################################################################################################################
-    # if args.distribute:
-    #     pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
-    #     for fn in pre_existing_fastas:
-    #         os.remove(fn)
-    #     if args.bwa:
-    #         distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-    #                        merged=args.merged, logger=logger)
-    #     else:  # distribute BLASTx results
-    #         distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-    #                           merged=args.merged, logger=logger)
-    # if len(readfiles) == 2:
-    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
-    # else:
-    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
-    # if len(genes) == 0:
-    #     logger.error('ERROR: No genes with BLAST hits! Exiting!')
-    #     return
-    #
-    # ####################################################################################################################
-    # # Assemble reads using SPAdes
-    # ####################################################################################################################
-    # # If the --merged flag is provided, merge reads for SPAdes assembly
-    # if args.merged:
-    #     logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
-    #     for gene in genes:
-    #         interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
-    #         logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
-    #         merged_out = f'{gene}/{gene}_merged.fastq'
-    #         unmerged_out = f'{gene}/{gene}_unmerged.fastq'
-    #         bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
-    #                           f'outu={unmerged_out}'
-    #         try:
-    #             result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-    #                                     universal_newlines=True)
-    #             logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
-    #             logger.debug(f'bbmerge paired stdout is: {result.stdout}')
-    #             logger.debug(f'bbmerge paired stderr is: {result.stderr}')
-    #
-    #         except subprocess.CalledProcessError as exc:
-    #             logger.error(f'bbmerge paired FAILED. Output is: {exc}')
-    #             logger.error(f'bbmerge paired stdout is: {exc.stdout}')
-    #             logger.error(f'bbmerge paired stderr is: {exc.stderr}')
-    #             sys.exit('There was an issue when merging reads. Check read files!')
-    #
-    # if args.assemble:
-    #     if len(readfiles) == 1:
-    #         spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                  paired=False, timeout=args.timeout, logger=logger)
-    #     elif len(readfiles) == 2:
-    #         if args.merged and not unpaired_readfile:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, merged=True, logger=logger)
-    #         elif args.merged and unpaired_readfile:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, merged=True, unpaired=True, logger=logger)
-    #         elif unpaired_readfile and not args.merged:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, unpaired=True, logger=logger)
-    #         else:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, logger=logger)
-    #
-    #     else:
-    #         logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
-    #         return
-    #     if not spades_genelist:
-    #         logger.error('ERROR: No genes had assembled contigs! Exiting!')
-    #         return
+    ####################################################################################################################
+    # Map reads to nucleotide targets with BWA
+    ####################################################################################################################
+    if args.bwa:
+        if args.blast:
+            args.blast = False
+            if args.unpaired:
+                bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
+
+            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+            if not bamfile:
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
+                             f'reads_first.log file for sample {basename}!')
+                return
+
+            logger.debug(f'bamfile is: {bamfile}')
+        else:
+            bamfile = f'{basename}.bam'
+
+    ####################################################################################################################
+    # Map reads to protein targets with BLASTx
+    ####################################################################################################################
+    if args.blast:
+        if args.unpaired:
+            blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
+                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
+                   diamond_sensitivity=args.diamond_sensitivity)
+
+        blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
+                                   max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
+                                   diamond_sensitivity=args.diamond_sensitivity)
+
+        if not blastx_outputfile:
+            logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
+                         f'reads_first.log file '
+                         f'for sample {basename}!')
+            return
+        else:
+            blastx_outputfile = f'{basename}.blastx'
+
+    ####################################################################################################################
+    # Distribute reads to gene directories for either BLASTx or BWA mapping
+    ####################################################################################################################
+    if args.distribute:
+        pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
+        for fn in pre_existing_fastas:
+            os.remove(fn)
+        if args.bwa:
+            distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                           merged=args.merged, logger=logger)
+        else:  # distribute BLASTx results
+            distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                              merged=args.merged, logger=logger)
+    if len(readfiles) == 2:
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
+    else:
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
+    if len(genes) == 0:
+        logger.error('ERROR: No genes with BLAST hits! Exiting!')
+        return
+
+    ####################################################################################################################
+    # Assemble reads using SPAdes
+    ####################################################################################################################
+    # If the --merged flag is provided, merge reads for SPAdes assembly
+    if args.merged:
+        logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
+        for gene in genes:
+            interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
+            logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
+            merged_out = f'{gene}/{gene}_merged.fastq'
+            unmerged_out = f'{gene}/{gene}_unmerged.fastq'
+            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
+                              f'outu={unmerged_out}'
+            try:
+                result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'bbmerge paired stdout is: {result.stdout}')
+                logger.debug(f'bbmerge paired stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'bbmerge paired FAILED. Output is: {exc}')
+                logger.error(f'bbmerge paired stdout is: {exc.stdout}')
+                logger.error(f'bbmerge paired stderr is: {exc.stderr}')
+                sys.exit('There was an issue when merging reads. Check read files!')
+
+    if args.assemble:
+        if len(readfiles) == 1:
+            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                     paired=False, timeout=args.timeout, logger=logger)
+        elif len(readfiles) == 2:
+            if args.merged and not unpaired_readfile:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, merged=True, logger=logger)
+            elif args.merged and unpaired_readfile:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger)
+            elif unpaired_readfile and not args.merged:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, unpaired=True, logger=logger)
+            else:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, logger=logger)
+
+        else:
+            logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
+            return
+        if not spades_genelist:
+            logger.error('ERROR: No genes had assembled contigs! Exiting!')
+            return
 
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs
