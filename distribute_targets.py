@@ -84,7 +84,7 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
         # print(f'result is: {result}')
         result = result.split()
         hitname = result[1].split('-')
-        print(f'hitname is: {hitname}')
+        # print(f'hitname is: {hitname}')
         bitscore = float(result[-1])
         protname = hitname[-1]
         taxon = '-'.join(hitname[:-1])
@@ -103,24 +103,24 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
     # For each protein, find the taxon with the highest total hit bitscore.
     besthits = {}
     besthit_counts = {}
-    print(f'\nlength of hitcounts dict is: {len(hitcounts)}\n')
+    # print(f'\nlength of hitcounts dict is: {len(hitcounts)}\n')
     for prot in hitcounts:
         top_taxon = sorted(iter(hitcounts[prot].keys()), key=lambda k: hitcounts[prot][k], reverse=True)[0]
-        print(f'top taxon for prot {prot} is: \t{top_taxon}')
+        # print(f'top taxon for prot {prot} is: \t{top_taxon}')
         besthits[prot] = top_taxon
         if top_taxon in besthit_counts:
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
-    print(f'')
+    # print(f'')
     tallyfile = open('bait_tallies.txt', 'w')
-    print(f'length of besthit_counts dict is: {len(besthit_counts)}\n')
+    # print(f'length of besthit_counts dict is: {len(besthit_counts)}\n')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
-    for key, value in besthits.items():
-        print(key, value)
-    print(f'\nlength of besthits dict is {len(besthits)}\n')
+    # for key, value in besthits.items():
+    #     print(key, value)
+    # print(f'\nlength of besthits dict is {len(besthits)}\n')
     return besthits        
 
 
@@ -146,11 +146,11 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
         # print(f'result is: {result}')
         result = result.split()
         hitname = result[2].split('-')
-        print(f'hitname is: {hitname}')
+        # print(f'hitname is: {hitname}')
         mapscore = float(result[4])
         protname = hitname[-1]
         taxon = '-'.join(hitname[:-1])
-        print(f'taxon is {taxon}')
+        # print(f'taxon is {taxon}')
 
         if exclude and exclude in taxon:
             continue
@@ -167,24 +167,24 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
     # For each protein, find the taxon with the highest total hit mapscore.
     besthits = {}
     besthit_counts = {}
-    print(f'\nlength of hitcounts dict is: {len(hitcounts)}\n')
+    # print(f'\nlength of hitcounts dict is: {len(hitcounts)}\n')
     for prot in hitcounts:
         top_taxon = sorted(iter(hitcounts[prot].keys()), key=lambda k: hitcounts[prot][k], reverse=True)[0]
-        print(f'top taxon for prot {prot} is: \t{top_taxon}')
+        # print(f'top taxon for prot {prot} is: \t{top_taxon}')
         besthits[prot] = top_taxon
         if top_taxon in besthit_counts:
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
-    print(f'')
+    # print(f'')
     tallyfile = open('bait_tallies.txt', 'w')
-    print(f'length of besthit_counts dict is: {len(besthit_counts)}\n')
+    # print(f'length of besthit_counts dict is: {len(besthit_counts)}\n')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
-    for key, value in besthits.items():
-        print(key, value)
-    print(f'\nlength of besthits dict is {len(besthits)}\n')
+    # for key, value in besthits.items():
+    #     print(key, value)
+    # print(f'\nlength of besthits dict is {len(besthits)}\n')
     return besthits    
 
      
