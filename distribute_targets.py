@@ -104,6 +104,7 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
     # For each protein, find the taxon with the highest total hit bitscore.
     besthits = {}
     besthit_counts = {}
+    print(f'\nlength of hitcounts dict is: {len(hitcounts)}\n')
     for prot in hitcounts:
         top_taxon = sorted(iter(hitcounts[prot].keys()), key=lambda k: hitcounts[prot][k], reverse=True)[0]
         print(f'top taxon for prot {prot} is: \t{top_taxon}')
@@ -112,14 +113,15 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
+    print(f'')
     tallyfile = open('bait_tallies.txt', 'w')
-    print(f'length of besthit_counts dict is: {len(besthit_counts)}')
+    print(f'length of besthit_counts dict is: {len(besthit_counts)}\n')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
     for key, value in besthits.items():
         print(key, value)
-    print(f'length of besthits dict is {len(besthits)}')
+    print(f'\nlength of besthits dict is {len(besthits)}\n')
     return besthits        
 
 
