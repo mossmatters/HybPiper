@@ -975,10 +975,8 @@ def create_output_directories(prefix, assemblyfile):
     """
 
     :param prefix:
-    :type prefix:
     :param assemblyfile:
     :return:
-    :rtype:
     """
 
     if prefix:
@@ -1215,6 +1213,7 @@ def main():
                                                                          args.discordant_reads_edit_distance,
                                                                          args.discordant_reads_cutoff,
                                                                          args.no_sequences)
+
 
 ########################################################################################################################
 # Run the script

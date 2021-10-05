@@ -30,6 +30,8 @@ from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
+
+# Import non-standard-library modules:
 try:
     import Bio
 except ImportError:
