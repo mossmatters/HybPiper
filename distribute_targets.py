@@ -81,13 +81,13 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
 
     hitcounts = {}
     for result in blastx_results:
-        print(f'result is: {result}')
+        # print(f'result is: {result}')
         result = result.split()
         hitname = result[1].split('-')
         print(f'hitname is: {hitname}')
         bitscore = float(result[-1])
         protname = hitname[-1]
-        taxon = ''.join(hitname[:-1])
+        taxon = '-'.join(hitname[:-1])
         if exclude and exclude in taxon:
             continue
         else:
@@ -143,13 +143,13 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
         bwa_results += up_child.stdout.readlines()    
     hitcounts = {}
     for result in bwa_results:
-        print(f'result is: {result}')
+        # print(f'result is: {result}')
         result = result.split()
         hitname = result[2].split('-')
         print(f'hitname is: {hitname}')
         mapscore = float(result[4])
         protname = hitname[-1]
-        taxon = ''.join(hitname[:-1])
+        taxon = '-'.join(hitname[:-1])
         print(f'taxon is {taxon}')
 
         if exclude and exclude in taxon:
