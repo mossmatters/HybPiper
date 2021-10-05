@@ -211,7 +211,12 @@ def check_baitfile(baitfile, using_bwa, logger=None):
     with open(baitfile, 'r') as bait_file:
         seqs = list(Bio.SeqIO.parse(bait_file, 'fasta'))
         incorrectly_formatted_fasta_headers = []
+        gene_names_to_check_for_duplicates = []
         for seq in seqs:
+            if seq.name not in gene_names_to_check_for_duplicates:
+                gene_names_to_check_for_duplicates.append(seq.name)
+            else:
+                sys.exit(f'{"[ERROR]:":10} Your baitfile contains sequences with identical names, please fix!')
             if not re.match('.+-[^-]+', seq.name):
                 incorrectly_formatted_fasta_headers.append(seq.name)
             gene_id = re.split('-', seq.name)[-1]

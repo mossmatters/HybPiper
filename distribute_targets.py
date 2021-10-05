@@ -167,6 +167,7 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
+    print(f'length of besthit_counts dict is {len(besthit_counts)}')
     tallyfile = open('bait_tallies.txt', 'w')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
