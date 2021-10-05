@@ -106,12 +106,14 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
     besthit_counts = {}
     for prot in hitcounts:
         top_taxon = sorted(iter(hitcounts[prot].keys()), key=lambda k: hitcounts[prot][k], reverse=True)[0]
+        print(f'top taxon for prot {prot} is: \t{top_taxon}')
         besthits[prot] = top_taxon
         if top_taxon in besthit_counts:
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
     tallyfile = open('bait_tallies.txt', 'w')
+    print(f'length of besthit_counts dict is: {len(besthit_counts)}')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
@@ -167,7 +169,6 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
-    print(f'length of besthit_counts dict is {len(besthit_counts)}')
     tallyfile = open('bait_tallies.txt', 'w')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
