@@ -97,7 +97,8 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
                 else:
                     hitcounts[protname][taxon] = bitscore
             else:
-                hitcounts[protname] = {taxon: 1}
+                # hitcounts[protname] = {taxon: 1}
+                hitcounts[protname] = {taxon: bitscore}
 
     # For each protein, find the taxon with the highest total hit bitscore.
     besthits = {}
@@ -160,7 +161,8 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
                 else:
                     hitcounts[protname][taxon] = mapscore
             else:
-                hitcounts[protname] = {taxon: 1}
+                # hitcounts[protname] = {taxon: 1}
+                hitcounts[protname] = {taxon: mapscore}
 
     # For each protein, find the taxon with the highest total hit mapscore.
     besthits = {}
