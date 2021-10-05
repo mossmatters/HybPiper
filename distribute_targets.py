@@ -117,6 +117,9 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
+    for key, value in besthits.items():
+        print(key, value)
+    print(f'length of besthits dict is {len(besthits)}')
     return besthits        
 
 
