@@ -25,10 +25,6 @@ import re
 from collections import defaultdict
 
 
-# Create logger:
-# logger = logging.getLogger(f'__main__.{__name__}')
-
-
 def file_exists_and_not_empty(file_name):
     """
     Check if file exists and is not empty by confirming that its size is not 0 bytes. Returns a boolean.
@@ -531,7 +527,7 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
             bbmap_command = f'bbmap.sh -Xmx{memory}g -t={threads} ref={prefix}/CJJ_supercontig.fasta in={interleaved_reads} ' \
                             f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t ' \
                             f'maxindel={maxindel} strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
-            logger.debug(f'bbmap_command: {bbmap_command}\n')
+            logger.debug(f'bbmap_command: {bbmap_command}')
             exitcode = subprocess.call(bbmap_command, shell=True)
             samfile_reads = []
             with open(f'{prefix}/CJJ_supercontig.sam') as samfile:
@@ -574,7 +570,7 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
                         f'out={prefix}/CJJ_supercontig.sam interleaved=t pairedonly=t mappedonly=t maxindel={maxindel} ' \
                         f'strictmaxindel=t nodisk=t subfilter={subfilter} ambiguous=toss 2> /dev/null'
 
-        logger.debug(f'bbmap_command: {bbmap_command}\n')
+        logger.debug(f'bbmap_command: {bbmap_command}')
         exitcode = subprocess.call(bbmap_command, shell=True)
         samfile_reads = []
         with open(f'{prefix}/CJJ_supercontig.sam') as samfile:
@@ -1107,7 +1103,7 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
             else:
                 amino_sequence = myTranslate(nucl_sequence)
                 seqID = prefix.split("/")[-1].strip("/")
-                logger.debug("Writing amino acid sequence, length: {}\n".format(len(amino_sequence)))
+                logger.debug("Writing amino acid sequence, length: {}".format(len(amino_sequence)))
                 # sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1], len(amino_sequence)))
                 amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix, prot.split("-")[-1])
                 amino_file = open(amino_filename, 'w')
@@ -1120,6 +1116,8 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
                 nucleo_file.close()
 
                 return prot.split("-")[-1], len(amino_sequence)  # gene name and length of the translated protein
+        else:
+            return None, None
 
 
 def help():

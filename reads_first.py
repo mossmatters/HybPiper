@@ -737,7 +737,7 @@ def exonerate(gene_name,
     :param multiprocessing.managers.ValueProxy counter:
     :param multiprocessing.managers.AcquirerProxy lock:
     :param int genes_to_process: total number of genes to be processed via Exonerate
-    :return: str gene_name, str prot_length
+    :return: str gene_name, str prot_length OR None, None
     """
 
     logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
@@ -805,6 +805,9 @@ def exonerate(gene_name,
         counter.value += 1
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
+
+    if not gene_name and not prot_length:
+        return None, None
 
     return gene_name, prot_length
 
@@ -927,7 +930,8 @@ def exonerate_multiprocessing(genes,
             for future in future_results:
                 try:
                     gene_name, prot_length = future.result()
-                    genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+                    if gene_name and prot_length:
+                        genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
                 except ValueError:
                     logger.info(future.result())
 
