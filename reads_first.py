@@ -668,7 +668,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
             logger.info('All redos completed successfully!\n')
         else:
             logger.error(f'SPAdes redos failed for genes {" ".join(spades_duds)}')
-            sys.exit(1)
+            # sys.exit(1)
 
     if os.path.isfile('spades_duds.txt'):  # Written by spades_runner.rerun_spades()
         spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
