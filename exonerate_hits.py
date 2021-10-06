@@ -86,12 +86,18 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         logger.debug(f'Exonerate command is: {exonerate_command}')
         subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        universal_newlines=True)
-        exonerate_hits_dict = SeqIO.to_dict(SeqIO.parse(outputfilename, 'fasta'))
-        return exonerate_hits_dict
+        # exonerate_hits_dict = SeqIO.to_dict(SeqIO.parse(outputfilename, 'fasta'))
+        # return exonerate_hits_dict
     except subprocess.CalledProcessError as exc:
         logger.debug(f'Exonerate without "--refine" FAILED for {prefix}. Output is: {exc}')
         logger.error(f'Exonerate without "--refine" stdout is: {exc.stdout}')
         logger.error(f'Exonerate without "--refine" stderr is: {exc.stderr}')
+
+    if file_exists_and_not_empty(outputfilename):  # Exonerate with --refine can fail with no error
+        exonerate_hits_dict = SeqIO.to_dict(SeqIO.parse(outputfilename, 'fasta'))
+        return exonerate_hits_dict
+
+    return None
 
 
 def parse_initial_exonerate_hits(exonerate_hits_sequence_dict, prefix):
@@ -1191,6 +1197,8 @@ def main():
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects
     exonerate_hits_sequence_dict = initial_exonerate(args.proteinfile, args.assemblyfile, prefix)
+    if not exonerate_hits_sequence_dict:
+        return
     proteinHits = parse_initial_exonerate_hits(exonerate_hits_sequence_dict, prefix)
     logger.debug(f'There were {len(exonerate_hits_sequence_dict)} Exonerate hits for {args.proteinfile}.')
 

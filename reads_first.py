@@ -749,10 +749,6 @@ def exonerate(gene_name,
     logger = logging.getLogger(gene_name)
     logger.setLevel(logging.DEBUG)
 
-    with lock:
-        sys.stderr.write(f'\n{"[NOTE]:":10} Running Exonerate for gene {gene_name}, {counter.value}'
-                         f'/{genes_to_process}')
-
     # Create directories for output files based on the prefix name, or assemblyfile name:
     prefix = exonerate_hits.create_output_directories(f'{gene_name}/{basename}', f'{gene_name}/'
                                                                                  f'{gene_name}_contigs.fasta')
@@ -778,6 +774,8 @@ def exonerate(gene_name,
                                                                     f'{gene_name}/{gene_name}_contigs.fasta',
                                                                     prefix)
     logger.debug(f'exonerate_hits_sequence_dict is: {exonerate_hits_sequence_dict}')
+    if not exonerate_hits_sequence_dict:
+        return None, None
 
     # Parse the initial Exonerate results:
     protein_hits = exonerate_hits.parse_initial_exonerate_hits(exonerate_hits_sequence_dict,
@@ -809,7 +807,7 @@ def exonerate(gene_name,
 
     with lock:
         counter.value += 1
-        sys.stderr.write(f'\n{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+        sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
     if not gene_name and not prot_length:
