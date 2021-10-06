@@ -1008,8 +1008,7 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
                                                 bbmap_subfilter,
                                                 bbmap_threads,
                                                 discordant_reads_edit_distance,
-                                                discordant_reads_cutoff,
-                                                no_sequences):
+                                                discordant_reads_cutoff):
     """
 
     :param proteinHits:
@@ -1028,7 +1027,7 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
     :param bbmap_subfilter:
     :param bbmap_threads:
     :param discordant_reads_edit_distance:
-    :param discordant_reads_cutoff:
+    :param int discordant_reads_cutoff:
     :param no_sequences:
     :return:
     """
