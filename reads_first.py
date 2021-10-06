@@ -1175,56 +1175,56 @@ def main():
         logger.error('ERROR: No genes with BLAST hits! Exiting!')
         return
 
-    # ####################################################################################################################
-    # # Assemble reads using SPAdes
-    # ####################################################################################################################
-    # # If the --merged flag is provided, merge reads for SPAdes assembly
-    # if args.merged:
-    #     logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
-    #     for gene in genes:
-    #         interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
-    #         logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
-    #         merged_out = f'{gene}/{gene}_merged.fastq'
-    #         unmerged_out = f'{gene}/{gene}_unmerged.fastq'
-    #         bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
-    #                           f'outu={unmerged_out}'
-    #         try:
-    #             result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-    #                                     universal_newlines=True)
-    #             logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
-    #             logger.debug(f'bbmerge paired stdout is: {result.stdout}')
-    #             logger.debug(f'bbmerge paired stderr is: {result.stderr}')
-    #
-    #         except subprocess.CalledProcessError as exc:
-    #             logger.error(f'bbmerge paired FAILED. Output is: {exc}')
-    #             logger.error(f'bbmerge paired stdout is: {exc.stdout}')
-    #             logger.error(f'bbmerge paired stderr is: {exc.stderr}')
-    #             sys.exit('There was an issue when merging reads. Check read files!')
-    #
-    # if args.assemble:
-    #     if len(readfiles) == 1:
-    #         spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                  paired=False, timeout=args.timeout, logger=logger)
-    #     elif len(readfiles) == 2:
-    #         if args.merged and not unpaired_readfile:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, merged=True, logger=logger)
-    #         elif args.merged and unpaired_readfile:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, merged=True, unpaired=True, logger=logger)
-    #         elif unpaired_readfile and not args.merged:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, unpaired=True, logger=logger)
-    #         else:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, logger=logger)
-    #
-    #     else:
-    #         logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
-    #         return
-    #     if not spades_genelist:
-    #         logger.error('ERROR: No genes had assembled contigs! Exiting!')
-    #         return
+    ####################################################################################################################
+    # Assemble reads using SPAdes
+    ####################################################################################################################
+    # If the --merged flag is provided, merge reads for SPAdes assembly
+    if args.merged:
+        logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
+        for gene in genes:
+            interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
+            logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
+            merged_out = f'{gene}/{gene}_merged.fastq'
+            unmerged_out = f'{gene}/{gene}_unmerged.fastq'
+            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
+                              f'outu={unmerged_out}'
+            try:
+                result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'bbmerge paired stdout is: {result.stdout}')
+                logger.debug(f'bbmerge paired stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'bbmerge paired FAILED. Output is: {exc}')
+                logger.error(f'bbmerge paired stdout is: {exc.stdout}')
+                logger.error(f'bbmerge paired stderr is: {exc.stderr}')
+                sys.exit('There was an issue when merging reads. Check read files!')
+
+    if args.assemble:
+        if len(readfiles) == 1:
+            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                     paired=False, timeout=args.timeout, logger=logger)
+        elif len(readfiles) == 2:
+            if args.merged and not unpaired_readfile:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, merged=True, logger=logger)
+            elif args.merged and unpaired_readfile:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger)
+            elif unpaired_readfile and not args.merged:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, unpaired=True, logger=logger)
+            else:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, logger=logger)
+
+        else:
+            logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
+            return
+        if not spades_genelist:
+            logger.error('ERROR: No genes had assembled contigs! Exiting!')
+            return
 
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs
