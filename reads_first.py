@@ -696,14 +696,17 @@ def done_callback(future_returned, logger=None):
     if future_returned.cancelled():
         # logger.error(f'{future_returned}: cancelled')
         print(f'{future_returned}: cancelled')
-        return
+        # result = f'{future_returned}: cancelled'
+        return future_returned.result()
     elif future_returned.done():
-        error = future_returned.exception()
+        # print(dir(future_returned.result()))
+        error = future_returned.exception()  # returns None if no error raised
         if error:
             # logger.error(f'{future_returned}: error returned: {error}')
             print(f'{future_returned}: error returned: {error}')
-            result = Exception('Error in multiprocessing')
-            return
+            # result = Exception('Error in multiprocessing')
+            result = f'{future_returned}: error returned: {error}'
+            return future_returned.result()
         else:
             result = future_returned.result()
     return result
@@ -918,15 +921,21 @@ def exonerate_multiprocessing(genes,
 
         # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
         for future in as_completed(future_results):
-            gene_name, prot_length = future.result()
-            gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
-            gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
-            gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
-            with open(gene_log_file_to_cat) as gene_log_handle:
-                lines = gene_log_handle.readlines()
-                for line in lines:
-                    logger.debug(line.strip())  # log contents to main logger
-            os.remove(gene_log_file_to_cat)
+            try:
+                gene_name, prot_length = future.result()
+                gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+                gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+                gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+                with open(gene_log_file_to_cat) as gene_log_handle:
+                    lines = gene_log_handle.readlines()
+                    for line in lines:
+                        logger.debug(line.strip())  # log contents to main logger
+                os.remove(gene_log_file_to_cat)
+            except:
+                result = future.result()
+                logger.info(f'result is {result}')
+                # logger.info(f'future done_callback return is ')
+                raise
 
         wait(future_results, return_when="ALL_COMPLETED")
 

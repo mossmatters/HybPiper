@@ -233,7 +233,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         all_kmers.sort()
 
         if len(all_kmers) < 2:
-            logger.info(f'{"[NOTE]:":10} WARNING: All Kmers failed for {gene}!\n')
+            logger.info(f'{"[NOTE]:":10} WARNING: All Kmers failed for {gene}!')
             spades_duds.append(gene)
             continue
         else:
