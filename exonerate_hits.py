@@ -885,7 +885,7 @@ def paralog_test(exonerate_hits, prot, prefix, paralog_warning_min_cutoff):
     # CJJ variable contains e.g. [False, False, False, True, True, True, False, True]
     # print(f'line 909: longhits: {longhits}')
     if sum(longhits) > 1:
-        sys.stderr.write("WARNING: Multiple long-length exonerate hits for {}. Check for paralogs!\n".format(prot.id))
+        # sys.stderr.write("WARNING: Multiple long-length exonerate hits for {}. Check for paralogs!\n".format(prot.id))
         with open("{}/paralog_warning.txt".format(prefix), 'w') as pw:
             for hit in range(len(exonerate_hits["assemblyHits"])):
                 if longhits[hit]:
@@ -1117,7 +1117,7 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
 
                 return prot.split("-")[-1], len(amino_sequence)  # gene name and length of the translated protein
         else:
-            return None, None
+            return prot.split("-")[-1], None  # gene name for globbing log file
 
 
 def help():
