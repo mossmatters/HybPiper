@@ -758,6 +758,7 @@ def exonerate(gene_name,
     perform_supercontig_chimera_test, path_to_interleaved_fasta = exonerate_hits.set_supercontig_chimera_test(
         nosupercontigs,
         prefix)
+
     logger.debug(f'perform_supercontig_chimera_test is: {perform_supercontig_chimera_test}')
     logger.debug(f'path_to_interleaved_fasta is: {path_to_interleaved_fasta}')
 
@@ -1113,67 +1114,67 @@ def main():
     # Move in to the sample directory:
     os.chdir(os.path.join(basedir, basename))
 
-    # ####################################################################################################################
-    # # Map reads to nucleotide targets with BWA
-    # ####################################################################################################################
-    # if args.bwa:
-    #     if args.blast:
-    #         args.blast = False
-    #         if args.unpaired:
-    #             bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
-    #
-    #         bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
-    #         if not bamfile:
-    #             logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-    #                          f'reads_first.log file for sample {basename}!')
-    #             return
-    #
-    #         logger.debug(f'bamfile is: {bamfile}')
-    #     else:
-    #         bamfile = f'{basename}.bam'
-    #
-    # ####################################################################################################################
-    # # Map reads to protein targets with BLASTx
-    # ####################################################################################################################
-    # if args.blast:
-    #     if args.unpaired:
-    #         blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-    #                max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
-    #                diamond_sensitivity=args.diamond_sensitivity)
-    #
-    #     blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
-    #                                max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
-    #                                diamond_sensitivity=args.diamond_sensitivity)
-    #
-    #     if not blastx_outputfile:
-    #         logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-    #                      f'reads_first.log file '
-    #                      f'for sample {basename}!')
-    #         return
-    #     else:
-    #         blastx_outputfile = f'{basename}.blastx'
-    #
-    # ####################################################################################################################
-    # # Distribute reads to gene directories for either BLASTx or BWA mapping
-    # ####################################################################################################################
-    # if args.distribute:
-    #     pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
-    #     for fn in pre_existing_fastas:
-    #         os.remove(fn)
-    #     if args.bwa:
-    #         distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-    #                        merged=args.merged, logger=logger)
-    #     else:  # distribute BLASTx results
-    #         distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-    #                           merged=args.merged, logger=logger)
-    # if len(readfiles) == 2:
-    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
-    # else:
-    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
-    # if len(genes) == 0:
-    #     logger.error('ERROR: No genes with BLAST hits! Exiting!')
-    #     return
-    #
+    ####################################################################################################################
+    # Map reads to nucleotide targets with BWA
+    ####################################################################################################################
+    if args.bwa:
+        if args.blast:
+            args.blast = False
+            if args.unpaired:
+                bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
+
+            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+            if not bamfile:
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
+                             f'reads_first.log file for sample {basename}!')
+                return
+
+            logger.debug(f'bamfile is: {bamfile}')
+        else:
+            bamfile = f'{basename}.bam'
+
+    ####################################################################################################################
+    # Map reads to protein targets with BLASTx
+    ####################################################################################################################
+    if args.blast:
+        if args.unpaired:
+            blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
+                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
+                   diamond_sensitivity=args.diamond_sensitivity)
+
+        blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
+                                   max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
+                                   diamond_sensitivity=args.diamond_sensitivity)
+
+        if not blastx_outputfile:
+            logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
+                         f'reads_first.log file '
+                         f'for sample {basename}!')
+            return
+        else:
+            blastx_outputfile = f'{basename}.blastx'
+
+    ####################################################################################################################
+    # Distribute reads to gene directories for either BLASTx or BWA mapping
+    ####################################################################################################################
+    if args.distribute:
+        pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
+        for fn in pre_existing_fastas:
+            os.remove(fn)
+        if args.bwa:
+            distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                           merged=args.merged, logger=logger)
+        else:  # distribute BLASTx results
+            distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                              merged=args.merged, logger=logger)
+    if len(readfiles) == 2:
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
+    else:
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
+    if len(genes) == 0:
+        logger.error('ERROR: No genes with BLAST hits! Exiting!')
+        return
+
     # ####################################################################################################################
     # # Assemble reads using SPAdes
     # ####################################################################################################################
