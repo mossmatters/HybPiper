@@ -1098,6 +1098,8 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
         # If a sequence for the locus was returned, translate it, and write nucleotide and protein seqs to file
         ################################################################################################################
         if nucl_sequence:
+            # raise ValueError('Lucy')
+            # return 'single_value'
             if no_sequences:
                 continue
             else:
