@@ -800,8 +800,8 @@ def exonerate(gene_name,
         bbmap_subfilter,
         bbmap_threads,
         discordant_reads_edit_distance,
-        discordant_reads_cutoff)
-
+        discordant_reads_cutoff,
+        no_sequences=False)
 
     with lock:
         counter.value += 1

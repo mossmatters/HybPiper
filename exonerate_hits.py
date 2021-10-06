@@ -1008,7 +1008,8 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
                                                 bbmap_subfilter,
                                                 bbmap_threads,
                                                 discordant_reads_edit_distance,
-                                                discordant_reads_cutoff):
+                                                discordant_reads_cutoff,
+                                                no_sequences):
     """
 
     :param proteinHits:
@@ -1027,7 +1028,7 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
     :param bbmap_subfilter:
     :param bbmap_threads:
     :param discordant_reads_edit_distance:
-    :param int discordant_reads_cutoff:
+    :param discordant_reads_cutoff:
     :param no_sequences:
     :return:
     """
@@ -1099,22 +1100,24 @@ def filter_exonerate_hits_and_construct_fna_faa(proteinHits,
         if nucl_sequence:
             # raise ValueError('Lucy')
             # return 'single_value'
-            # if no_sequences:
-            #     continue
-            # else:
-            amino_sequence = myTranslate(nucl_sequence)
-            seqID = prefix.split("/")[-1].strip("/")
-            logger.debug("Writing amino acid sequence, length: {}".format(len(amino_sequence)))
-            # sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1], len(amino_sequence)))
-            amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix, prot.split("-")[-1])
-            amino_file = open(amino_filename, 'w')
-            amino_file.write(">%s\n%s\n" % (seqID, amino_sequence))
-            amino_file.close()
-            nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix, prot.split("-")[-1])
-            nucleo_file = open(nucleo_filename, 'w')
-            nucleo_file.write(">%s\n%s\n" % (seqID, nucl_sequence))
-            nucleo_file.close()
-            return prot.split("-")[-1], len(amino_sequence)  # gene name and length of the translated protein
+            if no_sequences:
+                continue
+            else:
+                amino_sequence = myTranslate(nucl_sequence)
+                seqID = prefix.split("/")[-1].strip("/")
+                logger.debug("Writing amino acid sequence, length: {}".format(len(amino_sequence)))
+                # sys.stdout.write("{}\t{}\n".format(prot.split("-")[-1], len(amino_sequence)))
+                amino_filename = "%s/sequences/FAA/%s.FAA" % (prefix, prot.split("-")[-1])
+                amino_file = open(amino_filename, 'w')
+                amino_file.write(">%s\n%s\n" % (seqID, amino_sequence))
+                amino_file.close()
+
+                nucleo_filename = "%s/sequences/FNA/%s.FNA" % (prefix, prot.split("-")[-1])
+                nucleo_file = open(nucleo_filename, 'w')
+                nucleo_file.write(">%s\n%s\n" % (seqID, nucl_sequence))
+                nucleo_file.close()
+
+                return prot.split("-")[-1], len(amino_sequence)  # gene name and length of the translated protein
         else:
             return prot.split("-")[-1], None  # gene name for globbing log file
 
