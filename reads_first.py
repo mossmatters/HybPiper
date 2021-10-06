@@ -809,7 +809,7 @@ def exonerate(gene_name,
 
     with lock:
         counter.value += 1
-        sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+        sys.stderr.write(f'\n{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
     if not gene_name and not prot_length:
