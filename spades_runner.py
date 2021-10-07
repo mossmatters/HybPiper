@@ -148,7 +148,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd with merged FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd with merged stdout is: {exc.stdout}')
             logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
-            logger.info(f'{"[ERROR!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
+            logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
 
         logger.info(f'[CMD]: {spades_cmd_without_merged}\n')
@@ -163,7 +163,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd without merged FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd without merged stdout is: {exc.stdout}')
             logger.debug(f'spades_cmd without merged stderr is: {exc.stderr}')
-            logger.info(f'{"[ERROR!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
+            logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
 
     else:
@@ -184,7 +184,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd stdout is: {exc.stdout}')
             logger.debug(f'spades_cmd stderr is: {exc.stderr}')
-            logger.info(f'{"[ERROR!]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
+            logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
                         f'low coverage. No contigs found for the following genes:\n')
 
     spades_successful = []
@@ -205,6 +205,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         if gene_failed:
             logger.info(f'{" " * 11} {gene}')
             spades_failed.append(gene)
+    logger.info(f'')
     return spades_failed
 
 
@@ -233,7 +234,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         all_kmers.sort()
 
         if len(all_kmers) < 2:
-            logger.info(f'{"[NOTE]:":10} WARNING: All Kmers failed for {gene}!')
+            logger.info(f'{"[WARN!]:":10} All Kmers failed for {gene}!')
             spades_duds.append(gene)
             continue
         else:
@@ -252,7 +253,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         redo_spades_cmd = 'parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
     logger.info(f'{"[NOTE]:":10} Re-running SPAdes for {len(genes_redos)} genes\n')
-    logger.info(redo_spades_cmd + '\n')
+    logger.info(f'{"[CMD]:":10} {redo_spades_cmd}')
 
     try:
         result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -265,7 +266,8 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         logger.error(f'redo_spades_cmd FAILED. Output is: {exc}')
         logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
         logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
-        logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage. No'
+        logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
+                    f'coverage. No'
                     f'contigs found for the following genes:\n')
 
     for gene in genes_redos:

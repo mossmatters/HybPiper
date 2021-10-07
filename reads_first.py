@@ -229,7 +229,7 @@ def check_baitfile(baitfile, using_bwa, logger=None):
     if incorrectly_formatted_fasta_headers:
         seq_list = ' '.join(incorrectly_formatted_fasta_headers)
         logger.error(f'{"[ERROR!]:":10} The following sequences in your baitfile have incorrectly formatted fasta '
-                    f'headers:\n')
+                     f'headers:\n')
         fill = textwrap.fill(f'{seq_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.info('')
@@ -684,10 +684,9 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
         spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
 
         if len(spades_duds) == 0:
-            logger.info('All redos completed successfully!\n')
+            logger.info(f'{"[INFO]:":10} All redos completed successfully!')
         else:
-            logger.error(f'SPAdes redos failed for genes {" ".join(spades_duds)}')
-            # sys.exit(1)
+            logger.error(f'{"[WARN!]:":10} SPAdes redos failed for genes {" ".join(spades_duds)}')
 
     if os.path.isfile('spades_duds.txt'):  # Written by spades_runner.rerun_spades()
         spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
