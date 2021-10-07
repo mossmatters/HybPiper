@@ -203,7 +203,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             gene_failed = True
 
         if gene_failed:
-            logger.info(f'{" " * 11} {gene}')
+            logger.info(f'{" " * 10} {gene}')
             spades_failed.append(gene)
     return spades_failed
 
@@ -251,7 +251,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     else:
         redo_spades_cmd = 'parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
-    logger.info(f'{"[NOTE]:":10} Re-running SPAdes for {len(genes_redos)} genes\n')
+    logger.info(f'{"[NOTE]:":10} Re-running SPAdes for {len(genes_redos)} genes')
     logger.info(f'{"[CMD]:":10} {redo_spades_cmd}')
 
     try:
