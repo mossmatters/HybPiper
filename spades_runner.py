@@ -181,9 +181,9 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
-            logger.error(f'spades_cmd FAILED. Output is: {exc}')
-            logger.error(f'spades_cmd stdout is: {exc.stdout}')
-            logger.error(f'spades_cmd stderr is: {exc.stderr}')
+            logger.debug(f'spades_cmd FAILED. Output is: {exc}')
+            logger.debug(f'spades_cmd stdout is: {exc.stdout}')
+            logger.debug(f'spades_cmd stderr is: {exc.stderr}')
             logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage.'
                         f' No contigs found for the following genes:\n')
 
