@@ -771,7 +771,7 @@ def exonerate(gene_name,
         logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
         logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
     except FileNotFoundError as e:
-        logger.error(f"{'[WARN!]:':10} Couldn't find an expected file for either the SPAdes assembly or the protein "
+        logger.error(f"\n{'[ERROR!]:':10} Couldn't find an expected file for either the SPAdes assembly or the protein "
                      f"reference for gene {gene_name}, error is {e}")
         with lock:
             counter.value += 1
