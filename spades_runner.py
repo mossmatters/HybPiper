@@ -135,7 +135,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     if merged:
         spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
             genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout)
-        logger.info(f'{"[CMD:]":10} {spades_cmd_with_merged}\n')
+        logger.info(f'{"[CMD:]":10} {spades_cmd_with_merged}')
 
         try:
             result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -151,7 +151,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
 
-        logger.info(f'[CMD]: {spades_cmd_without_merged}\n')
+        logger.info(f'[CMD]: {spades_cmd_without_merged}')
         try:
             result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, universal_newlines=True)
@@ -205,7 +205,6 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         if gene_failed:
             logger.info(f'{" " * 11} {gene}')
             spades_failed.append(gene)
-    logger.info(f'')
     return spades_failed
 
 
