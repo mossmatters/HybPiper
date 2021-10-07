@@ -763,12 +763,21 @@ def exonerate(gene_name,
     logger.debug(f'path_to_interleaved_fasta is: {path_to_interleaved_fasta}')
 
     # Read the SPAdes contigs and the 'best' protein reference seq into SeqIO dictionaries:
-    spades_assembly_dict, best_protein_ref_dict = exonerate_hits.parse_spades_and_best_reference(
-        f'{gene_name}/{gene_name}_contigs.fasta',
-        f'{gene_name}/{gene_name}_baits.fasta',
-        prefix)
-    logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
-    logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
+    try:
+        spades_assembly_dict, best_protein_ref_dict = exonerate_hits.parse_spades_and_best_reference(
+            f'{gene_name}/{gene_name}_contigs.fasta',
+            f'{gene_name}/{gene_name}_baits.fasta',
+            prefix)
+        logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
+        logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
+    except FileNotFoundError as e:
+        logger.error(f"{'[WARN!]:':10} Couldn't find an expected file for either the SPAdes assembly or the protein "
+                     f"reference for gene {gene_name}, error is {e}")
+        with lock:
+            counter.value += 1
+            sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+                             f'/{genes_to_process}')
+        return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
     exonerate_hits_sequence_dict = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_baits.fasta',
@@ -776,7 +785,7 @@ def exonerate(gene_name,
                                                                     prefix)
     logger.debug(f'exonerate_hits_sequence_dict is: {exonerate_hits_sequence_dict}')
     if not exonerate_hits_sequence_dict:
-        return None, None
+        return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
     # Parse the initial Exonerate results:
     protein_hits = exonerate_hits.parse_initial_exonerate_hits(exonerate_hits_sequence_dict,
@@ -786,7 +795,7 @@ def exonerate(gene_name,
                  f'/{gene_name}_baits.fasta.')
 
     # Filter the Exonerate SPAdes contig hits and produce FNA and FAA files:
-    gene_name, prot_length = exonerate_hits.filter_exonerate_hits_and_construct_fna_faa(
+    gene_name_fna, prot_length = exonerate_hits.filter_exonerate_hits_and_construct_fna_faa(
         protein_hits,
         best_protein_ref_dict,
         thresh,
@@ -811,8 +820,8 @@ def exonerate(gene_name,
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
-    if not gene_name and not prot_length:
-        return None, None
+    if not gene_name_fna and not prot_length:
+        return gene_name_fna, None  # return gene_name to that log can be re-logged to main log file
 
     return gene_name, prot_length
 
@@ -920,16 +929,16 @@ def exonerate_multiprocessing(genes,
         for future in as_completed(future_results):
             try:
                 gene_name, prot_length = future.result()
-                # logger.info(f'\ngene_name is {gene_name}, prot_length is {prot_length}')
-                gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
-                gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
-                gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
-                with open(gene_log_file_to_cat) as gene_log_handle:
-                    lines = gene_log_handle.readlines()
-                    for line in lines:
-                        logger.debug(line.strip())  # log contents to main logger
-                os.remove(gene_log_file_to_cat)
-            except ValueError:
+                if gene_name:  # i.e. log the Exonerate run regardless of success
+                    gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+                    gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+                    gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+                    with open(gene_log_file_to_cat) as gene_log_handle:
+                        lines = gene_log_handle.readlines()
+                        for line in lines:
+                            logger.debug(line.strip())  # log contents to main logger
+                    os.remove(gene_log_file_to_cat)
+            except:  # FIXME Make this more specific
                 logger.info(f'result is {future.result()}')
 
         wait(future_results, return_when="ALL_COMPLETED")
@@ -941,8 +950,8 @@ def exonerate_multiprocessing(genes,
                     gene_name, prot_length = future.result()
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
-                except ValueError:
-                    logger.info(future.result())
+                except ValueError:  # FIXME Make this more specific
+                    logger.info(f'result is {future.result()}')
 
 
 def parse_arguments():

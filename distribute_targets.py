@@ -208,7 +208,8 @@ def distribute_targets(baitfile, delim, besthits, translate=False, target=None):
                     besthit_taxon = target
             else:       
                 besthit_taxon = besthits[gene_id]
-            if sequence.id.split("-")[0] == besthit_taxon:
+            # if sequence.id.split("-")[0] == besthit_taxon:
+            if '-'.join(sequence.id.split("-")[:-1]) == besthit_taxon:
                 with open(os.path.join(gene_id, f'{gene_id}_baits.fasta'), 'w') as ref_bait_seq_file:
                     SeqIO.write(sequence, ref_bait_seq_file, 'fasta')
         else:

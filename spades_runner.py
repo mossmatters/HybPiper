@@ -185,7 +185,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.error(f'spades_cmd stdout is: {exc.stdout}')
             logger.error(f'spades_cmd stderr is: {exc.stderr}')
             logger.info(f'ERROR: One or more genes had an error with SPAdes assembly. This may be due to low coverage.'
-                        f'No contigs found for the following genes:\n')
+                        f' No contigs found for the following genes:\n')
 
     spades_successful = []
     spades_failed = []

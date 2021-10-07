@@ -526,7 +526,7 @@ def fullContigs(prot, sequence_dict, assembly_dict, protein_dict, prefix, thresh
             logger.debug(f'Performing supercontig chimera test!')
             supercontig_reference = joined_supercontig_cds
             SeqIO.write(supercontig_reference, '%s/CJJ_supercontig.fasta' % prefix, 'fasta')
-            logger.debug(f'Interleaved_reads: {interleaved_reads}\n')
+            logger.debug(f'Interleaved_reads: {interleaved_reads}')
 
             # CJJ: How to specify threads? This script is launched via parallel, so if I specify multiple threads here
             #  then it'll overburden the number of cpus requested by the slurm job.
@@ -958,14 +958,14 @@ def parse_spades_and_best_reference(assemblyfile, proteinfile, prefix):
 
     try:
         assemblyfile = open(assemblyfile)
-    except IOError:
+    except FileNotFoundError:
         logger.debug(f'The file {assemblyfile} could not be opened!')
-        return
+        raise
     try:
         proteinfile = open(proteinfile)
-    except IOError:
+    except FileNotFoundError:
         logger.debug(f'The file {proteinfile} could not be opened!')
-        return
+        raise
 
     spades_assembly_dict = SeqIO.to_dict(SeqIO.parse(assemblyfile, 'fasta'))
     best_protein_ref_dict = SeqIO.to_dict(SeqIO.parse(proteinfile, 'fasta'))
