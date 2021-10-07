@@ -211,25 +211,44 @@ def check_baitfile(baitfile, using_bwa, logger=None):
     with open(baitfile, 'r') as bait_file:
         seqs = list(Bio.SeqIO.parse(bait_file, 'fasta'))
         incorrectly_formatted_fasta_headers = []
-        gene_names_to_check_for_duplicates = []
+        check_for_duplicate_genes_dict = {}
         for seq in seqs:
-            if seq.name not in gene_names_to_check_for_duplicates:
-                gene_names_to_check_for_duplicates.append(seq.name)
+            if seq.name in check_for_duplicate_genes_dict:
+                check_for_duplicate_genes_dict[seq.name] += 1
             else:
-                sys.exit(f'{"[ERROR]:":10} Your baitfile contains sequences with identical names, please fix!')
+                check_for_duplicate_genes_dict[seq.name] = 1
+            # if seq.name not in gene_names_to_check_for_duplicates:
+            #     gene_names_to_check_for_duplicates.append(seq.name)
+            # else:
+            #     sys.exit(f'{"[ERROR]:":10} Your baitfile contains sequences with identical names, please fix!')
             if not re.match('.+-[^-]+', seq.name):
                 incorrectly_formatted_fasta_headers.append(seq.name)
             gene_id = re.split('-', seq.name)[-1]
             gene_lists[gene_id].append(seq)
+
     if incorrectly_formatted_fasta_headers:
         seq_list = ' '.join(incorrectly_formatted_fasta_headers)
-        logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile have incorrectly formatted fasta '
+        logger.error(f'{"[ERROR!]:":10} The following sequences in your baitfile have incorrectly formatted fasta '
                     f'headers:\n')
         fill = textwrap.fill(f'{seq_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.info('')
+        sys.exit(1) # baitfile fasta header formatting should be fixed!
     else:
         logger.info(f'{"[NOTE]:":10} The baitfile FASTA header formatting looks good!')
+
+    # Check for duplicated genes:
+    duplicated_genes = []
+    for gene, gene_count in check_for_duplicate_genes_dict.items():
+        if gene_count > 1:
+            duplicated_genes.append(gene)
+    if duplicated_genes:
+        gene_list = ' '.join(duplicated_genes)
+        logger.error(f'{"[ERROR!]:":10} The following sequences in your baitfile occur more than once:\n')
+        fill = textwrap.fill(f'{gene_list}')
+        logger.info(textwrap.indent(fill, ' ' * 11))
+        logger.error(f'\nPlease remove duplicate genes before running HybPiper!')
+        sys.exit(1)  # duplicate genes in baitfile should be removed!
 
     # Report the number of unique genes represented in the baitfile:
     logger.info(f'{"[NOTE]:":10} The baitfile contains at least one sequence for {len(gene_lists)} '
