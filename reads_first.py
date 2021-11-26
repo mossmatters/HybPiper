@@ -731,15 +731,16 @@ def exonerate(gene_name,
               length_pct=100,
               depth_multiplier=10,
               nosupercontigs=False,
-              memory=1,
+              bbmap_memory=1,
               bbmap_subfilter=7,
               bbmap_threads=2,
-              discordant_reads_edit_distance=5,
-              discordant_reads_cutoff=5,
+              chimeric_supercontig_edit_distance=5,
+              chimeric_supercontig_discordant_reads_cutoff=5,
               worker_configurer_func=None,
               counter=None,
               lock=None,
-              genes_to_process=0):
+              genes_to_process=0,
+              intronerate=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
@@ -748,11 +749,11 @@ def exonerate(gene_name,
     :param int length_pct: min % of Exonerate hit vs prot query for Exonerate hit to be included as 'full-length'
     :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
     :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
-    :param int memory: GB memory (RAM ) to use for bbmap.sh
+    :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
-    :param int discordant_reads_edit_distance: min num differences for a read pair to be flagged as discordant
-    :param int discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
+    :param int chimeric_supercontig_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
     :param function worker_configurer_func: function to configure logging to file
     :param multiprocessing.managers.ValueProxy counter:
     :param multiprocessing.managers.AcquirerProxy lock:
@@ -786,8 +787,10 @@ def exonerate(gene_name,
             f'{gene_name}/{gene_name}_contigs.fasta',
             f'{gene_name}/{gene_name}_baits.fasta',
             prefix)
+
         logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
         logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
+
     except FileNotFoundError as e:
         logger.error(f"\n{'[ERROR!]:':10} Couldn't find an expected file for either the SPAdes assembly or the protein "
                      f"reference for gene {gene_name}, error is {e}")
@@ -798,50 +801,43 @@ def exonerate(gene_name,
         return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
-    exonerate_hits_sequence_dict = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_baits.fasta',
-                                                                    f'{gene_name}/{gene_name}_contigs.fasta',
-                                                                    prefix)
-    logger.debug(f'exonerate_hits_sequence_dict is: {exonerate_hits_sequence_dict}')
-    if not exonerate_hits_sequence_dict:
-        return gene_name, None  # return gene_name to that log can be re-logged to main log file
+    exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_baits.fasta',
+                                                             f'{gene_name}/{gene_name}_contigs.fasta',
+                                                             prefix)
 
-    # Parse the initial Exonerate results:
-    protein_hits = exonerate_hits.parse_initial_exonerate_hits(exonerate_hits_sequence_dict,
-                                                              prefix)
-    logger.debug(f'proteinHits is: {protein_hits}')
-    logger.debug(f'There were {len(exonerate_hits_sequence_dict)} Exonerate hits for {gene_name}'
-                 f'/{gene_name}_baits.fasta.')
+    exonerate_result = exonerate_hits.parse_exonerate_and_get_supercontig(
+        exonerate_text_output,
+        query_file=f'{gene_name}/{gene_name}_baits.fasta',
+        paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
+        thresh=thresh,
+        logger=logger,
+        prefix=prefix,
+        discordant_cutoff=chimeric_supercontig_discordant_reads_cutoff,
+        edit_distance=chimeric_supercontig_edit_distance,
+        bbmap_subfilter=bbmap_subfilter,
+        bbmap_memory=bbmap_memory,
+        bbmap_threads=bbmap_threads,
+        interleaved_fasta_file=path_to_interleaved_fasta,
+        nosupercontigs=nosupercontigs)
 
-    # Filter the Exonerate SPAdes contig hits and produce FNA and FAA files:
-    gene_name_fna, prot_length = exonerate_hits.filter_exonerate_hits_and_construct_fna_faa(
-        protein_hits,
-        best_protein_ref_dict,
-        thresh,
-        paralog_warning_min_length_percentage,
-        length_pct,
-        depth_multiplier,
-        prefix,
-        exonerate_hits_sequence_dict,
-        spades_assembly_dict,
-        nosupercontigs,
-        perform_supercontig_chimera_test,
-        path_to_interleaved_fasta,
-        memory,
-        bbmap_subfilter,
-        bbmap_threads,
-        discordant_reads_edit_distance,
-        discordant_reads_cutoff,
-        no_sequences=False)
+    if intronerate:  # TODO check that a supercontig was actually produced!
+        # logger.info('Running intronerate')
+        exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger)
 
     with lock:
         counter.value += 1
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
-    if not gene_name_fna and not prot_length:
-        return gene_name_fna, None  # return gene_name to that log can be re-logged to main log file
+    if not exonerate_result.supercontig_seqrecord:
+        return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
-    return gene_name, prot_length
+    # if not gene_name_fna and not prot_length:
+    #     return gene_name_fna, None  # return gene_name to that log can be re-logged to main log file
+
+    # return gene_name, prot_length
+
+    return gene_name, len(exonerate_result.supercontig_seqrecord)
 
 
 def worker_configurer(gene_name):
@@ -884,12 +880,13 @@ def exonerate_multiprocessing(genes,
                               length_pct=90,
                               depth_multiplier=10,
                               nosupercontigs=False,
-                              memory=1,
+                              bbmap_memory=1,
                               bbmap_subfilter=7,
                               bbmap_threads=2,
-                              discordant_reads_edit_distance=5,
-                              discordant_reads_cutoff=5,
-                              logger=None):
+                              chimeric_supercontig_edit_distance=5,
+                              chimeric_supercontig_discordant_reads_cutoff=5,
+                              logger=None,
+                              intronerate=False):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -901,12 +898,13 @@ def exonerate_multiprocessing(genes,
     :param int length_pct: min % of Exonerate hit vs prot query for Exonerate hit to be included as 'full-length'
     :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
     :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
-    :param int memory: GB memory (RAM ) to use for bbmap.sh
+    :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
-    :param int discordant_reads_edit_distance: min num differences for a read pair to be flagged as discordant
-    :param int discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
+    :param int chimeric_supercontig_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
     :param logging.Logger logger: a logger object
+    :param bool intronerate: if True, intronerate will be run (if supercontigs are used)
     :return:
     """
 
@@ -930,15 +928,17 @@ def exonerate_multiprocessing(genes,
                                       length_pct=length_pct,
                                       depth_multiplier=depth_multiplier,
                                       nosupercontigs=nosupercontigs,
-                                      memory=memory,
+                                      bbmap_memory=bbmap_memory,
                                       bbmap_subfilter=bbmap_subfilter,
                                       bbmap_threads=bbmap_threads,
-                                      discordant_reads_edit_distance=discordant_reads_edit_distance,
-                                      discordant_reads_cutoff=discordant_reads_cutoff,
+                                      chimeric_supercontig_edit_distance=chimeric_supercontig_edit_distance,
+                                      chimeric_supercontig_discordant_reads_cutoff=
+                                      chimeric_supercontig_discordant_reads_cutoff,
                                       worker_configurer_func=worker_configurer,
                                       counter=counter,
                                       lock=lock,
-                                      genes_to_process=genes_to_process)
+                                      genes_to_process=genes_to_process,
+                                      intronerate=intronerate)
                           for gene_name in genes]
         for future in future_results:
             future.add_done_callback(done_callback)
@@ -958,6 +958,7 @@ def exonerate_multiprocessing(genes,
                     os.remove(gene_log_file_to_cat)
             except:  # FIXME Make this more specific
                 logger.info(f'result is {future.result()}')
+                raise
 
         wait(future_results, return_when="ALL_COMPLETED")
 
@@ -970,6 +971,7 @@ def exonerate_multiprocessing(genes,
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
                 except ValueError:  # FIXME Make this more specific
                     logger.info(f'result is {future.result()}')
+                    raise
 
 
 def parse_arguments():
@@ -1052,14 +1054,17 @@ def parse_arguments():
     parser.add_argument('--bbmap_threads', default=2, type=int,
                         help='Number of threads to use for BBmap when searching for chimeric supercontigs. Default '
                              'is %(default)s')
-    parser.add_argument('--discordant_reads_edit_distance',
+    parser.add_argument('--chimeric_supercontig_edit_distance',
                         help='Minimum number of differences between one read of a read pair vs the supercontig '
                              'reference for a read pair to be flagged as discordant', default=5, type=int)
-    parser.add_argument('--discordant_reads_cutoff',
+    parser.add_argument('--chimeric_supercontig_discordant_reads_cutoff',
                         help='Minimum number of discordant reads pairs required to flag a supercontig as a potential '
                              'chimera of contigs from multiple paralogs', default=5, type=int)
     parser.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
                         action='store_true', default=False)
+    parser.add_argument("--run_intronerate",
+                        help="Run intronerate to recover fasta files for supercontigs with introns (if present), "
+                             "and introns-only", action="store_true", dest='intronerate', default=False)
 
     parser.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
 
@@ -1254,7 +1259,7 @@ def main():
             return
 
     ####################################################################################################################
-    # Run Exonerate on the assembled SPAdes contigs
+    # Run Exonerate on the assembled SPAdes contigs, and Intronerate if flag --run_intronerate is used:
     ####################################################################################################################
 
     # return
@@ -1280,55 +1285,64 @@ def main():
                                   length_pct=args.length_pct,
                                   depth_multiplier=args.depth_multiplier,
                                   nosupercontigs=args.nosupercontigs,
-                                  memory=args.memory,
+                                  bbmap_memory=args.memory,
                                   bbmap_subfilter=args.bbmap_subfilter,
-                                  discordant_reads_edit_distance=args.discordant_reads_edit_distance,
-                                  discordant_reads_cutoff=args.discordant_reads_cutoff,
+                                  chimeric_supercontig_edit_distance=args.chimeric_supercontig_edit_distance,
+                                  chimeric_supercontig_discordant_reads_cutoff=
+                                  args.chimeric_supercontig_discordant_reads_cutoff,
                                   bbmap_threads=args.bbmap_threads,
                                   pool_threads=args.cpu,
-                                  logger=logger)
+                                  logger=logger,
+                                  intronerate=args.intronerate)
+
 
     ####################################################################################################################
-    # Collate all supercontig and discordant read reports into one file
+    # Collate all supercontig and putative chimera read reports
     ####################################################################################################################
     logger.info(f'\n{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
 
-    collate_supercontig_reports = f'find .  -name "genes_with_supercontigs.csv" -exec cat {{}} \; | tee ' \
-                                  f'{basename}_genes_with_supercontigs.csv'
-    try:
-        result = subprocess.run(collate_supercontig_reports, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
-        logger.debug(f'collate_supercontig_reports check_returncode() is: {result.check_returncode()}')
-        logger.debug(f'collate_supercontig_reports stdout is: {result.stdout}')
-        logger.debug(f'collate_supercontig_reports stderr is: {result.stderr}')
+    # Supercontigs:
+    collate_supercontig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_supercontigs.csv')]
+    with open(f'{basename}_genes_with_supercontigs.csv', 'w') as genes_with_supercontigs_handle:
+        for report_file in collate_supercontig_reports:
+            with open(report_file, 'r') as report_handle:
+                lines = report_handle.readlines()
+                genes_with_supercontigs_handle.write('\n'.join(lines))
 
-    except subprocess.CalledProcessError as exc:
-        logger.error(f'collate_supercontig_reports FAILED. Output is: {exc}')
-        logger.error(f'collate_supercontig_reports stdout is: {exc.stdout}')
-        logger.error(f'collate_supercontig_reports stderr is: {exc.stderr}')
-
-    collate_discordant_supercontig_reports = f'find .  -name "supercontigs_with_discordant_readpairs.csv" ' \
-                                             f'-exec cat {{}} \; | tee ' \
-                                             f'{basename}_supercontigs_with_discordant_reads.csv'
-    try:
-        result = subprocess.run(collate_discordant_supercontig_reports, shell=True, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, universal_newlines=True)
-        logger.debug(f'collate_discordant_supercontig_reports check_returncode() is: {result.check_returncode()}')
-        logger.debug(f'collate_discordant_supercontig_reports stdout is: {result.stdout}')
-        logger.debug(f'collate_discordant_supercontig_reports stderr is: {result.stderr}')
-
-    except subprocess.CalledProcessError as exc:
-        logger.error(f'collate_discordant_supercontig_reports FAILED. Output is: {exc}')
-        logger.error(f'collate_discordant_supercontig_reports stdout is: {exc.stdout}')
-        logger.error(f'collate_discordant_supercontig_reports stderr is: {exc.stderr}')
+    # Putative chimeras:
+    collate_putative_chimeras_reports = [x for x in glob.glob(f'*/{basename}/putative_chimeric_supercontigs.csv')]
+    with open(f'{basename}_genes_derived_from_putative_chimera_supercontigs.csv',
+              'w') as genes_with_chimeras_handle:
+        for report_file in collate_putative_chimeras_reports:
+            with open(report_file, 'r') as report_handle:
+                lines = report_handle.readlines()
+                genes_with_chimeras_handle.write('\n'.join(lines))
 
     ####################################################################################################################
-    # Report paralog warning and write a paralog warning file
+    # Report paralog warnings and write paralog warning files
     ####################################################################################################################
-    paralog_warnings = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, basename, 'paralog_warning.txt'))]
-    with open('genes_with_paralog_warnings.txt', 'w') as pw:
-        pw.write('\n'.join(paralog_warnings))
-    logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected for {len(paralog_warnings)} genes!')
+
+    # Collate report for long paralogs, and write warning to screen:
+    paralog_warnings_long = [x for x in glob.glob(f'*/{basename}/paralog_warning_long.txt')]
+    with open(f'{basename}_genes_with_long_paralog_warnings.txt', 'w') as long_paralogs_handle:
+        for warning_file in paralog_warnings_long:
+            with open(warning_file, 'r') as warning_handle:
+                report_line = warning_handle.readline()
+                long_paralogs_handle.write(report_line)
+    logger.info(f'{"[NOTE]:":10} WARNING: Potential long paralogs detected for {len(paralog_warnings_long)} genes!')
+
+    # Collate report for paralogs via SPAdes contig depth, and write warning to screen:
+    paralog_warnings_short = [x for x in glob.glob(f'*/{basename}/paralog_warning_by_contig_depth.txt')]
+    paralog_warnings_short_true = 0
+    with open(f'{basename}_genes_with_paralog_warnings_by_contig_depth.csv', 'w') as depth_paralogs_handle:
+        for warning_file in paralog_warnings_short:
+            with open(warning_file, 'r') as warning_handle:
+                report_line = warning_handle.readline()
+                if report_line.split()[-1] == 'True':
+                    paralog_warnings_short_true += 1
+                depth_paralogs_handle.write(report_line)
+    logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected via contig depth for'
+                f' {paralog_warnings_short_true} genes!')
 
 
 ########################################################################################################################
