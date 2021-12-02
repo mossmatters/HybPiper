@@ -108,134 +108,6 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         raise RuntimeError(f'Exonerate failed without --refine for {prefix}')
 
 
-def _get_gff3(gene_name, sample_name, list_of_query_range_tuples):
-    """
-    Takes a list of query range tuples, and return a gff3 entry with introns and exons.
-
-    :param list list_of_query_range_tuples:
-    :return:
-    """
-
-    intron_count = 1
-    exon_count = 1
-
-    # print(f'gene_name is: {gene_name}')
-    gff3_lines = []
-
-    print(f'list_of_query_range_tuples is: {list_of_query_range_tuples}')
-
-    if len(list_of_query_range_tuples) == 1:
-        exon_range = list_of_query_range_tuples[0]
-        gff3_line = [sample_name, 'exonerate:protein2genome:local']
-        # print(f'gff3_line is: {gff3_line}')
-        # Check if contig begins with an intron:
-        if exon_range[0] != 0:  # i.e. the contig starts with an intron
-            print(f'exon_range: {exon_range}')
-            gff3_line.append('intron')
-            gff3_line.append(1)
-            gff3_line.append(exon_range[0] - 1)
-            gff3_line.append('.')
-            gff3_line.append('.')
-            gff3_line.append('.')
-            gff3_line.append(f'ID={sample_name}.intron')
-
-        print(f'gff3_line is: {gff3_line}')
-
-
-
-    # range_pairs = pairwise(list_of_query_range_tuples)
-    # print(f'range_pairs is: {range_pairs}')
-    # for range in range_pairs:
-    #     print(f'range in range_pairs is: {range}')
-
-    # # Check if contig begins with an intron:
-    # range_1, range_2 = next(range_pairs)
-    #
-    # print(f'range_1 is: {range_1}')
-    # print(f'range_2 is: {range_2}')
-    #
-    # gff3_line = ['EG98', 'exonerate:protein2genome:local']
-    # if range_1[0] != 0:  # i.e. the contig starts with an intron
-    #
-    #     # Construct intron gff3 line:
-    #     gff3_line.append('intron')
-    #     gff3_line.append('1')  # From first base pair, not zero-indexed
-    #     gff3_line.append(f'{str(range_1[0] - 1)}')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'+')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'ID=intron{intron_count};name={gene_name}')
-    #     intron_count += 1
-    #     gff3_line_formatted = '\t'.join(gff3_line)
-    #     gff3_lines.append(gff3_line_formatted)
-    #     gff3_line = ['EG98', 'exonerate:protein2genome:local']
-    #
-    #     # Construct exon gff3 line:
-    #     gff3_line.append('exon')
-    #     gff3_line.append(f'{str(range_1[0])}')
-    #     gff3_line.append(f'{str(range_1[1])}')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'+')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'ID=exon{exon_count};name={gene_name}')
-    #     exon_count += 1
-    #     gff3_line_formatted = '\t'.join(gff3_line)
-    #     gff3_lines.append(gff3_line_formatted)
-    #     gff3_line = ['EG98', 'exonerate:protein2genome:local']
-    #
-    #     # Construct intron gff3 line:
-    #     gff3_line.append('intron')
-    #     gff3_line.append(f'{str(range_1[1] + 1)}')
-    #     gff3_line.append(f'{str(range_2[0] - 1)}')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'+')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'ID=intron{exon_count};name={gene_name}')
-    #     intron_count += 1
-    #     gff3_line_formatted = '\t'.join(gff3_line)
-    #     gff3_lines.append(gff3_line_formatted)
-    #     gff3_line = ['EG98', 'exonerate:protein2genome:local']
-    #
-    #     # Construct exon gff3 line:
-    #     gff3_line.append('exon')
-    #     gff3_line.append(f'{str(range_2[0])}')
-    #     gff3_line.append(f'{str(range_2[1])}')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'+')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'ID=exon{exon_count};name={gene_name}')
-    #     exon_count += 1
-    #     gff3_line_formatted = '\t'.join(gff3_line)
-    #     gff3_lines.append(gff3_line_formatted)
-    #     gff3_line = ['EG98', 'exonerate:protein2genome:local']
-    #
-    #     return '\n'.join(gff3_lines)
-    #
-    # else:  # i.e. the contigs start with an exon hit
-    #     gff3_line.append('exon')
-    #     gff3_line.append(f'{str(range_1[0] + 1)}')
-    #     gff3_line.append(f'{str(range_1[1])}')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'+')
-    #     gff3_line.append(f'.')
-    #     gff3_line.append(f'ID=exon{exon_count};name={gene_name}')
-    #     exon_count += 1
-    #     gff3_line_formatted = '\t'.join(gff3_line)
-    #     gff3_lines.append(gff3_line_formatted)
-    #     # print(f'formatted gff3 line: {gff3_line_formatted}')
-    #
-    return '\n'.join(gff3_lines)
-
-
-# ##gff-version 3
-# ctg123 . mRNA            1300  9000  .  +  .  ID=mrna0001;Name=sonichedgehog
-# ctg123 . exon            1300  1500  .  +  .  ID=exon00001;Parent=mrna0001
-# ctg123 . exon            1050  1500  .  +  .  ID=exon00002;Parent=mrna0001
-# ctg123 . exon            3000  3902  .  +  .  ID=exon00003;Parent=mrna0001
-# ctg123 . exon            5000  5500  .  +  .  ID=exon00004;Parent=mrna0001
-# ctg123 . exon            7000  9000  .  +  .  ID=exon00005;Parent=mrna0001
-
-
 def intronerate(exonerate_object, spades_contig_dict, logger=None):
     """
 
@@ -244,21 +116,17 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     :return:
     """
 
-    # print(exonerate_object)
-    # print(exonerate_object.name)
+    # Make directory for intronerate output:
     intronerate_processing_directory = f'{exonerate_object.prefix}/intronerate'
-    os.mkdir(intronerate_processing_directory)
+    if not os.path.exists(intronerate_processing_directory):
+        os.mkdir(intronerate_processing_directory)
 
     trimmed_hits_dict = exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict
-    # print(f'\ntrimmed_hits_dict is: {trimmed_hits_dict}\n')
     hit_spades_names = []
     sample_name = os.path.split(exonerate_object.prefix)[-1]
-    # print(f'sample_name: {sample_name}\n')
     gene_name = os.path.split(exonerate_object.prefix)[-2]
-    # logger.info(f'gene_name: {gene_name}\n')
+    logger.debug(f'gene_name: {gene_name}\n')
     spades_contigs_for_intronerate_supercontig = []
-    exonerate_nucleotide_supercontig_reference = exonerate_object.supercontig_seqrecord
-    gff3_data = ['##gff-version 3']
 
     for hit, hit_data_dict in trimmed_hits_dict.items():
         spades_name_only = hit.split(',')[0]
@@ -304,28 +172,17 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
                                revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
             return converted_list
 
-        # If no trimming has been performed for a SPAdes contig, add the whole contig:
-        # if three_prime_bases_trimmed == 'N/A':
+        # If no trimming has been performed for a SPAdes contig, or the overlap between adjacent Exonerate contig
+        # hits is <= 3 amino acid, add the whole contig:
         if three_prime_bases_trimmed == 'N/A' or int(three_prime_bases_trimmed) <= 9:
-            # print(f'No trimming performed for {hit}, adding whole SPAdes contig to list! three_prime_bases_trimmed '
-            #       f'is: {three_prime_bases_trimmed}\n')
+            logger.debug(f'No trimming performed for {hit}, adding whole SPAdes contig to list!  '
+                         f'three_prime_bases_trimmed is: {three_prime_bases_trimmed}\n')
             if hit_data_dict['hit_strand'] == -1:
                 revcomp_seqrecord = raw_spades_contig.reverse_complement()
                 revcomp_seqrecord.name = hit_name
                 revcomp_seqrecord.id = hit_id
                 revcomp_seqrecord.description = hit_description
                 spades_contigs_for_intronerate_supercontig.append(revcomp_seqrecord)
-
-                # Get data for gff3 file:
-                # print(f'For hit {hit}:')
-                # print(f'trimmed_hit_ranges_all: {trimmed_hit_ranges_all}')  # Note that these might not be trimmed
-                # hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
-                # print(f'hit_ranges_all: {hit_ranges_all}')
-                # gff3_info = _get_gff3(exonerate_object.query_id, sample_name, hit_ranges_all)
-                # print(f'gff3_info is:\n{gff3_info}')
-                # with open('gff3_test.gff3', 'w') as gff3_handle:
-                #     gff3_handle.write(gff3_info)
-
                 continue
             else:
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig)
@@ -338,27 +195,20 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
             multi_exon_hit = True
 
         if not multi_exon_hit:
-            # print(f'\nHit {hit} is a SINGLE-exon sequence! Trimming: {three_prime_bases_trimmed}, '
-            #       f'ranges: {trimmed_hit_ranges_all}')
+            logger.debug(f'\nHit {hit} is a SINGLE-exon sequence! Trimming: {three_prime_bases_trimmed}, '
+                         f'ranges: {trimmed_hit_ranges_all}')
 
             if hit_data_dict['hit_strand'] == 1:
-                # print(f'Hit is on positive strand')
                 slice_coordinate = trimmed_hit_ranges_all[0][1] - int(three_prime_bases_trimmed)
-                # print(f'Hit slice coordinate is: {slice_coordinate}')
-                # print(f'ADDING SPAdes contig {raw_spades_contig.id}')
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
 
             elif hit_data_dict['hit_strand'] == -1:
-                # print('Lucy1')
-                # pass  # FIXME add processing for this
-                # print('Lucy2')
                 trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
                 raw_spades_contig = raw_spades_contig.reverse_complement()
                 raw_spades_contig.id = raw_spades_contig_id
                 raw_spades_contig.name = raw_spades_contig_id
                 raw_spades_contig.description = raw_spades_contig_id
                 slice_coordinate = trimmed_hit_ranges_all[0][1] - int(three_prime_bases_trimmed)
-                # print(f'ADDING SPAdes contig {raw_spades_contig.id}')
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
 
         elif multi_exon_hit:
@@ -366,54 +216,51 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
             slice_found = False
 
             if hit_data_dict['hit_strand'] == -1:
-                # print(f'\nMULTI-EXON NEGATIVE STRAND!')
-                # print(f'\nHit {hit} is a multi-exon sequence on the NEGATIVE strand! Length {hit_length}, trimmed:'
-                #       f' {three_prime_bases_trimmed}')
-                # print(f'trimmed_hit_ranges_all: {trimmed_hit_ranges_all}')
                 trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
-                # print(trimmed_hit_ranges_all)
                 raw_spades_contig = raw_spades_contig.reverse_complement()
                 raw_spades_contig.id = raw_spades_contig_id
                 raw_spades_contig.name = raw_spades_contig_id
                 raw_spades_contig.description = raw_spades_contig_id
 
-            # if hit_data_dict['hit_strand'] == 1:
-            #     print(f'\nHit {hit} is a multi-exon sequence on the POSITIVE strand! Length {hit_length}, trimmed:'
-            #           f' {three_prime_bases_trimmed}')
-            # print(f'trimmed_hit_ranges_all: {trimmed_hit_ranges_all}')
-
+            # Note that where Exonerate hits have been trimmed at their 3' end due to overlaps, the corresponding
+            #  SPAdes contig can't simply be trimmed by the same number of bases, as it can comprise both exons and
+            #  introns. Therefore, it's necessary to keep track of the cumulative length of the hit sequence within
+            #  exons in each contig, and trim the contig based on the coordinate of the 3' end of the final exon in the
+            #  Exonerate
+            #  hit.
             cumulative_hit_span = 0
             # Check location of 3' trimmed hit end in hit ranges:
             for hit_range in trimmed_hit_ranges_all:
-                # print(f'hit_range: {hit_range}')
+                logger.debug(f'hit_range: {hit_range}')
+                # Get value for hit_length_adjusted; needs adjusting for hit location within a contig containing
+                # introns as well as exons:
                 hit_length_adjusted = hit_range[0] + (hit_length - cumulative_hit_span)
-                # print(f'Hit_length_adjusted: {hit_length_adjusted}')
+                logger.debug(f'Hit_length_adjusted: {hit_length_adjusted}')
                 hit_span = hit_range[1] - hit_range[0]
-                if hit_length_adjusted not in range(hit_range[0], hit_range[1]):
-                    # print(f'hit length adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} - '
-                    #       f'{hit_range[1]}')
-                    cumulative_hit_span += hit_span  # keep track of hit length covered by previous ranges
+                if hit_length_adjusted not in range(hit_range[0], hit_range[1]):  # i.e. 3' end of hit not in range
+                    logger.debug(f'hit_length_adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} -'
+                                 f' {hit_range[1]}; the 3prime end of the supercontig does not occur in this exon!')
+                    cumulative_hit_span += hit_span  # keep track of supercontig length covered by previous ranges
                 else:
-                    # print(f'hit length adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} - '
-                    #       f'{hit_range[1]}')
+                    logger.debug(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
+                                 f' {hit_range[1]}. The 3prime is of the supercontig occurs in this exon!')
                     slice_coordinate = hit_length_adjusted
-                    # print(f'ADDING SPAdes contig {raw_spades_contig.id}')
                     spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
                     slice_found = True
                     break
             if not slice_found:
                 raise ValueError(f'Slice coordinate not found for hit {hit}')
 
-    # Write concatenated intronerated supercontig_seqrecord with Ns between hits:
+    # Write concatenated Intronerated supercontig_seqrecord with Ns between hits:
     intronerate_supercontig_seq_with_n = Seq('NNNNNNNNNN'.join([str(seq.seq) for seq in
                                                                 spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq_with_n,
-                                                   id='intronerated_supercontig_with_Ns')
+                                                   id='i=Intronerated_supercontig_with_Ns')
     with open(f'{intronerate_processing_directory}/intronerate_supercontig_with_Ns.fasta',
               'w') as intronerate_supercontig_handle:
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
 
-    # Write concatenated intronerated supercontig_seqrecord without Ns between hits:
+    # Write concatenated Intronerated supercontig_seqrecord without Ns between hits:
     intronerate_supercontig_seq = Seq(''.join([str(seq.seq) for seq in
                                                spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq,
@@ -423,20 +270,19 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
 
     # Write individual constituent SPAdes contigs:
-    with open(f'{intronerate_processing_directory}/intronerate_supercontig_individual_hits.fasta',
+    with open(f'{intronerate_processing_directory}/intronerate_supercontig_individual_contig_hits.fasta',
               'w') as intronerate_supercontig_hits_handle:
         SeqIO.write(spades_contigs_for_intronerate_supercontig, intronerate_supercontig_hits_handle, 'fasta')
 
-    # Run Exonerate:
+    # Run Exonerate to get the gff file:
     intronerate_query = f'{exonerate_object.prefix}/sequences/FAA/{gene_name}.FAA'
-    # print(f'intronerate_query: {intronerate_query}')
-    # print(exonerate_nucleotide_supercontig_reference)
 
     exonerate_command = f'exonerate -m protein2genome -q {intronerate_query} -t ' \
                         f'{intronerate_processing_directory}/intronerate_supercontig_without_Ns.fasta --verbose 0 ' \
                         f'--showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
                         f' {intronerate_processing_directory}/intronerate_fasta_and_gff.txt'
-    logger.debug(exonerate_command)
+
+    logger.debug(f'Intronerate run of Exonerate for gff: {exonerate_command}')
 
     try:
         result = subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -449,14 +295,15 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
         logger.debug(f'Exonerate with "--refine" stdout is: {exc.stdout}')
         logger.debug(f'Exonerate with "--refine" stderr is: {exc.stderr}')
 
-        # CJJ only use intron in between detected exons, as there's n guarantee that the query protein in full length
-        #  (we don't want exonic regions in the raw SPAdes contigs being annotated as introns).
+        # CJJ only use introns that occur in between detected exons, as there's no guarantee that the query protein is
+        #  full length (we don't want flanking exonic regions in the raw SPAdes contigs being annotated as introns by
+        #  mistake).
 
     # Parse out the gff lines only from the `intronerate_fasta_and_gff.gff` file:
     with open(f'{intronerate_processing_directory}/intronerate_fasta_and_gff.txt', 'r') as intronerate_fasta_gff_handle:
         gff_dump = intronerate_fasta_gff_handle.read()
         gff_split = re.split('# --- END OF GFF DUMP ---|# --- START OF GFF DUMP ---\n#\n#\n', gff_dump)
-        gff_data_only = gff_split[1]
+        gff_data_only = gff_split[1]  # TODO check if first hit result is always the best!
     with open(f'{intronerate_processing_directory}/intronerate.gff', 'w') as intronerate_gff_handle:
         intronerate_gff_handle.write(gff_data_only)
 
@@ -464,25 +311,20 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     # only:
     intronerate_supercontig_without_Ns = SeqIO.read(
         f'{intronerate_processing_directory}/intronerate_supercontig_without_Ns.fasta', 'fasta')
-    # print(intronerate_supercontig_without_Ns)
 
     exonerate_searchio_alignment = list(SearchIO.parse(
         f'{intronerate_processing_directory}/intronerate_fasta_and_gff.txt', 'exonerate-text'))  # generator to list
-    # print(exonerate_searchio_alignment)
+
     single_exonerate_qresult = exonerate_searchio_alignment[0]
-    # print(f'single_exonerate_qresult.hsps is: {single_exonerate_qresult.hsps}')
+
     if len(single_exonerate_qresult.hsps) != 1:
-        print(f'searchio_object hsps list is greater than 1 for {gene_name}!')
+        logger.debug(f'searchio_object hsps list is greater than 1 for {gene_name}!')
         # raise ValueError(f'searchio_object hsps list is greater than 1!')
     single_hsp = single_exonerate_qresult.hsps[0]
-    # print(f'{dir(single_hsp)}')
-    # print(f'single_hsp.hit_inter_ranges is: {single_hsp.hit_inter_ranges}')
-    # print(f'length of supercontig_fna is: {len(intronerate_supercontig_without_Ns)}')
     intron_sequences = []
     for inter_range in single_hsp.hit_inter_ranges:
-        # print(f'\ninter_range is: {inter_range}')
-        # print(intronerate_supercontig_without_Ns[inter_range[0]:inter_range[1]])
         intron_seqrecord = intronerate_supercontig_without_Ns[inter_range[0]:inter_range[1]]
+        intron_seqrecord.description = 'intron'
         intron_sequences.append(intron_seqrecord)
     with open(f'{intronerate_processing_directory}/introns.fasta', 'w') as introns_fasta_handle:
         SeqIO.write(intron_sequences, introns_fasta_handle, 'fasta')
@@ -726,6 +568,8 @@ class Exonerate(object):
         paralog_dicts_by_percent_similarity = self._best_long_paralog_by_percent_similarity(paralog_dicts)
         if paralog_dicts_by_percent_similarity:
             return paralog_dicts_by_percent_similarity
+        else:
+            raise ValueError(f'Issue naming paralogs, please check!')
 
     @staticmethod
     def _best_long_paralog_by_depth(paralog_dicts):
@@ -1081,7 +925,7 @@ class Exonerate(object):
                                           f"\t{first_hit_dict_value['hit_strand']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
-                                          f"\tN/A\n"))
+                                          f"\tN/A\n"))  # as no trimming performed yet
             for key, value in nested_dict_iter:  # Write remaining lines
                 exonerate_stats_handle.write((f"\t{self.query_id}"
                                               f"\t{self.query_length}"
@@ -1107,7 +951,7 @@ class Exonerate(object):
                                           f"\t{first_hit_dict_value['hit_strand']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
-                                          f"\tN/A\n"))
+                                          f"\tN/A\n"))  # as no trimming performed yet
             for key, value in nested_dict_iter:  # Write remaining lines
                 exonerate_stats_handle.write((f"\t{self.query_id}"
                                               f"\t{self.query_length}"
@@ -1123,7 +967,7 @@ class Exonerate(object):
             # Write stats for hits filtered by similarity and subsumed hits removed and trimmed:
             nested_dict_iter = nested_dict_iterator(self.hits_subsumed_hits_removed_overlaps_trimmed_dict)
             first_hit_dict_key, first_hit_dict_value = next(nested_dict_iter)  # get first line
-            trimmed_bases = first_hit_dict_value['hit_sequence'].description.split(':')[-1]
+            trimmed_bases = first_hit_dict_value['hit_sequence'].description.split(':')[-1].strip()
             exonerate_stats_handle.write((f"Hits with subsumed hits removed and trimmed"
                                           f"\t{self.query_id}"
                                           f"\t{self.query_length}"
@@ -1568,58 +1412,39 @@ def main():
                                                                                   prefix)
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects
-    # exonerate_text_output = initial_exonerate(args.proteinfile,
-    #                                           args.assemblyfile,
-    #                                           prefix)
-    exonerate_text_output = f'{prefix}/exonerate_results.fasta'
+    exonerate_text_output = initial_exonerate(args.proteinfile,
+                                              args.assemblyfile,
+                                              prefix)
 
-    # exonerate_result = parse_exonerate_and_get_supercontig(exonerate_text_output,
-    #                                                        query_file=args.proteinfile,
-    #                                                        paralog_warning_min_length_percentage=
-    #                                                        args.paralog_warning_min_length_percentage,
-    #                                                        thresh=args.thresh,
-    #                                                        logger=logger,
-    #                                                        prefix=prefix,
-    #                                                        discordant_cutoff=
-    #                                                        args.chimeric_supercontig_discordant_reads_cutoff,
-    #                                                        edit_distance=args.chimeric_supercontig_edit_distance,
-    #                                                        bbmap_subfilter=args.bbmap_subfilter,
-    #                                                        bbmap_memory=args.bbmap_memory,
-    #                                                        bbmap_threads=args.bbmap_threads,
-    #                                                        interleaved_fasta_file=path_to_interleaved_fasta,
-    #                                                        nosupercontigs=args.nosupercontigs)
-    # if not exonerate_result.supercontig_seqrecord:
-    #     return
-
-    try:
-        with open('exonerate_object.pickle', 'rb') as handle:
-            exonerate_result = pickle.load(handle)
-            print(f'Found pickle file for exonerate_object, loading...')
-    except FileNotFoundError:
-        print(f'No pickle file found for exonerate_object, re-creating Object...')
-        exonerate_result = parse_exonerate_and_get_supercontig(exonerate_text_output,
-                                                               query_file=args.proteinfile,
-                                                               paralog_warning_min_length_percentage=
-                                                               args.paralog_warning_min_length_percentage,
-                                                               thresh=args.thresh,
-                                                               logger=logger,
-                                                               prefix=prefix,
-                                                               discordant_cutoff=
-                                                               args.chimeric_supercontig_discordant_reads_cutoff,
-                                                               edit_distance=args.chimeric_supercontig_edit_distance,
-                                                               bbmap_subfilter=args.bbmap_subfilter,
-                                                               bbmap_memory=args.bbmap_memory,
-                                                               bbmap_threads=args.bbmap_threads,
-                                                               interleaved_fasta_file=path_to_interleaved_fasta,
-                                                               nosupercontigs=args.nosupercontigs)
-        with open('exonerate_object.pickle', 'wb') as handle:
-            pickle.dump(exonerate_result, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    exonerate_result = parse_exonerate_and_get_supercontig(exonerate_text_output,
+                                                           query_file=args.proteinfile,
+                                                           paralog_warning_min_length_percentage=
+                                                           args.paralog_warning_min_length_percentage,
+                                                           thresh=args.thresh,
+                                                           logger=logger,
+                                                           prefix=prefix,
+                                                           discordant_cutoff=
+                                                           args.chimeric_supercontig_discordant_reads_cutoff,
+                                                           edit_distance=args.chimeric_supercontig_edit_distance,
+                                                           bbmap_subfilter=args.bbmap_subfilter,
+                                                           bbmap_memory=args.bbmap_memory,
+                                                           bbmap_threads=args.bbmap_threads,
+                                                           interleaved_fasta_file=path_to_interleaved_fasta,
+                                                           nosupercontigs=args.nosupercontigs)
+    if not exonerate_result.supercontig_seqrecord:
+        return
 
     logger.debug(f'There were {len(exonerate_result.hits_filtered_by_pct_similarity_dict)} Exonerate '
-                 f'hits for {args.proteinfile}.')
+                 f'hits for {args.proteinfile} after filtering bu similarity threshold {args.thresh}.')
 
     if intronerate:
-        intronerate(exonerate_result, spades_assembly_dict, logger=logger)
+        if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
+                len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
+            logger.debug(f'Sequence for gene is derived from a single Exonerate hit with no introns - '
+                         f'intronerate will not be run for this gene')
+        else:
+            logger.debug(f'Running intronerate')
+            intronerate(exonerate_result, spades_assembly_dict, logger=logger)
 
 
 ########################################################################################################################
