@@ -1151,117 +1151,117 @@ def main():
     # Move in to the sample directory:
     os.chdir(os.path.join(basedir, basename))
 
-    # ####################################################################################################################
-    # # Map reads to nucleotide targets with BWA
-    # ####################################################################################################################
-    # if args.bwa:
-    #     if args.blast:
-    #         args.blast = False
-    #         if args.unpaired:
-    #             bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
-    #
-    #         bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
-    #         if not bamfile:
-    #             logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-    #                          f'reads_first.log file for sample {basename}!')
-    #             return
-    #
-    #         logger.debug(f'bamfile is: {bamfile}')
-    #     else:
-    #         bamfile = f'{basename}.bam'
-    #
-    # ####################################################################################################################
-    # # Map reads to protein targets with BLASTx
-    # ####################################################################################################################
-    # if args.blast:
-    #     if args.unpaired:
-    #         blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
-    #                max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
-    #                diamond_sensitivity=args.diamond_sensitivity)
-    #
-    #     blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
-    #                                max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
-    #                                diamond_sensitivity=args.diamond_sensitivity)
-    #
-    #     if not blastx_outputfile:
-    #         logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-    #                      f'reads_first.log file '
-    #                      f'for sample {basename}!')
-    #         return
-    #     else:
-    #         blastx_outputfile = f'{basename}.blastx'
-    #
-    # ####################################################################################################################
-    # # Distribute reads to gene directories for either BLASTx or BWA mapping
-    # ####################################################################################################################
-    # if args.distribute:
-    #     pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
-    #     for fn in pre_existing_fastas:
-    #         os.remove(fn)
-    #     if args.bwa:
-    #         distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-    #                        merged=args.merged, logger=logger)
-    #     else:  # distribute BLASTx results
-    #         distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
-    #                           merged=args.merged, logger=logger)
-    # if len(readfiles) == 2:
-    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
-    # else:
-    #     genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
-    # if len(genes) == 0:
-    #     logger.error('ERROR: No genes with BLAST hits! Exiting!')
-    #     return
-    #
-    # ####################################################################################################################
-    # # Assemble reads using SPAdes
-    # ####################################################################################################################
-    # # If the --merged flag is provided, merge reads for SPAdes assembly
-    # if args.merged:
-    #     logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
-    #     for gene in genes:
-    #         interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
-    #         logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
-    #         merged_out = f'{gene}/{gene}_merged.fastq'
-    #         unmerged_out = f'{gene}/{gene}_unmerged.fastq'
-    #         bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
-    #                           f'outu={unmerged_out}'
-    #         try:
-    #             result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-    #                                     universal_newlines=True)
-    #             logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
-    #             logger.debug(f'bbmerge paired stdout is: {result.stdout}')
-    #             logger.debug(f'bbmerge paired stderr is: {result.stderr}')
-    #
-    #         except subprocess.CalledProcessError as exc:
-    #             logger.error(f'bbmerge paired FAILED. Output is: {exc}')
-    #             logger.error(f'bbmerge paired stdout is: {exc.stdout}')
-    #             logger.error(f'bbmerge paired stderr is: {exc.stderr}')
-    #             sys.exit('There was an issue when merging reads. Check read files!')
-    #
-    # if args.assemble:
-    #     if len(readfiles) == 1:
-    #         spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                  paired=False, timeout=args.timeout, logger=logger)
-    #     elif len(readfiles) == 2:
-    #         if args.merged and not unpaired_readfile:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, merged=True, logger=logger)
-    #         elif args.merged and unpaired_readfile:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, merged=True, unpaired=True, logger=logger)
-    #         elif unpaired_readfile and not args.merged:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, unpaired=True, logger=logger)
-    #         else:
-    #             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-    #                                      timeout=args.timeout, logger=logger)
-    #
-    #     else:
-    #         logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
-    #         return
-    #     if not spades_genelist:
-    #         logger.error('ERROR: No genes had assembled contigs! Exiting!')
-    #         return
+    ####################################################################################################################
+    # Map reads to nucleotide targets with BWA
+    ####################################################################################################################
+    if args.bwa:
+        if args.blast:
+            args.blast = False
+            if args.unpaired:
+                bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
+
+            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+            if not bamfile:
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
+                             f'reads_first.log file for sample {basename}!')
+                return
+
+            logger.debug(f'bamfile is: {bamfile}')
+        else:
+            bamfile = f'{basename}.bam'
+
+    ####################################################################################################################
+    # Map reads to protein targets with BLASTx
+    ####################################################################################################################
+    if args.blast:
+        if args.unpaired:
+            blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
+                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
+                   diamond_sensitivity=args.diamond_sensitivity)
+
+        blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
+                                   max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
+                                   diamond_sensitivity=args.diamond_sensitivity)
+
+        if not blastx_outputfile:
+            logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
+                         f'reads_first.log file '
+                         f'for sample {basename}!')
+            return
+        else:
+            blastx_outputfile = f'{basename}.blastx'
+
+    ####################################################################################################################
+    # Distribute reads to gene directories for either BLASTx or BWA mapping
+    ####################################################################################################################
+    if args.distribute:
+        pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
+        for fn in pre_existing_fastas:
+            os.remove(fn)
+        if args.bwa:
+            distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                           merged=args.merged, logger=logger)
+        else:  # distribute BLASTx results
+            distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+                              merged=args.merged, logger=logger)
+    if len(readfiles) == 2:
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
+    else:
+        genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
+    if len(genes) == 0:
+        logger.error('ERROR: No genes with BLAST hits! Exiting!')
+        return
+
+    ####################################################################################################################
+    # Assemble reads using SPAdes
+    ####################################################################################################################
+    # If the --merged flag is provided, merge reads for SPAdes assembly
+    if args.merged:
+        logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
+        for gene in genes:
+            interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
+            logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
+            merged_out = f'{gene}/{gene}_merged.fastq'
+            unmerged_out = f'{gene}/{gene}_unmerged.fastq'
+            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
+                              f'outu={unmerged_out}'
+            try:
+                result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'bbmerge paired stdout is: {result.stdout}')
+                logger.debug(f'bbmerge paired stderr is: {result.stderr}')
+
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'bbmerge paired FAILED. Output is: {exc}')
+                logger.error(f'bbmerge paired stdout is: {exc.stdout}')
+                logger.error(f'bbmerge paired stderr is: {exc.stderr}')
+                sys.exit('There was an issue when merging reads. Check read files!')
+
+    if args.assemble:
+        if len(readfiles) == 1:
+            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                     paired=False, timeout=args.timeout, logger=logger)
+        elif len(readfiles) == 2:
+            if args.merged and not unpaired_readfile:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, merged=True, logger=logger)
+            elif args.merged and unpaired_readfile:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger)
+            elif unpaired_readfile and not args.merged:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, unpaired=True, logger=logger)
+            else:
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                                         timeout=args.timeout, logger=logger)
+
+        else:
+            logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
+            return
+        if not spades_genelist:
+            logger.error('ERROR: No genes had assembled contigs! Exiting!')
+            return
 
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs, and Intronerate if flag --run_intronerate is used:

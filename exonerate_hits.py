@@ -307,9 +307,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     with open(f'{intronerate_processing_directory}/intronerate.gff', 'w') as intronerate_gff_handle:
         intronerate_gff_handle.write(gff_data_only)
 
-    # Parse C4 alignment in file `intronerate_fasta_and_gff.txt` and write 1) intronerated supercontigs; 2) supercontigs
+    # Parse the C4 alignment in file `intronerate_fasta_and_gff.txt` and write 1) Intronerated supercontigs; 2) introns
     # only:
-    intronerate_supercontig_without_Ns = SeqIO.read(
+    intronerate_supercontig_without_ns = SeqIO.read(
         f'{intronerate_processing_directory}/intronerate_supercontig_without_Ns.fasta', 'fasta')
 
     exonerate_searchio_alignment = list(SearchIO.parse(
@@ -323,7 +323,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     single_hsp = single_exonerate_qresult.hsps[0]
     intron_sequences = []
     for inter_range in single_hsp.hit_inter_ranges:
-        intron_seqrecord = intronerate_supercontig_without_Ns[inter_range[0]:inter_range[1]]
+        intron_seqrecord = intronerate_supercontig_without_ns[inter_range[0]:inter_range[1]]
         intron_seqrecord.description = 'intron'
         intron_sequences.append(intron_seqrecord)
     with open(f'{intronerate_processing_directory}/introns.fasta', 'w') as introns_fasta_handle:
@@ -357,7 +357,7 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
 
     exonerate_hits_from_alignment = list(SearchIO.parse(exonerate_text_output, 'exonerate-text'))  # generator to list
 
-    # print(f'nosupercontigs is: {nosupercontigs}')
+    logger.debug(f'nosupercontigs is: {nosupercontigs}')
 
     exonerate_result = Exonerate(searchio_object=exonerate_hits_from_alignment,
                                  query_file=query_file,
@@ -1154,8 +1154,6 @@ class Exonerate(object):
 
         sorted_by_hit_length = sorted(exonerate_hits_subsumed_hits_removed_copy.values(),
                                       key=lambda x: len(x['hit_sequence']), reverse=True)
-        # sorted_by_hit_length = sorted(self.hits_subsumed_hits_removed_dict.values(),
-        #                               key=lambda x: len(x['hit_sequence']), reverse=True)
         sorted_by_hit_length[0]['hit_sequence'].description = f'Flag nosupercontig used. Single longest hit ' \
                                                               f'{sorted_by_hit_length[0]["hit_sequence"].id}'
         sorted_by_hit_length[0]['hit_sequence'].id = sample_name
