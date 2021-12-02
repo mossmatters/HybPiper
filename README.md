@@ -94,6 +94,35 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
+**1.4 release candidate** *December, 2021*
+
+This update involves a substantial redactor of the HybPiper pipeline. Changes include:
+
+- **NEW DEPENDENCY**: DIAMOND
+- **NEW DEPENDENCY**: BBtools
+- **NEW DEPENDENCY**: BioPython 1.80 (contains required bug fixes).
+- The`reads_first.py` module now imports other pipeline modules rather than calling them as external scripts.
+- The `exonerate_hits.py` module has been substantially rewritten to use the BioPython SearchIO Exonerate text parser, 
+ as this allows much more data recovered from Exonerate search results. 
+- The `intronerate.py` module has been removed; this functionality has been moved to `exonerate_hits.py`.
+- The `paralog_investigator.py` module has been removed; this functionality has been moved to `exonerate_hits.py`.
+- The program DIAMOND can be used in place on BLASTX when mapping reads to targets.
+- The `reads_first.py` module now accepts read files in compressed gzip format (`*.gz`).
+- Logging when running `reads_first.py` has been unified and extended to provide additional debugging information. A 
+  single log file is written in the sample directory e.g. `EG30_reads_first_2021-12-02-10_45_56.log`. 
+- The `reads_first.py` and `exonerate_hits.py` parameter `--length_pct` has been removed and is no longer used 
+  in internal code.
+- 
+
+- merged
+- no supercontigs
+- chimera test
+- paralog length threshold user changeable
+- check dependencies run by default
+- exonerate refine with fallback
+- exonerate threshold reduced from 65 to 55 by default
+
+
 **1.3.2** *February, 2020*
 
 - Fix for [Issue 41](https://github.com/mossmatters/HybPiper/issues/41) a problem in `intronerate.py` when attempting to resolve overlapping gene annotations.

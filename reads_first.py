@@ -725,7 +725,6 @@ def exonerate(gene_name,
               basename,
               thresh=55,
               paralog_warning_min_length_percentage=0.75,
-              length_pct=100,
               depth_multiplier=10,
               nosupercontigs=False,
               bbmap_memory=1,
@@ -743,7 +742,6 @@ def exonerate(gene_name,
     :param str basename: directory name for sample
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
-    :param int length_pct: min % of Exonerate hit vs prot query for Exonerate hit to be included as 'full-length'
     :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
     :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
     :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
@@ -882,7 +880,6 @@ def exonerate_multiprocessing(genes,
                               thresh=55,
                               paralog_warning_min_length_percentage=0.75,
                               pool_threads=None,
-                              length_pct=90,
                               depth_multiplier=10,
                               nosupercontigs=False,
                               bbmap_memory=1,
@@ -900,7 +897,6 @@ def exonerate_multiprocessing(genes,
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int pool_threads: number of threads/cpus to use for the ProcessPoolExecutor pool
-    :param int length_pct: min % of Exonerate hit vs prot query for Exonerate hit to be included as 'full-length'
     :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
     :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
     :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
@@ -930,7 +926,6 @@ def exonerate_multiprocessing(genes,
                                       basename,
                                       thresh=thresh,
                                       paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
-                                      length_pct=length_pct,
                                       depth_multiplier=depth_multiplier,
                                       nosupercontigs=nosupercontigs,
                                       bbmap_memory=bbmap_memory,
@@ -1029,8 +1024,6 @@ def parse_arguments():
     parser.add_argument('--paralog_warning_min_length_percentage', default=0.75, type=float,
                         help='Minimum length percentage of a contig vs reference protein length for a paralog warning '
                              'to be generated. Default is %(default)s')
-    parser.add_argument('--length_pct', help='Include an exonerate hit if it is at least as long as X percentage of '
-                                             'the reference protein length. Default = 90%%', default=90, type=int)
     parser.add_argument('--depth_multiplier',
                         help='Accept any full-length exonerate hit if it has a coverage depth X times the next best '
                              'hit. Set to zero to not use depth. Default = 10', default=10, type=int)
@@ -1287,7 +1280,6 @@ def main():
                                   basename,
                                   thresh=args.thresh,
                                   paralog_warning_min_length_percentage=args.paralog_warning_min_length_percentage,
-                                  length_pct=args.length_pct,
                                   depth_multiplier=args.depth_multiplier,
                                   nosupercontigs=args.nosupercontigs,
                                   bbmap_memory=args.memory,
