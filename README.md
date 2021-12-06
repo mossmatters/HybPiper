@@ -152,10 +152,10 @@ This update involves a substantial refactor of the HybPiper pipeline. Changes in
     - XXX.
     - check_depend
     
-- Paralog by depth warning
-- Remove SPAdes folder by default
-- Change to Intronerate supercontig file name
-- 
+- Paralog by depth warning.
+- Remove SPAdes folder by default.
+- Change to Intronerate supercontig file name.
+- Update hybpiper_stats.py so that %length is calculated correctly when using a protein baut/target file. 
 
     
 **1.3.2** *February, 2020*
