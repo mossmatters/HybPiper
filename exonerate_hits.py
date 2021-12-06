@@ -445,6 +445,7 @@ class Exonerate(object):
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
+        self.nosupercontigs = nosupercontigs
         self.interleaved_fasta_file = interleaved_fasta_file
         self.chimera_discordant_cutoff = discordant_cutoff
         self.chimera_edit_distance = edit_distance
@@ -458,9 +459,11 @@ class Exonerate(object):
         self.paralog_warning_by_contig_depth = self._paralog_warning_by_contig_depth()
         self.supercontig_seqrecord = self._create_supercontig()
         self.no_supercontig_seqrecord = self._no_supercontig()
+
         # Only perform test if supercontigs are being created AND interleaved_fasta_file is not None AND a multi-hit
         # supercontig has been created:
-        if not nosupercontigs and interleaved_fasta_file and not self.supercontig_seqrecord.description == 'single_hit':
+        if not self.nosupercontigs and interleaved_fasta_file and not self.supercontig_seqrecord.description == \
+                                                                      'single_hit':
             self.chimera_warning_bool = self._supercontig_chimera_warning()
 
     def _parse_searchio_object(self):
@@ -837,9 +840,10 @@ class Exonerate(object):
                     description='single_hit')
 
                 # Write report file:
-                log_entry = f'{sample_name},{gene_name}, No supercontig produced. Gene sequence contains a single ' \
-                            f'Exonerate hit.'
-                self._write_genes_with_supercontigs(log_entry)
+                if not self.nosupercontigs:
+                    log_entry = f'{sample_name},{gene_name}, No supercontig produced. Gene sequence contains a ' \
+                                f'single Exonerate hit.'
+                    self._write_genes_with_supercontigs(log_entry)
 
                 return no_supercontig_seqrecord
 
@@ -853,9 +857,10 @@ class Exonerate(object):
                                                       f'{num_hits_in_supercontig}_hits')
 
         # Write report file:
-        log_entry = f'{sample_name},{gene_name}, Supercontig produced. Gene sequence contains more than one ' \
-                    f'Exonerate hit.'
-        self._write_genes_with_supercontigs(log_entry)
+        if not self.nosupercontigs:
+            log_entry = f'{sample_name},{gene_name}, Supercontig produced. Gene sequence contains more than one ' \
+                        f'Exonerate hit.'
+            self._write_genes_with_supercontigs(log_entry)
 
         return supercontig_seqrecord
 
@@ -1129,8 +1134,8 @@ class Exonerate(object):
             # Write report file for gene
             with open(f'{self.prefix}/putative_chimeric_supercontigs.csv', 'w') as \
                     discordant_supercontig_reportfile:
-                log_entry = f'{sample_name},{gene_name}, Chimera WARNING for supercontig. Sequence may be derived from ' \
-                            f'multiple paralogs.'
+                log_entry = f'{sample_name},{gene_name}, Chimera WARNING for supercontig. Sequence may be derived ' \
+                            f'from multiple paralogs.'
                 discordant_supercontig_reportfile.write(f'{log_entry}\n')
             return True
 
@@ -1138,8 +1143,9 @@ class Exonerate(object):
 
     def _write_genes_with_supercontigs(self, data):
         """
-        Writes a file listing genes for which a supercontig was created. These per-sample files are collated
-        in the reads_first.py script after all genes have completed.
+        Writes a file listing genes for which a supercontig was created (or skipped of flag --nosupecontigs was
+        provided to reads_first.py). These per-sample files are collated in the reads_first.py script after all genes
+        have completed.
         """
 
         with open(f'{self.prefix}/genes_with_supercontigs.csv', 'w') as supercontig_reportfile:
@@ -1154,6 +1160,7 @@ class Exonerate(object):
         """
 
         sample_name = os.path.split(self.prefix)[-1]
+        gene_name = os.path.split(self.prefix)[-2]
 
         # Don't overwrite self.hits_subsumed_hits_removed_dict:
         exonerate_hits_subsumed_hits_removed_copy = copy.deepcopy(self.hits_subsumed_hits_removed_dict)
@@ -1164,6 +1171,12 @@ class Exonerate(object):
                                                               f'{sorted_by_hit_length[0]["hit_sequence"].id}'
         sorted_by_hit_length[0]['hit_sequence'].id = sample_name
         sorted_by_hit_length[0]['hit_sequence'].name = sample_name
+
+        # Write report file:
+        log_entry = f'{sample_name},{gene_name}, Supercontig step skipped (user provided the ' \
+                    f'--nosupercontigs flag to readsfirst.py). Gene sequence contains the longest Exonerate hit ' \
+                    f'sequence only.'
+        self._write_genes_with_supercontigs(log_entry)
 
         return sorted_by_hit_length[0]['hit_sequence']
 

@@ -151,7 +151,11 @@ This update involves a substantial refactor of the HybPiper pipeline. Changes in
       defaults to 55 (previously 65).
     - XXX.
     - check_depend
-    
+
+- The following output files have been **changed or removed**:
+     - parlog warning file: EG30_genes_with_long_paralog_warnings.txt
+
+
 - Paralog by depth warning.
 - Remove SPAdes folder by default.
 - Change to Intronerate supercontig file name.

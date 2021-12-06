@@ -1009,10 +1009,10 @@ def parse_arguments():
                              '\nUseful for re-running assembly/exonerate steps with different options.')
     parser.add_argument('--no-distribute', dest='distribute', action='store_false',
                         help='Do not distribute the reads and bait sequences to sub-directories.')
+    parser.add_argument('--no-assemble', dest='assemble', action='store_false', help='Skip the SPAdes assembly stage.')
     parser.add_argument('--no-exonerate', dest='exonerate', action='store_false',
                         help='Do not run the Exonerate step, which assembles full length CDS regions and proteins from '
                              'each gene')
-    parser.add_argument('--no-assemble', dest='assemble', action='store_false', help='Skip the SPAdes assembly stage.')
     parser.add_argument('-r', '--readfiles', nargs='+',
                         help='One or more read files to start the pipeline. If exactly two are specified, will assume '
                              'it is paired Illumina reads.',
