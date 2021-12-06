@@ -151,7 +151,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
 
-        logger.info(f'[CMD]: {spades_cmd_without_merged}')
+        logger.info(f'{"[CMD:]":10} {spades_cmd_without_merged}')
         try:
             result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, universal_newlines=True)

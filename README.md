@@ -24,6 +24,7 @@ HybPiper pipeline starts with high-throughput sequencing reads (for example from
 The reads are distributed to separate directories, where they are assembled separately using SPAdes. 
 The main output is a FASTA file of the (in frame) CDS portion of the sample for each target region, and a separate file with the translated protein sequence.
 
+# CJJ remove below?
 HybPiper also includes post-processing scripts, run after the main pipeline, to also extract the intronic regions flanking each exon, investigate putative paralogs, and calculate sequencing depth. For more information, [please see our wiki](https://github.com/mossmatters/HybPiper/wiki/).
 
 HybPiper is run separately for each sample (single or paired-end sequence reads). When HybPiper generates sequence files from the reads, it does so in a standardized directory hierarchy. Many of the post-processing scripts rely on this directory hierarchy, so do not modify it after running the initial pipeline. It is a good idea to run the pipeline for each sample from the same directory. You will end up with one directory per run of HybPiper, and some of the later scripts take advantage of this predictable directory structure.
@@ -31,12 +32,14 @@ HybPiper is run separately for each sample (single or paired-end sequence reads)
 
 ---
 # Dependencies
-* Python 2.7 or later (to use the argparse module for help documents)
-* [BIOPYTHON 1.59 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files)
+* Python 3.6 or later
+* [BIOPYTHON 1.80 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files, and parsing Exonerate alignments)
 * [EXONERATE](http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) (For aligning recovered sequences to target proteins)
 * [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target protiens)
 * [SPAdes](http://bioinf.spbau.ru/en/spades) (Assembling reads into contigs)
 * [GNU Parallel](http://www.gnu.org/software/parallel/) (Handles parallelization of searching, assembling, and aligning)
+* CJJ: DIAMOND
+* CJJ: BBtools (BBmap.sh, BBmerge.sh)
 
 *Required for BWA version of the pipeline and for the intron and depth calculation scripts*:
 
@@ -96,33 +99,65 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 **1.4 release candidate** *December, 2021*
 
-This update involves a substantial redactor of the HybPiper pipeline. Changes include:
+This update involves a substantial refactor of the HybPiper pipeline. Changes include:
 
 - **NEW DEPENDENCY**: DIAMOND
 - **NEW DEPENDENCY**: BBtools
-- **NEW DEPENDENCY**: BioPython 1.80 (contains required bug fixes).
+- **NEW DEPENDENCY**: BioPython 1.80 (contains required bug fixes in the SearchIO Exonerate parser modules).
+
+
 - The`reads_first.py` module now imports other pipeline modules rather than calling them as external scripts.
 - The `exonerate_hits.py` module has been substantially rewritten to use the BioPython SearchIO Exonerate text parser, 
- as this allows much more data recovered from Exonerate search results. 
+  as this allows much more data recovered from Exonerate search results. 
 - The `intronerate.py` module has been removed; this functionality has been moved to `exonerate_hits.py`.
 - The `paralog_investigator.py` module has been removed; this functionality has been moved to `exonerate_hits.py`.
-- The program DIAMOND can be used in place on BLASTX when mapping reads to targets.
+- The program DIAMOND can be used in place on BLASTX when mapping reads to target/bait sequences.
 - The `reads_first.py` module now accepts read files in compressed gzip format (`*.gz`).
 - Logging when running `reads_first.py` has been unified and extended to provide additional debugging information. A 
   single log file is written in the sample directory e.g. `EG30_reads_first_2021-12-02-10_45_56.log`. 
-- The `reads_first.py` and `exonerate_hits.py` parameter `--length_pct` has been removed and is no longer used 
-  in internal code.
+- Checks for all dependencies are noe run by default when `reads_first.py` is run.
+- The `reads_first.py` module now checks that the provided target/bait file is formatted correctly and can be 
+  translated as expected (in the case of a nucleotide target/bait file). Any issues are printed to screen and logged to 
+  file.
+- All Exonerate searches are now performed with the option `--refine full`; in the case of failure, a fallback run 
+  without this parameter is performed.
+
+- Chimera test (paired reads, supercontigs only) XXX.
+
+
+
+- The following **new options/flags** have been added:
+    - The flag `--diamond` has been added to `reads_first.py`. When provided, DIAMOND (with default sensitivity `fast`) 
+      will be used to map reads against the bait/target file, rather than the default BLASTX.
+    - The parameter `--diamond_sensitivity` has been added to `reads_first.py`. DIAMOND will be run with the provided 
+      sensitivity (options are `mid-sensitive`, `sensitive`, `more-sensitive`, `very-sensitive`, `ultra-sensitive`).
+    - The flag `--run_intronerate` has been added to `reads_first.py`. When used, Intronerate will be run for genes 
+      that have more than one exon.
+    - The flag `--merged` has been added to `reads_first.py`. XXX.
+    - The flag `--nosupercontigs` has been added to `reads_first.py`. XXX.
+    - The parameter `--paralog_min_length_percentage` has been added to `reads_first.py`. XXX.
+    - The parameter `--bbmap_subfilter` has been added to `reads_first.py`. XXX.
+    - The parameter `--bbmap_threads` has been added to `reads_first.py`. XXX.
+    - The parameter `--chimeric_supercontig_edit_distance` has been added to `reads_first.py`. XXX.
+    - The parameter `--chimeric_supercontig_discordant_reads_cutoff` has been added to `reads_first.py`. XXX.
+    - The parameter `--bbmap_threads` has been added to `reads_first.py`. XXX.
+    - The parameter `----memory` has been added to `reads_first.py`. XXX.
+
+
+- The following options/flags have been **changed or removed**:
+    - The parameter `--length_pct` has been removed from `reads_first.py` and `exonerate_hits.py`and is no longer used 
+      in internal code.
+    - The parameter `--thresh` (percent identity threshold for retaining Exonerate hits) for `reads_first.py` now 
+      defaults to 55 (previously 65).
+    - XXX.
+    - check_depend
+    
+- Paralog by depth warning
+- Remove SPAdes folder by default
+- Change to Intronerate supercontig file name
 - 
 
-- merged
-- no supercontigs
-- chimera test
-- paralog length threshold user changeable
-- check dependencies run by default
-- exonerate refine with fallback
-- exonerate threshold reduced from 65 to 55 by default
-
-
+    
 **1.3.2** *February, 2020*
 
 - Fix for [Issue 41](https://github.com/mossmatters/HybPiper/issues/41) a problem in `intronerate.py` when attempting to resolve overlapping gene annotations.

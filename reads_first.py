@@ -30,12 +30,20 @@ from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
+import pkg_resources
 
 # Import non-standard-library modules:
 try:
     import Bio
 except ImportError:
-    sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python used to run this script?")
+    sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python used to run HybPiper?")
+
+# Check that user has the minimum required version of Biopython (1.80):
+biopython_version_print = pkg_resources.get_distribution('biopython').version
+biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)]
+# if biopython_version[0:2] < [1, 80]:
+#     sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
+#              f"Please update your Biopython for the Python use to run HybPiper!")
 
 # Import HybPiper modules required for reads_first.py:
 import distribute_reads_to_targets_bwa
@@ -637,7 +645,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
 
 
 def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
-           merged=False, logger=None):
+           merged=False, logger=None, keep_folder=False):
     """
     Run SPAdes on each gene separately using GNU parallel.
 
@@ -650,6 +658,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
     :param logging.Logger logger: a logger object
+    :param bool keep_folder: If True, don't delete the SPAdes assembly folder after contig recovery
     :return: list spades_genelist: a list of gene names that had successful SPAdes assemblies (contigs.fasta produced)
     """
 
@@ -694,13 +703,17 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     for gene in genes:
         if gene not in set(spades_duds):
             spades_genelist.append(gene)
+        if not keep_folder:
+            logger.debug(f'Deleting SPAdes assembly folder for gene {gene}.')
+            if os.path.isdir(f'{gene}/{gene}_spades'):
+                shutil.rmtree(f'{gene}/{gene}_spades')
 
     with open('exonerate_genelist.txt', 'w') as genefile:
         genefile.write('\n'.join(spades_genelist) + '\n')
     return spades_genelist
 
 
-def done_callback(future_returned, logger=None):
+def done_callback(future_returned):
     """
     Callback function for ProcessPoolExecutor futures; gets called when a future is cancelled or 'done'.
 
@@ -903,9 +916,10 @@ def exonerate_multiprocessing(genes,
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
     :param int chimeric_supercontig_edit_distance: min num differences for a read pair to be flagged as discordant
-    :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
+    :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as
+    chimeric
     :param logging.Logger logger: a logger object
-    :param bool intronerate: if True, intronerate will be run (if supercontigs are used)
+    :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns )
     :return:
     """
 
@@ -992,7 +1006,7 @@ def parse_arguments():
                         help='Use the provided sensitivity for DIAMOND searches', default=False)
     parser.add_argument('--no-blast', dest='blast', action='store_false',
                         help='Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. '
-                             '\nUseful for re-runnning assembly/exonerate steps with different options.')
+                             '\nUseful for re-running assembly/exonerate steps with different options.')
     parser.add_argument('--no-distribute', dest='distribute', action='store_false',
                         help='Do not distribute the reads and bait sequences to sub-directories.')
     parser.add_argument('--no-exonerate', dest='exonerate', action='store_false',
@@ -1017,13 +1031,12 @@ def parse_arguments():
     parser.add_argument('--kvals', nargs='+',
                         help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!'
                              ' Default auto-detection by SPAdes.', default=None)
-    # CJJ: changed from 65 to 55 as I noticed cases with real hits falling beneath cutoff threshold:
     parser.add_argument('--thresh', type=int,
-                        help='Percent Identity Threshold for stitching together exonerate results. Default is 55, but '
-                             'increase this if you are worried about contaminant sequences.', default=55)
-    parser.add_argument('--paralog_warning_min_length_percentage', default=0.75, type=float,
-                        help='Minimum length percentage of a contig vs reference protein length for a paralog warning '
-                             'to be generated. Default is %(default)s')
+                        help='Percent identity threshold for retaining Exonerate hits. Default is 55, but increase '
+                             'this if you are worried about contaminant sequences.', default=55)
+    parser.add_argument('--paralog_min_length_percentage', default=0.75, type=float,
+                        help='Minimum length percentage of a contig Exonerate hit vs reference protein length for a '
+                             'paralog warning and sequence to be generated. Default is %(default)s')
     parser.add_argument('--depth_multiplier',
                         help='Accept any full-length exonerate hit if it has a coverage depth X times the next best '
                              'hit. Set to zero to not use depth. Default = 10', default=10, type=int)
@@ -1063,6 +1076,10 @@ def parse_arguments():
     parser.add_argument("--run_intronerate",
                         help="Run intronerate to recover fasta files for supercontigs with introns (if present), "
                              "and introns-only", action="store_true", dest='intronerate', default=False)
+    parser.add_argument("--keep_spades_folder",
+                        help="Keep the SPAdes folder for each gene. Default action is to delete it following contig "
+                             "recovery (dramatically reduces the total files number",  action="store_true",
+                        dest='keep_spades', default=False)
 
     parser.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
 
@@ -1105,7 +1122,7 @@ def main():
     ####################################################################################################################
     if check_dependencies(logger=logger):
         other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
-                         'distribute_targets.py', 'exonerate_hits.py.mossmatters', 'spades_runner.py']
+                         'distribute_targets.py', 'exonerate_hits.py', 'spades_runner.py']
         for script in other_scripts:
             if os.path.isfile(os.path.join(run_dir, script)):
                 logger.debug(f'Found script {script}, continuing...')
@@ -1234,20 +1251,22 @@ def main():
     if args.assemble:
         if len(readfiles) == 1:
             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                     paired=False, timeout=args.timeout, logger=logger)
+                                     paired=False, timeout=args.timeout, logger=logger, keep_folder=args.keep_spades)
         elif len(readfiles) == 2:
             if args.merged and not unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, logger=logger)
+                                         timeout=args.timeout, merged=True, logger=logger, keep_folder=args.keep_spades)
             elif args.merged and unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger)
+                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger,
+                                         keep_folder=args.keep_spades)
             elif unpaired_readfile and not args.merged:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, unpaired=True, logger=logger)
+                                         timeout=args.timeout, unpaired=True, logger=logger,
+                                         keep_folder=args.keep_spades)
             else:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, logger=logger)
+                                         timeout=args.timeout, logger=logger, keep_folder=args.keep_spades)
 
         else:
             logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
@@ -1279,7 +1298,7 @@ def main():
         exonerate_multiprocessing(genes,
                                   basename,
                                   thresh=args.thresh,
-                                  paralog_warning_min_length_percentage=args.paralog_warning_min_length_percentage,
+                                  paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                                   depth_multiplier=args.depth_multiplier,
                                   nosupercontigs=args.nosupercontigs,
                                   bbmap_memory=args.memory,

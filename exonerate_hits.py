@@ -1,17 +1,10 @@
 #!/usr/bin/env python
 
-################################################################################################
-#### CJJ NOTE THAT THIS SCRIPT HAS BEEN HEAVILY ALTERED TO ADD THE FOLLOWING FUNCTIONALITY: ####
-################################################################################################
-
 """
-- When stitching together contigs to create a supercontig, trim the Exonerate hits to hit sequence only as necessary,
-rather than using the whole contig sequence.
-- For supercontigs, trim overlaps between Exonerate hits when stitching together sequences. To me, these overlaps seem
-  most likely to occur when when Exonerate hits come from partially assembled paralogs, and the contigs have
-  overlapping termini (which presumably end when the SPAdes assembly graphs get too confused... ).
+# TODO
 """
 
+import shutil
 import sys
 import os
 import subprocess
@@ -113,13 +106,20 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
 
     :param exonerate_object: :
     :param spades_contig_dict:
+    :param logging.Logger logger: a logger object
     :return:
     """
 
-    # Make directory for intronerate output:
+    # Make directory for Intronerate processing output:
     intronerate_processing_directory = f'{exonerate_object.prefix}/intronerate'
     if not os.path.exists(intronerate_processing_directory):
         os.mkdir(intronerate_processing_directory)
+
+
+    # Make directory for writing Intronerate sequence output (intron and supercontig sequences):
+    intronerate_sequence_directory = f'{exonerate_object.prefix}/sequences/intron'
+    if not os.path.exists(intronerate_sequence_directory):
+        os.mkdir(intronerate_sequence_directory)
 
     trimmed_hits_dict = exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict
     hit_spades_names = []
@@ -226,8 +226,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
             #  SPAdes contig can't simply be trimmed by the same number of bases, as it can comprise both exons and
             #  introns. Therefore, it's necessary to keep track of the cumulative length of the hit sequence within
             #  exons in each contig, and trim the contig based on the coordinate of the 3' end of the final exon in the
-            #  Exonerate
-            #  hit.
+            #  Exonerate hit.
             cumulative_hit_span = 0
             # Check location of 3' trimmed hit end in hit ranges:
             for hit_range in trimmed_hit_ranges_all:
@@ -256,7 +255,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
                                                                 spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq_with_n,
                                                    id='i=Intronerated_supercontig_with_Ns')
-    with open(f'{intronerate_processing_directory}/intronerate_supercontig_with_Ns.fasta',
+    with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta',
               'w') as intronerate_supercontig_handle:
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
 
@@ -265,12 +264,12 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
                                                spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq,
                                                    id='intronerated_supercontig_without_Ns')
-    with open(f'{intronerate_processing_directory}/intronerate_supercontig_without_Ns.fasta',
+    with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta',
               'w') as intronerate_supercontig_handle:
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
 
     # Write individual constituent SPAdes contigs:
-    with open(f'{intronerate_processing_directory}/intronerate_supercontig_individual_contig_hits.fasta',
+    with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_individual_contig_hits.fasta',
               'w') as intronerate_supercontig_hits_handle:
         SeqIO.write(spades_contigs_for_intronerate_supercontig, intronerate_supercontig_hits_handle, 'fasta')
 
@@ -278,9 +277,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     intronerate_query = f'{exonerate_object.prefix}/sequences/FAA/{gene_name}.FAA'
 
     exonerate_command = f'exonerate -m protein2genome -q {intronerate_query} -t ' \
-                        f'{intronerate_processing_directory}/intronerate_supercontig_without_Ns.fasta --verbose 0 ' \
-                        f'--showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
-                        f' {intronerate_processing_directory}/intronerate_fasta_and_gff.txt'
+                        f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta ' \
+                        f'--verbose 0 --showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
+                        f' {intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'
 
     logger.debug(f'Intronerate run of Exonerate for gff: {exonerate_command}')
 
@@ -300,7 +299,8 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
         #  mistake).
 
     # Parse out the gff lines only from the `intronerate_fasta_and_gff.gff` file:
-    with open(f'{intronerate_processing_directory}/intronerate_fasta_and_gff.txt', 'r') as intronerate_fasta_gff_handle:
+    with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt',
+              'r') as intronerate_fasta_gff_handle:
         gff_dump = intronerate_fasta_gff_handle.read()
         gff_split = re.split('# --- END OF GFF DUMP ---|# --- START OF GFF DUMP ---\n#\n#\n', gff_dump)
         gff_data_only = gff_split[1]  # TODO check if first hit result is always the best!
@@ -310,10 +310,10 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     # Parse the C4 alignment in file `intronerate_fasta_and_gff.txt` and write 1) Intronerated supercontigs; 2) introns
     # only:
     intronerate_supercontig_without_ns = SeqIO.read(
-        f'{intronerate_processing_directory}/intronerate_supercontig_without_Ns.fasta', 'fasta')
+        f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta', 'fasta')
 
     exonerate_searchio_alignment = list(SearchIO.parse(
-        f'{intronerate_processing_directory}/intronerate_fasta_and_gff.txt', 'exonerate-text'))  # generator to list
+        f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt', 'exonerate-text'))
 
     single_exonerate_qresult = exonerate_searchio_alignment[0]
 
@@ -326,8 +326,14 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
         intron_seqrecord = intronerate_supercontig_without_ns[inter_range[0]:inter_range[1]]
         intron_seqrecord.description = 'intron'
         intron_sequences.append(intron_seqrecord)
-    with open(f'{intronerate_processing_directory}/introns.fasta', 'w') as introns_fasta_handle:
+    with open(f'{intronerate_processing_directory}/{gene_name}_introns.fasta', 'w') as introns_fasta_handle:
         SeqIO.write(intron_sequences, introns_fasta_handle, 'fasta')
+
+    # Move the intron and supercontig sequences to the intronerate_sequence_directory:
+    shutil.move(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta',
+                f'{intronerate_sequence_directory}')
+    shutil.move(f'{intronerate_processing_directory}/{gene_name}_introns.fasta',
+                f'{intronerate_sequence_directory}')
 
 
 def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
