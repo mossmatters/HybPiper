@@ -848,11 +848,6 @@ def exonerate(gene_name,
     if not exonerate_result.supercontig_seqrecord:
         return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
-    # if not gene_name_fna and not prot_length:
-    #     return gene_name_fna, None  # return gene_name to that log can be re-logged to main log file
-
-    # return gene_name, prot_length
-
     return gene_name, len(exonerate_result.supercontig_seqrecord)
 
 
@@ -983,7 +978,7 @@ def exonerate_multiprocessing(genes,
                     gene_name, prot_length = future.result()
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
-                except ValueError:  # FIXME Make this more specific
+                except ValueError:
                     logger.info(f'result is {future.result()}')
                     raise
 

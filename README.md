@@ -16,18 +16,27 @@ by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
 ### Purpose
 
-HybPiper was designed for targeted sequence capture, in which DNA sequencing libraries are enriched for gene regions of interest, especially for phylogenetics. HybPiper is a suite of Python scripts that wrap and connect bioinformatics tools in order to extract target sequences from high-throughput DNA sequencing reads. 
+HybPiper was designed for targeted sequence capture, in which DNA sequencing libraries are enriched for gene regions of 
+interest, especially for phylogenetics. HybPiper is a suite of Python scripts that wrap and connect bioinformatics 
+tools in order to extract target sequences from high-throughput DNA sequencing reads. 
 
 
-Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences.
-HybPiper pipeline starts with high-throughput sequencing reads (for example from Illumina MiSeq), and assigns them to target genes using BLASTx or BWA.
-The reads are distributed to separate directories, where they are assembled separately using SPAdes. 
-The main output is a FASTA file of the (in frame) CDS portion of the sample for each target region, and a separate file with the translated protein sequence.
+Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences. HybPiper pipeline 
+starts with high-throughput sequencing reads (for example from Illumina MiSeq), and assigns them to target genes using 
+BLASTx or BWA. The reads are distributed to separate directories, where they are assembled separately using SPAdes. 
+The main output is a FASTA file of the (in frame) CDS portion of the sample for each target region, and a separate file 
+with the translated protein sequence.
 
 # CJJ remove below?
-HybPiper also includes post-processing scripts, run after the main pipeline, to also extract the intronic regions flanking each exon, investigate putative paralogs, and calculate sequencing depth. For more information, [please see our wiki](https://github.com/mossmatters/HybPiper/wiki/).
+HybPiper also includes post-processing scripts, run after the main pipeline, to also extract the intronic regions 
+flanking each exon, investigate putative paralogs, and calculate sequencing depth. For more information, 
+[please see our wiki](https://github.com/mossmatters/HybPiper/wiki/).
 
-HybPiper is run separately for each sample (single or paired-end sequence reads). When HybPiper generates sequence files from the reads, it does so in a standardized directory hierarchy. Many of the post-processing scripts rely on this directory hierarchy, so do not modify it after running the initial pipeline. It is a good idea to run the pipeline for each sample from the same directory. You will end up with one directory per run of HybPiper, and some of the later scripts take advantage of this predictable directory structure.
+HybPiper is run separately for each sample (single or paired-end sequence reads). When HybPiper generates sequence 
+files from the reads, it does so in a standardized directory hierarchy. Many of the post-processing scripts rely on 
+this directory hierarchy, so do not modify it after running the initial pipeline. It is a good idea to run the 
+pipeline for each sample from the same directory. You will end up with one directory per run of HybPiper, and some of 
+the later scripts take advantage of this predictable directory structure.
 
 
 ---
@@ -35,53 +44,66 @@ HybPiper is run separately for each sample (single or paired-end sequence reads)
 * Python 3.6 or later
 * [BIOPYTHON 1.80 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files, and parsing Exonerate alignments)
 * [EXONERATE](http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) (For aligning recovered sequences to target proteins)
-* [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target protiens)
+* [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target proteins)
 * [SPAdes](http://bioinf.spbau.ru/en/spades) (Assembling reads into contigs)
 * [GNU Parallel](http://www.gnu.org/software/parallel/) (Handles parallelization of searching, assembling, and aligning)
-* CJJ: DIAMOND
-* CJJ: BBtools (BBmap.sh, BBmerge.sh)
+* [DIAMOND](https://github.com/bbuchfink/diamond) (Aligning reads to target proteins; faster than BLAST (but can be less sensitive)
+* [BBtools](https://jgi.doe.gov/data-and-tools/bbtools/) (Alinging reads to supercontigs, optional merging of reads)
 
 *Required for BWA version of the pipeline and for the intron and depth calculation scripts*:
 
 * [BWA](https://github.com/lh3/bwa) (Aligns reads to target nucleotide sequences)
 * [samtools 1.2 or later](https://github.com/samtools/samtools) (Read/Write BAM files to save space).
 
-**NOTE:** A previous version of the pipeline required Velvet and CAP3 for assembly. These have been unreliable at assembling individual genes, and SPAdes has replaced them.
+**NOTE:** A previous version of the pipeline required Velvet and CAP3 for assembly. These have been unreliable at 
+assembling individual genes, and SPAdes has replaced them.
 
 ---
 # Setup
-We have successfully installed HybPiper on MacOSX and Linux (Centos 6). All of the bioinformatics tools can be installed with [homebrew](brew.sh) or [linuxbrew](linuxbrew.sh).
+We have successfully installed HybPiper on MacOSX and Linux (Centos 6). All of the bioinformatics tools can be 
+installed with [homebrew](brew.sh) or [linuxbrew](linuxbrew.sh).
 
 For full installation instructions, please see our wiki page:
 
 [https://github.com/mossmatters/HybPiper/wiki/Installation](https://github.com/mossmatters/HybPiper/wiki/Installation)
 
-Once all dependencies are installed, execute the `run_tests.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
+Once all dependencies are installed, execute the `run_tests.sh` script from the `test_dataset` directory for a 
+demonstration of HybPiper.
 
 
 ----
 
 # Pipeline Input
 
-Full instructions on running the pipeline, including a step-by-step tutorial using a small test dataset, is available on our wiki:
+Full instructions on running the pipeline, including a step-by-step tutorial using a small test dataset, is available 
+on our wiki:
 
 [https://github.com/mossmatters/HybPiper/wiki](https://github.com/mossmatters/HybPiper/wiki)
 
 ### High-Throughput DNA Sequencing Reads
 
-Before running the pipeline, you will need "cleaned" FASTQ file(s)-- one or two depending on whether your sequencing was single or paired-end. Reads should have adapter sequences removed and should be trimmed to remove low quality base calls.
+Before running the pipeline, you will need "cleaned" FASTQ file(s)-- one or two depending on whether your sequencing 
+was single or paired-end. Reads should have adapter sequences removed and should be trimmed to remove low quality base 
+calls.
 
 ### Target Sequences
 
-You will also need to construct a "target" file of gene regions. The target file should contain one gene region per sequence, with exons "concatenated" into a contiguous sequence. For more information on constructing the target file, see the wiki, or view the example file in: `test_dataset/test_targets.fasta`
+You will also need to construct a "target" file of gene regions. The target file should contain one gene region per 
+sequence, with exons "concatenated" into a contiguous sequence. For more information on constructing the target file, 
+see the wiki, or view the example file in: `test_dataset/test_targets.fasta`
 
-There can be more than one "source sequence" for each gene in the target file. This can be useful if the target enrichment baits were designed from multiple sources-- for example a transcriptome in the focal taxon and a distantly related reference genome.
+There can be more than one "source sequence" for each gene in the target file. This can be useful if the target 
+enrichment baits were designed from multiple sources-- for example a transcriptome in the focal taxon and a distantly 
+related reference genome.
 
 ----
 
 # Pipeline Output
 
-HybPiper will map the reads to the target sequences, sort the reads by gene, assemble the reads for each gene separately, align the contigs to the target sequence, and extract a coding sequence from each gene. Output from each of these phases is saved in a standardized directory hierarchy, making it easy for post-processing scripts to summarize information across many samples.
+HybPiper will map the reads to the target sequences, sort the reads by gene, assemble the reads for each gene 
+separately, align the contigs to the target sequence, and extract a coding sequence from each gene. Output from each of 
+these phases is saved in a standardized directory hierarchy, making it easy for post-processing scripts to summarize 
+information across many samples.
 
 For example, the coding sequence for gene "gene001" for sample "EG30" is saved in a FASTA file:
 
@@ -115,7 +137,7 @@ This update involves a substantial refactor of the HybPiper pipeline. Changes in
 - The `reads_first.py` module now accepts read files in compressed gzip format (`*.gz`).
 - Logging when running `reads_first.py` has been unified and extended to provide additional debugging information. A 
   single log file is written in the sample directory e.g. `EG30_reads_first_2021-12-02-10_45_56.log`. 
-- Checks for all dependencies are noe run by default when `reads_first.py` is run.
+- Checks for all dependencies are now run by default when `reads_first.py` is run.
 - The `reads_first.py` module now checks that the provided target/bait file is formatted correctly and can be 
   translated as expected (in the case of a nucleotide target/bait file). Any issues are printed to screen and logged to 
   file.
@@ -151,6 +173,7 @@ This update involves a substantial refactor of the HybPiper pipeline. Changes in
       defaults to 55 (previously 65).
     - XXX.
     - check_depend
+
 
 - The following output files have been **changed or removed**:
      - parlog warning file: EG30_genes_with_long_paralog_warnings.txt
