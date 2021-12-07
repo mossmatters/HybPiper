@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 """
-This script will retrieve paralog nucleotide (CDS) sequences for a specified
-gene in all samples located in namelist.txt. It writes all the (unaligned) sequences to stdout.
+This script will retrieve paralog nucleotide (CDS) sequences for a specified gene in all samples located in
+namelist.txt. It writes the unaligned sequences to folders, which can be user specified; defaults are 'paralogs_all'
+and 'paralogs_no_chimeras'.
+
 If a sample does not have paralogs for that gene, the sequence in the FNA directory is retrieved instead.
 """
 
@@ -47,7 +49,7 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
         num_seqs = "1"
 
     if seqs_to_write:
-        SeqIO.write(seqs_to_write, f'{fasta_dir_all}', 'fasta')
+        SeqIO.write(seqs_to_write, f'{fasta_dir_all}/{name}_{gene}_paralogs_all.fasta', 'fasta')
     else:
         num_seqs = "0"
 
@@ -66,7 +68,7 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
             num_seqs = "1"
 
         if seqs_to_write:
-            SeqIO.write(seqs_to_write, f'{fasta_dir_no_chimeras}', 'fasta')
+            SeqIO.write(seqs_to_write, f'{fasta_dir_no_chimeras}/{name}_{gene}_paralogs_nochimeras.fasta', 'fasta')
         else:
             num_seqs = "0"
 
@@ -77,9 +79,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('namelist', help='Text file containing list of HybPiper output directories, one per line.')
     parser.add_argument('gene', help="Name of gene to extract paralogs")
-    parser.add_argument('fasta_dir_all', help='Specify directory for output FASTA files (ALL)')
-    parser.add_argument('fasta_dir_no_chimeras', help='Specify directory for output FASTA files (no putative chimeric '
-                                                      'sequences)')
+    parser.add_argument('--fasta_dir_all', help='Specify directory for output FASTA files (ALL)',
+                        default='paralogs_all')
+    parser.add_argument('--fasta_dir_no_chimeras', help='Specify directory for output FASTA files (no putative '
+                                                        'chimeric sequences)', default='paralogs_no_chimeras')
     
     args = parser.parse_args()
     

@@ -645,14 +645,15 @@ class Exonerate(object):
         sample_name = os.path.split(self.prefix)[-1]
         gene_name = os.path.split(self.prefix)[-2]
         paralogs_folder = f'{self.prefix}/paralogs'
-        if not os.path.exists(paralogs_folder):
-            os.mkdir(paralogs_folder)
 
         paralog_count = 0
         paralog_seqs_to_write = []
         paralog_warning_strings = []
 
         if self.long_paralogs_dict:
+            if not os.path.exists(paralogs_folder):  # only make directory if long paralogs are present
+                os.mkdir(paralogs_folder)
+
             for paralog_name, paralog_data_dict in self.long_paralogs_dict.items():
                 paralog_warning_strings.append(f'{self.query_id}\t{paralog_name}')
 
