@@ -40,7 +40,7 @@ except ImportError:
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
-biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)]
+# biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)]
 # if biopython_version[0:2] < [1, 80]:
 #     sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
 #              f"Please update your Biopython for the Python use to run HybPiper!")

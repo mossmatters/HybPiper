@@ -121,7 +121,8 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 **1.4 release candidate** *December, 2021*
 
-This update involves a substantial refactor of the HybPiper pipeline. Changes include:
+This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, 
+additional functionality, and additional output. Changes include:
 
 - **NEW DEPENDENCY**: DIAMOND
 - **NEW DEPENDENCY**: BBtools
@@ -198,8 +199,7 @@ This update involves a substantial refactor of the HybPiper pipeline. Changes in
   These warning are written to each sample directory to the file 
   `<sample_name>_genes_with_paralog_warnings_by_contig_depth.csv`
 
-
-- Paralog by depth warning.
+    
 - Change to Intronerate supercontig file name.
 - Update hybpiper_stats.py so that %length is calculated correctly when using a protein baut/target file. 
 
