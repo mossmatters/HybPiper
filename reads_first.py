@@ -813,39 +813,39 @@ def exonerate(gene_name,
     exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_baits.fasta',
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
                                                              prefix)
+    if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
+        exonerate_result = exonerate_hits.parse_exonerate_and_get_supercontig(
+            exonerate_text_output,
+            query_file=f'{gene_name}/{gene_name}_baits.fasta',
+            paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
+            thresh=thresh,
+            logger=logger,
+            prefix=prefix,
+            discordant_cutoff=chimeric_supercontig_discordant_reads_cutoff,
+            edit_distance=chimeric_supercontig_edit_distance,
+            bbmap_subfilter=bbmap_subfilter,
+            bbmap_memory=bbmap_memory,
+            bbmap_threads=bbmap_threads,
+            interleaved_fasta_file=path_to_interleaved_fasta,
+            nosupercontigs=nosupercontigs)
 
-    exonerate_result = exonerate_hits.parse_exonerate_and_get_supercontig(
-        exonerate_text_output,
-        query_file=f'{gene_name}/{gene_name}_baits.fasta',
-        paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
-        thresh=thresh,
-        logger=logger,
-        prefix=prefix,
-        discordant_cutoff=chimeric_supercontig_discordant_reads_cutoff,
-        edit_distance=chimeric_supercontig_edit_distance,
-        bbmap_subfilter=bbmap_subfilter,
-        bbmap_memory=bbmap_memory,
-        bbmap_threads=bbmap_threads,
-        interleaved_fasta_file=path_to_interleaved_fasta,
-        nosupercontigs=nosupercontigs)
-
-    if intronerate:
-        logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name}is:'
-                     f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
-        if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
-                len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
-            logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
-                         f'intronerate will not be run for this gene')
-        else:
-            logger.debug(f'Running intronerate for gene {gene_name}')
-            exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger)
+        if intronerate:
+            logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name}is:'
+                         f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
+            if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
+                    len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
+                logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
+                             f'intronerate will not be run for this gene')
+            else:
+                logger.debug(f'Running intronerate for gene {gene_name}')
+                exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger)
 
     with lock:
         counter.value += 1
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
-    if not exonerate_result.supercontig_seqrecord:
+    if not exonerate_text_output or not exonerate_result.supercontig_seqrecord:
         return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
     return gene_name, len(exonerate_result.supercontig_seqrecord)

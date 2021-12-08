@@ -98,7 +98,8 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         return outputfilename
     else:
         logger.warning('Exonerate failed without --refine')
-        raise RuntimeError(f'Exonerate failed without --refine for {prefix}')
+        # raise RuntimeError(f'Exonerate failed without --refine for {prefix}')
+        return None
 
 
 def intronerate(exonerate_object, spades_contig_dict, logger=None):
