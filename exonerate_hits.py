@@ -97,7 +97,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         logger.debug('Exonerate ran without --refine')
         return outputfilename
     else:
-        logger.debug('Exonerate failed without --refine')
+        logger.debug('Exonerate failed without --refine; bad SPAdes contig(s)?')
         # raise RuntimeError(f'Exonerate failed without --refine for {prefix}')
         return None
 
@@ -126,7 +126,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     hit_spades_names = []
     sample_name = os.path.split(exonerate_object.prefix)[-1]
     gene_name = os.path.split(exonerate_object.prefix)[-2]
-    logger.debug(f'gene_name: {gene_name}\n')
+    logger.debug(f'gene_name: {gene_name}')
     spades_contigs_for_intronerate_supercontig = []
 
     for hit, hit_data_dict in trimmed_hits_dict.items():
@@ -177,7 +177,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
         # hits is <= 3 amino acid, add the whole contig:
         if three_prime_bases_trimmed == 'N/A' or int(three_prime_bases_trimmed) <= 9:
             logger.debug(f'No trimming performed for {hit}, adding whole SPAdes contig to list!  '
-                         f'three_prime_bases_trimmed is: {three_prime_bases_trimmed}\n')
+                         f'three_prime_bases_trimmed is: {three_prime_bases_trimmed}')
             if hit_data_dict['hit_strand'] == -1:
                 revcomp_seqrecord = raw_spades_contig.reverse_complement()
                 revcomp_seqrecord.name = hit_name
@@ -196,7 +196,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
             multi_exon_hit = True
 
         if not multi_exon_hit:
-            logger.debug(f'\nHit {hit} is a SINGLE-exon sequence! Trimming: {three_prime_bases_trimmed}, '
+            logger.debug(f'Hit {hit} is a SINGLE-exon sequence! Trimming: {three_prime_bases_trimmed}, '
                          f'ranges: {trimmed_hit_ranges_all}')
 
             if hit_data_dict['hit_strand'] == 1:
