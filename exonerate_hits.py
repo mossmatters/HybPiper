@@ -97,7 +97,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         logger.debug('Exonerate ran without --refine')
         return outputfilename
     else:
-        logger.warning('Exonerate failed without --refine')
+        logger.debug('Exonerate failed without --refine')
         # raise RuntimeError(f'Exonerate failed without --refine for {prefix}')
         return None
 
