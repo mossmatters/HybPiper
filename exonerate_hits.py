@@ -1169,6 +1169,10 @@ class Exonerate(object):
 
         sorted_by_hit_length = sorted(exonerate_hits_subsumed_hits_removed_copy.values(),
                                       key=lambda x: len(x['hit_sequence']), reverse=True)
+
+        if len(sorted_by_hit_length) == 0:
+            raise ValueError(f'The list sorted_by_hit_length for gene {gene_name} is empty!')
+
         sorted_by_hit_length[0]['hit_sequence'].description = f'Flag nosupercontig used. Single longest hit ' \
                                                               f'{sorted_by_hit_length[0]["hit_sequence"].id}'
         sorted_by_hit_length[0]['hit_sequence'].id = sample_name
