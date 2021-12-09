@@ -539,7 +539,7 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_spades_contig_depth'] = spades_contig_depth
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
 
-        # print(f'\nfiltered_by_similarity_hsps_dict is: {filtered_by_similarity_hsps_dict}\n')
+        # self.logger.debug(f'\nfiltered_by_similarity_hsps_dict is: {filtered_by_similarity_hsps_dict}\n')
         return filtered_by_similarity_hsps_dict
 
     def _recover_long_paralogs(self):
@@ -758,6 +758,7 @@ class Exonerate(object):
                 seqs_removed.append(to_remove)
             else:
                 if hit_1_query_range[0] == hit_2_query_range[0] and hit_1_query_range[1] == hit_2_query_range[1]:
+                    self.logger.debug(f'hit_1_similarity is {hit_1_similarity}, hit_2_similarity is {hit_2_similarity}')
                     if hit_1_similarity > hit_2_similarity:
                         to_remove = hit_pair[1]
                     else:
