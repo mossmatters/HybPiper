@@ -202,7 +202,8 @@ additional functionality, and additional output. Changes include:
     
 - Change to Intronerate supercontig file name.
 - Update hybpiper_stats.py so that %length is calculated correctly when using a protein bait/target file. 
-- By default, inserts Ns into sequences where there are gaps in Exonerate hits with respect to the protein query. 
+- By default, inserts Ns into sequences where there are gaps in Exonerate hits with respect to the protein query.
+- args.no_bwa
 
     
 **1.3.2** *February, 2020*

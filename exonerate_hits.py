@@ -763,7 +763,9 @@ class Exonerate(object):
                         to_remove = hit_pair[1]
                     else:
                         to_remove = hit_pair[0]
+                        self.logger.debug(f'to_remove is {to_remove}')
                     if to_remove in seqs_removed:
+                        self.logger.debug(f'to_remove {to_remove} is already in seqs_removed: {seqs_removed}')
                         continue
                     seqs_removed.append(to_remove)
 
