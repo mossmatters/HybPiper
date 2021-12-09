@@ -733,6 +733,7 @@ class Exonerate(object):
         hit_comparisons = itertools.permutations(self.hits_filtered_by_pct_similarity_dict, 2)
 
         seqs_removed = []  # Use to avoid trying combinations with previously removed hits
+        hits_with_identical_range_and_similarity_dict = defaultdict(set)
         for hit_pair in hit_comparisons:
             to_remove = None
 
@@ -761,9 +762,19 @@ class Exonerate(object):
                     self.logger.debug(f'hit_1_similarity is {hit_1_similarity}, hit_2_similarity is {hit_2_similarity}')
                     if hit_1_similarity > hit_2_similarity:
                         to_remove = hit_pair[1]
-                    else:
+                    elif hit_1_similarity < hit_2_similarity:
                         to_remove = hit_pair[0]
-                        self.logger.debug(f'to_remove is {to_remove}')
+                    elif hit_1_similarity == hit_2_similarity:  # capture these in a dict and select one for each range
+                        hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[0])
+                        hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[1])
+                        continue
+
+
+                    #     if hit_pair[0] in seqs_removed or hit_pair[1] in seqs_removed:
+                    #         continue  # Prevent removal of all hits that have the same range and similarity values
+                    #     else:
+                    #         to_remove = hit_pair[0]  # arbitrarily remove first hit if range and similarity are same
+                    # self.logger.debug(f'to_remove is {to_remove}')
                     if to_remove in seqs_removed:
                         self.logger.debug(f'to_remove {to_remove} is already in seqs_removed: {seqs_removed}')
                         continue
@@ -775,6 +786,18 @@ class Exonerate(object):
                     del exonerate_hits_filtered_no_subsumed[to_remove]
                 except KeyError:
                     self.logger.debug(f'hit {to_remove} already removed from dict')
+
+        # Select a single sequence from each range set in hits_with_identical_range_and_similarity_dict:
+        if len(hits_with_identical_range_and_similarity_dict) != 0:
+            self.logger.debug(f'Gene has hits with identical query ranges and similarities; selecting one hit for '
+                              f'each range')
+        for query_range, hits in hits_with_identical_range_and_similarity_dict.values():
+            self.logger.debug(f'query_range is {query_range}, hits are {hits}')
+            to_remove = hits[0] # arbitrarily remove first hit if range and similarity are the same
+            try:
+                del exonerate_hits_filtered_no_subsumed[to_remove]
+            except KeyError:
+                self.logger.debug(f'hit {to_remove} already removed from dict')
 
         return exonerate_hits_filtered_no_subsumed
 
