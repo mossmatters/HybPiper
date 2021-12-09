@@ -769,12 +769,6 @@ class Exonerate(object):
                         hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[1])
                         continue
 
-
-                    #     if hit_pair[0] in seqs_removed or hit_pair[1] in seqs_removed:
-                    #         continue  # Prevent removal of all hits that have the same range and similarity values
-                    #     else:
-                    #         to_remove = hit_pair[0]  # arbitrarily remove first hit if range and similarity are same
-                    # self.logger.debug(f'to_remove is {to_remove}')
                     if to_remove in seqs_removed:
                         self.logger.debug(f'to_remove {to_remove} is already in seqs_removed: {seqs_removed}')
                         continue
@@ -791,6 +785,8 @@ class Exonerate(object):
         if len(hits_with_identical_range_and_similarity_dict) != 0:
             self.logger.debug(f'Gene has hits with identical query ranges and similarities; selecting one hit for '
                               f'each range')
+            self.logger.debug(f'Dictionary hits_with_identical_range_and_similarity_dict is:'
+                              f' {hits_with_identical_range_and_similarity_dict}')
             for query_range, hits in hits_with_identical_range_and_similarity_dict.values():
                 self.logger.debug(f'query_range is {query_range}, hits are {hits}')
                 to_remove = hits[0]  # arbitrarily remove first hit if range and similarity are the same

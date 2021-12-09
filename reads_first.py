@@ -830,7 +830,7 @@ def exonerate(gene_name,
             nosupercontigs=nosupercontigs)
 
         if intronerate:
-            logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name}is:'
+            logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
                          f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
             if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
                     len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
