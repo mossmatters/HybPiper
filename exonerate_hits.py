@@ -794,7 +794,7 @@ class Exonerate(object):
                               f'each range')
             self.logger.debug(f'Dictionary hits_with_identical_range_and_similarity_dict is:'
                               f' {hits_with_identical_range_and_similarity_dict}')
-            for query_range, hits in hits_with_identical_range_and_similarity_dict.values():
+            for query_range, hits in hits_with_identical_range_and_similarity_dict.items():
                 self.logger.debug(f'query_range is {query_range}, hits are {hits}')
                 to_remove = hits[0]  # arbitrarily remove first hit if range and similarity are the same
                 try:
