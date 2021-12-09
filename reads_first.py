@@ -1162,7 +1162,7 @@ def main():
     ####################################################################################################################
     # Map reads to nucleotide targets with BWA
     ####################################################################################################################
-    if args.bwa and not args.no_bwa:
+    if args.bwa and args.no_bwa:
         if args.blast:
             args.blast = False
             if args.unpaired:
