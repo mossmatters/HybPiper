@@ -1002,7 +1002,7 @@ def parse_arguments():
     parser.add_argument('--no-blast', dest='blast', action='store_false',
                         help='Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. '
                              '\nUseful for re-running assembly/exonerate steps with different options.')
-    parser.add_argument('--no-bwa', dest='no_bwa', action='store_false', default=False,
+    parser.add_argument('--no-bwa', dest='no_bwa', action='store_true', default=False,
                         help='Do not run the BWA step. Downstream steps will still depend on the *.bam file. Useful '
                              'for re-running assembly/exonerate steps with different options.')
     parser.add_argument('--no-distribute', dest='distribute', action='store_false',
@@ -1162,7 +1162,7 @@ def main():
     ####################################################################################################################
     # Map reads to nucleotide targets with BWA
     ####################################################################################################################
-    if args.bwa and args.no_bwa:
+    if args.bwa and not args.no_bwa:
         if args.blast:
             args.blast = False
             if args.unpaired:
