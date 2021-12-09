@@ -791,13 +791,13 @@ class Exonerate(object):
         if len(hits_with_identical_range_and_similarity_dict) != 0:
             self.logger.debug(f'Gene has hits with identical query ranges and similarities; selecting one hit for '
                               f'each range')
-        for query_range, hits in hits_with_identical_range_and_similarity_dict.values():
-            self.logger.debug(f'query_range is {query_range}, hits are {hits}')
-            to_remove = hits[0] # arbitrarily remove first hit if range and similarity are the same
-            try:
-                del exonerate_hits_filtered_no_subsumed[to_remove]
-            except KeyError:
-                self.logger.debug(f'hit {to_remove} already removed from dict')
+            for query_range, hits in hits_with_identical_range_and_similarity_dict.values():
+                self.logger.debug(f'query_range is {query_range}, hits are {hits}')
+                to_remove = hits[0]  # arbitrarily remove first hit if range and similarity are the same
+                try:
+                    del exonerate_hits_filtered_no_subsumed[to_remove]
+                except KeyError:
+                    self.logger.debug(f'hit {to_remove} already removed from dict')
 
         return exonerate_hits_filtered_no_subsumed
 
