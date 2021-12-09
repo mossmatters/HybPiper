@@ -459,7 +459,10 @@ class Exonerate(object):
         self.long_paralogs_dict = self._recover_long_paralogs()
         self.paralog_warning_by_contig_depth = self._paralog_warning_by_contig_depth()
         self.supercontig_seqrecord = self._create_supercontig()
-        self.no_supercontig_seqrecord = self._no_supercontig()
+        if self.nosupercontigs:  # only generate a no_supercontig_seqrecord (and write report) if nosupercontigs is True
+            self.no_supercontig_seqrecord = self._no_supercontig()
+        else:
+            self.no_supercontig_seqrecord = None
 
         # Only perform test if supercontigs are being created AND interleaved_fasta_file is not None AND a multi-hit
         # supercontig has been created:
@@ -765,6 +768,10 @@ class Exonerate(object):
                     elif hit_1_similarity < hit_2_similarity:
                         to_remove = hit_pair[0]
                     elif hit_1_similarity == hit_2_similarity:  # capture these in a dict and select one for each range
+                        self.logger.debug(f'hit_1_query_range is: {hit_1_query_range}')
+                        self.logger.debug(f'hit_pair[0] is: {hit_pair[0]}')
+                        self.logger.debug(f'hit_2_query_range is: {hit_2_query_range}')
+                        self.logger.debug(f'hit_pair[1] is: {hit_pair[1]}')
                         hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[0])
                         hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[1])
                         continue

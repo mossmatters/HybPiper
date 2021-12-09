@@ -964,7 +964,7 @@ def exonerate_multiprocessing(genes,
                         lines = gene_log_handle.readlines()
                         for line in lines:
                             logger.debug(line.strip())  # log contents to main logger
-                    os.remove(gene_log_file_to_cat)
+                    # os.remove(gene_log_file_to_cat)
             except:  # FIXME Make this more specific
                 logger.info(f'result is {future.result()}')
                 raise
