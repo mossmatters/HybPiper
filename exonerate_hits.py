@@ -762,16 +762,12 @@ class Exonerate(object):
                 seqs_removed.append(to_remove)
             else:
                 if hit_1_query_range[0] == hit_2_query_range[0] and hit_1_query_range[1] == hit_2_query_range[1]:
-                    self.logger.debug(f'hit_1_similarity is {hit_1_similarity}, hit_2_similarity is {hit_2_similarity}')
                     if hit_1_similarity > hit_2_similarity:
                         to_remove = hit_pair[1]
                     elif hit_1_similarity < hit_2_similarity:
                         to_remove = hit_pair[0]
                     elif hit_1_similarity == hit_2_similarity:  # capture these in a dict and select one for each range
-                        self.logger.debug(f'hit_1_query_range is: {hit_1_query_range}')
-                        self.logger.debug(f'hit_pair[0] is: {hit_pair[0]}')
-                        self.logger.debug(f'hit_2_query_range is: {hit_2_query_range}')
-                        self.logger.debug(f'hit_pair[1] is: {hit_pair[1]}')
+                        # TODO: compare SPAdes depth to select a hit sequence
                         hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[0])
                         hits_with_identical_range_and_similarity_dict[hit_1_query_range].add(hit_pair[1])
                         continue
@@ -788,14 +784,13 @@ class Exonerate(object):
                 except KeyError:
                     self.logger.debug(f'hit {to_remove} already removed from dict')
 
-        # Select a single sequence from each range set in hits_with_identical_range_and_similarity_dict:
+        # Select a single sequence from each range in hits_with_identical_range_and_similarity_dict:
         if len(hits_with_identical_range_and_similarity_dict) != 0:
             self.logger.debug(f'Gene has hits with identical query ranges and similarities; selecting one hit for '
                               f'each range')
             self.logger.debug(f'Dictionary hits_with_identical_range_and_similarity_dict is:'
                               f' {hits_with_identical_range_and_similarity_dict}')
             for query_range, hits in hits_with_identical_range_and_similarity_dict.items():
-                self.logger.debug(f'query_range is {query_range}, hits are {hits}')
                 to_remove = list(hits)[0]  # arbitrarily remove first hit if range and similarity are the same
                 try:
                     del exonerate_hits_filtered_no_subsumed[to_remove]
