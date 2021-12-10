@@ -434,8 +434,6 @@ class Exonerate(object):
         :param bool nosupercontigs: if True, return the longest Exonerate hit only
         """
 
-        logger.debug(f'nosupercontigs flag is: {nosupercontigs}')
-
         if len(searchio_object) != 1:  # This should always be 1 for a single Exonerate query
             raise ValueError(f'searchio_object list is greater than 1!')
 

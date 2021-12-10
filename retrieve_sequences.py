@@ -78,8 +78,7 @@ for gene in target_genes:
                 sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir, f'{gene}'
                                                                                                   f'_{filename}.fasta')
             else:
-                sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir, f'{gene}.'
-                                                                                                  f'{seq_dir}.fasta')
+                sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir, f'{gene}.{seq_dir}')
             try:
                 seq = next(SeqIO.parse(sample_path, 'fasta'))
                 SeqIO.write(seq, outfile, 'fasta')

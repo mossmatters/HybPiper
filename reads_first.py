@@ -848,7 +848,7 @@ def exonerate(gene_name,
     if not exonerate_text_output or not exonerate_result.supercontig_seqrecord:
         return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
-    return gene_name, len(exonerate_result.supercontig_seqrecord)
+    return gene_name, len(exonerate_result.supercontig_seqrecord)  # TODO strip Ns from supercontigs got length calc
 
 
 def worker_configurer(gene_name):
