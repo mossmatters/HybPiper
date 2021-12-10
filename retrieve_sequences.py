@@ -77,12 +77,15 @@ for gene in target_genes:
             if seq_dir == 'intron':
                 sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir, f'{gene}'
                                                                                                   f'_{filename}.fasta')
+                print(f'intron sample path is {sample_path}')
             else:
                 sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir, f'{gene}.{seq_dir}')
             try:
                 seq = next(SeqIO.parse(sample_path, 'fasta'))
+                print(f'seq is: {seq}')
                 SeqIO.write(seq, outfile, 'fasta')
                 numSeqs += 1
-            except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
+            # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
+            except FileNotFoundError:
                 pass
     print(f'Found {numSeqs} sequences for {gene}.')
