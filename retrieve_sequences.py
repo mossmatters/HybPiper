@@ -83,6 +83,6 @@ for gene in target_genes:
                 seq = next(SeqIO.parse(sample_path, 'fasta'))
                 SeqIO.write(seq, outfile, 'fasta')
                 numSeqs += 1
-            except FileNotFoundError:
+            except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
                 pass
     print(f'Found {numSeqs} sequences for {gene}.')
