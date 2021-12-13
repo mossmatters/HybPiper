@@ -116,7 +116,6 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     if not os.path.exists(intronerate_processing_directory):
         os.mkdir(intronerate_processing_directory)
 
-
     # Make directory for writing Intronerate sequence output (intron and supercontig sequences):
     intronerate_sequence_directory = f'{exonerate_object.prefix}/sequences/intron'
     if not os.path.exists(intronerate_sequence_directory):
@@ -255,7 +254,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     intronerate_supercontig_seq_with_n = Seq('NNNNNNNNNN'.join([str(seq.seq) for seq in
                                                                 spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq_with_n,
-                                                   id='i=Intronerated_supercontig_with_Ns')
+                                                   id='Intronerated_supercontig_with_Ns')
     with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta',
               'w') as intronerate_supercontig_handle:
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
@@ -321,19 +320,27 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     if len(single_exonerate_qresult.hsps) != 1:
         logger.debug(f'searchio_object hsps list is greater than 1 for {gene_name}!')
         # raise ValueError(f'searchio_object hsps list is greater than 1!')
-    single_hsp = single_exonerate_qresult.hsps[0]
+    single_hsp = single_exonerate_qresult.hsps[0]  # TODO fix issue e.g. DEA_14928_S84 gene 6978 has two real HSPs
     intron_sequences = []
     for inter_range in single_hsp.hit_inter_ranges:
         intron_seqrecord = intronerate_supercontig_without_ns[inter_range[0]:inter_range[1]]
         intron_seqrecord.description = 'intron'
         intron_sequences.append(intron_seqrecord)
-    with open(f'{intronerate_processing_directory}/{gene_name}_introns.fasta', 'w') as introns_fasta_handle:
-        SeqIO.write(intron_sequences, introns_fasta_handle, 'fasta')
 
-    # Move the intron and supercontig sequences to the intronerate_sequence_directory:
+    if len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig_without_ns target
+        logger.debug(f'No introns for gene {gene_name}! This is likely caused by Exonerate splitting the '
+                     f'"intronerate_supercontig_without_ns" target in to multiple HSPs (i.e. ot could not find an '
+                     f'intron. Skipping intron recovery for this gene.')
+    else:
+        with open(f'{intronerate_processing_directory}/{gene_name}_introns.fasta', 'w') as introns_fasta_handle:
+            SeqIO.write(intron_sequences, introns_fasta_handle, 'fasta')
+
+            # Move the intron sequence to the intronerate_sequence_directory:
+            shutil.move(f'{intronerate_processing_directory}/{gene_name}_introns.fasta',
+                        f'{intronerate_sequence_directory}')
+
+    # Move the supercontig sequence to the intronerate_sequence_directory:
     shutil.move(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta',
-                f'{intronerate_sequence_directory}')
-    shutil.move(f'{intronerate_processing_directory}/{gene_name}_introns.fasta',
                 f'{intronerate_sequence_directory}')
 
 
