@@ -7,7 +7,7 @@ hybpiper_description = 'Recovery of target gene sequences from bait-capture data
 hybpiper_url = 'https://github.com/chrisjackson-pellicle/HybPiper.git'
 hybpiper_entry_points = {'console_scripts': ['reads_first = hybpiper.reads_first:main']}
 
-setuptools.setup(name='HybPiper',
+setuptools.setup(name='hybpiper',
                  version='1.4',
                  packages=setuptools.find_packages(),
                  author='Chris Jackson, Matt Johnson',
