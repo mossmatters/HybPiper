@@ -839,6 +839,8 @@ def exonerate(gene_name,
             else:
                 logger.debug(f'Running intronerate for gene {gene_name}')
                 exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger)
+    else:
+        exonerate_result = False
 
     with lock:
         counter.value += 1
@@ -846,9 +848,9 @@ def exonerate(gene_name,
                          f'/{genes_to_process}')
 
     if not exonerate_text_output or not exonerate_result.supercontig_seqrecord:
-        return gene_name, None  # return gene_name to that log can be re-logged to main log file
+        return gene_name, None  # return gene_name to that exonerate_hits.py log can be re-logged to main log file
 
-    return gene_name, len(exonerate_result.supercontig_seqrecord)  # TODO strip Ns from supercontigs got length calc
+    return gene_name, len(exonerate_result.supercontig_seqrecord)
 
 
 def worker_configurer(gene_name):
@@ -1359,7 +1361,7 @@ def main():
     logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
 
-    logger.info(f'Finished running reads_first.py for sample {basename}!')
+    logger.info(f'Finished running reads_first.py for sample {basename}!\n')
 
 
 ########################################################################################################################
