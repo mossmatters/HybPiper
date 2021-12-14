@@ -1058,8 +1058,8 @@ def parse_arguments():
     parser.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
                         help='Do not create any supercontigs. The longest single Exonerate hit will be used',
                         default=False)
-    parser.add_argument('--memory', help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1',
-                        default=1, type=int)
+    parser.add_argument('--bbmap_memory', default=1, type=int,
+                        help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1')
     parser.add_argument('--bbmap_subfilter', default=7, type=int,
                         help='Ban alignments with more than this many substitutions. Default is %(default)s')
     parser.add_argument('--bbmap_threads', default=2, type=int,
@@ -1302,7 +1302,7 @@ def main():
                                   paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                                   depth_multiplier=args.depth_multiplier,
                                   nosupercontigs=args.nosupercontigs,
-                                  bbmap_memory=args.memory,
+                                  bbmap_memory=args.bbmap_memory,
                                   bbmap_subfilter=args.bbmap_subfilter,
                                   chimeric_supercontig_edit_distance=args.chimeric_supercontig_edit_distance,
                                   chimeric_supercontig_discordant_reads_cutoff=

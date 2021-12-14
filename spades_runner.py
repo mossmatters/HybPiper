@@ -266,8 +266,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
         logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
         logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
-                    f'coverage. No'
-                    f'contigs found for the following genes:\n')
+                    f'coverage. No contigs found for the following genes:\n')
 
     for gene in genes_redos:
         gene_failed = False

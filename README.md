@@ -164,16 +164,27 @@ additional functionality, and additional output. Changes include:
       sensitivity (options are `mid-sensitive`, `sensitive`, `more-sensitive`, `very-sensitive`, `ultra-sensitive`).
     - The flag `--run_intronerate` has been added to `reads_first.py`. When used, Intronerate will be run for genes 
       that have more than one exon.
-    - The flag `--merged` has been added to `reads_first.py`. XXX.
-    - The flag `--nosupercontigs` has been added to `reads_first.py`. XXX.
-    - The parameter `--paralog_min_length_percentage` has been added to `reads_first.py`. XXX.
-    - The parameter `--bbmap_subfilter` has been added to `reads_first.py`. XXX.
-    - The parameter `--bbmap_threads` has been added to `reads_first.py`. XXX.
-    - The parameter `--chimeric_supercontig_edit_distance` has been added to `reads_first.py`. XXX.
+    - The flag `--merged` has been added to `reads_first.py`. When used, R1 and R2 reads will be merged using 
+      BBmerge.sh, where possible. Both merged and remaining unmerged reads will be used for SPAdes assembly.
+    - The flag `--nosupercontigs` has been added to `reads_first.py`. When used, gene sequences will comprise the 
+      longest Exonerate hit from a single SPAdes contig; no contig/hit stitching will be attempted.
+    - The parameter `--paralog_min_length_percentage` has been added to `reads_first.py`. Corresponds to the minimum 
+      percentage length for a SPADes contig Exonerate hit (vs the reference query sequence length) for it to be flagged
+      and recovered as a paralog. Previously this parameter was hardcoded to 0.75. This parameter also both types of 
+      paralog warnings (by length, and by depth).
+    - The parameter `--bbmap_subfilter` has been added to `reads_first.py`. Ban BBmap alignments with more than this 
+      many substitutions when searching for chimeric supercontigs. Default is 7.
+    - The parameter `--chimeric_supercontig_edit_distance` has been added to `reads_first.py`. Minimum number of 
+      differences between one read of a read pair vs a supercontig reference for a read pair to be flagged as 
+      discordant. 
     - The parameter `--chimeric_supercontig_discordant_reads_cutoff` has been added to `reads_first.py`. XXX.
-    - The parameter `--bbmap_threads` has been added to `reads_first.py`. XXX.
-    - The parameter `----memory` has been added to `reads_first.py`. XXX.
-    - The parameter `--keep_spades_folder` has been added to `reads_first.py`. XXX
+    - The parameter `--bbmap_threads` has been added to `reads_first.py`. The number of threads to use for BBmap when 
+      searching for chimeric supercontigs. Default is 2. 
+    - The parameter `--bbmap_memory` has been added to `reads_first.py`. The amount of memory (RAM) in GB to use for 
+      BBmap when searching for chimeric supercontigs. Default is 1.
+    - The parameter `--keep_spades_folder` has been added to `reads_first.py`. If used, the SPAdes assembly folder for
+      each gene will not be deleted. Note that previous versions of HybPiper retained the SPAdes assembly folders by 
+      default; they could previously be removed after a reads_first.py using the cleanup.py script.  
 
 
 - The following options/flags have been **changed or removed**:
