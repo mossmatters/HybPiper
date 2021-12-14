@@ -10,6 +10,7 @@ hybpiper_entry_points = {'console_scripts': ['reads_first = hybpiper.reads_first
 setuptools.setup(name='hybpiper',
                  version='1.4',
                  packages=setuptools.find_packages(),
+                 scripts=['hybpiper/gene_recovery_heatmap_ggplot.R'],
                  author='Chris Jackson, Matt Johnson',
                  author_email='chris.jackson@rbg.vic.gov.au',
                  description=hybpiper_description,
