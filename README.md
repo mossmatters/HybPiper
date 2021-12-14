@@ -176,8 +176,10 @@ additional functionality, and additional output. Changes include:
       many substitutions when searching for chimeric supercontigs. Default is 7.
     - The parameter `--chimeric_supercontig_edit_distance` has been added to `reads_first.py`. Minimum number of 
       differences between one read of a read pair vs a supercontig reference for a read pair to be flagged as 
-      discordant. 
-    - The parameter `--chimeric_supercontig_discordant_reads_cutoff` has been added to `reads_first.py`. XXX.
+      discordant. Default is 5.
+    - The parameter `--chimeric_supercontig_discordant_reads_cutoff` has been added to `reads_first.py`. Minimum number 
+      of discordant reads pairs required to flag a supercontig as a potential chimera of contigs from multiple paralogs.
+      Default is 5. 
     - The parameter `--bbmap_threads` has been added to `reads_first.py`. The number of threads to use for BBmap when 
       searching for chimeric supercontigs. Default is 2. 
     - The parameter `--bbmap_memory` has been added to `reads_first.py`. The amount of memory (RAM) in GB to use for 
@@ -214,7 +216,7 @@ additional functionality, and additional output. Changes include:
 - Change to Intronerate supercontig file name.
 - Update hybpiper_stats.py so that %length is calculated correctly when using a protein bait/target file. 
 - By default, inserts Ns into sequences where there are gaps in Exonerate hits with respect to the protein query.
-- args.no_bwa
+
 
     
 **1.3.2** *February, 2020*
