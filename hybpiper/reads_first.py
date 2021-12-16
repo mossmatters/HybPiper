@@ -1358,7 +1358,7 @@ def main():
     logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
 
-    logger.info(f'Finished running reads_first.py for sample {basename}!\n')
+    logger.info(f'\nFinished running reads_first.py for sample {basename}!\n')
 
 
 ########################################################################################################################
