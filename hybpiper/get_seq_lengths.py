@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Usage: python baitfile.fasta namelist.txt dna/aa
+Usage: python get-seq_lengths.py baitfile.fasta namelist.txt dna/aa
 
     Prepare a list of names from each of your samples that used the HybSeqPipeline, one name per line.
     Indicate whether the bait file is DNA or AA (affects length calculations).
@@ -48,6 +48,7 @@ def main():
 
     namelist = [n.rstrip() for n in open(namelistfile).readlines()]
 
+    # Get the names and lengths for each sequence in the bait/target file:
     gene_names = []
     reference_lengths = {}
     for prot in SeqIO.parse(baitfile, "fasta"):
@@ -61,10 +62,12 @@ def main():
     unique_names = list(set(gene_names))
     avg_ref_lengths = [(sum(reference_lengths[gene])/len(reference_lengths[gene])) for gene in unique_names]
 
+    # Write the unique gene names and average length for each gene to stdout:
     unique_names_to_write = '\t'.join(unique_names)
     avg_ref_lengths_to_write = '\t'.join([str(x) for x in avg_ref_lengths])
     sys.stdout.write(f'Species\t{unique_names_to_write}\nMeanLength\t{avg_ref_lengths_to_write}\n')
 
+    # Get seq lengths for sample gene sequences (FNA, FAA or supercontigs):
     for name in namelist:
         parentDir, name = os.path.split(name)
         if not name:
@@ -81,8 +84,14 @@ def main():
                                          f'{unique_names[gene]}.{filetype}')
 
             if os.path.exists(read_file):
-                # Strip any Ns inserted between gaps between Exonerate hits (with respect to the query protein):
-                seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
+
+                if filetype == 'FNA' or filetype == 'supercontig':
+                    # Strip any Ns inserted between gaps between Exonerate hits (with respect to the query protein):
+                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
+                elif filetype == 'FAA':
+                    # Strip any Xs (translated Ns) inserted between gaps between Exonerate hits (with respect to the
+                    # query protein):
+                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='X'))
 
                 if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != "supercontig":
                     sys.stderr.write(f"****WARNING! Sequence length for {name} is more than 50% longer than"

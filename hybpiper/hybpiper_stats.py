@@ -124,7 +124,8 @@ def main():
     parser.add_argument("seq_lengths", help="output of get_seq_lengths.py")
     parser.add_argument("namelist", help="text file with names of HybPiper output directories, one per line")
     parser.add_argument("--blastx_adjustment", dest="blastx_adjustment", action='store_true',
-                        help="Adjust stats for when blastx is used i.e. protein reference", default=False)
+                        help="Adjust stats for when blastx is used i.e. protein references, in cases where "
+                             "get_seq_lengths.py has been run with parameter <dna> rather than <aa>", default=False)
     args = parser.parse_args()
 
     categories = ["Name",
