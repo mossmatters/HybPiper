@@ -51,6 +51,10 @@ import distribute_reads_to_targets
 import distribute_targets
 import spades_runner
 import exonerate_hits
+import get_seq_lengths
+import hybpiper_stats
+import retrieve_sequences
+import paralog_retriever
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -985,112 +989,15 @@ def exonerate_multiprocessing(genes,
                     raise
 
 
-def parse_arguments():
+def assemble(args):
     """
-    Parse command line arguments.
+    Assemble gene, intron and supercontig sequences via reads_first.py
 
-    :return: argparse.Namespace arguments
+    :param args:
+    :type args:
+    :return:
+    :rtype:
     """
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    group_1 = parser.add_mutually_exclusive_group()
-    group_1.add_argument('--bwa', dest='bwa', action='store_true',
-                         help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
-                              'nucleotides!', default=False)
-    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx',
-                         default=False)
-    parser.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
-                                                          'very-sensitive', 'ultra-sensitive'],
-                        help='Use the provided sensitivity for DIAMOND searches', default=False)
-    parser.add_argument('--no-blast', dest='blast', action='store_false',
-                        help='Do not run the blast step. Downstream steps will still depend on the *_all.blastx file. '
-                             '\nUseful for re-running assembly/exonerate steps with different options.')
-    parser.add_argument('--no-distribute', dest='distribute', action='store_false',
-                        help='Do not distribute the reads and bait sequences to sub-directories.')
-    parser.add_argument('--no-assemble', dest='assemble', action='store_false', help='Skip the SPAdes assembly stage.')
-    parser.add_argument('--no-exonerate', dest='exonerate', action='store_false',
-                        help='Do not run the Exonerate step, which assembles full length CDS regions and proteins from '
-                             'each gene')
-    parser.add_argument('-r', '--readfiles', nargs='+',
-                        help='One or more read files to start the pipeline. If exactly two are specified, will assume '
-                             'it is paired Illumina reads.',
-                        default=[])
-    parser.add_argument('-b', '--baitfile',
-                        help='FASTA file containing bait sequences for each gene. If there are multiple baits for a '
-                             'gene, the id must be of the form: >Taxon-geneName',
-                        default=None)
-    parser.add_argument('--cpu', type=int, default=0,
-                        help='Limit the number of CPUs. Default is to use all cores available.')
-    parser.add_argument('--evalue', type=float, default=1e-10,
-                        help='e-value threshold for blastx hits, default: %(default)s')
-    parser.add_argument('--max_target_seqs', type=int, default=10,
-                        help='Max target seqs to save in blast search, default: %(default)s')
-    parser.add_argument('--cov_cutoff', type=int, default=8, help='Coverage cutoff for SPAdes. default: %(default)s')
-    parser.add_argument('--kvals', nargs='+',
-                        help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!'
-                             ' Default auto-detection by SPAdes.', default=None)
-    parser.add_argument('--thresh', type=int,
-                        help='Percent identity threshold for retaining Exonerate hits. Default is 55, but increase '
-                             'this if you are worried about contaminant sequences.', default=55)
-    parser.add_argument('--paralog_min_length_percentage', default=0.75, type=float,
-                        help='Minimum length percentage of a contig Exonerate hit vs reference protein length for a '
-                             'paralog warning and sequence to be generated. Default is %(default)s')
-    parser.add_argument('--depth_multiplier',
-                        help='Accept any full-length exonerate hit if it has a coverage depth X times the next best '
-                             'hit. Set to zero to not use depth. Default = 10', default=10, type=int)
-    parser.add_argument('--prefix', help='Directory name for pipeline output, default is to use the FASTQ file name.',
-                        default=None)
-    parser.add_argument('--timeout',
-                        help='Use GNU Parallel to kill long-running processes if they take longer than X percent of '
-                             'average.', default=0, type=int)
-    parser.add_argument('--target',
-                        help='Use this target to align sequences for each gene. Other targets for that gene will be '
-                             'used only for read sorting. Can be a tab-delimited file (one gene per line) or a single '
-                             'sequence name', default=None)
-    parser.add_argument('--unpaired',
-                        help='Include a single FASTQ file with unpaired reads along with the two paired read files',
-                        default=False)
-    parser.add_argument('--exclude',
-                        help='Do not use any sequence with the specified string as a target sequence for exonerate. '
-                             'The sequence will be used for read sorting.', default=None)
-    parser.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
-                        help='Do not create any supercontigs. The longest single Exonerate hit will be used',
-                        default=False)
-    parser.add_argument('--bbmap_memory', default=1, type=int,
-                        help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1')
-    parser.add_argument('--bbmap_subfilter', default=7, type=int,
-                        help='Ban alignments with more than this many substitutions. Default is %(default)s')
-    parser.add_argument('--bbmap_threads', default=2, type=int,
-                        help='Number of threads to use for BBmap when searching for chimeric supercontigs. Default '
-                             'is %(default)s')
-    parser.add_argument('--chimeric_supercontig_edit_distance',
-                        help='Minimum number of differences between one read of a read pair vs the supercontig '
-                             'reference for a read pair to be flagged as discordant', default=5, type=int)
-    parser.add_argument('--chimeric_supercontig_discordant_reads_cutoff',
-                        help='Minimum number of discordant reads pairs required to flag a supercontig as a potential '
-                             'chimera of contigs from multiple paralogs', default=5, type=int)
-    parser.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
-                        action='store_true', default=False)
-    parser.add_argument("--run_intronerate",
-                        help="Run intronerate to recover fasta files for supercontigs with introns (if present), "
-                             "and introns-only", action="store_true", dest='intronerate', default=False)
-    parser.add_argument("--keep_spades_folder",
-                        help="Keep the SPAdes folder for each gene. Default action is to delete it following contig "
-                             "recovery (dramatically reduces the total files number",  action="store_true",
-                        dest='keep_spades', default=False)
-
-    parser.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
-
-    arguments = parser.parse_args()
-    return arguments
-
-
-def main():
-
-    if len(sys.argv) == 1:
-        print(__doc__)
-        sys.exit(1)
-
-    args = parse_arguments()
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
@@ -1359,6 +1266,275 @@ def main():
                 f' {paralog_warnings_short_true} genes!')
 
     logger.info(f'\nFinished running reads_first.py for sample {basename}!\n')
+
+
+def get_seq_lengths_main(args):
+    get_seq_lengths.main(args)
+
+
+def hybpiper_stats_main(args):
+    hybpiper_stats.main(args)
+
+
+def retrieve_sequences_main(args):
+    retrieve_sequences.main(args)
+
+
+def paralog_retriever_main(args):
+    paralog_retriever.main(args)
+
+
+def gene_recovery_heatmap(args):
+    heatmap_command = 'Rscript gene_recovery_heatmap_ggplot.R'
+    try:
+        result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        print(result)
+    except subprocess.CalledProcessError as exc:
+        print(f'heatmap_command FAILED. Output is: {exc}')
+        print(f'heatmap_command stdout is: {exc.stdout}')
+        print(f'heatmap_command stderr is: {exc.stderr}')
+
+
+def add_assemble_parser(subparsers):
+    """
+    Parser for the main assembly stage of HybPiper i.e. reads_first.
+
+    :param argparse._SubParsersAction subparsers:
+    :return:
+    """
+
+    parser_assemble = subparsers.add_parser('assemble', help='Assemble gene, intron, and supercontig sequences')
+    parser_assemble.add_argument('--readfiles', '-r', nargs='+',
+                                 help='One or more read files to start the pipeline. If exactly two are specified, '
+                                      'will assume it is paired Illumina reads.',
+                                 default=[], required=True)
+    parser_assemble.add_argument('--baitfile', '-b',
+                                 help='FASTA file containing bait sequences for each gene. If there are multiple '
+                                      'baits for a gene, the id must be of the form: >Taxon-geneName',
+                                 default=None, required=True)
+    group_1 = parser_assemble.add_mutually_exclusive_group()
+    group_1.add_argument('--bwa', dest='bwa', action='store_true',
+                         help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
+                              'nucleotides!', default=False)
+    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx',
+                         default=False)
+    parser_assemble.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
+                                                                   'very-sensitive', 'ultra-sensitive'],
+                                 help='Use the provided sensitivity for DIAMOND searches', default=False)
+    parser_assemble.add_argument('--no-blast', dest='blast', action='store_false',
+                                 help='Do not run the blast step. Downstream steps will still depend on the '
+                                      '*_all.blastx file. \nUseful for re-running assembly/exonerate steps with '
+                                      'different options.')
+    parser_assemble.add_argument('--no-distribute', dest='distribute', action='store_false',
+                                 help='Do not distribute the reads and bait sequences to sub-directories.')
+    parser_assemble.add_argument('--no-assemble', dest='assemble', action='store_false',
+                                 help='Skip the SPAdes assembly stage.')
+    parser_assemble.add_argument('--no-exonerate', dest='exonerate', action='store_false',
+                                 help='Do not run the Exonerate step, which assembles full length CDS regions and '
+                                      'proteins from each gene')
+    parser_assemble.add_argument('--cpu', type=int, default=0,
+                                 help='Limit the number of CPUs. Default is to use all cores available.')
+    parser_assemble.add_argument('--evalue', type=float, default=1e-10,
+                                 help='e-value threshold for blastx hits, default: %(default)s')
+    parser_assemble.add_argument('--max_target_seqs', type=int, default=10,
+                                 help='Max target seqs to save in blast search, default: %(default)s')
+    parser_assemble.add_argument('--cov_cutoff', type=int, default=8,
+                                 help='Coverage cutoff for SPAdes. default: %(default)s')
+    parser_assemble.add_argument('--kvals', nargs='+',
+                                 help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!'
+                                      ' Default auto-detection by SPAdes.', default=None)
+    parser_assemble.add_argument('--thresh', type=int,
+                                 help='Percent identity threshold for retaining Exonerate hits. Default is 55, but increase '
+                                      'this if you are worried about contaminant sequences.', default=55)
+    parser_assemble.add_argument('--paralog_min_length_percentage', default=0.75, type=float,
+                                 help='Minimum length percentage of a contig Exonerate hit vs reference protein length for a '
+                                      'paralog warning and sequence to be generated. Default is %(default)s')
+    parser_assemble.add_argument('--depth_multiplier',
+                                 help='Accept any full-length exonerate hit if it has a coverage depth X times the next best '
+                                      'hit. Set to zero to not use depth. Default = 10', default=10, type=int)
+    parser_assemble.add_argument('--prefix',
+                                 help='Directory name for pipeline output, default is to use the FASTQ file name.',
+                                 default=None)
+    parser_assemble.add_argument('--timeout',
+                                 help='Use GNU Parallel to kill long-running processes if they take longer than X percent of '
+                                      'average.', default=0, type=int)
+    parser_assemble.add_argument('--target',
+                                 help='Use this target to align sequences for each gene. Other targets for that gene will be '
+                                      'used only for read sorting. Can be a tab-delimited file (one gene per line) or a single '
+                                      'sequence name', default=None)
+    parser_assemble.add_argument('--unpaired',
+                                 help='Include a single FASTQ file with unpaired reads along with the two paired read files',
+                                 default=False)
+    parser_assemble.add_argument('--exclude',
+                                 help='Do not use any sequence with the specified string as a target sequence for exonerate. '
+                                      'The sequence will be used for read sorting.', default=None)
+    parser_assemble.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
+                                 help='Do not create any supercontigs. The longest single Exonerate hit will be used',
+                                 default=False)
+    parser_assemble.add_argument('--bbmap_memory', default=1, type=int,
+                                 help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1')
+    parser_assemble.add_argument('--bbmap_subfilter', default=7, type=int,
+                                 help='Ban alignments with more than this many substitutions. Default is %(default)s')
+    parser_assemble.add_argument('--bbmap_threads', default=2, type=int,
+                                 help='Number of threads to use for BBmap when searching for chimeric supercontigs. Default '
+                                      'is %(default)s')
+    parser_assemble.add_argument('--chimeric_supercontig_edit_distance',
+                                 help='Minimum number of differences between one read of a read pair vs the supercontig '
+                                      'reference for a read pair to be flagged as discordant', default=5, type=int)
+    parser_assemble.add_argument('--chimeric_supercontig_discordant_reads_cutoff',
+                                 help='Minimum number of discordant reads pairs required to flag a supercontig as a potential '
+                                      'chimera of contigs from multiple paralogs', default=5, type=int)
+    parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
+                                 action='store_true', default=False)
+    parser_assemble.add_argument("--run_intronerate",
+                                 help="Run intronerate to recover fasta files for supercontigs with introns (if present), "
+                                      "and introns-only", action="store_true", dest='intronerate', default=False)
+    parser_assemble.add_argument("--keep_spades_folder",
+                                 help="Keep the SPAdes folder for each gene. Default action is to delete it following contig "
+                                      "recovery (dramatically reduces the total files number", action="store_true",
+                                 dest='keep_spades', default=False)
+
+    # Set defaults for subparser <parser_assemble>:
+    parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
+
+    # Set function for subparser <parser_assemble>:
+    parser_assemble.set_defaults(func=assemble)
+
+
+def add_get_seq_lengths_parser(subparsers):
+    """
+    Parser for get_seq_lengths
+
+    :param argparse._SubParsersAction subparsers:
+    :return:
+    """
+
+    parser_get_seq_lengths = subparsers.add_parser('get_seq_lengths', help='Get sequence lengths for assembled genes')
+    parser_get_seq_lengths.add_argument('baitfile', help="FASTA file containing bait sequences for each gene. If "
+                                                         "there are multiple baits for a gene, the id must be of the "
+                                                         "form: >Taxon-geneName")
+    parser_get_seq_lengths.add_argument('namelist', help="Text file with names of HybPiper output directories, "
+                                                         "one per line")
+    parser_get_seq_lengths.add_argument('sequence_type', choices=['aa', 'AA', 'dna', 'DNA'],
+                                        help="Sequence type (dna or aa) of the baitfile used")
+    # Set function for subparser <parser_get_seq_lengths>:
+    parser_get_seq_lengths.set_defaults(func=get_seq_lengths_main)
+
+
+def add_stats_parser(subparsers):
+    """
+    Parser for hybpiper_stats
+
+    :param argparse._SubParsersAction subparsers:
+    :return:
+    """
+
+    parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
+    parser_stats.add_argument('seq_lengths', help="Output of get_seq_lengths")
+    parser_stats.add_argument('namelist', help="Text file with names of HybPiper output directories, one per line")
+    parser_stats.add_argument('--blastx_adjustment', dest="blastx_adjustment", action='store_true',
+                              help="Adjust stats for when blastx is used i.e. protein references, in cases where "
+                                   "get_seq_lengths.py has been run with parameter <dna> rather than <aa>",
+                              default=False)
+    # Set function for subparser <parser_stats>:
+    parser_stats.set_defaults(func=hybpiper_stats_main)
+
+
+def add_retrieve_sequences_parser(subparsers):
+    """
+    Parser for retrieve_sequences
+
+    :param argparse._SubParsersAction subparsers:
+    :return:
+    """
+
+    parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
+                                                                                 'multiple runs of HybPiper')
+    parser_retrieve_sequences.add_argument('targetfile', help="FASTA File containing target sequences")
+    parser_retrieve_sequences.add_argument('sample_names', help="Directory containing Hybpiper output OR a file "
+                                                                "containing HybPiper output names, one per line")
+    parser_retrieve_sequences.add_argument('sequence_type', help="Type of sequence to extract",
+                                           choices=["dna", "aa", "intron", "supercontig"])
+    parser_retrieve_sequences.add_argument("--hybpiper_dir", help="Specify directory containing HybPiper output")
+    parser_retrieve_sequences.add_argument("--fasta_dir", help="Specify directory for output FASTA files")
+
+    # Set function for subparser <parser_retrieve_sequences>:
+    parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
+
+
+def add_paralog_retriever_parser(subparsers):
+    """
+    Parser for paralog_retriever
+
+    :param argparse._SubParsersAction subparsers:
+    :return:
+    """
+
+    parser_paralog_retriever = subparsers.add_parser('paralog_retriever', help='Retrieve paralog sequences for a '
+                                                                               'given gene, for all samples')
+    parser_paralog_retriever.add_argument('namelist', help="Text file containing list of HybPiper output directories, "
+                                                           "one per line.")
+    parser_paralog_retriever.add_argument('gene', help="Name of gene to extract paralogs")
+    parser_paralog_retriever.add_argument('--fasta_dir_all', help='Specify directory for output FASTA files (ALL)',
+                                          default='paralogs_all')
+    parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras', help='Specify directory for output FASTA files ('
+                                                                          'no putative chimeric sequences)',
+                                          default='paralogs_no_chimeras')
+
+    # Set function for subparser <paralog_retriever>:
+    parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
+
+
+def add_gene_recovery_heatmap_parser(subparsers):
+    """
+    Parser for gene_recovery_heatmap
+
+    :param argparse._SubParsersAction subparsers:
+    :return:
+    """
+
+    parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
+                                                                                  'the HybPiper run')
+    # Set function for subparser <parser_gene_recovery_heatmap>:
+    parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap)
+
+
+def parse_arguments():
+    """
+    Creates main parser and add subparsers. Parse command line arguments.
+
+    :return: argparse.Namespace arguments
+    """
+    parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
+                                     formatter_class=argparse.RawTextHelpFormatter,
+                                     epilog='To view parameters and help for a subcommand, use e.g. "assemble '
+                                            '--help"')
+
+    subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
+    add_assemble_parser(subparsers)
+    add_get_seq_lengths_parser(subparsers)
+    add_stats_parser(subparsers)
+    add_retrieve_sequences_parser(subparsers)
+    add_gene_recovery_heatmap_parser(subparsers)
+    add_paralog_retriever_parser(subparsers)
+
+    # Parse and return all arguments:
+    arguments = parser.parse_args()
+    return arguments
+
+
+def main():
+
+    if len(sys.argv) == 1:
+        print(__doc__)
+        sys.exit(1)
+
+    # Parse arguments for the subcommand used:
+    args = parse_arguments()
+
+    # Run the function associated with the subcommand:
+    args.func(args)
 
 
 ########################################################################################################################

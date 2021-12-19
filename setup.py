@@ -5,10 +5,7 @@ import setuptools
 hybpiper_scripts = ['hybpiper']
 hybpiper_description = 'Recovery of target gene sequences from bait-capture data'
 hybpiper_url = 'https://github.com/chrisjackson-pellicle/HybPiper.git'
-hybpiper_entry_points = {'console_scripts': ['reads_first = hybpiper.reads_first:main',
-                                             'retrieve_sequences = hybpiper.retrieve_sequences:main',
-                                             'get_seq_lengths = hybpiper.get_seq_lengths:main',
-                                             'paralog_retriever = hybpiper.paralog_retriever:main']}
+hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.reads_first:main']}
 
 setuptools.setup(name='hybpiper',
                  version='1.4',
