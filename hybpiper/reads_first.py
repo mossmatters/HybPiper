@@ -1285,7 +1285,7 @@ def paralog_retriever_main(args):
 
 
 def gene_recovery_heatmap(args):
-    heatmap_command = 'Rscript gene_recovery_heatmap_ggplot.R'
+    heatmap_command = 'gene_recovery_heatmap_ggplot.R'
     try:
         result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 universal_newlines=True)
