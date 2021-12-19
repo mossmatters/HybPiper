@@ -75,7 +75,11 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
     return num_seqs
             
 
-def main():
+def standalone():
+    """
+    Used when this module is run as a stand-alone script. Parses command line arguments and runs function main().:
+    """
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('namelist', help='Text file containing list of HybPiper output directories, one per line.')
     parser.add_argument('gene', help="Name of gene to extract paralogs")
@@ -83,9 +87,18 @@ def main():
                         default='paralogs_all')
     parser.add_argument('--fasta_dir_no_chimeras', help='Specify directory for output FASTA files (no putative '
                                                         'chimeric sequences)', default='paralogs_no_chimeras')
-    
+
     args = parser.parse_args()
-    
+    main(args)
+
+
+def main(args):
+    """
+    Entry point for the hybpiper.py module.
+
+    :param argparse.Namespace args:
+    """
+
     namelist = [x.rstrip() for x in open(args.namelist)]
     num_seqs = []
     for name in namelist:
@@ -99,4 +112,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    standalone()

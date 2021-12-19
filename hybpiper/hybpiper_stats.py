@@ -119,14 +119,27 @@ def seq_length_calc(seq_lengths_fn, blastx_adjustment):
     return seq_length_dict
 
 
-def main():
+def standalone():
+    """
+    Used when this module is run as a stand-alone script. Parses command line arguments and runs function main().:
+    """
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("seq_lengths", help="output of get_seq_lengths.py")
-    parser.add_argument("namelist", help="text file with names of HybPiper output directories, one per line")
+    parser.add_argument("seq_lengths", help="Output of get_seq_lengths.py")
+    parser.add_argument("namelist", help="Text file with names of HybPiper output directories, one per line")
     parser.add_argument("--blastx_adjustment", dest="blastx_adjustment", action='store_true',
                         help="Adjust stats for when blastx is used i.e. protein references, in cases where "
                              "get_seq_lengths.py has been run with parameter <dna> rather than <aa>", default=False)
     args = parser.parse_args()
+    main(args)
+
+
+def main(args):
+    """
+    Entry point for the hybpiper.py module.
+
+    :param argparse.Namespace args:
+    """
 
     categories = ["Name",
                   "NumReads",
@@ -235,4 +248,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    standalone()

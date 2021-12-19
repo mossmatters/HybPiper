@@ -17,41 +17,59 @@ Usage: python get-seq_lengths.py baitfile.fasta namelist.txt dna/aa
 import os
 import sys
 from Bio import SeqIO
+import argparse
 
 
-def main():
+def standalone():
+    """
+    Used when this module is run as a stand-alone script. Parses command line arguments and runs function main().:
+    """
+
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("baitfile", help="FASTA file containing bait sequences for each gene. If there are multiple "
+                                         "baits for a gene, the id must be of the form: >Taxon-geneName")
+    parser.add_argument("namelist", help="text file with names of HybPiper output directories, one per line")
+    parser.add_argument("sequence_type", help="Sequence type (dna or aa) of the baitfile used")
+    args = parser.parse_args()
+
     if len(sys.argv) < 4:
         print(__doc__)
         sys.exit()
 
-    baitfile = sys.argv[1]
-    namelistfile = sys.argv[2]
-    sequenceType = sys.argv[3]
+    main(args)
 
-    if sequenceType.upper() == 'DNA':
+
+def main(args):
+    """
+    Entry point for the hybpiper.py module.
+
+    :param argparse.Namespace args:
+    """
+
+    if args.sequence_type.upper() == 'DNA':
         filetype = 'FNA'
-    elif sequenceType.upper() == 'AA':
+    elif args.sequence_type.upper() == 'AA':
         filetype = 'FAA'
-    elif sequenceType.upper() == "SUPERCONTIG":
+    elif args.sequence_type.upper() == "SUPERCONTIG":
         filetype = "supercontig"
     else:
         print(__doc__)
         sys.exit()
 
-    if not os.path.isfile(baitfile):
-        print(f'Baitfile {baitfile} not found!')
+    if not os.path.isfile(args.baitfile):
+        print(f'Baitfile {args.baitfile} not found!')
         sys.exit()
 
-    if not os.path.isfile(namelistfile):
-        print(f'Name list file {namelistfile} not found!')
+    if not os.path.isfile(args.namelist):
+        print(f'Name list file {args.namelist} not found!')
         sys.exit()
 
-    namelist = [n.rstrip() for n in open(namelistfile).readlines()]
+    namelist_parsed = [n.rstrip() for n in open(args.namelist).readlines()]
 
     # Get the names and lengths for each sequence in the bait/target file:
     gene_names = []
     reference_lengths = {}
-    for prot in SeqIO.parse(baitfile, "fasta"):
+    for prot in SeqIO.parse(args.baitfile, "fasta"):
         protname = prot.id.split("-")[-1]
         gene_names.append(protname)
         if protname in reference_lengths:
@@ -68,7 +86,7 @@ def main():
     sys.stdout.write(f'Species\t{unique_names_to_write}\nMeanLength\t{avg_ref_lengths_to_write}\n')
 
     # Get seq lengths for sample gene sequences (FNA, FAA or supercontigs):
-    for name in namelist:
+    for name in namelist_parsed:
         parentDir, name = os.path.split(name)
         if not name:
             parentDir, name = os.path.split(parentDir)
@@ -105,4 +123,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    standalone()

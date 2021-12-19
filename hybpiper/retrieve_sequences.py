@@ -20,10 +20,14 @@ import argparse
 from Bio import SeqIO
 
 
-def main():
+def standalone():
+    """
+    Used when this module is run as a stand-alone script. Parses command line arguments and runs function main().:
+    """
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("targetfile", help="FASTA File containing target sequences")
-    parser.add_argument("sample_names", help="Directory containing Hybpiper Output OR a file containing HybPiper "
+    parser.add_argument("sample_names", help="Directory containing Hybpiper output OR a file containing HybPiper "
                                              "output names, one per line")
     parser.add_argument("sequence_type", help="Type of sequence to extract", choices=["dna", "aa", "intron",
                                                                                       "supercontig"])
@@ -31,6 +35,15 @@ def main():
     parser.add_argument("--fasta_dir", help="Specify directory for output FASTA files")
 
     args = parser.parse_args()
+    main(args)
+
+
+def main(args):
+    """
+    Entry point for the hybpiper.py module.
+
+    :param argparse.Namespace args:
+    """
 
     if args.sequence_type == 'dna':
         seq_dir = "FNA"
@@ -94,5 +107,5 @@ def main():
         print(f'Found {numSeqs} sequences for {gene}.')
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    standalone()
