@@ -1291,7 +1291,7 @@ def gene_recovery_heatmap(args):
                                 universal_newlines=True, check=True)
         # print(result)
     except subprocess.CalledProcessError as exc:
-        print(f'{exc}')
+        print(f'{exc.stdout}')
 
         # print(f'heatmap_command FAILED. Output is: {exc}')
         # print(f'heatmap_command stdout is: {exc.stdout}')
