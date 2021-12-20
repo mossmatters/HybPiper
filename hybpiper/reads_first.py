@@ -1286,14 +1286,20 @@ def paralog_retriever_main(args):
 
 def gene_recovery_heatmap(args):
     heatmap_command = 'gene_recovery_heatmap_ggplot.R'
-    try:
-        result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True, check=True)
-        print(result)
-    except subprocess.CalledProcessError as exc:
-        print(f'heatmap_command FAILED. Output is: {exc}')
-        print(f'heatmap_command stdout is: {exc.stdout}')
-        print(f'heatmap_command stderr is: {exc.stderr}')
+
+    result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            universal_newlines=True, check=True)
+    # print(result)
+
+
+    # try:
+    #     result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    #                             universal_newlines=True, check=True)
+    #     print(result)
+    # except subprocess.CalledProcessError as exc:
+    #     logger.info(f'heatmap_command FAILED. Output is: {exc}')
+    #     logger.info(f'heatmap_command stdout is: {exc.stdout}')
+    #     logger.info(f'heatmap_command stderr is: {exc.stderr}')
 
 
 def add_assemble_parser(subparsers):
