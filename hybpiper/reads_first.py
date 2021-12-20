@@ -1288,7 +1288,7 @@ def gene_recovery_heatmap(args):
     heatmap_command = 'gene_recovery_heatmap_ggplot.R'
     try:
         result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
+                                universal_newlines=True, check=True)
         print(result)
     except subprocess.CalledProcessError as exc:
         print(f'heatmap_command FAILED. Output is: {exc}')
