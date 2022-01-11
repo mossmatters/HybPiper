@@ -20,6 +20,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 import argparse
 import logging
 import gzip
+import progressbar
 
 
 # Create logger:
@@ -177,33 +178,38 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         else:
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
-        for ID1_long, Seq1, Qual1 in iterator1:
-            ID2_long, Seq2, Qual2 = next(iterator2)
+        # Use progressbar2
+        with progressbar.ProgressBar(max_value=num_reads_to_write) as bar:
 
-            ID1 = ID1_long.split()[0]
-            if ID1.endswith('/1') or ID1.endswith('/2'):
-                ID1 = ID1[:-2]
+            for ID1_long, Seq1, Qual1 in iterator1:
+                ID2_long, Seq2, Qual2 = next(iterator2)
 
-            ID2 = ID2_long.split()[0]
-            if ID2.endswith('/1') or ID2.endswith('/2'):
-                ID2 = ID2[:-2]
+                ID1 = ID1_long.split()[0]
+                if ID1.endswith('/1') or ID1.endswith('/2'):
+                    ID1 = ID1[:-2]
 
-            if ID1 in read_hit_dict:
-                for target in read_hit_dict[ID1]:
-                    write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                    # Note that read pairs can get written to multiple targets
-                    reads_written += 1
+                ID2 = ID2_long.split()[0]
+                if ID2.endswith('/1') or ID2.endswith('/2'):
+                    ID2 = ID2[:-2]
 
-            elif ID2 in read_hit_dict:
-                for target in read_hit_dict[ID2]:
-                    write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                    reads_written += 1
-            j = (reads_written + 1) / num_reads_to_write
-            if int(100*j) % 5 == 0:
-                sys.stderr.write('\r')
-                sys.stderr.write(f'[{"=" * int(20 * j):20}] {100 * j:0.0f}%')
-                sys.stderr.flush()
-    sys.stderr.write('\n')
+                if ID1 in read_hit_dict:
+                    for target in read_hit_dict[ID1]:
+                        write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                        # Note that read pairs can get written to multiple targets
+                        # reads_written += 1
+
+                elif ID2 in read_hit_dict:
+                    for target in read_hit_dict[ID2]:
+                        write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                        # reads_written += 1
+
+                bar.update(ID1_long)
+                # j = (reads_written + 1) / num_reads_to_write
+                # if int(100*j) % 5 == 0:
+                #     sys.stderr.write('\r')
+                #     sys.stderr.write(f'[{"=" * int(20 * j):20}] {100 * j:0.0f}%')
+                #     sys.stderr.flush()
+    # sys.stderr.write('\n')
 
 
 def main():
