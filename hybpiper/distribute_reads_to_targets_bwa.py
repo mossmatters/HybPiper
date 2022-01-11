@@ -146,7 +146,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
     reads_written = 0
-    sys.stderr.write(f'{"[NOTE]:":10} Read distributing progress:\n')
+    # sys.stderr.write(f'{"[NOTE]:":10} Read distributing progress:\n')
 
     if len(readfiles) == 1:
         logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
@@ -181,7 +181,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         # Use progressbar2
         # with progressbar.ProgressBar(max_value=num_reads_to_write) as bar:
 
-        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1):
+        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_to_write):
             ID2_long, Seq2, Qual2 = next(iterator2)
             ID1 = ID1_long.split()[0]
             if ID1.endswith('/1') or ID1.endswith('/2'):
