@@ -198,7 +198,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
                 for target in read_hit_dict[ID2]:
                     write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
                     # reads_written += 1
-            bar.update(ID1_long)
+            # bar.update(ID1_long)
                 # j = (reads_written + 1) / num_reads_to_write
                 # if int(100*j) % 5 == 0:
                 #     sys.stderr.write('\r')
