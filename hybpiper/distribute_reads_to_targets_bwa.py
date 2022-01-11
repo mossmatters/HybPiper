@@ -135,7 +135,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
     if merged:
         logger.info(f'{"[NOTE]:":10} Writing fastq files for merging with BBmerge.sh')
 
-    num_reads_to_write = len(read_hit_dict)
+    num_reads_to_write = len(read_hit_dict) + 1
 
     # Check if read file is gzipped:
     filename, file_extension = os.path.splitext(readfiles[0])
