@@ -3,15 +3,11 @@
 """
 HybPiper Version 1.4 release candidate (September 2021)
 
-This script imports several scripts/modules in the HybPiper pipeline.
-It checks whether you have the appropriate dependencies available.
-It makes sure that the other scripts needed are in the same directory as this one.
-Command line options are passed to the other executables.
-Unless --prefix is set, output will be put within a directory named after your read files.
+Unless --prefix is set, output will be within a directory named after your read files.
 
 To see parameters and help type:
 
-python reads_first.py -h
+hybpiper -h
 """
 
 import argparse
@@ -1216,7 +1212,6 @@ def assemble(args):
                                   logger=logger,
                                   intronerate=args.intronerate)
 
-
     ####################################################################################################################
     # Collate all supercontig and putative chimera read reports
     ####################################################################################################################
@@ -1289,13 +1284,8 @@ def gene_recovery_heatmap(args):
     try:
         result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 universal_newlines=True, check=True)
-        # print(result)
     except subprocess.CalledProcessError as exc:
         print(f'{exc.stdout}')
-
-        # print(f'heatmap_command FAILED. Output is: {exc}')
-        # print(f'heatmap_command stdout is: {exc.stdout}')
-        # print(f'heatmap_command stderr is: {exc.stderr}')
 
 
 def add_assemble_parser(subparsers):
@@ -1344,33 +1334,35 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--cov_cutoff', type=int, default=8,
                                  help='Coverage cutoff for SPAdes. default: %(default)s')
     parser_assemble.add_argument('--kvals', nargs='+',
-                                 help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle larger k-values!'
-                                      ' Default auto-detection by SPAdes.', default=None)
+                                 help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
+                                      'larger k-values! Default auto-detection by SPAdes.', default=None)
     parser_assemble.add_argument('--thresh', type=int,
-                                 help='Percent identity threshold for retaining Exonerate hits. Default is 55, but increase '
-                                      'this if you are worried about contaminant sequences.', default=55)
+                                 help='Percent identity threshold for retaining Exonerate hits. Default is 55, '
+                                      'but increase this if you are worried about contaminant sequences.', default=55)
     parser_assemble.add_argument('--paralog_min_length_percentage', default=0.75, type=float,
-                                 help='Minimum length percentage of a contig Exonerate hit vs reference protein length for a '
-                                      'paralog warning and sequence to be generated. Default is %(default)s')
+                                 help='Minimum length percentage of a contig Exonerate hit vs reference protein '
+                                      'length for a paralog warning and sequence to be generated. Default is %('
+                                      'default)s')
     parser_assemble.add_argument('--depth_multiplier',
-                                 help='Accept any full-length exonerate hit if it has a coverage depth X times the next best '
-                                      'hit. Set to zero to not use depth. Default = 10', default=10, type=int)
+                                 help='Accept any full-length exonerate hit if it has a coverage depth X times the '
+                                      'next best hit. Set to zero to not use depth. Default = 10', default=10, type=int)
     parser_assemble.add_argument('--prefix',
                                  help='Directory name for pipeline output, default is to use the FASTQ file name.',
                                  default=None)
     parser_assemble.add_argument('--timeout',
-                                 help='Use GNU Parallel to kill long-running processes if they take longer than X percent of '
-                                      'average.', default=0, type=int)
+                                 help='Use GNU Parallel to kill long-running processes if they take longer than X '
+                                      'percent of average.', default=0, type=int)
     parser_assemble.add_argument('--target',
-                                 help='Use this target to align sequences for each gene. Other targets for that gene will be '
-                                      'used only for read sorting. Can be a tab-delimited file (one gene per line) or a single '
-                                      'sequence name', default=None)
+                                 help='Use this target to align sequences for each gene. Other targets for that gene '
+                                      'will be used only for read sorting. Can be a tab-delimited file (one gene per '
+                                      'line) or a single sequence name', default=None)
     parser_assemble.add_argument('--unpaired',
-                                 help='Include a single FASTQ file with unpaired reads along with the two paired read files',
+                                 help='Include a single FASTQ file with unpaired reads along with the two paired read '
+                                      'files',
                                  default=False)
     parser_assemble.add_argument('--exclude',
-                                 help='Do not use any sequence with the specified string as a target sequence for exonerate. '
-                                      'The sequence will be used for read sorting.', default=None)
+                                 help='Do not use any sequence with the specified string as a target sequence for '
+                                      'exonerate. The sequence will be used for read sorting.', default=None)
     parser_assemble.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
                                  help='Do not create any supercontigs. The longest single Exonerate hit will be used',
                                  default=False)
@@ -1379,23 +1371,25 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--bbmap_subfilter', default=7, type=int,
                                  help='Ban alignments with more than this many substitutions. Default is %(default)s')
     parser_assemble.add_argument('--bbmap_threads', default=2, type=int,
-                                 help='Number of threads to use for BBmap when searching for chimeric supercontigs. Default '
-                                      'is %(default)s')
+                                 help='Number of threads to use for BBmap when searching for chimeric supercontigs. '
+                                      'Default is %(default)s')
     parser_assemble.add_argument('--chimeric_supercontig_edit_distance',
-                                 help='Minimum number of differences between one read of a read pair vs the supercontig '
-                                      'reference for a read pair to be flagged as discordant', default=5, type=int)
+                                 help='Minimum number of differences between one read of a read pair vs the '
+                                      'supercontig reference for a read pair to be flagged as discordant', default=5,
+                                 type=int)
     parser_assemble.add_argument('--chimeric_supercontig_discordant_reads_cutoff',
-                                 help='Minimum number of discordant reads pairs required to flag a supercontig as a potential '
-                                      'chimera of contigs from multiple paralogs', default=5, type=int)
+                                 help='Minimum number of discordant reads pairs required to flag a supercontig as a '
+                                      'potential chimera of contigs from multiple paralogs', default=5, type=int)
     parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
                                  action='store_true', default=False)
     parser_assemble.add_argument("--run_intronerate",
-                                 help="Run intronerate to recover fasta files for supercontigs with introns (if present), "
-                                      "and introns-only", action="store_true", dest='intronerate', default=False)
+                                 help='Run intronerate to recover fasta files for supercontigs with introns (if '
+                                      'present), and introns-only', action='store_true', dest='intronerate',
+                                 default=False)
     parser_assemble.add_argument("--keep_spades_folder",
-                                 help="Keep the SPAdes folder for each gene. Default action is to delete it following contig "
-                                      "recovery (dramatically reduces the total files number", action="store_true",
-                                 dest='keep_spades', default=False)
+                                 help='Keep the SPAdes folder for each gene. Default action is to delete it following '
+                                      'contig recovery (dramatically reduces the total files number)',
+                                 action='store_true', dest='keep_spades', default=False)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
