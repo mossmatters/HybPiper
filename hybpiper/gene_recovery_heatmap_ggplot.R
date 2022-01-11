@@ -17,7 +17,7 @@ if (length(args) == 0) {
 
 # Check whether the provided or default file exists:
 if (!file.exists(sample.filename)) {
-  cat(paste0('Cant find file <', sample.filename, '>. Is it in the current working directory?\n'))
+  cat(paste0('Can not find file <', sample.filename, '>. Is it in the current working directory?\n'))
   quit(status=1)
 }
 
