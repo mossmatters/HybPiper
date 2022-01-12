@@ -67,12 +67,12 @@ if (dim(percent.len)[2] > 100 && dim(percent.len)[2] <= 200) {gene.size = 4} && 
 if (dim(percent.len)[2] > 200 && dim(percent.len)[2] <= 400) {gene.size = 3} && {fig_length = 29.7}
 if (dim(percent.len)[2] > 400) {gene.size <- 3} && {fig_length <- 29.7}
 
-# ggplot(data = percent.long, aes(x=Var2, y=Var1, fill = value))+
-#   geom_raster()+
-#   #guides(fill=FALSE)+ #remove this line if you want the heat scale to appear
-#   scale_fill_gradient(high = "#132B43", low = "#FFFFFF")+
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-#   ylab(NULL)+xlab(NULL)+
-#   theme(axis.text.y=element_text(face="italic",size = sample.size),axis.text.x =element_text(size=gene.size))
-#
+ggplot(data = percent.long, aes(x=Var2, y=Var1, fill = value))+
+  geom_raster()+
+  #guides(fill=FALSE)+ #remove this line if you want the heat scale to appear
+  scale_fill_gradient(high = "#132B43", low = "#FFFFFF")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ylab(NULL)+xlab(NULL)+
+  theme(axis.text.y=element_text(face="italic",size = sample.size),axis.text.x =element_text(size=gene.size))
+
 # ggsave("heatmap.png", height = fig_height, width = fig_length, units = "cm")
