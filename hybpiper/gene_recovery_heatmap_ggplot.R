@@ -52,19 +52,19 @@ percent.long$Var1 <- as.factor(percent.long$Var1)
 # Set some dimensions for given sample numbers:
 if (dim(percent.len)[1] <= 10) {sample.size <- 10} && {fig_height <- 10}
 if (dim(percent.len)[1] > 10 && dim(percent.len)[1] <= 20) {sample.size <- 10} && {fig_height <- 10}
-if (dim(percent.len)[1] > 20 && dim(percent.len)[1] <= 50) {sample.size = 8} && {fig_height = 15}
-if (dim(percent.len)[1] > 50 && dim(percent.len)[1] <= 100) {sample.size = 6} && {fig_height = 15}
-if (dim(percent.len)[1] > 100 && dim(percent.len)[1] <= 200) {sample.size = 4} && {fig_height = 21}
-if (dim(percent.len)[1] > 200 && dim(percent.len)[1] <= 400) {sample.size = 3} && {fig_height = 21}
+if (dim(percent.len)[1] > 20 && dim(percent.len)[1] <= 50) {sample.size <- 8} && {fig_height = 15}
+if (dim(percent.len)[1] > 50 && dim(percent.len)[1] <= 100) {sample.size <- 6} && {fig_height = 15}
+if (dim(percent.len)[1] > 100 && dim(percent.len)[1] <= 200) {sample.size <- 4} && {fig_height = 21}
+if (dim(percent.len)[1] > 200 && dim(percent.len)[1] <= 400) {sample.size <- 3} && {fig_height = 21}
 if (dim(percent.len)[1] > 400) {sample.size <- 3} && {fig_height <- 21}
 
 # Set some dimensions for given gene numbers (i.e. unique genes in target file):
 if (dim(percent.len)[2] <= 10) {gene.size <- 8} && {fig_length <- 10.7}
-if (dim(percent.len)[2] > 10 && dim(percent.len)[2] <= 20) {gene.size = 10} && {fig_length = 15.7}
-if (dim(percent.len)[2] > 20 && dim(percent.len)[2] <= 50) {gene.size = 8} && {fig_length = 20.7}
-if (dim(percent.len)[2] > 50 && dim(percent.len)[2] <= 100) {gene.size = 6} && {fig_length = 20.7}
-if (dim(percent.len)[2] > 100 && dim(percent.len)[2] <= 200) {gene.size = 4} && {fig_length = 29.7}
-if (dim(percent.len)[2] > 200 && dim(percent.len)[2] <= 400) {gene.size = 3} && {fig_length = 29.7}
+if (dim(percent.len)[2] > 10 && dim(percent.len)[2] <= 20) {gene.size <- 10} && {fig_length = 15.7}
+if (dim(percent.len)[2] > 20 && dim(percent.len)[2] <= 50) {gene.size <- 8} && {fig_length = 20.7}
+if (dim(percent.len)[2] > 50 && dim(percent.len)[2] <= 100) {gene.size <- 6} && {fig_length = 20.7}
+if (dim(percent.len)[2] > 100 && dim(percent.len)[2] <= 200) {gene.size <- 4} && {fig_length = 29.7}
+if (dim(percent.len)[2] > 200 && dim(percent.len)[2] <= 400) {gene.size <- 3} && {fig_length = 29.7}
 if (dim(percent.len)[2] > 400) {gene.size <- 3} && {fig_length <- 29.7}
 
 ggplot(data = percent.long, aes(x=Var2, y=Var1, fill = value))+
