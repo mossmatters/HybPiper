@@ -75,4 +75,4 @@ ggplot(data = percent.long, aes(x=Var2, y=Var1, fill = value))+
   ylab(NULL)+xlab(NULL)+
   theme(axis.text.y=element_text(face="italic",size = sample.size),axis.text.x =element_text(size=gene.size))
 
-# ggsave("heatmap.png", height = fig_height, width = fig_length, units = "cm")
+ggsave("heatmap.png", height = fig_height, width = fig_length, units = "cm")
