@@ -1299,9 +1299,10 @@ def gene_recovery_heatmap(args):
         print(f'{result.stdout}')
 
     except subprocess.CalledProcessError as exc:
-        print(f'heatmap_command FAILED. Output is: {exc}')
-        print(f'heatmap_command stdout is: {exc.stdout}')
-        print(f'heatmap_command stderr is: {exc.stderr}')
+        print(f'{result.stdout}')
+        # print(f'heatmap_command FAILED. Output is: {exc}')
+        # print(f'heatmap_command stdout is: {exc.stdout}')
+        # print(f'heatmap_command stderr is: {exc.stderr}')
 
 
 def add_assemble_parser(subparsers):
