@@ -33,8 +33,8 @@ if (!file.exists(sample.filename)) {
 
 #########################
 
-# library(ggplot2)
-# library(reshape2)
+library(ggplot2)
+library(reshape2)
 
 # sample.data <- as.matrix(read.table(sample.filename, header=T, row.names=1, sep="\t"))
 # sample.len <- sample.data[2:nrow(sample.data),]
