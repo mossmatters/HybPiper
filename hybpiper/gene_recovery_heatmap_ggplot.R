@@ -6,20 +6,20 @@
 # argument:
 
 # Check if user has provided a filename for the output of get_seq_lengths:
-# args <- commandArgs(trailingOnly=TRUE)
+args <- commandArgs(trailingOnly=TRUE)
 
-# if (length(args) == 0) {
-#   cat('No seq_lengths file provided, using default of "seq_lengths.txt"\n')
-#   sample.filename = "seq_lengths.txt"
-# } else {
-#   sample.filename <- args[1]
-# }
-#
-# # Check whether the provided or default file exists:
-# if (!file.exists(sample.filename)) {
-#   cat(paste0('Can not find file <', sample.filename, '>. Is it in the current working directory?\n'))
-#   quit(status=1)
-# }
+if (length(args) == 0) {
+  cat('No seq_lengths file provided, using default of "seq_lengths.txt"\n')
+  sample.filename = "seq_lengths.txt"
+} else {
+  sample.filename <- args[1]
+}
+
+# Check whether the provided or default file exists:
+if (!file.exists(sample.filename)) {
+  cat(paste0('Can not find file <', sample.filename, '>. Is it in the current working directory?\n'))
+  quit(status=1)
+}
 
 #Calculate sizes for gene and sample labels, increase the multiplier to make text bigger
 # gene.size.multiplier = .01
