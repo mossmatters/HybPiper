@@ -64,8 +64,6 @@ def enrich_efficiency_bwa(bamfilename):
                 numReads = float(line.split()[0])
             if re.search(r'mapped \(.*\)', line):
                 mappedReads = float(line.split()[0])
-        # numReads += float(flagstat_results[0].split()[0])
-        # mappedReads += float(flagstat_results[4].split()[0])
     try:
         pctMapped = mappedReads / numReads
     except ZeroDivisionError:

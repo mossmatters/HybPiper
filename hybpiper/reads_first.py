@@ -33,6 +33,10 @@ try:
     import Bio
 except ImportError:
     sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python used to run HybPiper?")
+try:
+    import progressbar
+except ImportError:
+    sys.exit(f"Required Python package 'progressbar2' not found. Is it installed for the Python used to run HybPiper?")
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
@@ -1281,11 +1285,18 @@ def paralog_retriever_main(args):
 
 def gene_recovery_heatmap(args):
     heatmap_command = 'gene_recovery_heatmap_ggplot.R'
+
     try:
         result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 universal_newlines=True, check=True)
+        print(f'heatmap_command check_returncode() is: {result.check_returncode()}')
+        print(f'heatmap_command stdout is: {result.stdout}')
+        print(f'heatmap_command stderr is: {result.stderr}')
+
     except subprocess.CalledProcessError as exc:
-        print(f'{exc.stdout}')
+        print(f'heatmap_command FAILED. Output is: {exc}')
+        print(f'heatmap_command stdout is: {exc.stdout}')
+        print(f'heatmap_command stderr is: {exc.stderr}')
 
 
 def add_assemble_parser(subparsers):
@@ -1492,6 +1503,11 @@ def add_gene_recovery_heatmap_parser(subparsers):
 
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
                                                                                   'the HybPiper run')
+    parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
+                                              help="filename for the seq_lengths file (output of 'hybpiper "
+                                                   "get_seq_lengths). If not provided, search for the file "
+                                                   "seq_lengths.txt by default")
+
     # Set function for subparser <parser_gene_recovery_heatmap>:
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap)
 
