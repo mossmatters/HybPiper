@@ -1284,7 +1284,11 @@ def paralog_retriever_main(args):
 
 
 def gene_recovery_heatmap(args):
-    heatmap_command = 'gene_recovery_heatmap_ggplot.R'
+
+    if args.seq_lengths_file:
+        heatmap_command = f'gene_recovery_heatmap_ggplot.R {args.seq_lengths_file}'
+    else:
+        heatmap_command = f'gene_recovery_heatmap_ggplot.R'
 
     try:
         result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -1503,10 +1507,10 @@ def add_gene_recovery_heatmap_parser(subparsers):
 
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
                                                                                   'the HybPiper run')
-    parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
+    parser_gene_recovery_heatmap.add_argument('-seq_lengths_file',
                                               help="filename for the seq_lengths file (output of 'hybpiper "
-                                                   "get_seq_lengths). If not provided, search for the file "
-                                                   "seq_lengths.txt by default")
+                                                   "get_seq_lengths). If not provided, the file 'seq_lengths.txt' will "
+                                                   "be searched for by default", default=None)
 
     # Set function for subparser <parser_gene_recovery_heatmap>:
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap)
