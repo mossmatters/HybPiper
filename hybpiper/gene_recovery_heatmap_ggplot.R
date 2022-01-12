@@ -6,7 +6,7 @@
 # argument:
 
 # Check if user has provided a filename for the output of get_seq_lengths:
-args <- commandArgs(trailingOnly=TRUE)
+# args <- commandArgs(trailingOnly=TRUE)
 
 # if (length(args) == 0) {
 #   cat('No seq_lengths file provided, using default of "seq_lengths.txt"\n')
