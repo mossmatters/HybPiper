@@ -48,16 +48,24 @@ def enrich_efficiency_bwa(bamfilename):
     samtools_cmd = f'samtools flagstat {bamfilename}'
     child = subprocess.Popen(samtools_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
     flagstat_results = [line for line in child.stdout.readlines()]
-    numReads = float(flagstat_results[0].split()[0])
-    mappedReads = float(flagstat_results[4].split()[0])
+    for line in flagstat_results:
+        if re.search('total', line):
+            numReads = float(line.split()[0])
+        if re.search(r'mapped \(.*\)', line):
+            mappedReads = float(line.split()[0])
 
     if os.path.isfile(bamfilename.replace(".bam", "_unpaired.bam")):
         unpaired_samtools_cmd = f'samtools flagstat {bamfilename.replace(".bam", "_unpaired.bam")}'
         unpaired_child = subprocess.Popen(unpaired_samtools_cmd, shell=True, stdout=subprocess.PIPE,
                                           universal_newlines=True)
         flagstat_results = [line for line in unpaired_child.stdout.readlines()]
-        numReads += float(flagstat_results[0].split()[0])
-        mappedReads += float(flagstat_results[4].split()[0])
+        for line in flagstat_results:
+            if re.search('total', line):
+                numReads = float(line.split()[0])
+            if re.search(r'mapped \(.*\)', line):
+                mappedReads = float(line.split()[0])
+        # numReads += float(flagstat_results[0].split()[0])
+        # mappedReads += float(flagstat_results[4].split()[0])
     try:
         pctMapped = mappedReads / numReads
     except ZeroDivisionError:
