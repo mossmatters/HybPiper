@@ -1293,9 +1293,10 @@ def gene_recovery_heatmap(args):
     try:
         result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 universal_newlines=True, check=True)
-        print(f'heatmap_command check_returncode() is: {result.check_returncode()}')
-        print(f'heatmap_command stdout is: {result.stdout}')
-        print(f'heatmap_command stderr is: {result.stderr}')
+        # print(f'heatmap_command check_returncode() is: {result.check_returncode()}')
+        # print(f'heatmap_command stdout is: {result.stdout}')
+        # print(f'heatmap_command stderr is: {result.stderr}')
+        print(f'{result.stdout}')
 
     except subprocess.CalledProcessError as exc:
         print(f'heatmap_command FAILED. Output is: {exc}')
