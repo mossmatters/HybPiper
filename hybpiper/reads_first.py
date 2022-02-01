@@ -55,6 +55,7 @@ import get_seq_lengths
 import hybpiper_stats
 import retrieve_sequences
 import paralog_retriever
+import gene_recovery_heatmap
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -1283,27 +1284,8 @@ def paralog_retriever_main(args):
     paralog_retriever.main(args)
 
 
-def gene_recovery_heatmap(args):
-
-    if args.seq_lengths_file:
-        heatmap_command = f'gene_recovery_heatmap_ggplot.R {args.seq_lengths_file}'
-    else:
-        heatmap_command = f'gene_recovery_heatmap_ggplot.R'
-
-    try:
-        result = subprocess.run(heatmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True, check=True)
-        # print(f'heatmap_command check_returncode() is: {result.check_returncode()}')
-        # print(f'heatmap_command stdout is: {result.stdout}')
-        # print(f'heatmap_command stderr is: {result.stderr}')
-        print(f'{result.stdout}')
-
-    except subprocess.CalledProcessError as exc:
-        print(f'{exc.stdout}')
-        print(f'{exc.stderr}')
-        # print(f'heatmap_command FAILED. Output is: {exc}')
-        # print(f'heatmap_command stdout is: {exc.stdout}')
-        # print(f'heatmap_command stderr is: {exc.stderr}')
+def gene_recovery_heatmap_main(args):
+    gene_recovery_heatmap.main(args)
 
 
 def add_assemble_parser(subparsers):
@@ -1512,11 +1494,11 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                                                                   'the HybPiper run')
     parser_gene_recovery_heatmap.add_argument('-seq_lengths_file',
                                               help="filename for the seq_lengths file (output of 'hybpiper "
-                                                   "get_seq_lengths). If not provided, the file 'seq_lengths.txt' will "
-                                                   "be searched for by default", default=None)
+                                                   "get_seq_lengths'). If not provided, the file 'seq_lengths.txt' "
+                                                   "will be searched for by default", default=None)
 
     # Set function for subparser <parser_gene_recovery_heatmap>:
-    parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap)
+    parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
 
 
 def parse_arguments():

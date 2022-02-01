@@ -10,7 +10,7 @@ args <- commandArgs(trailingOnly=TRUE)
 
 if (length(args) == 0) {
   cat('No seq_lengths file provided, using default of "seq_lengths.txt"\n')
-  sample.filename = "seq_lengths.txt"
+  sample.filename <- "seq_lengths.txt"
 } else {
   sample.filename <- args[1]
 }
@@ -38,12 +38,17 @@ library(reshape2)
 
 sample.data <- as.matrix(read.table(sample.filename, header=T, row.names=1, sep="\t"))
 sample.len <- sample.data[2:nrow(sample.data),]
+# sample.len
 reference.len <- as.numeric(sample.data[1,])
+# reference.len
 
 #Calculate the percentage length recovered relative to the reference.
 percent.len <- sweep(sample.len, 2, as.numeric(reference.len), '/')
+# percent.len
 percent.len <- ifelse(percent.len>1, 1, percent.len)
+# percent.len
 percent.long <- melt(percent.len)
+# percent.long
 percent.long$Var1 <- as.factor(percent.long$Var1)
 
 # gene.size = dim(percent.len)[2] * gene.size.multiplier

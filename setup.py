@@ -10,7 +10,7 @@ hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.reads_first:ma
 setuptools.setup(name='hybpiper',
                  version='1.4',
                  packages=setuptools.find_packages(),
-                 scripts=['hybpiper/gene_recovery_heatmap_ggplot.R',
+                 scripts=['hybpiper/gene_recovery_heatmap.py',
                           'hybpiper/reads_first.py',
                           'hybpiper/distribute_reads_to_targets_bwa.py',
                           'hybpiper/distribute_reads_to_targets.py',
