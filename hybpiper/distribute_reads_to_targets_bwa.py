@@ -159,8 +159,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         return
 
     elif len(readfiles) == 2:
-        logger.warning(f'{"[NOTE]:":10} Distributing paired reads to gene directories')
-        logger.info(f'{"[NOTE]:":10} Distributing paired reads to gene directories LUCY')
+        logger.info(f'{"[NOTE]:":10} Distributing paired reads to gene directories')
 
         # Check if read file is gzipped:
         filename, file_extension = os.path.splitext(readfiles[1])
