@@ -104,9 +104,12 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
 
 def intronerate(exonerate_object, spades_contig_dict, logger=None):
     """
+    Attempts to identify introns within suoercontigs, and writes fasta files containing 1) supercontig sequences
+    containing exons AND introns, with 10 'N' characters inserted at any location SPAdes contigs have been
+    concatenated; and 2) intron sequences only.
 
-    :param exonerate_object: :
-    :param spades_contig_dict:
+    :param __main__.Exonerate exonerate_object: object returned from the class Exonerate
+    :param dict spades_contig_dict: a SeqIO dictionary of SPAdes contigs
     :param logging.Logger logger: a logger object
     :return:
     """
@@ -131,7 +134,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     for hit, hit_data_dict in trimmed_hits_dict.items():
         spades_name_only = hit.split(',')[0]
         if spades_name_only in hit_spades_names:
-            # FIXME how to deal with cases where a single SPAdes contigs returns more than one Exonerate hit?
+            # FIXME how to deal with cases where a single SPAdes contig returns more than one Exonerate hit?
             # see e.g. https://raw.githubusercontent.com/biopython/biopython/master/Tests/Exonerate
             # /exn_22_m_protein2dna_fshifts.exn
             raise ValueError(f'A hit for contig {spades_name_only} has already been processed!')
@@ -173,10 +176,10 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
             return converted_list
 
         # If no trimming has been performed for a SPAdes contig, or the overlap between adjacent Exonerate contig
-        # hits is <= 3 amino acid, add the whole contig:
+        # hits is <= 3 amino acids, add the whole contig:
         if three_prime_bases_trimmed == 'N/A' or int(three_prime_bases_trimmed) <= 9:
-            logger.debug(f'No trimming performed for {hit}, adding whole SPAdes contig to list!  '
-                         f'three_prime_bases_trimmed is: {three_prime_bases_trimmed}')
+            logger.debug(f'No trimming performed for {hit}, or trimming is <= 9 bases. Adding whole SPAdes contig to '
+                         f'list! three_prime_bases_trimmed is: {three_prime_bases_trimmed}')
             if hit_data_dict['hit_strand'] == -1:
                 revcomp_seqrecord = raw_spades_contig.reverse_complement()
                 revcomp_seqrecord.name = hit_name
@@ -188,7 +191,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig)
                 continue
 
-        # Check if it's a multi-exon hit with intron(s) or frameshifts(?) present:
+        # If trimming WAS performed, check if it's a multi-exon hit with intron(s) or frameshifts(?) present:
         if not inter_ranges_all:
             multi_exon_hit = False
         else:
@@ -329,18 +332,22 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
 
     if len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig_without_ns target
         logger.debug(f'No introns for gene {gene_name}! This is likely caused by Exonerate splitting the '
-                     f'"intronerate_supercontig_without_ns" target in to multiple HSPs (i.e. ot could not find an '
+                     f'"intronerate_supercontig_without_ns" target in to multiple HSPs (i.e. it could not find an '
                      f'intron. Skipping intron recovery for this gene.')
     else:
         with open(f'{intronerate_processing_directory}/{gene_name}_introns.fasta', 'w') as introns_fasta_handle:
             SeqIO.write(intron_sequences, introns_fasta_handle, 'fasta')
 
-            # Move the intron sequence to the intronerate_sequence_directory:
-            shutil.move(f'{intronerate_processing_directory}/{gene_name}_introns.fasta',
-                        f'{intronerate_sequence_directory}')
+    # Move the intron sequence to the intronerate_sequence_directory:
+    if os.path.exists(f'{intronerate_sequence_directory}/{gene_name}_introns.fasta'):
+        os.remove(f'{intronerate_sequence_directory}/{gene_name}_introns.fasta')
+    shutil.move(f'{intronerate_processing_directory}/{gene_name}_introns.fasta',
+                f'{intronerate_sequence_directory}')
 
     # Move the supercontig sequence to the intronerate_sequence_directory:
-    shutil.move(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta',
+    if os.path.exists(f'{intronerate_sequence_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta'):
+        os.remove(f'{intronerate_sequence_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta')
+    shutil.move(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta',
                 f'{intronerate_sequence_directory}')
 
 
@@ -1380,14 +1387,6 @@ def create_output_directories(prefix, assemblyfile):
     return prefix
 
 
-def help():
-    print("USAGE: python hybseq_pipeline.py proteinfile assemblyfile prefix")
-    print("The program Exonerate must be in your $PATH.")
-    print("You must have BioPython installed")
-    print("A protein and a nucleotide directory will be created in the current directory with the prefix.")
-    return
-
-
 ########################################################################################################################
 # Define main(), including argparse options
 ########################################################################################################################
@@ -1484,7 +1483,7 @@ def main():
         return
 
     logger.debug(f'There were {len(exonerate_result.hits_filtered_by_pct_similarity_dict)} Exonerate '
-                 f'hits for {args.proteinfile} after filtering bu similarity threshold {args.thresh}.')
+                 f'hits for {args.proteinfile} after filtering by similarity threshold {args.thresh}.')
 
     if intronerate:
         if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
