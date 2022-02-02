@@ -554,7 +554,6 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_spades_contig_depth'] = spades_contig_depth
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
 
-        # self.logger.debug(f'\nfiltered_by_similarity_hsps_dict is: {filtered_by_similarity_hsps_dict}\n')
         return filtered_by_similarity_hsps_dict
 
     def _recover_long_paralogs(self):
