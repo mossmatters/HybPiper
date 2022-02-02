@@ -280,7 +280,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
             gene_failed = True
 
         if gene_failed:
-            sys.stderr.write(f'{gene}\n')
+            logger.info(f'{" " * 10} {gene}')
             spades_duds.append(gene)
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
