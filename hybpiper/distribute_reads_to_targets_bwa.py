@@ -98,13 +98,6 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
         outfile.write(f'>{ID1}\n{Seq1}\n')
         outfile.write(f'>{ID2}\n{Seq2}\n')
         outfile.close()
-    # else:
-    #     outfile1 = open(os.path.join(target, "{}_1.fasta".format(target)), 'a')
-    #     outfile1.write(">{}\n{}\n".format(ID1, Seq1))
-    #     outfile2 = open(os.path.join(target, "{}_2.fasta".format(target)), 'a')
-    #     outfile2.write(">{}\n{}\n".format(ID2, Seq2))
-    #     outfile1.close()
-    #     outfile2.close()
 
 
 def write_single_seqs(target, ID1, Seq1):
@@ -135,7 +128,6 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
     if merged:
         logger.info(f'{"[NOTE]:":10} Writing fastq files for merging with BBmerge.sh')
 
-    # num_reads_to_write = len(read_hit_dict)
     num_reads_in_readfile = 0
 
     # Check if read file is gzipped:
@@ -153,26 +145,17 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
             num_reads_in_readfile += 1
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
-    # reads_written = 0
-    # sys.stderr.write(f'{"[NOTE]:":10} Read distributing progress:\n')
-
     if len(readfiles) == 1:
         logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
 
-        for ID1_long, Seq1, Qual1 in iterator1:
+        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
+                                                             min_poll_interval=30):
             ID1 = ID1_long.split()[0]
             if ID1.endswith('\1') or ID1.endswith('\2'):
                 ID1 = ID1[:-2]
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
                     write_single_seqs(target, ID1, Seq1)
-                    # reads_written += 1
-            # j = (reads_written + 1) / num_reads_to_write
-            # if int(100*j) % 5 == 0:
-            #     sys.stderr.write('\r')
-            #     sys.stderr.write(f'[{"=" * int(20 * j):20}] {100 * j:0.0f}%')
-            #     sys.stderr.flush()
-        # sys.stderr.write('\n')
         return
 
     elif len(readfiles) == 2:
@@ -186,10 +169,8 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         else:
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
-        # Use progressbar2
-        # with progressbar.ProgressBar(max_value=num_reads_to_write) as bar:
-
-        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile):
+        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
+                                                             min_poll_interval=30):
             ID2_long, Seq2, Qual2 = next(iterator2)
             ID1 = ID1_long.split()[0]
             if ID1.endswith('/1') or ID1.endswith('/2'):
@@ -201,18 +182,9 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
                 for target in read_hit_dict[ID1]:
                     write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
                     # Note that read pairs can get written to multiple targets
-                    # reads_written += 1
             elif ID2 in read_hit_dict:
                 for target in read_hit_dict[ID2]:
                     write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                    # reads_written += 1
-            # bar.update(ID1_long)
-                # j = (reads_written + 1) / num_reads_to_write
-                # if int(100*j) % 5 == 0:
-                #     sys.stderr.write('\r')
-                #     sys.stderr.write(f'[{"=" * int(20 * j):20}] {100 * j:0.0f}%')
-                #     sys.stderr.flush()
-    # sys.stderr.write('\n')
 
 
 def main():
@@ -225,7 +197,7 @@ def main():
 
     logging.info(f'{"[NOTE]:":10} Running script distribute_reads_to_targets_bwa.py with {args}')
     readfiles = args.readfiles
-    logging.info(f'{"[NOTE]:":10} readsfiles are {readfiles}')
+    logging.info(f'{"[NOTE]:":10} readfiles are {readfiles}')
     read_hit_dict = read_sorting(args.bam_filename)
     logging.info(f'{"[NOTE]:":10} [NOTE]: Unique reads with hits: {len(read_hit_dict)}')
     distribute_reads(readfiles, read_hit_dict, merged=args.merged)
