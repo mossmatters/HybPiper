@@ -444,7 +444,7 @@ class Exonerate(object):
         :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
         :param int bbmap_memory: GB of RAM to use for bbmap.sh
         :param int bbmap_threads: number of threads to use for bbmap.sh
-        :param str interleaved_fasta_file: path the the file of interleaved R1 and R2 fasta seqs, if present
+        :param str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
         :param bool nosupercontigs: if True, return the longest Exonerate hit only
         """
 
