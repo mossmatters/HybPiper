@@ -10,11 +10,9 @@ Generates a heatmap of percentage length recovery for each sample and each gene.
 
 """
 
-import logging
 import sys
 import argparse
 import os
-import datetime
 
 # Import non-standard-library modules:
 
@@ -40,54 +38,6 @@ except ImportError:
 cwd = os.getcwd()
 
 
-# Configure logger:
-def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.DEBUG,
-                 logger_object_level=logging.DEBUG):
-    """
-    Function to create a logger instance.
-
-    By default, logs level DEBUG and above to file.
-    By default, logs level INFO and above to stderr and file.
-
-    :param string name: name for the logger instance
-    :param string log_file: filename for log file
-    :param string console_level: level for logging to console
-    :param string file_level: level for logging to file
-    :param string logger_object_level: level for logger object
-    :return: a logger object
-    """
-
-    # Get date and time string for log filename:
-    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
-
-    # Log to file:
-    file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log', mode='w')
-    file_handler.setLevel(file_level)
-    file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
-                                    'message)s')
-    file_handler.setFormatter(file_format)
-
-    # Log to Terminal (stdout):
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(console_level)
-    console_format = logging.Formatter('%(message)s')
-    console_handler.setFormatter(console_format)
-
-    # Setup logger:
-    logger_object = logging.getLogger(name)
-    logger_object.setLevel(logger_object_level)  # Default level is 'WARNING'
-
-    # Add handlers to the logger
-    logger_object.addHandler(console_handler)
-    logger_object.addHandler(file_handler)
-
-    return logger_object
-
-
-# Create logger(s):
-logger = setup_logger(__name__, 'gene_recovery_heatmap')
-
-
 ########################################################################################################################
 ########################################################################################################################
 # Define functions:
@@ -104,8 +54,8 @@ def get_figure_dimensions(df):
     num_samples = len(df.index)
     num_genes = len(df.columns)
 
-    logger.info(f'Number of samples in input lengths file is: {num_samples}')
-    logger.info(f'Number of genes in input lengths file is: {num_genes}')
+    print(f'Number of samples in input lengths file is: {num_samples}')
+    print(f'Number of genes in input lengths file is: {num_genes}')
 
     # Set some dimensions for a given number of samples:
     if num_samples <= 10:
@@ -153,8 +103,8 @@ def get_figure_dimensions(df):
         gene_id_text_size = 3
         fig_length = 29.7/2.54
 
-    logger.info(f'fig_length: {fig_length}, figure_height: {figure_height}, sample_text_size: {sample_text_size}, '
-                f'gene_id_text_size: {gene_id_text_size}')
+    print(f'fig_length: {fig_length}, figure_height: {figure_height}, sample_text_size: {sample_text_size}, '
+          f'gene_id_text_size: {gene_id_text_size}')
 
     return fig_length, figure_height, sample_text_size, gene_id_text_size
 
@@ -184,10 +134,10 @@ def main(args):
     :param argparse.Namespace args:
     """
 
-    logger.info(f'Running {__name__} with: {args}')
+    print(f'Running {__name__} with: {args}')
 
     if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
-        logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
+        print(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
     elif args.seq_lengths_file and os.path.exists(args.seq_lengths_file):
         sample_filename = args.seq_lengths_file
     else:
@@ -231,7 +181,7 @@ def main(args):
     plt.tight_layout()
 
     # Save heatmap as png file:
-    logger.info(f'Saving heatmap as file "heatmap.png"')
+    print(f'Saving heatmap as file "heatmap.png"')
     plt.savefig('heatmap.png', dpi=300)
 
 
