@@ -685,22 +685,22 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
                 if not os.path.isfile(f'{gene}/{gene}_unpaired.fasta'):
                     open(f'{gene}/{gene}_unpaired.fasta', 'a').close()
 
-    logger.info(f'{"[INFO]:":10} Running initial SPAdes assemblies for all genes with reads...')
+    logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for all genes with reads...')
     spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
                                                  kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
                                                  merged=merged)
-    logger.info(f'{"[INFO]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
+    logger.info(f'{"[NOTE]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
     if len(spades_failed) > 0:
         with open('failed_spades.txt', 'w') as failed_spadefile:
             failed_spadefile.write('\n'.join(spades_failed))
 
-        logger.info(f'{"[INFO]:":10} Re-running SPAdes assemblies for genes with unsuccessful initial assemblies...')
+        logger.info(f'{"[NOTE]:":10} Re-running SPAdes assemblies for genes with unsuccessful initial assemblies...')
         spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
-        logger.info(f'{"[INFO]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
+        logger.info(f'{"[NOTE]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
                     f'assemblies!')
 
         if len(spades_duds) == 0:
-            logger.info(f'{"[INFO]:":10} All SPAdes re-runs completed successfully!')
+            logger.info(f'{"[NOTE]:":10} All SPAdes re-runs completed successfully!')
         else:
             logger.error(f'{"[WARN!]:":10} SPAdes re-runs failed for genes {" ".join(spades_duds)}')
 
