@@ -102,7 +102,7 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
 
 def write_single_seqs(target, ID1, Seq1):
     """
-    Writes a fasta filesfo single end reads to the corresponding gene directory
+    Writes a fasta files of single-end reads to the corresponding gene directory
 
     :param str target: gene name e.g. gene001
     :param str ID1: fasta/fastq header for R1
@@ -159,7 +159,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         return
 
     elif len(readfiles) == 2:
-        logger.info(f'{"[NOTE]:":10} Distributing paired reads to gene directories')
+        logger.warning(f'{"[NOTE]:":10} Distributing paired reads to gene directories')
 
         # Check if read file is gzipped:
         filename, file_extension = os.path.splitext(readfiles[1])
