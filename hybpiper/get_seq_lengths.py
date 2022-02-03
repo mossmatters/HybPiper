@@ -41,7 +41,7 @@ def standalone():
 
 def main(args):
     """
-    Entry point for the hybpiper.py module.
+    Entry point for the hybpiper_assemble.py module.
 
     :param argparse.Namespace args:
     """

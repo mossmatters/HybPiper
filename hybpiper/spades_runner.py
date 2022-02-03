@@ -16,7 +16,7 @@ import logging
 
 
 # Create logger:
-logger = logging.getLogger(f'hybpiper.hybpiper.{__name__}')
+logger = logging.getLogger(f'hybpiper.hybpiper_assemble.{__name__}')
 
 
 def file_exists_and_not_empty(file_name):

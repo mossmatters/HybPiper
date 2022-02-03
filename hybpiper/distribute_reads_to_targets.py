@@ -21,7 +21,7 @@ import progressbar
 
 
 # Create logger:
-logger = logging.getLogger(f'hybpiper.hybpiper.{__name__}')
+logger = logging.getLogger(f'hybpiper.hybpiper_assemble.{__name__}')
 
 
 def mkdir_p(path):
