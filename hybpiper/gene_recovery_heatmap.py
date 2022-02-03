@@ -42,12 +42,16 @@ cwd = os.getcwd()
 ########################################################################################################################
 # Define functions:
 
-def get_figure_dimensions(df):
+def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, gene_text_size):
     """
     Takes a dataframe and returns figure length (inches), figure height (inches), sample_text_size and gene_id_text_size
     values based on the number of samples and genes in the seq_lengths.txt input file provided.
 
     :param pandas.core.frame.DataFrame df: pandas dataframe of seq_lengths.txt after filtering and pivot
+    :param NoneType or int: figure_length: if provided, dimension (in inches) for the figure length
+    :param NoneType or int: figure_height: if provided, dimension (in inches) for the figure height
+    :param NoneType or int: sample_text_size: if provided, dimension (in inches) for the figure sample text size
+    :param NoneType or int: gene_text_size: if provided, dimension (in inches) for the figure gene_id text size
     :return float fig_length, figure_height, sample_text_size, gene_id_text_size:
     """
 
@@ -59,49 +63,49 @@ def get_figure_dimensions(df):
 
     # Set some dimensions for a given number of samples:
     if num_samples <= 10:
-        sample_text_size = 10
-        figure_height = 10/2.54
+        sample_text_size = sample_text_size if sample_text_size else 10
+        figure_height = figure_height if figure_height else 10/2.54
     elif 10 < num_samples <= 20:
-        sample_text_size = 8
-        figure_height = 10/2.54
+        sample_text_size = sample_text_size if sample_text_size else 8
+        figure_height = figure_height if figure_height else 10/2.54
     elif 20 < num_samples <= 50:
-        sample_text_size = 8
-        figure_height = 15/2.54
+        sample_text_size = sample_text_size if sample_text_size else 8
+        figure_height = figure_height if figure_height else 15/2.54
     elif 50 < num_samples <= 100:
-        sample_text_size = 6
-        figure_height = 15/2.54
+        sample_text_size = sample_text_size if sample_text_size else 6
+        figure_height = figure_height if figure_height else 15/2.54
     elif 100 < num_samples <= 200:
-        sample_text_size = 4
-        figure_height = 21/2.54
+        sample_text_size = sample_text_size if sample_text_size else 4
+        figure_height = figure_height if figure_height else 21/2.54
     elif 200 < num_samples <= 400:
-        sample_text_size = 3
-        figure_height = 21/2.54
+        sample_text_size = sample_text_size if sample_text_size else 3
+        figure_height = figure_height if figure_height else 21/2.54
     elif num_samples > 400:
-        sample_text_size = 3
-        figure_height = 21/2.54
+        sample_text_size = sample_text_size if sample_text_size else 3
+        figure_height = figure_height if figure_height else 21/2.54
 
     # Set some dimensions for a given number of genes (i.e. number of unique genes in target file):
     if num_genes <= 10:
-        gene_id_text_size = 10
-        fig_length = 10.7/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 10
+        fig_length = figure_length if figure_length else 10.7/2.54
     elif 10 < num_genes <= 20:
-        gene_id_text_size = 10
-        fig_length = 15.7/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 10
+        fig_length = figure_length if figure_length else 15.7/2.54
     elif 20 < num_genes <= 50:
-        gene_id_text_size = 8
-        fig_length = 20.7/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 8
+        fig_length = figure_length if figure_length else 20.7/2.54
     elif 50 < num_genes <= 100:
-        gene_id_text_size = 6
-        fig_length = 20.7/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 6
+        fig_length = figure_length if figure_length else 20.7/2.54
     elif 100 < num_genes <= 200:
-        gene_id_text_size = 4
-        fig_length = 29.7/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 4
+        fig_length = figure_length if figure_length else 29.7/2.54
     elif 200 < num_genes <= 400:
-        gene_id_text_size = 12
-        fig_length = 254/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 12
+        fig_length = figure_length if figure_length else 254/2.54
     elif num_genes > 400:
-        gene_id_text_size = 3
-        fig_length = 29.7/2.54
+        gene_id_text_size = gene_text_size if gene_text_size else 3
+        fig_length = figure_length if figure_length else 29.7/2.54
 
     print(f'fig_length: {fig_length}, figure_height: {figure_height}, sample_text_size: {sample_text_size}, '
           f'gene_id_text_size: {gene_id_text_size}')
@@ -119,9 +123,23 @@ def standalone():
     """
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-seq_lengths_file',
-                        help="filename for the seq_lengths file (output of 'hybpiper get_seq_lengths'). If not "
-                             "provided, the file 'seq_lengths.txt' will be searched for by default", default=None)
+    parser.add_argument('seq_lengths_file',
+                        help="filename for the seq_lengths file (output of 'hybpiper get_seq_lengths')")
+    parser.add_argument('-heatmap_filename',
+                        help='filename for the output heatmap, saved as a *.png file. Defaults to "heatmap.png"',
+                        default='heatmap')
+    parser.add_argument('-figure_length', type=int,
+                        help='Length dimension (in inches) for the output heatmap *.png file. Default is '
+                             'automatically calculated based on the number of genes', default=None)
+    parser.add_argument('-figure_height', type=int,
+                        help='height dimension (in inches) for the output heatmap *.png file. Default is '
+                             'automatically calculated based on the number of samples', default=None)
+    parser.add_argument('-sample_text_size', type=int,
+                        help='Size (in points) for the sample text labels in the output heatmap *.png file. Default is '
+                             'automatically calculated based on the number of samples', default=None)
+    parser.add_argument('-gene_text_size', type=int,
+                        help='Size (in points) for the gene text labels in the output heatmap *.png file. Default is '
+                             'automatically calculated based on the number of genes', default=None)
 
     args = parser.parse_args()
     main(args)
@@ -138,13 +156,9 @@ def main(args):
 
     if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
         print(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
-    elif args.seq_lengths_file and os.path.exists(args.seq_lengths_file):
-        sample_filename = args.seq_lengths_file
-    else:
-        sample_filename = "seq_lengths.txt"
 
     # Read in the sequence length file:
-    df = pd.read_csv(sample_filename, delimiter='\t', )
+    df = pd.read_csv(args.seq_lengths_file, delimiter='\t', )
 
     # For each sample, divide each gene length by the MeanLength value for that gene:
     df.loc[:, df.columns[1]:] = df.loc[:, df.columns[1]:].div(df.iloc[0][df.columns[1]:])
@@ -165,7 +179,11 @@ def main(args):
     df = df.pivot(index='Species', columns='gene_id', values='percentage_recovery')
 
     # Get figure dimension and label text size based on number of samples and genes:
-    fig_length, figure_height, sample_text_size, gene_id_text_size = get_figure_dimensions(df)
+    fig_length, figure_height, sample_text_size, gene_id_text_size = get_figure_dimensions(df,
+                                                                                           args.figure_length,
+                                                                                           args.figure_height,
+                                                                                           args.sample_text_size,
+                                                                                           args.gene_text_size)
 
     # Create heatmap:
     sns.set(rc={'figure.figsize': (fig_length, figure_height)})
@@ -181,8 +199,8 @@ def main(args):
     plt.tight_layout()
 
     # Save heatmap as png file:
-    print(f'Saving heatmap as file "heatmap.png"')
-    plt.savefig('heatmap.png', dpi=300)
+    print(f'Saving heatmap as file "{args.heatmap_filename}.png"')
+    plt.savefig(f'{args.heatmap_filename}.png', dpi=300)
 
 
 ########################################################################################################################
