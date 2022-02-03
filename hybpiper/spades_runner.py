@@ -171,7 +171,6 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged, timeout=timeout)
 
-        # logger.info(f'{"[NOTE]:":10} Running SPAdes on {len(genes)} genes')
         logger.info(f'{"[CMD]:":10} {spades_cmd}')
 
         try:
@@ -203,8 +202,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         else:
             gene_failed = True
 
-        if gene_failed:
-            # logger.info(f'{" " * 10} {gene}')
+        if gene_failed
             spades_failed.append(gene)
     logger.info(f'{" ".join(spades_failed)}\n')
     return spades_failed
@@ -256,7 +254,6 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     else:
         redo_spades_cmd = 'parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
-    logger.info(f'{"[NOTE]:":10} Re-running SPAdes for {len(genes_redos)} genes')
     logger.info(f'{"[CMD]:":10} {redo_spades_cmd}')
 
     try:
@@ -285,11 +282,8 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
             gene_failed = True
 
         if gene_failed:
-            # logger.info(f'{" " * 10} {gene}')
             spades_duds.append(gene)
-
     logger.info(f'{" ".join(spades_duds)}\n')
-
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
 
