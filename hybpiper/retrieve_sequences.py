@@ -4,7 +4,7 @@
 Usage:
     python retrieve_sequences.py targets.fasta sequence_dir aa/dna/intron/supercontig
 
-This script will get the sequences generated from multiple runs of the HybSeqPipeline (hybpiper_assemble.py).
+This script will get the sequences generated from multiple runs of the HybSeqPipeline (assemble.py).
 Specify either a directory with all the HybPiper output directories or a file containing sequences of interest. 
 It retreives all the gene names from the bait file used in the run of the pipeline.
 
@@ -40,7 +40,7 @@ def standalone():
 
 def main(args):
     """
-    Entry point for the hybpiper_assemble.py module.
+    Entry point for the assemble.py module.
 
     :param argparse.Namespace args:
     """

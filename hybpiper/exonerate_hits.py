@@ -1181,7 +1181,7 @@ class Exonerate(object):
     def _write_genes_with_supercontigs(self, data):
         """
         Writes a file listing genes for which a supercontig was created (or skipped of flag --nosupecontigs was
-        provided to hybpiper_assemble.py). These per-sample files are collated in the hybpiper_assemble.py script after
+        provided to assemble.py). These per-sample files are collated in the assemble.py script after
         all genes have completed.
         """
 

@@ -5,13 +5,13 @@ import setuptools
 hybpiper_scripts = ['hybpiper']
 hybpiper_description = 'Recovery of target gene sequences from bait-capture data'
 hybpiper_url = 'https://github.com/chrisjackson-pellicle/HybPiper.git'
-hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.hybpiper_assemble:main']}
+hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.assemble:main']}
 
 setuptools.setup(name='hybpiper',
                  version='1.4',
                  packages=setuptools.find_packages(),
                  scripts=['hybpiper/gene_recovery_heatmap.py',
-                          'hybpiper/hybpiper_assemble.py',
+                          'hybpiper/assemble.py',
                           'hybpiper/distribute_reads_to_targets_bwa.py',
                           'hybpiper/distribute_reads_to_targets.py',
                           'hybpiper/distribute_targets.py',

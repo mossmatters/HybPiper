@@ -45,7 +45,7 @@ biopython_version_print = pkg_resources.get_distribution('biopython').version
 #     sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
 #              f"Please update your Biopython for the Python use to run HybPiper!")
 
-# Import HybPiper modules required for hybpiper_assemble.py:
+# Import HybPiper modules required for assemble.py:
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
@@ -995,7 +995,7 @@ def exonerate_multiprocessing(genes,
 
 def assemble(args):
     """
-    Assemble gene, intron and supercontig sequences via hybpiper_assemble.py
+    Assemble gene, intron and supercontig sequences via assemble.py
 
     :param args:
     :type args:
