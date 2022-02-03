@@ -694,7 +694,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
         with open('failed_spades.txt', 'w') as failed_spadefile:
             failed_spadefile.write('\n'.join(spades_failed))
 
-        logger.info(f'{"[NOTE]:":10} Re-running SPAdes assemblies for genes with unsuccessful initial assemblies...')
+        # logger.info(f'{"[NOTE]:":10} Re-running SPAdes assemblies for genes with unsuccessful initial assemblies...')
         spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
         logger.info(f'{"[NOTE]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
                     f'assemblies!')

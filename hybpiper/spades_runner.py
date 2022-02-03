@@ -206,7 +206,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         if gene_failed:
             # logger.info(f'{" " * 10} {gene}')
             spades_failed.append(gene)
-    logger.info(f'{" ".join(spades_failed)}')
+    logger.info(f'{" ".join(spades_failed)}\n')
     return spades_failed
 
 
@@ -222,6 +222,9 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     """
 
     genes = [x.rstrip() for x in open(genelist)]
+
+    logger.info(f'{"[NOTE]:":10} Re-running SPAdes assemblies for {len(genes)} genes with unsuccessful initial '
+                f'assemblies...')
 
     redo_cmds_file = open('redo_spades_commands.txt', 'w')
 
@@ -264,7 +267,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         logger.debug(f'redo_spades_cmd stderr is: {result.stderr}')
 
     except subprocess.CalledProcessError as exc:
-        logger.error(f'redo_spades_cmd FAILED. Output is: {exc}')
+        logger.debug(f'redo_spades_cmd FAILED. Output is: {exc}')
         logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
         logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
         logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
@@ -282,8 +285,11 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
             gene_failed = True
 
         if gene_failed:
-            logger.info(f'{" " * 10} {gene}')
+            # logger.info(f'{" " * 10} {gene}')
             spades_duds.append(gene)
+
+    logger.info(f'{" ".join(spades_duds)}\n')
+
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
 
