@@ -202,7 +202,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         else:
             gene_failed = True
 
-        if gene_failed
+        if gene_failed:
             spades_failed.append(gene)
     logger.info(f'{" ".join(spades_failed)}\n')
     return spades_failed
