@@ -685,7 +685,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
                 if not os.path.isfile(f'{gene}/{gene}_unpaired.fasta'):
                     open(f'{gene}/{gene}_unpaired.fasta', 'a').close()
 
-    logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for all genes with reads...')
+    # logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for all genes with reads...')
     spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
                                                  kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
                                                  merged=merged)

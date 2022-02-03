@@ -127,10 +127,13 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     :return: list spades_failed: list of genes for which the SPAdes assemblies failed.
     """
 
+    logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for all genes with reads...')
+
     if os.path.isfile("spades.log"):
         os.remove("spades.log")
 
     genes = [x.rstrip() for x in open(genelist)]
+    logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for {len(genes)} genes with reads...')
 
     if merged:
         spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
@@ -170,7 +173,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged, timeout=timeout)
 
-        logger.info(f'{"[NOTE]:":10} Running SPAdes on {len(genes)} genes')
+        # logger.info(f'{"[NOTE]:":10} Running SPAdes on {len(genes)} genes')
         logger.info(f'{"[CMD]:":10} {spades_cmd}')
 
         try:
@@ -205,6 +208,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         if gene_failed:
             logger.info(f'{" " * 10} {gene}')
             spades_failed.append(gene)
+    logger.info(f'{" ".join(spades_failed)}')
     return spades_failed
 
 

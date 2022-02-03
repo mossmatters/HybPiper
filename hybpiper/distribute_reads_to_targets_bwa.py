@@ -29,7 +29,7 @@ logger = logging.getLogger(f'__main__.{__name__}')
 
 def mkdir_p(path):
     """
-    Creates a directory corresponding the the given path, if it doesn't already exist.
+    Creates a directory corresponding to the given path, if it doesn't already exist.
 
     :param str path: path of directory to create
     :return:
