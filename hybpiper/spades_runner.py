@@ -127,8 +127,6 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     :return: list spades_failed: list of genes for which the SPAdes assemblies failed.
     """
 
-    logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for all genes with reads...')
-
     if os.path.isfile("spades.log"):
         os.remove("spades.log")
 
@@ -206,7 +204,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             gene_failed = True
 
         if gene_failed:
-            logger.info(f'{" " * 10} {gene}')
+            # logger.info(f'{" " * 10} {gene}')
             spades_failed.append(gene)
     logger.info(f'{" ".join(spades_failed)}')
     return spades_failed

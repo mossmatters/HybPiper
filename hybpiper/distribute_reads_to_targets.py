@@ -90,13 +90,6 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
         outfile.write(f'>{ID1}\n{Seq1}\n')
         outfile.write(f'>{ID2}\n{Seq2}\n')
         outfile.close()
-    # else:
-    #     outfile1 = open(os.path.join(target, "{}_1.fasta".format(target)), 'a')
-    #     outfile1.write(">{}\n{}\n".format(ID1, Seq1))
-    #     outfile2 = open(os.path.join(target, "{}_2.fasta".format(target)), 'a')
-    #     outfile2.write(">{}\n{}\n".format(ID2, Seq2))
-    #     outfile1.close()
-    #     outfile2.close()
 
 
 def write_single_seqs(target, ID1, Seq1):
