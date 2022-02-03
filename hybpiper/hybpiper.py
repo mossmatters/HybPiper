@@ -45,7 +45,7 @@ biopython_version_print = pkg_resources.get_distribution('biopython').version
 #     sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
 #              f"Please update your Biopython for the Python use to run HybPiper!")
 
-# Import HybPiper modules required for reads_first.py:
+# Import HybPiper modules required for hybpiper.py:
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
@@ -995,7 +995,7 @@ def exonerate_multiprocessing(genes,
 
 def assemble(args):
     """
-    Assemble gene, intron and supercontig sequences via reads_first.py
+    Assemble gene, intron and supercontig sequences via hybpiper.py
 
     :param args:
     :type args:
@@ -1013,9 +1013,9 @@ def assemble(args):
 
     # Create logger:
     if args.prefix:
-        logger = setup_logger(__name__, f'{basename}/{args.prefix}_reads_first')
+        logger = setup_logger(__name__, f'{basename}/{args.prefix}_hybpiper_assemble')
     else:
-        logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_reads_first')
+        logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
 
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
@@ -1082,7 +1082,7 @@ def assemble(args):
             bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
             if not bamfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-                             f'reads_first.log file for sample {basename}!')
+                             f'hybpiper_assemble.log file for sample {basename}!')
                 return
 
             logger.debug(f'bamfile is: {bamfile}')
@@ -1104,8 +1104,7 @@ def assemble(args):
 
         if not blastx_outputfile:
             logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-                         f'reads_first.log file '
-                         f'for sample {basename}!')
+                         f'hybpiper_assemble.log file for sample {basename}!')
             return
         else:
             blastx_outputfile = f'{basename}.blastx'
@@ -1268,7 +1267,7 @@ def assemble(args):
     logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
 
-    logger.info(f'\nFinished running reads_first.py for sample {basename}!\n')
+    logger.info(f'\nFinished running "hybpiper assemble" for sample {basename}!\n')
 
 
 def get_seq_lengths_main(args):

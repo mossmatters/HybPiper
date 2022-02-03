@@ -25,7 +25,7 @@ from Bio.Seq import Seq
 import logging
 
 # Create logger:
-logger = logging.getLogger(f'__main__.{__name__}')
+logger = logging.getLogger(f'hybpiper.hybpiper.{__name__}')
 
 
 def pad_seq(sequence):
