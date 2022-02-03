@@ -699,8 +699,8 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
         if len(spades_duds) == 0:
             logger.info(f'{"[NOTE]:":10} All SPAdes re-runs completed successfully!')
-        else:
-            logger.error(f'{"[WARN!]:":10} SPAdes re-runs failed for genes {" ".join(spades_duds)}')
+        # else:
+        #     logger.error(f'{"[WARN!]:":10} SPAdes re-runs failed for genes {" ".join(spades_duds)}')
 
     if os.path.isfile('spades_duds.txt'):  # Written by spades_runner.rerun_spades()
         spades_duds = [x.rstrip() for x in open('spades_duds.txt')]

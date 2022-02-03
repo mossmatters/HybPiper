@@ -204,7 +204,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
         if gene_failed:
             spades_failed.append(gene)
-    logger.info(f'{" ".join(spades_failed)}\n')
+    logger.info(f'{" ".join(spades_failed)}\n')  # Write a list of genes with failed SPAdes initial runs
     return spades_failed
 
 
@@ -283,7 +283,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
 
         if gene_failed:
             spades_duds.append(gene)
-    logger.info(f'{" ".join(spades_duds)}\n')
+    logger.info(f'{" ".join(spades_duds)}\n')  # Write a list of genes with failed SPAdes re-runs
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
 
