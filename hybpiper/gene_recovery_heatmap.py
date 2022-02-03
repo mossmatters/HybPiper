@@ -48,10 +48,10 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     values based on the number of samples and genes in the seq_lengths.txt input file provided.
 
     :param pandas.core.frame.DataFrame df: pandas dataframe of seq_lengths.txt after filtering and pivot
-    :param NoneType or int: figure_length: if provided, dimension (in inches) for the figure length
-    :param NoneType or int: figure_height: if provided, dimension (in inches) for the figure height
-    :param NoneType or int: sample_text_size: if provided, dimension (in inches) for the figure sample text size
-    :param NoneType or int: gene_text_size: if provided, dimension (in inches) for the figure gene_id text size
+    :param NoneType or int figure_length: if provided, dimension (in inches) for the figure length
+    :param NoneType or int figure_height: if provided, dimension (in inches) for the figure height
+    :param NoneType or int sample_text_size: if provided, dimension (in inches) for the figure sample text size
+    :param NoneType or int gene_text_size: if provided, dimension (in inches) for the figure gene_id text size
     :return float fig_length, figure_height, sample_text_size, gene_id_text_size:
     """
 
