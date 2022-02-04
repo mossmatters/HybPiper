@@ -102,7 +102,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         return None
 
 
-def intronerate(exonerate_object, spades_contig_dict, logger=None):
+def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_supercontigs=True):
     """
     Attempts to identify introns within suoercontigs, and writes fasta files containing 1) supercontig sequences
     containing exons AND introns, with 10 'N' characters inserted at any location SPAdes contigs have been
@@ -111,6 +111,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     :param __main__.Exonerate exonerate_object: object returned from the class Exonerate
     :param dict spades_contig_dict: a SeqIO dictionary of SPAdes contigs
     :param logging.Logger logger: a logger object
+    :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :return:
     """
 
@@ -279,8 +280,17 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None):
     # Run Exonerate to get the gff file:
     intronerate_query = f'{exonerate_object.prefix}/sequences/FAA/{gene_name}.FAA'
 
+    if no_padding_supercontigs:
+        logger.debug(f'Intronerate run of Exonerate for gff will be run using'
+                     f' {gene_name}_intronerate_supercontig_without_Ns.fasta')
+        exonerate_supercontig_reference = f'{gene_name}_intronerate_supercontig_without_Ns.fasta'
+    else:
+        logger.debug(f'Intronerate run of Exonerate for gff will be run using'
+                     f' {gene_name}_intronerate_supercontig_with_Ns.fasta')
+        exonerate_supercontig_reference = f'{gene_name}_intronerate_supercontig_with_Ns.fasta'
+
     exonerate_command = f'exonerate -m protein2genome -q {intronerate_query} -t ' \
-                        f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta ' \
+                        f'{intronerate_processing_directory}/{exonerate_supercontig_reference} ' \
                         f'--verbose 0 --showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
                         f' {intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'
 

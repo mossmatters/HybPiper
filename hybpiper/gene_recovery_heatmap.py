@@ -64,51 +64,51 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     # Set some dimensions for a given number of samples:
     if num_samples <= 10:
         sample_text_size = sample_text_size if sample_text_size else 10
-        figure_height = figure_height if figure_height else 10/2.54
+        figure_height = figure_height if figure_height else 4
     elif 10 < num_samples <= 20:
         sample_text_size = sample_text_size if sample_text_size else 8
-        figure_height = figure_height if figure_height else 10/2.54
+        figure_height = figure_height if figure_height else 4
     elif 20 < num_samples <= 50:
         sample_text_size = sample_text_size if sample_text_size else 8
-        figure_height = figure_height if figure_height else 15/2.54
+        figure_height = figure_height if figure_height else 6
     elif 50 < num_samples <= 100:
         sample_text_size = sample_text_size if sample_text_size else 6
-        figure_height = figure_height if figure_height else 15/2.54
+        figure_height = figure_height if figure_height else 6
     elif 100 < num_samples <= 200:
         sample_text_size = sample_text_size if sample_text_size else 4
-        figure_height = figure_height if figure_height else 21/2.54
+        figure_height = figure_height if figure_height else 8
     elif 200 < num_samples <= 400:
         sample_text_size = sample_text_size if sample_text_size else 3
-        figure_height = figure_height if figure_height else 21/2.54
+        figure_height = figure_height if figure_height else 8
     elif num_samples > 400:
         sample_text_size = sample_text_size if sample_text_size else 3
-        figure_height = figure_height if figure_height else 21/2.54
+        figure_height = figure_height if figure_height else 8
 
     # Set some dimensions for a given number of genes (i.e. number of unique genes in target file):
     if num_genes <= 10:
         gene_id_text_size = gene_text_size if gene_text_size else 10
-        fig_length = figure_length if figure_length else 10.7/2.54
+        fig_length = figure_length if figure_length else 4
     elif 10 < num_genes <= 20:
         gene_id_text_size = gene_text_size if gene_text_size else 10
-        fig_length = figure_length if figure_length else 15.7/2.54
+        fig_length = figure_length if figure_length else 6
     elif 20 < num_genes <= 50:
         gene_id_text_size = gene_text_size if gene_text_size else 8
-        fig_length = figure_length if figure_length else 20.7/2.54
+        fig_length = figure_length if figure_length else 8
     elif 50 < num_genes <= 100:
         gene_id_text_size = gene_text_size if gene_text_size else 6
-        fig_length = figure_length if figure_length else 20.7/2.54
+        fig_length = figure_length if figure_length else 8
     elif 100 < num_genes <= 200:
         gene_id_text_size = gene_text_size if gene_text_size else 4
-        fig_length = figure_length if figure_length else 29.7/2.54
+        fig_length = figure_length if figure_length else 70
     elif 200 < num_genes <= 400:
         gene_id_text_size = gene_text_size if gene_text_size else 12
-        fig_length = figure_length if figure_length else 254/2.54
+        fig_length = figure_length if figure_length else 90
     elif num_genes > 400:
         gene_id_text_size = gene_text_size if gene_text_size else 3
-        fig_length = figure_length if figure_length else 29.7/2.54
+        fig_length = figure_length if figure_length else 120
 
-    print(f'fig_length: {fig_length}, figure_height: {figure_height}, sample_text_size: {sample_text_size}, '
-          f'gene_id_text_size: {gene_id_text_size}')
+    print(f'fig_length: {fig_length} inches, figure_height: {figure_height} inches, sample_text_size:'
+          f' {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
 
     return fig_length, figure_height, sample_text_size, gene_id_text_size
 
@@ -195,12 +195,14 @@ def main(args):
     heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0)
     heatmap.set_xlabel("Gene name", fontsize=14, fontweight='bold', labelpad=20)
     heatmap.set_ylabel("Sample name", fontsize=14, fontweight='bold', labelpad=20)
-    plt.title("Percentage length recovery for each gene, relative to mean of baitfile references", fontsize=20, y=1.05)
-    plt.tight_layout()
+    plt.title("Percentage length recovery for each gene, relative to mean of baitfile references", fontsize=14,
+              fontweight='bold', y=1.05)
+    # plt.tight_layout()
 
     # Save heatmap as png file:
     print(f'Saving heatmap as file "{args.heatmap_filename}.png"')
-    plt.savefig(f'{args.heatmap_filename}.png', dpi=300)
+    # plt.savefig(f'{args.heatmap_filename}.png', dpi=300)
+    plt.savefig(f'{args.heatmap_filename}.png', dpi=300, bbox_inches='tight')
 
 
 ########################################################################################################################

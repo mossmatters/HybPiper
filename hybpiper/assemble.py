@@ -757,7 +757,8 @@ def exonerate(gene_name,
               counter=None,
               lock=None,
               genes_to_process=0,
-              intronerate=False):
+              intronerate=False,
+              no_padding_supercontigs=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
@@ -775,6 +776,7 @@ def exonerate(gene_name,
     :param multiprocessing.managers.AcquirerProxy lock:
     :param int genes_to_process: total number of genes to be processed via Exonerate
     :param bool intronerate: if True, run intronerate (if supercontig also produced)
+    :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :return: str gene_name, str prot_length OR None, None
     """
 
@@ -846,7 +848,8 @@ def exonerate(gene_name,
                              f'intronerate will not be run for this gene')
             else:
                 logger.debug(f'Running intronerate for gene {gene_name}')
-                exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger)
+                exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger,
+                                           no_padding_supercontigs=no_padding_supercontigs)
     else:
         exonerate_result = False
 
@@ -906,7 +909,8 @@ def exonerate_multiprocessing(genes,
                               chimeric_supercontig_edit_distance=5,
                               chimeric_supercontig_discordant_reads_cutoff=5,
                               logger=None,
-                              intronerate=False):
+                              intronerate=False,
+                              no_padding_supercontigs=True):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -924,7 +928,8 @@ def exonerate_multiprocessing(genes,
     :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as
     chimeric
     :param logging.Logger logger: a logger object
-    :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns )
+    :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns)
+    :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :return:
     """
 
@@ -957,7 +962,8 @@ def exonerate_multiprocessing(genes,
                                       counter=counter,
                                       lock=lock,
                                       genes_to_process=genes_to_process,
-                                      intronerate=intronerate)
+                                      intronerate=intronerate,
+                                      no_padding_supercontigs=no_padding_supercontigs)
                           for gene_name in genes]
         for future in future_results:
             future.add_done_callback(done_callback)
@@ -1217,7 +1223,8 @@ def assemble(args):
                                   bbmap_threads=args.bbmap_threads,
                                   pool_threads=args.cpu,
                                   logger=logger,
-                                  intronerate=args.intronerate)
+                                  intronerate=args.intronerate,
+                                  no_padding_supercontigs=args.no_padding_supercontigs)
 
     ####################################################################################################################
     # Collate all supercontig and putative chimera read reports
@@ -1392,6 +1399,11 @@ def add_assemble_parser(subparsers):
                                  help='Keep the SPAdes folder for each gene. Default action is to delete it following '
                                       'contig recovery (dramatically reduces the total files number)',
                                  action='store_true', dest='keep_spades', default=False)
+    parser_assemble.add_argument("--no_padding_supercontigs",
+                                 help='If Intronerate is run, and a supercontig is created by concatenating multiple '
+                                      'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
+                                      'Ns will be added.', action='store_true', dest='no_padding_supercontigs',
+                                 default=False)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
@@ -1494,10 +1506,28 @@ def add_gene_recovery_heatmap_parser(subparsers):
 
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
                                                                                   'the HybPiper run')
-    parser_gene_recovery_heatmap.add_argument('-seq_lengths_file',
+    parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
                                               help="filename for the seq_lengths file (output of 'hybpiper "
-                                                   "get_seq_lengths'). If not provided, the file 'seq_lengths.txt' "
-                                                   "will be searched for by default", default=None)
+                                                   "get_seq_lengths')")
+    parser_gene_recovery_heatmap.add_argument('-heatmap_filename',
+                                              help='filename for the output heatmap, saved as a *.png file. Defaults '
+                                                   'to "heatmap.png"', default='heatmap')
+    parser_gene_recovery_heatmap.add_argument('-figure_length', type=int,
+                                              help='Length dimension (in inches) for the output heatmap *.png file. '
+                                                   'Default is automatically calculated based on the number of '
+                                                   'genes', default=None)
+    parser_gene_recovery_heatmap.add_argument('-figure_height', type=int,
+                                              help='height dimension (in inches) for the output heatmap *.png file. '
+                                                   'Default is automatically calculated based on the number of '
+                                                   'samples', default=None)
+    parser_gene_recovery_heatmap.add_argument('-sample_text_size', type=int,
+                                              help='Size (in points) for the sample text labels in the output heatmap '
+                                                   '*.png file. Default is automatically calculated based on the '
+                                                   'number of samples', default=None)
+    parser_gene_recovery_heatmap.add_argument('-gene_text_size', type=int,
+                                              help='Size (in points) for the gene text labels in the output heatmap '
+                                                   '*.png file. Default is automatically calculated based on the '
+                                                   'number of genes', default=None)
 
     # Set function for subparser <parser_gene_recovery_heatmap>:
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
