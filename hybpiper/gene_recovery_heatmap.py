@@ -125,21 +125,24 @@ def standalone():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('seq_lengths_file',
                         help="filename for the seq_lengths file (output of 'hybpiper get_seq_lengths')")
-    parser.add_argument('-heatmap_filename',
-                        help='filename for the output heatmap, saved as a *.png file. Defaults to "heatmap.png"',
+    parser.add_argument('--heatmap_filename',
+                        help='filename for the output heatmap, saved by default as a *.png file. Defaults to '
+                             '"heatmap.png"',
                         default='heatmap')
-    parser.add_argument('-figure_length', type=int,
-                        help='Length dimension (in inches) for the output heatmap *.png file. Default is '
+    parser.add_argument('--figure_length', type=int,
+                        help='Length dimension (in inches) for the output heatmap file. Default is '
                              'automatically calculated based on the number of genes', default=None)
-    parser.add_argument('-figure_height', type=int,
-                        help='height dimension (in inches) for the output heatmap *.png file. Default is '
+    parser.add_argument('--figure_height', type=int,
+                        help='height dimension (in inches) for the output heatmap file. Default is '
                              'automatically calculated based on the number of samples', default=None)
-    parser.add_argument('-sample_text_size', type=int,
-                        help='Size (in points) for the sample text labels in the output heatmap *.png file. Default is '
+    parser.add_argument('--sample_text_size', type=int,
+                        help='Size (in points) for the sample text labels in the output heatmap file. Default is '
                              'automatically calculated based on the number of samples', default=None)
-    parser.add_argument('-gene_text_size', type=int,
-                        help='Size (in points) for the gene text labels in the output heatmap *.png file. Default is '
+    parser.add_argument('--gene_text_size', type=int,
+                        help='Size (in points) for the gene text labels in the output heatmap file. Default is '
                              'automatically calculated based on the number of genes', default=None)
+    parser.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
+                        help='File type to save the output heatmap image as. Default is *.png', default='png')
 
     args = parser.parse_args()
     main(args)
@@ -200,9 +203,9 @@ def main(args):
     # plt.tight_layout()
 
     # Save heatmap as png file:
-    print(f'Saving heatmap as file "{args.heatmap_filename}.png"')
+    print(f'Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}"')
     # plt.savefig(f'{args.heatmap_filename}.png', dpi=300)
-    plt.savefig(f'{args.heatmap_filename}.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=300, bbox_inches='tight')
 
 
 ########################################################################################################################

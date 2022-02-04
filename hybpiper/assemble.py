@@ -1509,25 +1509,28 @@ def add_gene_recovery_heatmap_parser(subparsers):
     parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
                                               help="filename for the seq_lengths file (output of 'hybpiper "
                                                    "get_seq_lengths')")
-    parser_gene_recovery_heatmap.add_argument('-heatmap_filename',
-                                              help='filename for the output heatmap, saved as a *.png file. Defaults '
-                                                   'to "heatmap.png"', default='heatmap')
-    parser_gene_recovery_heatmap.add_argument('-figure_length', type=int,
-                                              help='Length dimension (in inches) for the output heatmap *.png file. '
+    parser_gene_recovery_heatmap.add_argument('--heatmap_filename',
+                                              help='filename for the output heatmap, saved by default as a *.png file. '
+                                                   'Defaults to "heatmap.png"', default='heatmap')
+    parser_gene_recovery_heatmap.add_argument('--figure_length', type=int,
+                                              help='Length dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
                                                    'genes', default=None)
-    parser_gene_recovery_heatmap.add_argument('-figure_height', type=int,
-                                              help='height dimension (in inches) for the output heatmap *.png file. '
+    parser_gene_recovery_heatmap.add_argument('--figure_height', type=int,
+                                              help='height dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
                                                    'samples', default=None)
-    parser_gene_recovery_heatmap.add_argument('-sample_text_size', type=int,
+    parser_gene_recovery_heatmap.add_argument('--sample_text_size', type=int,
                                               help='Size (in points) for the sample text labels in the output heatmap '
-                                                   '*.png file. Default is automatically calculated based on the '
+                                                   'file. Default is automatically calculated based on the '
                                                    'number of samples', default=None)
-    parser_gene_recovery_heatmap.add_argument('-gene_text_size', type=int,
+    parser_gene_recovery_heatmap.add_argument('--gene_text_size', type=int,
                                               help='Size (in points) for the gene text labels in the output heatmap '
-                                                   '*.png file. Default is automatically calculated based on the '
+                                                   'file. Default is automatically calculated based on the '
                                                    'number of genes', default=None)
+    parser_gene_recovery_heatmap.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
+                                              help='File type to save the output heatmap image as. Default is *.png',
+                                              default='png')
 
     # Set function for subparser <parser_gene_recovery_heatmap>:
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
