@@ -142,7 +142,7 @@ def standalone():
                         help='Size (in points) for the gene text labels in the output heatmap file. Default is '
                              'automatically calculated based on the number of genes', default=None)
     parser.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
-                        help='File type to save the output heatmap image as. Default is *.png', default='png')
+                        help='File type to save the output heatmap image as. Default is png', default='png')
 
     args = parser.parse_args()
     main(args)
