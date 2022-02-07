@@ -55,7 +55,7 @@ def enrich_efficiency_blastx(blastxfilename, name):
         pctMapped = mappedReads / total_input_reads
     except ZeroDivisionError:
         pctMapped = 0.0
-    return total_input_reads, str(mappedReads), "{0:.3f}".format(pctMapped)
+    return str(total_input_reads), str(mappedReads), "{0:.3f}".format(pctMapped)
 
 
 def enrich_efficiency_bwa(bamfilename):
