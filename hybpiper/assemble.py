@@ -656,14 +656,16 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     if len(readfiles) == 2:
         logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files '
                     f'will be distributed to gene directories')
+        single_end = False
     elif len(readfiles) == 1:
         logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the single-end read file will '
                     f'be distributed to gene directories')
+        single_end = True
     else:
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
     distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged,
-                                                     unpaired_readfile=unpaired_readfile)
+                                                     single_end=single_end)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')

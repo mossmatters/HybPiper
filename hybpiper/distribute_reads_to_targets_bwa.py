@@ -116,13 +116,14 @@ def write_single_seqs(target, ID1, Seq1):
     outfile.close()
     
     
-def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=None):
+def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=None, single_end=False):
     """
 
     :param list readfiles: a list of one or more readfiles
     :param dict read_hit_dict: dictionary of read_hit_dict[readID] = [target1, target2, ...]
     :param bool merged: boolean passed to function write_paired_seqs()
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
+    :param bool single_end: True if a single file was provided as input to -r, False if not
     :return:
     """
 
@@ -148,7 +149,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
             num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hybpiper_stats.py
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
-    if len(readfiles) == 1 and not unpaired_readfile:
+    if len(readfiles) == 1 and single_end:
         logger.info(f'{"[NOTE]:":10} Distributing single-end reads to gene directories')
         for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
                                                              min_poll_interval=30):
