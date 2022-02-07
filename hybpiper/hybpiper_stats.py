@@ -37,24 +37,25 @@ def enrich_efficiency_blastx(blastxfilename, name):
         reads_with_hits += [x.split()[0] for x in open(blastxfilename.replace(".blastx", "_unpaired.blastx"))]
     mappedReads = len(set(reads_with_hits))
 
-    # Check for and read total numbers of reads in input files:
+    # Recover total numbers of reads in input files:
     if os.path.exists(f'{name}/total_input_reads_paired.txt'):
         with open(f'{name}/total_input_reads_paired.txt', 'r') as paired_number:
-            total_paired_reads = paired_number.read().rstrip()
-            print(f'total_paired_reads: {total_paired_reads}')
+            total_input_reads = int(paired_number.read().rstrip())
     elif os.path.exists(f'{name}/total_input_reads_single.txt'):
         with open(f'{name}/total_input_reads_single.txt', 'r') as single_number:
-            total_single_reads = single_number.read().rstrip()
-            print(f'total_single_reads: {total_single_reads}')
+            total_input_reads = int(single_number.read().rstrip())
     else:
         raise ValueError(f'No file containing total input paired or single-end read count found!')
 
     if os.path.exists(f'{name}/total_input_reads_unpaired.txt'):
         with open(f'{name}/total_input_reads_unpaired.txt', 'r') as unpaired_number:
-            total_unpaired_reads = unpaired_number.read().rstrip()
-            print(f'total_unpaired_reads: {total_unpaired_reads}')
+            total_input_reads = total_input_reads + int(unpaired_number.read().rstrip())
 
-    return "NA", str(mappedReads), "NA"  # TODO parse this info for the report
+    try:
+        pctMapped = mappedReads / total_input_reads
+    except ZeroDivisionError:
+        pctMapped = 0.0
+    return total_input_reads, str(mappedReads), "{0:.3f}".format(pctMapped)
 
 
 def enrich_efficiency_bwa(bamfilename):
