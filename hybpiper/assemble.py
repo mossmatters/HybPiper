@@ -652,16 +652,26 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets_bwa.read_sorting(bamfile)
     # logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
-    logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files will '
-                f'be distributed to gene directories')
-    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
+
+    if len(readfiles) == 2:
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files '
+                    f'will be distributed to gene directories')
+    elif len(readfiles) == 1:
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the single-end read file will '
+                    f'be distributed to gene directories')
+    else:
+        raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
+
+    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged,
+                                                     unpaired_readfile=unpaired_readfile)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
         read_hit_dict_unpaired = distribute_reads_to_targets_bwa.read_sorting(up_bamfile)
         logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
-        distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
+        distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
+                                                         unpaired_readfile=unpaired_readfile)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:

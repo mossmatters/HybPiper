@@ -27,7 +27,7 @@ def file_len(fname):
     return int(result.strip().split()[0])
 
 
-def enrich_efficiency_blastx(blastxfilename):
+def enrich_efficiency_blastx(blastxfilename, name):
     """
     Parse BLASTX results to calculate enrichment efficiency
     """
@@ -37,7 +37,8 @@ def enrich_efficiency_blastx(blastxfilename):
         reads_with_hits += [x.split()[0] for x in open(blastxfilename.replace(".blastx", "_unpaired.blastx"))]
     mappedReads = len(set(reads_with_hits))
 
-    # Currently there's no way to get the total number of reads when using BLAST.
+    # Currently, there's no way to get the total number of reads when using BLAST.
+    with open(f'')
 
     return "NA", str(mappedReads), "NA"  # TODO parse this info for the report
 
@@ -183,7 +184,7 @@ def main(args):
         if os.path.isfile(bamfile):
             stats_dict[name] += enrich_efficiency_bwa(bamfile)
         elif os.path.isfile(blastxfile):
-            stats_dict[name] += enrich_efficiency_blastx(blastxfile)
+            stats_dict[name] += enrich_efficiency_blastx(blastxfile, name)
         else:
             sys.stderr.write(f'No .bam or .blastx file found for {name}\n')
 

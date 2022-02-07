@@ -116,12 +116,13 @@ def write_single_seqs(target, ID1, Seq1):
     outfile.close()
     
     
-def distribute_reads(readfiles, read_hit_dict, merged=False):
+def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=None):
     """
 
     :param list readfiles: a list of one or more readfiles
     :param dict read_hit_dict: dictionary of read_hit_dict[readID] = [target1, target2, ...]
     :param bool merged: boolean passed to function write_paired_seqs()
+    :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :return:
     """
 
@@ -136,18 +137,17 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[0])}')
         iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
         for read in iterator1:
-            num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hypiper_stats.py
+            num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hybpiper_stats.py
         iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
 
     else:
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
         for read in iterator1:
-            num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hypiper_stats.py
+            num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hybpiper_stats.py
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
-    if len(readfiles) == 1:
-        logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
-
+    if len(readfiles) == 1 and not unpaired_readfile:
+        logger.info(f'{"[NOTE]:":10} Distributing single-end reads to gene directories')
         for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
                                                              min_poll_interval=30):
             ID1 = ID1_long.split()[0]
@@ -157,9 +157,24 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
                 for target in read_hit_dict[ID1]:
                     write_single_seqs(target, ID1, Seq1)
 
+        # Write a file containing the total number of single-end reads in the input file, to be parsed by
+        # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
+        with open(f'total_input_reads_single.txt', 'w') as single_reads_number:
+            single_reads_number.write(f'{num_reads_in_readfile}\n')
+
+    if len(readfiles) == 1 and unpaired_readfile:
+        logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
+        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
+                                                             min_poll_interval=30):
+            ID1 = ID1_long.split()[0]
+            if ID1.endswith('\1') or ID1.endswith('\2'):
+                ID1 = ID1[:-2]
+            if ID1 in read_hit_dict:
+                for target in read_hit_dict[ID1]:
+                    write_single_seqs(target, ID1, Seq1)
         # Write a file containing the total number of unpaired reads in the input file, to be parsed by
         # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
-        with open(f'number_input_unpaired_reads.txt', 'w') as unpaired_reads_number:
+        with open(f'total_input_reads_unpaired.txt', 'w') as unpaired_reads_number:
             unpaired_reads_number.write(f'{num_reads_in_readfile}\n')
 
         return
@@ -194,7 +209,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
 
         # Write a file containing the total number of unpaired reads in the input file, to be parsed by
         # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
-        with open(f'number_input_paired_reads.txt', 'w') as paired_reads_number:
+        with open(f'total_input_reads_paired.txt', 'w') as paired_reads_number:
             paired_reads_number.write(f'{num_reads_in_readfile * 2}\n')
 
 
