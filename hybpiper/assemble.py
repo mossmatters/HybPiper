@@ -1035,8 +1035,8 @@ def exonerate_multiprocessing(genes,
                         lines = gene_log_handle.readlines()
                         for line in lines:
                             logger.debug(line.strip())  # log contents to main logger
-                    # os.remove(gene_log_file_to_cat)
-            except:  # FIXME Make this more specific
+                    os.remove(gene_log_file_to_cat)
+            except:  # FIXME make this more specific
                 logger.info(f'result is {future.result()}')
                 raise
 
@@ -1064,10 +1064,6 @@ def assemble(args):
     :rtype:
     """
 
-    # CJJ: Insert a check for len(readfiles) == 1 and --unpaired - this is not supported as the f'{
-    #  target}_unpaired.fasta' file for the single-end sequences provided by parameter -r will be overwritten by the
-    #  f'{target}_unpaired.fasta' file for the unpaired sequences.
-
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
     # Generate a directory for the sample:
@@ -1089,6 +1085,14 @@ def assemble(args):
         logger.info(f'{"[NOTE]:":10} The flag --merged has been provided but only a single read file has been '
                     f'supplied. Setting --merged to False.')
         args.merged = False
+
+    # If a file of unpaired reads is provided via the --unpaired parameter and only a single readfile is provided via
+    # the -r/--readfiles parameter, exit with an error message:
+    if len(readfiles) == 1 and args.unpaired:
+        sys.exit(f'You have provided a single file of reads using the -r/--readfiles parameter ('
+                 f'{os.path.basename(readfiles[0])}, along with a file of unpaired reads via the --unpaired parameter ('
+                 f'{os.path.basename(args.unpaired)}). Please concatenate these two files and provide the single file '
+                 f'as input using the -r/--readfiles parameter')
 
     ####################################################################################################################
     # Check dependencies
