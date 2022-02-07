@@ -376,7 +376,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     :param str baitfile: path to baitfile (i.e. the target file)
     :param str basename: directory name for sample
     :param int cpu: number of threads/cpus to use for BWA mapping
-    :param str/bool unpaired: a path if an unpaired file has been provided, boolean False if not
+    :param bool unpaired: True if an unpaired file has been provided, False if not
     :param logging.Logger logger: a logger object
     :return: None, or the path to the *.bam output file from BWA alignment of sample reads to the bait file
     """
@@ -415,11 +415,12 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
         import multiprocessing
         cpu = multiprocessing.cpu_count()  # i.e. use all cpus. Reduce by 1?
 
-    if len(readfiles) < 3:
+    if isinstance(readfiles, list) and len(readfiles) < 3:
         bwa_fastq = ' '.join(readfiles)
+    elif isinstance(readfiles, str):
+        bwa_fastq = readfiles  # i.e. a path (str) to a file of unpaired (differ\nnet to single-end) reads
     else:
-        bwa_fastq = readfiles  # CJJ what's going on here? Potentially a list?
-        print(f'bwa_fastq is: {bwa_fastq}')
+        raise ValueError(f'Can not determine whether {readfiles} is single-end, paired-end or unpaired!')
 
     bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
     if unpaired:
@@ -1117,8 +1118,10 @@ def assemble(args):
         if args.blast:
             args.blast = False
             if args.unpaired:
+                # Note that unpaired_readfile is a single path to the file:
                 bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
 
+            # Note that readfiles is a list of one (single-end) or two (paired-end) paths to read files:
             bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
             if not bamfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
