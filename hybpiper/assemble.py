@@ -1,13 +1,39 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 1.4 release candidate (September 2021)
+HybPiper Version 1.4 release candidate (Februrary 2022)
 
-Unless --prefix is set, output will be within a directory named after your read files.
+***NOTES ON VERSION 1.4***
 
-To see parameters and help type:
+After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
+followed by a subcommand to run different parts of the pipeline. The available subcommands can be viewed by typing
+'hybpiper -h' or 'hybpiper --help'. They are:
 
-hybpiper -h
+    assemble            Assemble gene, intron, and supercontig sequences
+    get_seq_lengths     Get sequence lengths for assembled genes
+    stats               Gather statistics about the HybPiper run(s)
+    retrieve_sequences  Retrieve sequences generated from multiple runs of HybPiper
+    recovery_heatmap    Create a gene recovery heatmap for the HybPiper run
+    paralog_retriever   Retrieve paralog sequences for a given gene, for all samples
+
+To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
+
+Note that the command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
+if you had previously run 'reads_first.py' on a sample using the command e.g.:
+
+    python path_to/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+
+...this is now replaced by the command:
+
+    hybpiper assemble -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+
+Also, note that recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
+is now incorporated in to the 'hybpiper assemble' command. It can be enabled using the flag
+'--run_intronerate', e.g.:
+
+    hybpiper assemble -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
+
+For full details of all commands and changes, please reads the wiki page at **LINK** and the changelog at **LINK**.
 """
 
 import argparse
@@ -575,12 +601,16 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
-    logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
+    # logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
+    logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files will '
+                f'be distributed to gene directories')
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(up_blastx_outputfile)
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the unpaired read file will be '
+                    f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
@@ -622,12 +652,16 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets_bwa.read_sorting(bamfile)
-    logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
+    # logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
+    logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files will '
+                f'be distributed to gene directories')
     distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
         read_hit_dict_unpaired = distribute_reads_to_targets_bwa.read_sorting(up_bamfile)
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the unpaired read file will be '
+                    f'distributed to gene directories')
         distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
@@ -1531,6 +1565,9 @@ def add_gene_recovery_heatmap_parser(subparsers):
     parser_gene_recovery_heatmap.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
                                               help='File type to save the output heatmap image as. Default is *.png',
                                               default='png')
+    parser_gene_recovery_heatmap.add_argument('--heatmap_dpi', type=int,
+                                              help='Dot per inch (DPI) for the output heatmap image. Default is 300',
+                                              default='300')
 
     # Set function for subparser <parser_gene_recovery_heatmap>:
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)

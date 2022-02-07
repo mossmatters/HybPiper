@@ -49,9 +49,9 @@ def enrich_efficiency_bwa(bamfilename):
     child = subprocess.Popen(samtools_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
     flagstat_results = [line for line in child.stdout.readlines()]
     for line in flagstat_results:
-        if re.search('total', line):
+        if re.search('primary$', line):
             numReads = float(line.split()[0])
-        if re.search(r'mapped \(.*\)', line):
+        if re.search(r'\bprimary mapped\b', line):
             mappedReads = float(line.split()[0])
 
     if os.path.isfile(bamfilename.replace(".bam", "_unpaired.bam")):
@@ -60,10 +60,10 @@ def enrich_efficiency_bwa(bamfilename):
                                           universal_newlines=True)
         flagstat_results = [line for line in unpaired_child.stdout.readlines()]
         for line in flagstat_results:
-            if re.search('total', line):
-                numReads = float(line.split()[0])
-            if re.search(r'mapped \(.*\)', line):
-                mappedReads = float(line.split()[0])
+            if re.search('primary$', line):
+                numReads += float(line.split()[0])
+            if re.search(r'\bprimary mapped\b', line):
+                mappedReads += float(line.split()[0])
     try:
         pctMapped = mappedReads / numReads
     except ZeroDivisionError:

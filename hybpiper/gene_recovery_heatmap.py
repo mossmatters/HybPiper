@@ -61,50 +61,40 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     print(f'Number of samples in input lengths file is: {num_samples}')
     print(f'Number of genes in input lengths file is: {num_genes}')
 
-    # Set some dimensions for a given number of samples:
+    # Set default text label size (in points) unless specified at the command line:
+    sample_text_size = sample_text_size if sample_text_size else 10
+    gene_id_text_size = gene_text_size if gene_text_size else 10
+
+    # Set figure height dimensions for a given number of samples:
     if num_samples <= 10:
-        sample_text_size = sample_text_size if sample_text_size else 10
         figure_height = figure_height if figure_height else 4
     elif 10 < num_samples <= 20:
-        sample_text_size = sample_text_size if sample_text_size else 8
-        figure_height = figure_height if figure_height else 4
+        figure_height = figure_height if figure_height else 8
     elif 20 < num_samples <= 50:
-        sample_text_size = sample_text_size if sample_text_size else 8
-        figure_height = figure_height if figure_height else 6
+        figure_height = figure_height if figure_height else 16
     elif 50 < num_samples <= 100:
-        sample_text_size = sample_text_size if sample_text_size else 6
-        figure_height = figure_height if figure_height else 6
+        figure_height = figure_height if figure_height else 16
     elif 100 < num_samples <= 200:
-        sample_text_size = sample_text_size if sample_text_size else 4
-        figure_height = figure_height if figure_height else 8
+        figure_height = figure_height if figure_height else 140
     elif 200 < num_samples <= 400:
-        sample_text_size = sample_text_size if sample_text_size else 3
-        figure_height = figure_height if figure_height else 8
+        figure_height = figure_height if figure_height else 180
     elif num_samples > 400:
-        sample_text_size = sample_text_size if sample_text_size else 3
-        figure_height = figure_height if figure_height else 8
+        figure_height = figure_height if figure_height else 240
 
-    # Set some dimensions for a given number of genes (i.e. number of unique genes in target file):
+    # Set figure length dimensions for a given number of genes (i.e. number of unique genes in target file):
     if num_genes <= 10:
-        gene_id_text_size = gene_text_size if gene_text_size else 10
         fig_length = figure_length if figure_length else 4
     elif 10 < num_genes <= 20:
-        gene_id_text_size = gene_text_size if gene_text_size else 10
         fig_length = figure_length if figure_length else 6
     elif 20 < num_genes <= 50:
-        gene_id_text_size = gene_text_size if gene_text_size else 8
         fig_length = figure_length if figure_length else 8
     elif 50 < num_genes <= 100:
-        gene_id_text_size = gene_text_size if gene_text_size else 6
         fig_length = figure_length if figure_length else 8
     elif 100 < num_genes <= 200:
-        gene_id_text_size = gene_text_size if gene_text_size else 4
         fig_length = figure_length if figure_length else 70
     elif 200 < num_genes <= 400:
-        gene_id_text_size = gene_text_size if gene_text_size else 12
         fig_length = figure_length if figure_length else 90
     elif num_genes > 400:
-        gene_id_text_size = gene_text_size if gene_text_size else 3
         fig_length = figure_length if figure_length else 120
 
     print(f'fig_length: {fig_length} inches, figure_height: {figure_height} inches, sample_text_size:'
@@ -143,6 +133,9 @@ def standalone():
                              'automatically calculated based on the number of genes', default=None)
     parser.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
                         help='File type to save the output heatmap image as. Default is png', default='png')
+    parser.add_argument('--heatmap_dpi', type=int,
+                        help='Dot per inch (DPI) for the output heatmap image. Default is 300',
+                        default='300')
 
     args = parser.parse_args()
     main(args)
@@ -203,9 +196,9 @@ def main(args):
     # plt.tight_layout()
 
     # Save heatmap as png file:
-    print(f'Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}"')
-    # plt.savefig(f'{args.heatmap_filename}.png', dpi=300)
-    plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=300, bbox_inches='tight')
+    print(f'Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at {args.heatmap_dpi} DPI')
+    plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=args.heatmap_dpi, bbox_inches='tight')
+
 
 
 ########################################################################################################################
