@@ -1090,9 +1090,9 @@ def assemble(args):
     # the -r/--readfiles parameter, exit with an error message:
     if len(readfiles) == 1 and args.unpaired:
         sys.exit(f'{"[ERROR]:":10} You have provided a single file of reads using the -r/--readfiles parameter ('
-                 f'{os.path.basename(readfiles[0])}, along with a file of unpaired reads via the --unpaired parameter ('
-                 f'{os.path.basename(args.unpaired)}). Please concatenate these two files and provide the single file '
-                 f'as input using the -r/--readfiles parameter')
+                 f'{os.path.basename(readfiles[0])}), along with a file of unpaired reads via the --unpaired '
+                 f'parameter ({os.path.basename(args.unpaired)}). Please concatenate these two files and provide the '
+                 f'single file as input using the -r/--readfiles parameter')
 
     ####################################################################################################################
     # Check dependencies
