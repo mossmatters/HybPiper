@@ -102,7 +102,7 @@ def write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, single=True, m
 
 def write_single_seqs(target, ID1, Seq1):
     """
-    Writes a fasta files of single-end reads to the corresponding gene directory
+    Writes a fasta file of single-end/unpaired reads to the corresponding gene directory
 
     :param str target: gene name e.g. gene001
     :param str ID1: fasta/fastq header for R1
@@ -126,8 +126,6 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
     :param bool single_end: True if a single file was provided as input to -r, False if not
     :return:
     """
-
-    logger.info(f'unpaired_readfile is: {unpaired_readfile}')
 
     if merged:
         logger.info(f'{"[NOTE]:":10} Writing fastq files for merging with BBmerge.sh')

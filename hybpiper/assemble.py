@@ -651,7 +651,6 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
 
     # Distribute reads to gene directories:
     read_hit_dict_paired = distribute_reads_to_targets_bwa.read_sorting(bamfile)
-    # logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
 
     if len(readfiles) == 2:
         logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files '
@@ -1053,6 +1052,10 @@ def assemble(args):
     :return:
     :rtype:
     """
+
+    # CJJ: Insert a check for len(readfiles) == 1 and --unpaired - this is not supported as the f'{
+    #  target}_unpaired.fasta' file for the single-end sequences provided by parameter -r will be overwritten by the
+    #  f'{target}_unpaired.fasta' file for the unpaired sequences.
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
