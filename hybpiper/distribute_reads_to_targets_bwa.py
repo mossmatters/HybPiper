@@ -126,6 +126,8 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
     :return:
     """
 
+    logger.info(f'unpaired_readfile is: {unpaired_readfile}')
+
     if merged:
         logger.info(f'{"[NOTE]:":10} Writing fastq files for merging with BBmerge.sh')
 
