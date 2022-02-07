@@ -38,7 +38,7 @@ def enrich_efficiency_blastx(blastxfilename, name):
     mappedReads = len(set(reads_with_hits))
 
     # Currently, there's no way to get the total number of reads when using BLAST.
-    with open(f'')
+    # with open(f'')
 
     return "NA", str(mappedReads), "NA"  # TODO parse this info for the report
 
