@@ -599,18 +599,29 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
     """
 
     # Distribute reads to gene directories:
-    read_hit_dict_paired = distribute_reads_to_targets.read_sorting(blastx_outputfile)
-    # logger.info(f'{"[NOTE]:":10} Unique reads with hits: {len(read_hit_dict_paired)}')
-    logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files will '
-                f'be distributed to gene directories')
-    distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict_paired, merged=merged)
+    read_hit_dict = distribute_reads_to_targets.read_sorting(blastx_outputfile)
+
+    if len(readfiles) == 2:
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
+                    f'will be distributed to gene directories')
+        single_end = False
+    elif len(readfiles) == 1:
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
+                    f'be distributed to gene directories')
+        single_end = True
+    else:
+        raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
+
+    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict, merged=merged,
+                                                     single_end=single_end)
 
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(up_blastx_outputfile)
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the unpaired read file will be '
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
-        distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired)
+        distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
+                                                     unpaired_readfile=unpaired_readfile)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
@@ -650,26 +661,26 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
     """
 
     # Distribute reads to gene directories:
-    read_hit_dict_paired = distribute_reads_to_targets_bwa.read_sorting(bamfile)
+    read_hit_dict = distribute_reads_to_targets_bwa.read_sorting(bamfile)
 
     if len(readfiles) == 2:
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired) * 2} reads from the paired-end read files '
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
                     f'will be distributed to gene directories')
         single_end = False
     elif len(readfiles) == 1:
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the single-end read file will '
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
                     f'be distributed to gene directories')
         single_end = True
     else:
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
-    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict_paired, merged=merged,
+    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict, merged=merged,
                                                      single_end=single_end)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
         read_hit_dict_unpaired = distribute_reads_to_targets_bwa.read_sorting(up_bamfile)
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict_paired)} reads from the unpaired read file will be '
+        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
                                                          unpaired_readfile=unpaired_readfile)
