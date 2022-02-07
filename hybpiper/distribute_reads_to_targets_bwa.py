@@ -136,13 +136,13 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
         logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[0])}')
         iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
         for read in iterator1:
-            num_reads_in_readfile += 1
+            num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hypiper_stats.py
         iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
 
     else:
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
         for read in iterator1:
-            num_reads_in_readfile += 1
+            num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hypiper_stats.py
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
     if len(readfiles) == 1:
@@ -156,6 +156,12 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
                     write_single_seqs(target, ID1, Seq1)
+
+        # Write a file containing the total number of unpaired reads in the input file, to be parsed by
+        # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
+        with open(f'number_input_unpaired_reads.txt') as unpaired_reads_number:
+            unpaired_reads_number.write(f'{num_reads_in_readfile}\n')
+
         return
 
     elif len(readfiles) == 2:
@@ -185,6 +191,11 @@ def distribute_reads(readfiles, read_hit_dict, merged=False):
             elif ID2 in read_hit_dict:
                 for target in read_hit_dict[ID2]:
                     write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+
+        # Write a file containing the total number of unpaired reads in the input file, to be parsed by
+        # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
+        with open(f'number_input_paired_reads.txt') as paired_reads_number:
+            paired_reads_number.write(f'{num_reads_in_readfile * 2}\n')
 
 
 def main():

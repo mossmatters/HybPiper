@@ -35,9 +35,11 @@ def enrich_efficiency_blastx(blastxfilename):
     reads_with_hits = [x.split()[0] for x in open(blastxfilename)]
     if os.path.isfile(blastxfilename.replace(".blastx", "_unpaired.blastx")):
         reads_with_hits += [x.split()[0] for x in open(blastxfilename.replace(".blastx", "_unpaired.blastx"))]
-    numreads = len(set(reads_with_hits))
+    mappedReads = len(set(reads_with_hits))
 
-    return "NA", str(numreads), "NA"  # TODO parse this info for the report
+    # Currently there's no way to get the total number of reads when using BLAST.
+
+    return "NA", str(mappedReads), "NA"  # TODO parse this info for the report
 
 
 def enrich_efficiency_bwa(bamfilename):
