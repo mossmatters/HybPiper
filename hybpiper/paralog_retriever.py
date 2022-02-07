@@ -16,8 +16,17 @@ import logging
 
 
 # Create a custom logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
+# Log to Terminal (stderr):
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setLevel(logging.INFO)
+
+# Setup logger:
+logger = logging.getLogger(f'hybpiper.{__name__}')
+
+# Add handlers to the logger
+logger.addHandler(console_handler)
+logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 
 def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=None):
@@ -56,8 +65,7 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
     # Skip any putative chimeric supercontig sequences; writes to folder fasta_dir_no_chimeras:
     if gene in chimeric_genes_to_skip:
         logger.info(f'Skipping gene {gene} for sample {name} - putative chimeric supercontig sequence!')
-        num_seqs = "0"
-        return num_seqs
+        # num_seqs = "0"
     else:
         if os.path.isdir(os.path.join(path, name, gene, name, 'paralogs')):
             seqs_to_write = [x for x in SeqIO.parse(os.path.join(path, name, gene, name, 'paralogs',
@@ -65,12 +73,12 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
             num_seqs = str(len(seqs_to_write))
         elif os.path.isfile(os.path.join(path, name, gene, name, 'sequences', 'FNA', f'{gene}.FNA')):
             seqs_to_write = SeqIO.read(os.path.join(path, name, gene, name, 'sequences', 'FNA', f'{gene}.FNA'), 'fasta')
-            num_seqs = "1"
+            # num_seqs = "1"
 
         if seqs_to_write:
             SeqIO.write(seqs_to_write, f'{fasta_dir_no_chimeras}/{name}_{gene}_paralogs_nochimeras.fasta', 'fasta')
-        else:
-            num_seqs = "0"
+        # else:
+        #     num_seqs = "0"
 
     return num_seqs
             

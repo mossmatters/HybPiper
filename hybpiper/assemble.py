@@ -113,7 +113,6 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
 
     # Log to file:
     file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log', mode='w')
-    # file_handler = logging.FileHandler(f'{log_file}.log', mode='w')
     file_handler.setLevel(file_level)
     file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
                                     'message)s')
@@ -127,7 +126,6 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
 
     # Setup logger:
     logger_object = logging.getLogger(name)
-    # logger_object = logging.getLogger()
     logger_object.setLevel(logger_object_level)  # Default level is 'WARNING'
 
     # Add handlers to the logger
@@ -1548,7 +1546,7 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                                    "get_seq_lengths')")
     parser_gene_recovery_heatmap.add_argument('--heatmap_filename',
                                               help='filename for the output heatmap, saved by default as a *.png file. '
-                                                   'Defaults to "heatmap.png"', default='heatmap')
+                                                   'Defaults to "heatmap"', default='heatmap')
     parser_gene_recovery_heatmap.add_argument('--figure_length', type=int,
                                               help='Length dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '

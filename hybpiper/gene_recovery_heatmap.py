@@ -117,7 +117,7 @@ def standalone():
                         help="filename for the seq_lengths file (output of 'hybpiper get_seq_lengths')")
     parser.add_argument('--heatmap_filename',
                         help='filename for the output heatmap, saved by default as a *.png file. Defaults to '
-                             '"heatmap.png"',
+                             '"heatmap"',
                         default='heatmap')
     parser.add_argument('--figure_length', type=int,
                         help='Length dimension (in inches) for the output heatmap file. Default is '
