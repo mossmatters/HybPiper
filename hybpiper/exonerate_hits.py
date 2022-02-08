@@ -51,10 +51,10 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     %tae  = target alignment end
     %tcs  = target coding sequence
 
-    :param proteinfilename:
-    :param assemblyfilename:
+    :param str proteinfilename: path to the chosen target-file protein query fasta file
+    :param str assemblyfilename: path to the SPAdes assembly contigs file
     :param prefix:
-    :return:
+    :return None/str: None or outputfilename. The outputfilename is the Exonerate text fiel output
     """
 
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')

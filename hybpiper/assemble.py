@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 1.4 release candidate (Februrary 2022)
+HybPiper Version 1.4 release candidate (February 2022)
 
 ***NOTES ON VERSION 1.4***
 
@@ -66,10 +66,10 @@ except ImportError:
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
-# biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)]
-# if biopython_version[0:2] < [1, 80]:
-#     sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
-#              f"Please update your Biopython for the Python use to run HybPiper!")
+biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)[:2]]
+if biopython_version[0:2] < [1, 80]:
+    sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
+             f"Please update your Biopython for the Python use to run HybPiper!")
 
 # Import HybPiper modules required for assemble.py:
 import distribute_reads_to_targets_bwa
@@ -346,7 +346,7 @@ def make_basename(readfiles, prefix=None):
 
     :param list readfiles: one or more read files used as input to the pipeline
     :param str prefix: directory name for sample pipeline output
-    :return: parent directory, directory name
+    :return str parent directory, directory name
     """
 
     if prefix:
