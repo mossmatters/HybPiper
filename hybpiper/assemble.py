@@ -1080,6 +1080,22 @@ def assemble(args):
 
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
+    # Check that the target/bait-file and input read files exist and aren't empty:
+    for read_file in readfiles:
+        if os.path.isfile(read_file) and not os.path.getsize(read_file) == 0:
+            logger.debug(f'Input read file {read_file} exists and is not empty, proceeding...')
+        else:
+            sys.exit(f'Input read file {read_file} does not exist or is empty!')
+    if args.unpaired:
+        if os.path.isfile(args.unpaired) and not os.path.getsize(args.unpaired) == 0:
+            logger.debug(f'Input read file {args.unpaired} exists and is not empty, proceeding...')
+        else:
+            sys.exit(f'Input read file {args.unpaired} does not exist or is empty!')
+    if os.path.isfile(args.baitfile) and not os.path.getsize(args.baitfile) == 0:
+        logger.debug(f'Input target/bait file {args.baitfile} exists and is not empty, proceeding...')
+    else:
+        sys.exit(f'Input target/bait file {args.baitfile} does not exist or is empty!')
+
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
         logger.info(f'{"[NOTE]:":10} The flag --merged has been provided but only a single read file has been '
