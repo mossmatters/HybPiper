@@ -1056,12 +1056,10 @@ def exonerate_multiprocessing(genes,
 
 def assemble(args):
     """
-    Assemble gene, intron and supercontig sequences via assemble.py
+    Assemble gene, intron, supercontig and paralog sequences via assemble.py
 
-    :param args:
-    :type args:
-    :return:
-    :rtype:
+    :param argparse.Namespace args: argparse namespace with subparser options for function assemble()
+    :return None: no return value specified; default is None
     """
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
@@ -1359,22 +1357,57 @@ def assemble(args):
 
 
 def get_seq_lengths_main(args):
+    """
+    Calls the function main() from module get_seq_lengths
+
+    :param args: argparse namespace with subparser options for function get_seq_lengths_main()
+    :return: None: no return value specified; default is None
+    """
+
     get_seq_lengths.main(args)
 
 
 def hybpiper_stats_main(args):
+    """
+    Calls the function main() from module hybpiper_stats
+
+    :param args: argparse namespace with subparser options for function get_seq_lengths_main()
+    :return: None: no return value specified; default is None
+    """
+
     hybpiper_stats.main(args)
 
 
 def retrieve_sequences_main(args):
+    """
+    Calls the function main() from module retrieve_sequences
+
+    :param args: argparse namespace with subparser options for function retrieve_sequences_main()
+    :return: None: no return value specified; default is None
+    """
+
     retrieve_sequences.main(args)
 
 
 def paralog_retriever_main(args):
+    """
+    Calls the function main() from module paralog_retriever
+
+    :param args: argparse namespace with subparser options for function paralog_retriever_main()
+    :return: None: no return value specified; default is None
+    """
+
     paralog_retriever.main(args)
 
 
 def gene_recovery_heatmap_main(args):
+    """
+    Calls the function main() from module gene_recovery_heatmap
+
+    :param args: argparse namespace with subparser options for function gene_recovery_heatmap_main()
+    :return: None: no return value specified; default is None
+    """
+
     gene_recovery_heatmap.main(args)
 
 
@@ -1382,8 +1415,8 @@ def add_assemble_parser(subparsers):
     """
     Parser for the main assembly stage of HybPiper i.e. reads_first.
 
-    :param argparse._SubParsersAction subparsers:
-    :return:
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
     """
 
     parser_assemble = subparsers.add_parser('assemble', help='Assemble gene, intron, and supercontig sequences')
@@ -1497,8 +1530,8 @@ def add_get_seq_lengths_parser(subparsers):
     """
     Parser for get_seq_lengths
 
-    :param argparse._SubParsersAction subparsers:
-    :return:
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
     """
 
     parser_get_seq_lengths = subparsers.add_parser('get_seq_lengths', help='Get sequence lengths for assembled genes')
@@ -1518,7 +1551,7 @@ def add_stats_parser(subparsers):
     Parser for hybpiper_stats
 
     :param argparse._SubParsersAction subparsers:
-    :return:
+    :return None: no return value specified; default is None
     """
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
@@ -1536,8 +1569,8 @@ def add_retrieve_sequences_parser(subparsers):
     """
     Parser for retrieve_sequences
 
-    :param argparse._SubParsersAction subparsers:
-    :return:
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
     """
 
     parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
@@ -1558,8 +1591,8 @@ def add_paralog_retriever_parser(subparsers):
     """
     Parser for paralog_retriever
 
-    :param argparse._SubParsersAction subparsers:
-    :return:
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
     """
 
     parser_paralog_retriever = subparsers.add_parser('paralog_retriever', help='Retrieve paralog sequences for a '
@@ -1581,8 +1614,8 @@ def add_gene_recovery_heatmap_parser(subparsers):
     """
     Parser for gene_recovery_heatmap
 
-    :param argparse._SubParsersAction subparsers:
-    :return:
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
     """
 
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
@@ -1622,9 +1655,9 @@ def add_gene_recovery_heatmap_parser(subparsers):
 
 def parse_arguments():
     """
-    Creates main parser and add subparsers. Parse command line arguments.
+    Creates main parser and add subparsers. Parses command line arguments
 
-    :return: argparse.Namespace arguments
+    :return argparse.Namespace arguments: arguments for the given command/subcommand
     """
     parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
                                      formatter_class=argparse.RawTextHelpFormatter,
@@ -1641,6 +1674,7 @@ def parse_arguments():
 
     # Parse and return all arguments:
     arguments = parser.parse_args()
+
     return arguments
 
 

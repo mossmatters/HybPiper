@@ -155,6 +155,14 @@ additional functionality, and additional output. Changes include:
   dramatically reduces the total number of files produced by a completed run of HybPiper, which can be very useful when 
   running it on and HPC with file number limits. To retain the SPAdes directory (i.e. for debugging purposes), the flag 
   `--keep_spades_folder` can be used.
+- When using BLAST or DIAMOND, the hybpiper_stats module now calculates the enrichment efficiency; previously this was 
+  only calculated when using BWA.
+- When running Intronerate, a block of 10 'N' characters is inserted into supercontigs where different SPAdes contigs 
+  have been concatenated. This behaviour can be turned off via the flag `--no_padding_supercontigs`.
+- In cases where HybPiper recovers sequence for multiple non-contiguous segments of a gene, the gaps between the 
+  segments will be padded with a number of 'N' characters. The number of Ns corresponds to the number of amino acids 
+  in 'best' protein reference for that gene that do not have corresponding SPAdes contig hits, multiplied by 3 to 
+  convert to nucleotides.
 
 
 - The following **new options/flags** have been added:
@@ -214,9 +222,7 @@ additional functionality, and additional output. Changes include:
 
     
 - Change to Intronerate supercontig file name.
-- Update hybpiper_stats.py so that %length is calculated correctly when using a protein bait/target file. 
-- By default, inserts Ns into sequences where there are gaps in Exonerate hits with respect to the protein query.
-
+- Update hybpiper_stats.py so that %length is calculated correctly when using a protein bait/target file.
 
     
 **1.3.2** *February, 2020*
