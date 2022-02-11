@@ -404,6 +404,8 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
                                  interleaved_fasta_file=interleaved_fasta_file,
                                  nosupercontigs=nosupercontigs)
 
+    logger.debug(exonerate_result)
+
     if not exonerate_result.hits_filtered_by_pct_similarity_dict:  # i.e. no hits left after filtering via pct ID
         return None
 
@@ -488,9 +490,11 @@ class Exonerate(object):
 
         # Only perform test if supercontigs are being created AND interleaved_fasta_file is not None AND a multi-hit
         # supercontig has been created:
-        if not self.nosupercontigs and interleaved_fasta_file and not self.supercontig_seqrecord.description == \
-                                                                      'single_hit':
+        if self.hits_filtered_by_pct_similarity_dict and not self.nosupercontigs and interleaved_fasta_file and not \
+                self.supercontig_seqrecord.description == 'single_hit':
             self.chimera_warning_bool = self._supercontig_chimera_warning()
+        else:
+            self.chimera_warning_bool = None
 
     def _parse_searchio_object(self):
         """
@@ -575,7 +579,8 @@ class Exonerate(object):
         :return None, collections.defaultdict: paralog_dicts_by_depth OR paralog_dicts_by_percent_similarity
         """
 
-        if len(self.hits_filtered_by_pct_similarity_dict) == 1:  # i.e. only one hit, so no paralogs
+        if not self.hits_filtered_by_pct_similarity_dict or len(self.hits_filtered_by_pct_similarity_dict) == 1:  # i.e.
+            # only one hit, so no paralogs
             return None
 
         paralog_dicts = defaultdict(dict)
@@ -720,6 +725,9 @@ class Exonerate(object):
         :return bool: True if hit coverage is >1 for a given percentage length of the query
         """
 
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
+
         # Get tuples of the query ranges for all similarity-filtered hits:
         hit_vs_query_ranges_all = []
         for hit, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
@@ -752,6 +760,9 @@ class Exonerate(object):
 
         :return collections.defaultdict: exonerate_hits_filtered_no_subsumed
         """
+
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
 
         exonerate_hits_filtered_no_subsumed = copy.deepcopy(self.hits_filtered_by_pct_similarity_dict)
         hit_comparisons = itertools.permutations(self.hits_filtered_by_pct_similarity_dict, 2)
@@ -833,6 +844,9 @@ class Exonerate(object):
         :return collections.defaultdict: exonerate_hits_subsumed_and_trimmed_dict
         """
 
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
+
         if len(self.hits_subsumed_hits_removed_dict) == 1:  # i.e. single hit remaining from previous filtering
             for key, value in self.hits_subsumed_hits_removed_dict.items():
                 value['hit_sequence'].description = f'Single hit after filtering: N/A'
@@ -876,6 +890,9 @@ class Exonerate(object):
 
         :return Bio.SeqRecord.SeqRecord: no_supercontig or supercontig, depending on number of hits
         """
+
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
 
         sample_name = os.path.split(self.prefix)[-1]
         gene_name = os.path.split(self.prefix)[-2]
@@ -1116,6 +1133,9 @@ class Exonerate(object):
         :return bool: True is a chimera warning is produced and written to file.
         """
 
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
+
         sample_name = os.path.split(self.prefix)[-1]
         gene_name = os.path.split(self.prefix)[-2]
 
@@ -1205,6 +1225,9 @@ class Exonerate(object):
 
         :return Bio.SeqRecord.SeqRecord: SeqRecord for the single longest Exonerate hit.
         """
+
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
 
         sample_name = os.path.split(self.prefix)[-1]
         gene_name = os.path.split(self.prefix)[-2]

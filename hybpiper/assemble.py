@@ -894,7 +894,7 @@ def exonerate(gene_name,
             interleaved_fasta_file=path_to_interleaved_fasta,
             nosupercontigs=nosupercontigs)
 
-        if intronerate:
+        if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
                          f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
             if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
@@ -913,7 +913,7 @@ def exonerate(gene_name,
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
-    if not exonerate_text_output or not exonerate_result.supercontig_seqrecord:
+    if not exonerate_text_output or not exonerate_result or not exonerate_result.supercontig_seqrecord:
         return gene_name, None  # return gene_name to that exonerate_hits.py log can be re-logged to main log file
 
     return gene_name, len(exonerate_result.supercontig_seqrecord)
