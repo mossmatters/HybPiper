@@ -16,6 +16,7 @@ from Bio.SeqRecord import SeqRecord
 from itertools import tee
 import re
 from collections import defaultdict
+from collections import Counter
 from operator import itemgetter
 import copy
 import itertools
@@ -102,9 +103,9 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         return None
 
 
-def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_supercontigs=True):
+def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_supercontigs=False):
     """
-    Attempts to identify introns within suoercontigs, and writes fasta files containing 1) supercontig sequences
+    Attempts to identify introns within supercontigs, and writes fasta files containing 1) supercontig sequences
     containing exons AND introns, with 10 'N' characters inserted at any location SPAdes contigs have been
     concatenated; and 2) intron sequences only.
 
@@ -114,6 +115,8 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :return:
     """
+
+    logger.debug(f'no_padding_supercontigs: {no_padding_supercontigs}')
 
     # Make directory for Intronerate processing output:
     intronerate_processing_directory = f'{exonerate_object.prefix}/intronerate'
@@ -126,21 +129,75 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         os.mkdir(intronerate_sequence_directory)
 
     trimmed_hits_dict = exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict
-    hit_spades_names = []
     sample_name = os.path.split(exonerate_object.prefix)[-1]
+    logger.debug(f'sample_name: {sample_name}')
     gene_name = os.path.split(exonerate_object.prefix)[-2]
     logger.debug(f'gene_name: {gene_name}')
     spades_contigs_for_intronerate_supercontig = []
 
+    # Check whether there's more than one Exonerate hit for any given SPAdes contig:
+    spades_contig_2_exonerate_hits_dict = defaultdict(list)
+    all_exonerate_hit_contig_names_in_order = []
+    for hit, hit_data_dict in trimmed_hits_dict.items():
+        spades_name_only = hit.split(',')[0]
+        all_exonerate_hit_contig_names_in_order.append(spades_name_only)
+        spades_contig_2_exonerate_hits_dict[spades_name_only].append(hit_data_dict)
+
+    count = Counter(all_exonerate_hit_contig_names_in_order)
+    contigs_with_more_than_one_exonerate_hit = [key for key, value in count.items() if value >= 2]
+    logger.debug(count)
+    logger.debug(f'SPAdes contigs that have more than one Exonerate hit: {contigs_with_more_than_one_exonerate_hit}')
+
+    # If there is more than one Exonerate hit for a given SPAdes contig, check that the hits are consecutive with
+    # respect to the protein query, and that they all occur on the same strand; this is _expected_ to be the case,
+    # or else something odd is going on:
+    set_of_consecutive_spades_contigs = set()
+    for i in range(len(trimmed_hits_dict) - 1):
+        if all_exonerate_hit_contig_names_in_order[i] == all_exonerate_hit_contig_names_in_order[i + 1]:
+            set_of_consecutive_spades_contigs.add(all_exonerate_hit_contig_names_in_order[i])
+
+    logger.debug(f'Set of SPAdes contigs with Exonerate hits that occur consecutively with respect to the protein '
+                 f'query: {set_of_consecutive_spades_contigs}')
+
+    if contigs_with_more_than_one_exonerate_hit:
+        if set(contigs_with_more_than_one_exonerate_hit) != set_of_consecutive_spades_contigs:
+            logger.info(f'There is more than one Exonerate hit for at least one SPAdes contig, but these do NOT appear '
+                        f'consecutively with respect to the protein query. CHECK THIS!')
+        else:
+            logger.debug(f'There is more than one Exonerate hit for at least one SPAdes contig, and these appear '
+                         f'consecutively with respect to the protein query. Proceeding...')
+
+    # Check hit strands:
+    for spades_contig in contigs_with_more_than_one_exonerate_hit:
+        exonerate_dicts = spades_contig_2_exonerate_hits_dict[spades_contig]
+        hit_strands = [exonerate_dict['hit_strand'] for exonerate_dict in exonerate_dicts]
+        logger.debug(f'hit_strands for {spades_contig} are: {hit_strands}')
+        if len(set(hit_strands)) != 1:
+            logger.info(f'There is more than one Exonerate hit for {spades_contig}, but these do NOT appear on the '
+                        f'same strand. CHECK THIS!')
+        else:
+            logger.debug(f'There is more than one Exonerate hit for {spades_contig}, and these appear on the '
+                         f'same strand. Proceeding...')
+
+    # Process each hit:
+    hit_spades_names = []  # list of contig names that have been added to the Intronerated supercontig list
     for hit, hit_data_dict in trimmed_hits_dict.items():
         spades_name_only = hit.split(',')[0]
         if spades_name_only in hit_spades_names:
-            # FIXME how to deal with cases where a single SPAdes contig returns more than one Exonerate hit?
-            # see e.g. https://raw.githubusercontent.com/biopython/biopython/master/Tests/Exonerate
-            # /exn_22_m_protein2dna_fshifts.exn
-            raise ValueError(f'A hit for contig {spades_name_only} has already been processed!')
+            logger.debug(f'Contig {spades_name_only} has already been processed. Skipping this hit!')
+            continue  # i.e. don't add this contig again
         else:
             hit_spades_names.append(spades_name_only)
+
+        # Check if a hit corresponds to a SPAdes contig with more than one hit. If so, recover the hit with
+        # the largest 3' trim coordinate. If 3' trimming was carried out, trim the corresponding SPAdes contig
+        # according to this coordinate, and add the sequence to the Intronerated supercontig list:
+        if spades_name_only in contigs_with_more_than_one_exonerate_hit:
+            hit_with_largest_3prime_coordinate = max(spades_contig_2_exonerate_hits_dict[spades_name_only],
+                                                     key=lambda hit_dict: hit_dict['query_range'][1])
+            logger.debug(f'Contig {spades_name_only} has more than one Exonerate hit. Selecting the hit with the '
+                         f'largest query_range coordinate: {hit_with_largest_3prime_coordinate}')
+            hit_data_dict = hit_with_largest_3prime_coordinate
 
         # Get data for creating/writing reverse-complemented SeqRecord objects:
         hit_name = hit_data_dict['hit_sequence'].name
@@ -154,6 +211,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
         trimmed_hit_ranges_all = hit_data_dict['hit_range_all']
         inter_ranges_all = hit_data_dict['hit_inter_ranges']
+        # print(hit_data_dict['hit_sequence'].description)
         three_prime_bases_trimmed = hit_data_dict['hit_sequence'].description.split(':')[-1].strip()
 
         def convert_coords_revcomp(list_of_range_tuples):
@@ -255,11 +313,15 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 raise ValueError(f'Slice coordinate not found for hit {hit}')
 
     # Write concatenated Intronerated supercontig_seqrecord with Ns between hits:
+    intron_supercontig_id = f'{sample_name}-{gene_name}'
+
     intronerate_supercontig_seq_with_n = Seq('NNNNNNNNNN'.join([str(seq.seq) for seq in
                                                                 spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq_with_n,
-                                                   id='Intronerated_supercontig_with_Ns')
-    with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta',
+                                                   id=intron_supercontig_id,
+                                                   description='Joins between unique SPAdes contigs are separated by '
+                                                               '10 "N" characters')
+    with open(f'{intronerate_processing_directory}/{gene_name}_supercontig.fasta',
               'w') as intronerate_supercontig_handle:
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
 
@@ -267,8 +329,10 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     intronerate_supercontig_seq = Seq(''.join([str(seq.seq) for seq in
                                                spades_contigs_for_intronerate_supercontig]))
     intronerated_supercontig_seqrecord = SeqRecord(seq=intronerate_supercontig_seq,
-                                                   id='intronerated_supercontig_without_Ns')
-    with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta',
+                                                   id=f'{intron_supercontig_id}_without_Ns',
+                                                   description='Joins between unique SPAdes contigs are NOT separated '
+                                                               'by 10 "N" characters')
+    with open(f'{intronerate_processing_directory}/{gene_name}_supercontig_without_Ns.fasta',
               'w') as intronerate_supercontig_handle:
         SeqIO.write(intronerated_supercontig_seqrecord, intronerate_supercontig_handle, 'fasta')
 
@@ -280,17 +344,25 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     # Run Exonerate to get the gff file:
     intronerate_query = f'{exonerate_object.prefix}/sequences/FAA/{gene_name}.FAA'
 
-    if no_padding_supercontigs:
-        logger.debug(f'Intronerate run of Exonerate for gff will be run using'
-                     f' {gene_name}_intronerate_supercontig_without_Ns.fasta')
-        exonerate_supercontig_reference = f'{gene_name}_intronerate_supercontig_without_Ns.fasta'
-    else:
-        logger.debug(f'Intronerate run of Exonerate for gff will be run using'
-                     f' {gene_name}_intronerate_supercontig_with_Ns.fasta')
-        exonerate_supercontig_reference = f'{gene_name}_intronerate_supercontig_with_Ns.fasta'
+    # Strip any "X" characters (inserted if sequence missing relative to bait/target file reference):
+    intronerate_query_stripped = f'{intronerate_processing_directory}/intronerate_query_stripped.fasta'
+    with open(intronerate_query, 'r') as query_handle:
+        query = SeqIO.read(query_handle, 'fasta')
+        query.seq = query.seq.ungap('X')
+        with open(intronerate_query_stripped, 'w') as stripped_handle:
+            SeqIO.write(query, stripped_handle, 'fasta')
 
-    exonerate_command = f'exonerate -m protein2genome -q {intronerate_query} -t ' \
-                        f'{intronerate_processing_directory}/{exonerate_supercontig_reference} ' \
+    if no_padding_supercontigs:
+        ref = f'{gene_name}_supercontig_without_Ns.fasta'
+        logger.debug(f'Intronerate run of Exonerate for gff will be run using {ref}')
+        exonerate_supercontig_reference = f'{intronerate_processing_directory}/{ref}'
+    else:
+        ref = f'{gene_name}_supercontig.fasta'
+        logger.debug(f'Intronerate run of Exonerate for gff will be run using {ref}')
+        exonerate_supercontig_reference = f'{intronerate_processing_directory}/{ref}'
+
+    exonerate_command = f'exonerate -m protein2genome -q {intronerate_query_stripped} -t ' \
+                        f'{exonerate_supercontig_reference} ' \
                         f'--verbose 0 --showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
                         f' {intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'
 
@@ -323,7 +395,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     # Parse the C4 alignment in file `intronerate_fasta_and_gff.txt` and write 1) Intronerated supercontigs; 2) introns
     # only:
     intronerate_supercontig_without_ns = SeqIO.read(
-        f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_without_Ns.fasta', 'fasta')
+        f'{intronerate_processing_directory}/{gene_name}_supercontig_without_Ns.fasta', 'fasta')
 
     exonerate_searchio_alignment = list(SearchIO.parse(
         f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt', 'exonerate-text'))
@@ -340,7 +412,12 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         intron_seqrecord.description = 'intron'
         intron_sequences.append(intron_seqrecord)
 
-    if len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig_without_ns target
+    # Only write an "introns.fasta" file in certain cases:
+    if exonerate_object.supercontig_seqrecord.description == 'single_hit' and \
+            len(exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
+        logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
+                     f'only a supercontig sequence will be recovered (i.e. no "introns.fasta" file) will be recovered')
+    elif len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig_without_ns target
         logger.debug(f'No introns for gene {gene_name}! This is likely caused by Exonerate splitting the '
                      f'"intronerate_supercontig_without_ns" target in to multiple HSPs (i.e. it could not find an '
                      f'intron). Skipping intron recovery for this gene.')
@@ -355,9 +432,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                     f'{intronerate_sequence_directory}')
 
     # Move the supercontig sequence to the intronerate_sequence_directory:
-    if os.path.exists(f'{intronerate_sequence_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta'):
-        os.remove(f'{intronerate_sequence_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta')
-    shutil.move(f'{intronerate_processing_directory}/{gene_name}_intronerate_supercontig_with_Ns.fasta',
+    if os.path.exists(f'{intronerate_sequence_directory}/{gene_name}_supercontig.fasta'):
+        os.remove(f'{intronerate_sequence_directory}/{gene_name}_supercontig.fasta')
+    shutil.move(f'{intronerate_processing_directory}/{gene_name}_supercontig.fasta',
                 f'{intronerate_sequence_directory}')
 
 

@@ -55,7 +55,8 @@ def main(args):
     elif args.sequence_type == 'supercontig':
         seq_dir = 'intron'
         # filename = 'supercontig'
-        filename = 'intronerate_supercontig_with_Ns'
+        # filename = 'intronerate_supercontig_with_Ns'
+        filename = 'supercontig'
 
     # Use gene names parsed from a bait file.
     baitfile = args.targetfile

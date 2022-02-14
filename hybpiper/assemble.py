@@ -897,14 +897,8 @@ def exonerate(gene_name,
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
                          f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
-            if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
-                    len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
-                logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
-                             f'intronerate will not be run for this gene')
-            else:
-                logger.debug(f'Running intronerate for gene {gene_name}')
-                exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger,
-                                           no_padding_supercontigs=no_padding_supercontigs)
+            exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger,
+                                       no_padding_supercontigs=no_padding_supercontigs)
     else:
         exonerate_result = False
 
@@ -965,7 +959,7 @@ def exonerate_multiprocessing(genes,
                               chimeric_supercontig_discordant_reads_cutoff=5,
                               logger=None,
                               intronerate=False,
-                              no_padding_supercontigs=True):
+                              no_padding_supercontigs=False):
     """
     Runs the function exonerate() using multiprocessing.
 
