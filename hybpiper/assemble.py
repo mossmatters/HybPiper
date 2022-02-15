@@ -384,14 +384,9 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     baitfile_basename = os.path.basename(baitfile)
 
     if os.path.isfile(baitfile):
-        logger.warning(f'BAITFILE is: {baitfile}')
-        logger.warning(f"os.path.split(baitfile)[0] + '.amb' is: {os.path.split(baitfile)[0] + '.amb'}")
-        logger.warning(f"os.path.split(baitfile)[0] + '.amb' is: {os.path.split(baitfile)[0] + '.amb'}")
-        logger.warning(f"baitfile_basename + '.amb' is: {baitfile_basename + '.amb'}")
-        # if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
         if os.path.isfile(f'{baitfile_basename}.amb'):
             db_file = baitfile_basename
-            logger.warning(f'db_file is: {db_file}')
+            logger.debug(f'Using existing BWA database. db_file is: {db_file}')
         else:
             logger.info(f'{"[NOTE]:":10} Making nucleotide bwa index in current directory.')
             baitfiledir = os.path.split(baitfile)[0]
@@ -399,7 +394,6 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
                 if os.path.realpath(baitfiledir) != os.path.realpath('.'):
                     shutil.copy(baitfile, '.')
             db_file = os.path.split(baitfile)[1]
-            logger.warning(f'FIRST TIME CREATING BWA DATABASE; db_file is: {db_file}')
             make_bwa_index_cmd = f'bwa index {db_file}'
             logger.info(f'{"[CMD]:":10} {make_bwa_index_cmd}')
 
@@ -474,30 +468,39 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs baitfile
     """
 
+    baitfile_basename = os.path.basename(baitfile)
+
     if os.path.isfile(baitfile):
-        logger.info(f'{"[NOTE]:":10} Making protein blastdb in current directory.')
-        if os.path.split(baitfile)[0]:
-            shutil.copy(baitfile, '.')
-        db_file = os.path.split(baitfile)[1]
-        if diamond:
-            logger.info(f'{"[NOTE]:":10} Using DIAMOND instead of BLASTx!')
-            if diamond_sensitivity:
-                logger.info(f'{"[NOTE]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
-            makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
+        if os.path.isfile(f'{baitfile_basename}.psq'):
+            db_file = baitfile_basename
+            logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
+        elif os.path.isfile(f'{baitfile_basename}.diamond'):
+            db_file = baitfile_basename
+            logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
         else:
-            makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-        logger.info(f'{"[NOTE]:":10} {makeblastdb_cmd}')
-        try:
-            result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True)
-            logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'makeblastdb stdout is: {result.stdout}')
-            logger.debug(f'makeblastdb stderr is: {result.stderr}')
-        except subprocess.CalledProcessError as exc:
-            logger.error(f'makeblastdb FAILED. Output is: {exc}')
-            logger.error(f'makeblastdb stdout is: {exc.stdout}')
-            logger.error(f'makeblastdb stderr is: {exc.stderr}')
-            return None
+            logger.info(f'{"[NOTE]:":10} Making protein blastdb in current directory.')
+            if os.path.split(baitfile)[0]:
+                shutil.copy(baitfile, '.')
+            db_file = os.path.split(baitfile)[1]
+            if diamond:
+                logger.info(f'{"[NOTE]:":10} Using DIAMOND instead of BLASTx!')
+                if diamond_sensitivity:
+                    logger.info(f'{"[NOTE]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
+                makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
+            else:
+                makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
+            logger.info(f'{"[NOTE]:":10} {makeblastdb_cmd}')
+            try:
+                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+                logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'makeblastdb stdout is: {result.stdout}')
+                logger.debug(f'makeblastdb stderr is: {result.stderr}')
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'makeblastdb FAILED. Output is: {exc}')
+                logger.error(f'makeblastdb stdout is: {exc.stdout}')
+                logger.error(f'makeblastdb stderr is: {exc.stderr}')
+                return None
     else:
         logger.error(f'Cannot find baitfile at: {baitfile}')
         return None
