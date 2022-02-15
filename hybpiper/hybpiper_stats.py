@@ -5,9 +5,11 @@
 #########################
 
 """
-Gather statistics about HybPiper run.
+Writes a report file called "seq_lengths.tsv". The first line contains gene names. The second line contains the length
+of the reference sequences (baits). If there are multiple baits per gene, the mean length is reported. All other rows
+contain one sample per line.
 
-Supply the output of get_seq_lengths.py and a list of HybPiper directories
+Parses the "seq_lengths.tsv" and gathers additional statistics about the HybPiper run.
 
 For an explanation of columns, see github.com/mossmatters/HybPiper/wiki
 """
@@ -17,6 +19,105 @@ import os
 import sys
 import subprocess
 import re
+from Bio import SeqIO
+
+
+def get_seq_lengths(baitfile, namelist, sequence_type):
+    """
+
+    :param str baitfile:
+    :param str namelist:
+    :param str sequence_type:
+    :return str seq_lengths_report_filename: path to the sequence length report file written by this function
+    """
+
+    lines_for_report = []
+
+    if sequence_type.upper() == 'DNA':
+        filetype = 'FNA'
+    elif sequence_type.upper() == 'AA':
+        filetype = 'FAA'
+    elif sequence_type.upper() == "SUPERCONTIG":
+        filetype = "supercontig"
+    else:
+        print(__doc__)
+        sys.exit()
+
+    if not os.path.isfile(baitfile):
+        print(f'Baitfile {baitfile} not found!')
+        sys.exit()
+
+    if not os.path.isfile(namelist):
+        print(f'Name list file {namelist} not found!')
+        sys.exit()
+
+    namelist_parsed = [n.rstrip() for n in open(namelist).readlines()]
+
+    # Get the names and lengths for each sequence in the bait/target file:
+    gene_names = []
+    reference_lengths = {}
+    for prot in SeqIO.parse(baitfile, "fasta"):
+        protname = prot.id.split("-")[-1]
+        gene_names.append(protname)
+        if protname in reference_lengths:
+            reference_lengths[protname].append(len(prot.seq))
+        else:
+            reference_lengths[protname] = [len(prot.seq)]
+
+    unique_names = list(set(gene_names))
+    avg_ref_lengths = [(sum(reference_lengths[gene])/len(reference_lengths[gene])) for gene in unique_names]
+
+    # Capture the unique gene names and average length for each gene to write to a report:
+    unique_names_to_write = '\t'.join(unique_names)
+    avg_ref_lengths_to_write = '\t'.join([str(x) for x in avg_ref_lengths])
+    # sys.stdout.write(f'Species\t{unique_names_to_write}\nMeanLength\t{avg_ref_lengths_to_write}\n')
+    lines_for_report.append(f'Species\t{unique_names_to_write}')
+    lines_for_report.append(f'MeanLength\t{avg_ref_lengths_to_write}\n')
+
+    # Get seq lengths for sample gene sequences (FNA, FAA or supercontigs):
+    for name in namelist_parsed:
+        parentDir, name = os.path.split(name)
+        if not name:
+            parentDir, name = os.path.split(parentDir)
+        name_lengths = []
+        for gene in range(len(unique_names)):
+            if filetype == "supercontig":
+                # read_file = os.path.join(parentDir, name, unique_names[gene], name, "sequences", "intron",
+                #                          "{}_supercontig.fasta".format(unique_names[gene]))
+                read_file = os.path.join(parentDir, name, unique_names[gene], name, 'sequences', 'intron',
+                                         f'{unique_names[gene]}_supercontig_without_Ns.fasta')
+            else:
+                read_file = os.path.join(parentDir, name, unique_names[gene], name, "sequences", filetype,
+                                         f'{unique_names[gene]}.{filetype}')
+
+            if os.path.exists(read_file):
+
+                if filetype == 'FNA' or filetype == 'supercontig':
+                    # Strip any Ns inserted between gaps between Exonerate hits (with respect to the query protein):
+                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
+                elif filetype == 'FAA':
+                    # Strip any Xs (translated Ns) inserted between gaps between Exonerate hits (with respect to the
+                    # query protein):
+                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='X'))
+
+                if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != "supercontig":
+                    sys.stderr.write(f"****WARNING! Sequence length for {name} is more than 50% longer than"
+                                     f" {unique_names[gene]} reference!\n")
+                name_lengths.append(str(seq_length))
+            else:
+                name_lengths.append("0")
+
+        lengths_to_write = '\t'.join(name_lengths)
+        lines_for_report.append(f'{name}\t{lengths_to_write}')
+        # sys.stdout.write(f'{name}\t{lengths_to_write}\n')
+
+    # Write report file "seq_lengths.tsv"
+    seq_lengths_report_filename = 'seq_lengths.tsv'
+    with open(seq_lengths_report_filename, 'w') as seq_lengths_handle:
+        for item in lines_for_report:
+            seq_lengths_handle.write(f'{item}\n')
+
+    return seq_lengths_report_filename
 
 
 def file_len(fname):
@@ -149,11 +250,14 @@ def standalone():
     """
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("seq_lengths", help="Output of get_seq_lengths.py")
-    parser.add_argument("namelist", help="Text file with names of HybPiper output directories, one per line")
-    parser.add_argument("--blastx_adjustment", dest="blastx_adjustment", action='store_true',
-                        help="Adjust stats for when blastx is used i.e. protein references, in cases where "
-                             "get_seq_lengths.py has been run with parameter <dna> rather than <aa>", default=False)
+    parser.add_argument("baitfile", help="FASTA file containing bait sequences for each gene. If there are multiple "
+                                         "baits for a gene, the id must be of the form: >Taxon-geneName")
+    parser.add_argument("namelist", help="text file with names of HybPiper output directories, one per line")
+    parser.add_argument("sequence_type", help="Sequence type (dna, aa or supercontig) to recover lengths for",
+                        choices=["dna", "DNA", "aa", "AA", "supercontig", "SUPERCONTIG"])
+    # parser.add_argument("--blastx_adjustment", dest="blastx_adjustment", action='store_true',
+    #                     help="Adjust stats for when blastx is used i.e. protein references, in cases where "
+    #                          "get_seq_lengths.py has been run with parameter <dna> rather than <aa>", default=False)
     args = parser.parse_args()
     main(args)
 
@@ -164,6 +268,15 @@ def main(args):
 
     :param argparse.Namespace args:
     """
+
+    # Get sequence lengths for recovered genes, and write them to file:
+    seq_lengths_file_path = get_seq_lengths(args.baitfile, args.namelist, args.sequence_type)
+
+    # Set blastx_adjustment boolean to adjust stats for when blastx is used i.e. protein references, in cases where
+    # get_seq_lengths() has been run with parameter <dna> rather than <aa>:
+    # if args.sequence_type
+
+    lines_for_stats_report = []
 
     categories = ["Name",
                   "NumReads",
@@ -185,9 +298,10 @@ def main(args):
                   ]
 
     categories_for_printing = '\t'.join(categories)
-    sys.stdout.write(f'{categories_for_printing}\n')
+    lines_for_stats_report.append(categories_for_printing)
+    # sys.stdout.write(f'{categories_for_printing}\n')
 
-    seq_length_dict = seq_length_calc(args.seq_lengths, args.blastx_adjustment)
+    seq_length_dict = seq_length_calc(seq_lengths_file_path, args.blastx_adjustment)
     stats_dict = {}
 
     for line in open(args.namelist):
@@ -268,7 +382,12 @@ def main(args):
     # SeqLengths
     for name in stats_dict:
         stats_dict_for_printing = '\t'.join(stats_dict[name])
-        sys.stdout.write(f'{name}\t{stats_dict_for_printing}\n')
+        lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
+        # sys.stdout.write(f'{name}\t{stats_dict_for_printing}\n')
+
+    with open('hybpiper_stats.tsv', 'w') as hybpiper_stats_handle:
+        for item in lines_for_stats_report:
+            hybpiper_stats_handle.write(f'{item}\n')
 
 
 if __name__ == "__main__":

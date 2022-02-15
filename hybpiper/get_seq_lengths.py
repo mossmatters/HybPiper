@@ -96,7 +96,7 @@ def main(args):
                 # read_file = os.path.join(parentDir, name, unique_names[gene], name, "sequences", "intron",
                 #                          "{}_supercontig.fasta".format(unique_names[gene]))
                 read_file = os.path.join(parentDir, name, unique_names[gene], name, 'sequences', 'intron',
-                                         f'{unique_names[gene]}_intronerate_supercontig_without_Ns.fasta')
+                                         f'{unique_names[gene]}_supercontig_without_Ns.fasta')
             else:
                 read_file = os.path.join(parentDir, name, unique_names[gene], name, "sequences", filetype,
                                          f'{unique_names[gene]}.{filetype}')

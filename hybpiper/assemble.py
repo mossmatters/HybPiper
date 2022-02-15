@@ -10,7 +10,6 @@ followed by a subcommand to run different parts of the pipeline. The available s
 'hybpiper -h' or 'hybpiper --help'. They are:
 
     assemble            Assemble gene, intron, and supercontig sequences
-    get_seq_lengths     Get sequence lengths for assembled genes
     stats               Gather statistics about the HybPiper run(s)
     retrieve_sequences  Retrieve sequences generated from multiple runs of HybPiper
     recovery_heatmap    Create a gene recovery heatmap for the HybPiper run
@@ -18,7 +17,7 @@ followed by a subcommand to run different parts of the pipeline. The available s
 
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
-Note that the command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
+NOTE: the command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
     python path_to/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
@@ -27,11 +26,16 @@ if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
     hybpiper assemble -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
-Also, note that recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
+NOTE: the recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
 is now incorporated in to the 'hybpiper assemble' command. It can be enabled using the flag
 '--run_intronerate', e.g.:
 
     hybpiper assemble -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
+
+NOTE: the command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
+the command 'hybpiper stats'. The sequence length details that were previously printed to screen are now written to
+the file 'seq_lengths.tsv'. Similarity, the stats details that were previously written to screen by
+'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv'.
 
 For full details of all commands and changes, please reads the wiki page at **LINK** and the changelog at **LINK**.
 """
@@ -77,7 +81,6 @@ import distribute_reads_to_targets
 import distribute_targets
 import spades_runner
 import exonerate_hits
-import get_seq_lengths
 import hybpiper_stats
 import retrieve_sequences
 import paralog_retriever
@@ -321,22 +324,21 @@ def check_baitfile(baitfile, using_bwa, logger=None):
                 seqs_with_stop_codons_dict[gene_name].append(seq)
 
         if seqs_with_stop_codons_dict:
-            seq_list = ' '.join([seq.name for gene_name, bait_file_Sequence_list in seqs_with_stop_codons_dict.items()
-                                 for seq in bait_file_Sequence_list])
-            logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile contain unexpected stop codons when '
-                        f'translated in the first forwards frame. If your baitfile contains only protein-coding '
-                        f'sequences, please check:\n')
-            fill = textwrap.fill(f'{seq_list}')
-            logger.info(textwrap.indent(fill, ' ' * 11))
-            logger.info('')
+            seq_list = [seq.name for gene_name, bait_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
+                        in bait_file_Sequence_list]
+            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your baitfile that contain unexpected '
+                        f'stop codons when translated in the first forwards frame. \n{" " * 11}If your baitfile '
+                        f'contains only protein-coding sequences, please check these sequences. \n{" " * 11}Sequence '
+                        f'names can be found in the sample log file.\n')
+            logger.debug(f'Bait/target file sequences with unexpected stop codons: {seq_list}')
+
         if seqs_needed_padding_dict:
-            seq_list = ' '.join([seq.name for gene_name, bait_file_Sequence_list in seqs_needed_padding_dict.items()
-                                 for seq in bait_file_Sequence_list])
-            logger.info(f'{"[WARN!]:":10} The following sequences in your baitfile are not multiples of three. If your '
-                        f'baitfile contains only protein-coding sequences, please check:\n')
-            fill = textwrap.fill(f'{seq_list}')
-            logger.info(textwrap.indent(fill, ' ' * 11))
-            logger.info('')
+            seq_list = [seq.name for gene_name, bait_file_Sequence_list in seqs_needed_padding_dict.items() for seq
+                        in bait_file_Sequence_list]
+            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your baitfile that are not multiples '
+                        f'of three. \n{" " * 11}If your baitfile contains only protein-coding sequences, please check '
+                        f'these sequences. \n{" " * 11}Sequence names can be found in the sample log file.\n')
+            logger.debug(f'Bait/target file sequences that are not multiples of three: {seq_list}')
 
 
 def make_basename(readfiles, prefix=None):
@@ -1350,17 +1352,6 @@ def assemble(args):
     logger.info(f'\nFinished running "hybpiper assemble" for sample {basename}!\n')
 
 
-def get_seq_lengths_main(args):
-    """
-    Calls the function main() from module get_seq_lengths
-
-    :param args: argparse namespace with subparser options for function get_seq_lengths_main()
-    :return: None: no return value specified; default is None
-    """
-
-    get_seq_lengths.main(args)
-
-
 def hybpiper_stats_main(args):
     """
     Calls the function main() from module hybpiper_stats
@@ -1520,41 +1511,25 @@ def add_assemble_parser(subparsers):
     parser_assemble.set_defaults(func=assemble)
 
 
-def add_get_seq_lengths_parser(subparsers):
-    """
-    Parser for get_seq_lengths
-
-    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
-    :return None: no return value specified; default is None
-    """
-
-    parser_get_seq_lengths = subparsers.add_parser('get_seq_lengths', help='Get sequence lengths for assembled genes')
-    parser_get_seq_lengths.add_argument('baitfile', help="FASTA file containing bait sequences for each gene. If "
-                                                         "there are multiple baits for a gene, the id must be of the "
-                                                         "form: >Taxon-geneName")
-    parser_get_seq_lengths.add_argument('namelist', help="Text file with names of HybPiper output directories, "
-                                                         "one per line")
-    parser_get_seq_lengths.add_argument('sequence_type', choices=['aa', 'AA', 'dna', 'DNA'],
-                                        help="Sequence type (dna or aa) of the baitfile used")
-    # Set function for subparser <parser_get_seq_lengths>:
-    parser_get_seq_lengths.set_defaults(func=get_seq_lengths_main)
-
-
 def add_stats_parser(subparsers):
     """
-    Parser for hybpiper_stats
+    Parser for hybpiper_stats, which now includes running get_seq_lengths
 
     :param argparse._SubParsersAction subparsers:
     :return None: no return value specified; default is None
     """
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
-    parser_stats.add_argument('seq_lengths', help="Output of get_seq_lengths")
+    parser_stats.add_argument('baitfile', help='FASTA file containing bait sequences for each gene. If there are '
+                                               'multiple baits for a gene, the id must be of the form: >Taxon-geneName')
     parser_stats.add_argument('namelist', help="Text file with names of HybPiper output directories, one per line")
-    parser_stats.add_argument('--blastx_adjustment', dest="blastx_adjustment", action='store_true',
-                              help="Adjust stats for when blastx is used i.e. protein references, in cases where "
-                                   "get_seq_lengths.py has been run with parameter <dna> rather than <aa>",
-                              default=False)
+    # parser_stats.add_argument("sequence_type", help="Sequence type (dna or aa) of the baitfile used")
+    parser_stats.add_argument("sequence_type", help="Sequence type (dna, aa or supercontig) to recover lengths for",
+                              choices=["dna", "DNA", "aa", "AA", "supercontig", "SUPERCONTIG"])
+    # parser_stats.add_argument('--blastx_adjustment', dest="blastx_adjustment", action='store_true',
+    #                           help="Adjust stats for when blastx is used i.e. protein references, in cases where "
+    #                                "get_seq_lengths() has been run with parameter <dna> rather than <aa>",
+    #                           default=False)
     # Set function for subparser <parser_stats>:
     parser_stats.set_defaults(func=hybpiper_stats_main)
 
