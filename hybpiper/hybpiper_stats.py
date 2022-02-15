@@ -72,7 +72,7 @@ def get_seq_lengths(baitfile, namelist, sequence_type):
     avg_ref_lengths_to_write = '\t'.join([str(x) for x in avg_ref_lengths])
     # sys.stdout.write(f'Species\t{unique_names_to_write}\nMeanLength\t{avg_ref_lengths_to_write}\n')
     lines_for_report.append(f'Species\t{unique_names_to_write}')
-    lines_for_report.append(f'MeanLength\t{avg_ref_lengths_to_write}\n')
+    lines_for_report.append(f'MeanLength\t{avg_ref_lengths_to_write}')
 
     # Get seq lengths for sample gene sequences (FNA, FAA or supercontigs):
     for name in namelist_parsed:
@@ -209,7 +209,7 @@ def recovery_efficiency(name):
     return [str(a) for a in my_stats]
 
 
-def seq_length_calc(seq_lengths_fn, blastx_adjustment):
+def seq_length_calc(seq_lengths_fn):
     """
     From the output of get_seq_lengths.py, calculate the number of genes with seqs, and at least a pct of the
     reference length
@@ -218,10 +218,11 @@ def seq_length_calc(seq_lengths_fn, blastx_adjustment):
     seq_length_dict = {}
     with open(seq_lengths_fn) as seq_len:
         gene_names = seq_len.readline()
-        if blastx_adjustment:
-            target_lengths = [float(value) * 3 for value in seq_len.readline().split()[1:]]
-        else:
-            target_lengths = seq_len.readline().split()[1:]
+        # if blastx_adjustment:
+        #     target_lengths = [float(value) * 3 for value in seq_len.readline().split()[1:]]
+        # else:
+        #     target_lengths = seq_len.readline().split()[1:]
+        target_lengths = seq_len.readline().split()[1:]
         for line in seq_len:
             line = line.split()
             name = line.pop(0)
@@ -301,7 +302,8 @@ def main(args):
     lines_for_stats_report.append(categories_for_printing)
     # sys.stdout.write(f'{categories_for_printing}\n')
 
-    seq_length_dict = seq_length_calc(seq_lengths_file_path, args.blastx_adjustment)
+    # seq_length_dict = seq_length_calc(seq_lengths_file_path, args.blastx_adjustment)
+    seq_length_dict = seq_length_calc(seq_lengths_file_path)
     stats_dict = {}
 
     for line in open(args.namelist):
