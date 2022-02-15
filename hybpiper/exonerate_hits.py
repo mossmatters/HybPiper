@@ -394,8 +394,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
     # Parse the C4 alignment in file `intronerate_fasta_and_gff.txt` and write 1) Intronerated supercontigs; 2) introns
     # only:
-    intronerate_supercontig_without_ns = SeqIO.read(
-        f'{intronerate_processing_directory}/{gene_name}_supercontig_without_Ns.fasta', 'fasta')
+    intronerate_supercontig = SeqIO.read(exonerate_supercontig_reference, 'fasta')
 
     exonerate_searchio_alignment = list(SearchIO.parse(
         f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt', 'exonerate-text'))
@@ -408,7 +407,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     single_hsp = single_exonerate_qresult.hsps[0]  # TODO fix issue e.g. DEA_14928_S84 gene 6978 has two real HSPs
     intron_sequences = []
     for inter_range in single_hsp.hit_inter_ranges:
-        intron_seqrecord = intronerate_supercontig_without_ns[inter_range[0]:inter_range[1]]
+        intron_seqrecord = intronerate_supercontig[inter_range[0]:inter_range[1]]
         intron_seqrecord.description = 'intron'
         intron_sequences.append(intron_seqrecord)
 
