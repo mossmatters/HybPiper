@@ -390,7 +390,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
         logger.warning(f"baitfile_basename + '.amb' is: {baitfile_basename + '.amb'}")
         # if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
         if os.path.isfile(f'{baitfile_basename}.amb'):
-            db_file = baitfile
+            db_file = baitfile_basename
             logger.warning(f'db_file is: {db_file}')
         else:
             logger.info(f'{"[NOTE]:":10} Making nucleotide bwa index in current directory.')
