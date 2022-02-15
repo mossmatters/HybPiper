@@ -381,10 +381,15 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     :return: None, or the path to the *.bam output file from BWA alignment of sample reads to the bait file
     """
 
+    baitfile_basename = os.path.basename(baitfile)
+
     if os.path.isfile(baitfile):
-        logger.warning(f'BAITFILE is: baitfile')
+        logger.warning(f'BAITFILE is: {baitfile}')
         logger.warning(f"os.path.split(baitfile)[0] + '.amb' is: {os.path.split(baitfile)[0] + '.amb'}")
-        if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
+        logger.warning(f"os.path.split(baitfile)[0] + '.amb' is: {os.path.split(baitfile)[0] + '.amb'}")
+        logger.warning(f"baitfile_basename + '.amb' is: {baitfile_basename + '.amb'}")
+        # if os.path.isfile(os.path.split(baitfile)[0] + '.amb'):
+        if os.path.isfile(f'{baitfile_basename}.amb'):
             db_file = baitfile
             logger.warning(f'db_file is: {db_file}')
         else:
@@ -394,6 +399,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
                 if os.path.realpath(baitfiledir) != os.path.realpath('.'):
                     shutil.copy(baitfile, '.')
             db_file = os.path.split(baitfile)[1]
+            logger.warning(f'FIRST TIME CREATING BWA DATABASE; db_file is: {db_file}')
             make_bwa_index_cmd = f'bwa index {db_file}'
             logger.info(f'{"[CMD]:":10} {make_bwa_index_cmd}')
 
