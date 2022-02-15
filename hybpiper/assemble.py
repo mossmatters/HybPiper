@@ -1635,7 +1635,6 @@ def parse_arguments():
 
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
     add_assemble_parser(subparsers)
-    add_get_seq_lengths_parser(subparsers)
     add_stats_parser(subparsers)
     add_retrieve_sequences_parser(subparsers)
     add_gene_recovery_heatmap_parser(subparsers)
