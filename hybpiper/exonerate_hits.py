@@ -1507,7 +1507,7 @@ def main():
     parser.add_argument("proteinfile", help="FASTA file containing one 'bait' sequence per protein.")
     parser.add_argument("assemblyfile", help="FASTA file containing DNA sequence assembly.")
     parser.add_argument("--prefix", help="Prefix for directory, files, and sequences generated from this assembly. If "
-                                         "not specified, will be extracted from assembly file name.", default=None)
+                                         "not specified, will be extracted from assembly file sample_name.", default=None)
     parser.add_argument("--no_sequences", help="Do not generate protein and nucleotide sequence files.",
                         action="store_true", default=False)
     parser.add_argument("--first_search_filename",

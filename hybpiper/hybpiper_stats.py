@@ -5,11 +5,12 @@
 #########################
 
 """
-Writes a report file called "seq_lengths.tsv" (default, user can change this). The first line contains gene names. The
-second line contains the length of the reference sequences (baits). If there are multiple baits per gene,
+Writes a report file called "seq_lengths.tsv" (default filename, user can change this). The first line contains gene
+names. The second line contains the length of the reference sequences (baits). If there are multiple baits per gene,
 the mean length is reported. All other rows contain one sample per line.
 
-Parses the "seq_lengths.tsv" (default, user can change this) and gathers additional statistics about the HybPiper run.
+Parses the "seq_lengths.tsv" and gathers additional statistics about the HybPiper run. Writes a report file called
+"hybpiper_stats.tsv" (default filename, user can change this).
 
 For an explanation of columns, see github.com/mossmatters/HybPiper/wiki
 """
@@ -31,20 +32,21 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
     for each sample. If a protein bait/target file was used, convert target gene lengths to the number of nucleotides
     (i.e. amino-acids x 3).
 
-    :param str baitfile:
-    :param str namelist:
-    :param str baitfile_sequence_type:
+    :param str baitfile: path to the baitfile
+    :param str namelist: path to the text file containing sample names
+    :param str baitfile_sequence_type: sequence type in the bait-target file (aa or dna)
     :param str sequence_type_to_calculate_stats_for: gene (in nucleotides) or supercontig (in nucleotides)
     :param str seq_lengths_filename: optional filename for seq_lengths file. Default is seq_lengths.tsv
     :return str seq_lengths_report_filename: path to the sequence length report file written by this function
     """
 
-    lines_for_report = []
+    lines_for_report = []  # lines to write to file
 
+    # Set variable 'filetype', used to reconstruct path to each sequence:
     if sequence_type_to_calculate_stats_for.upper() == 'GENE':
         filetype = 'FNA'
     elif sequence_type_to_calculate_stats_for.upper() == "SUPERCONTIG":
-        filetype = "supercontig"
+        filetype = 'supercontig'
 
     if not os.path.isfile(baitfile):
         print(f'Baitfile {baitfile} not found!')
@@ -81,9 +83,11 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
         parentDir, name = os.path.split(name)
         if not name:
             parentDir, name = os.path.split(parentDir)
-        name_lengths = []
+        name_lengths = []  # lengths of sequences in nucleotides
         for gene in range(len(unique_names)):
-            if filetype == "supercontig":
+
+            # Reconstruct path to the sequence:
+            if filetype == 'supercontig':
                 read_file = os.path.join(parentDir, name, unique_names[gene], name, 'sequences', 'intron',
                                          f'{unique_names[gene]}_supercontig.fasta')
             else:
@@ -92,10 +96,9 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
 
             if os.path.exists(read_file):
                 seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
-
-                if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != "supercontig":
-                    sys.stderr.write(f"****WARNING! Sequence length for {name} is more than 50% longer than"
-                                     f" {unique_names[gene]} reference!\n")
+                if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
+                    sys.stderr.write(f'****WARNING! Sequence length for {name} is more than 50% longer than'
+                                     f' {unique_names[gene]} reference!\n')
                 name_lengths.append(str(seq_length))
             else:
                 name_lengths.append("0")
@@ -113,6 +116,13 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
 
 
 def file_len(fname):
+    """
+    Function to recover the number of lines in a test file. Runs the command-line builtin 'wc -l' via subprocess.
+
+    :param str fname: path to a file (spades_genelist.txt/genes_with_seqs.txt/exonerate_genelist.txt)
+    :return int: number of lines in the file as reported by the command-line builtin 'wc -l'
+    """
+
     p = subprocess.Popen(['wc', '-l', fname], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result, err = p.communicate()
     if p.returncode != 0:
@@ -120,9 +130,13 @@ def file_len(fname):
     return int(result.strip().split()[0])
 
 
-def enrich_efficiency_blastx(blastxfilename, name):
+def enrich_efficiency_blastx(blastxfilename, sample_name):
     """
     Parse BLASTX results to calculate enrichment efficiency
+
+    :param str blastxfilename: path to the *.tsv BLASTx output filename for a given sample
+    :param str sample_name: name of a given sample
+    :return str, str, str: values for input reads, mapped reads, and percent mapped reads
     """
 
     reads_with_hits = [x.split()[0] for x in open(blastxfilename)]
@@ -131,29 +145,34 @@ def enrich_efficiency_blastx(blastxfilename, name):
     mappedReads = len(set(reads_with_hits))
 
     # Recover total numbers of reads in input files:
-    if os.path.exists(f'{name}/total_input_reads_paired.txt'):
-        with open(f'{name}/total_input_reads_paired.txt', 'r') as paired_number:
+    if os.path.exists(f'{sample_name}/total_input_reads_paired.txt'):
+        with open(f'{sample_name}/total_input_reads_paired.txt', 'r') as paired_number:
             total_input_reads = int(paired_number.read().rstrip())
-    elif os.path.exists(f'{name}/total_input_reads_single.txt'):
-        with open(f'{name}/total_input_reads_single.txt', 'r') as single_number:
+    elif os.path.exists(f'{sample_name}/total_input_reads_single.txt'):
+        with open(f'{sample_name}/total_input_reads_single.txt', 'r') as single_number:
             total_input_reads = int(single_number.read().rstrip())
     else:
         raise ValueError(f'No file containing total input paired or single-end read count found!')
 
-    if os.path.exists(f'{name}/total_input_reads_unpaired.txt'):
-        with open(f'{name}/total_input_reads_unpaired.txt', 'r') as unpaired_number:
+    if os.path.exists(f'{sample_name}/total_input_reads_unpaired.txt'):
+        with open(f'{sample_name}/total_input_reads_unpaired.txt', 'r') as unpaired_number:
             total_input_reads = total_input_reads + int(unpaired_number.read().rstrip())
 
     try:
         pctMapped = mappedReads / total_input_reads
     except ZeroDivisionError:
         pctMapped = 0.0
+
     return str(total_input_reads), str(mappedReads), "{0:.3f}".format(pctMapped)
 
 
 def enrich_efficiency_bwa(bamfilename):
     """
-    Run and parse samtools flagstat output, return number of reads and number on target
+    Run and parse samtools flagstat output, return number of reads and number on target. Calculate percentage of
+    reads mapped.
+
+    :param bamfilename:
+    :return str, str, str: values for input reads, mapped reads, and percent mapped reads:
     """
 
     samtools_cmd = f'samtools flagstat {bamfilename}'
@@ -179,12 +198,16 @@ def enrich_efficiency_bwa(bamfilename):
         pctMapped = mappedReads / numReads
     except ZeroDivisionError:
         pctMapped = 0.0
+
     return str(int(numReads)), str(int(mappedReads)), "{0:.3f}".format(pctMapped)
 
 
 def recovery_efficiency(name):
     """
-    Report the number of genes with mapping hits, contigs, and exon sequences
+    Reports the number of genes with mapping hits, contigs, and exon sequences
+
+    :param str name: sample name
+    :return list: a list containing the number of genes with contigs, exonerate hits, and assembled sequences
     """
 
     txt_files = ["spades_genelist.txt",
@@ -203,17 +226,16 @@ def recovery_efficiency(name):
 
 def seq_length_calc(seq_lengths_fn):
     """
-    From the output of get_seq_lengths.py, calculate the number of genes with seqs, and at least a pct of the
-    reference length.
+    From the output file produced by get_seq_lengths(), calculate the number of genes with seqs, and at least a
+    percentage of the reference length.
+
+    :param path seq_lengths_fn: path to the sequence length file produced by get_seq_lengths()
+    :return dict seq_length_dict: dictionary of sample:list_of_genes_above_length_threshold
     """
 
     seq_length_dict = {}
     with open(seq_lengths_fn) as seq_len:
-        gene_names = seq_len.readline()
-        # if blastx_adjustment:
-        #     target_lengths = [float(value) * 3 for value in seq_len.readline().split()[1:]]
-        # else:
-        #     target_lengths = seq_len.readline().split()[1:]
+        gene_names = seq_len.readline()  # skip the first line
         target_lengths = seq_len.readline().split()[1:]
         for line in seq_len:
             line = line.split()
@@ -243,17 +265,23 @@ def standalone():
     """
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("baitfile", help="FASTA file containing bait sequences for each gene. If there are multiple "
-                                         "baits for a gene, the id must be of the form: >Taxon-geneName")
-    parser.add_argument("baitfile_sequence_type", help="Sequence type (dna or aa) in the baitfile provided",
+    parser.add_argument("baitfile",
+                        help="FASTA file containing bait sequences for each gene. If there are multiple baits for a "
+                             "gene, the id must be of the form: >Taxon-geneName")
+    parser.add_argument("baitfile_sequence_type",
+                        help="Sequence type (dna or aa) in the baitfile provided",
                         choices=["dna", "DNA", "aa", "AA"])
-    parser.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover stats for",
+    parser.add_argument("sequence_type",
+                        help="Sequence type (gene or supercontig) to recover stats for",
                         choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
-    parser.add_argument("namelist", help="text file with names of HybPiper output directories, one per line")
-    parser.add_argument("--seq_lengths_filename", help="File name for the sequence lengths *.tsv file. Default is "
-                                                       "<seq_lengths.tsv>.", default='seq_lengths')
-    parser.add_argument("--stats_filename", help="File name for the stats *.tsv file. Default is "
-                                                 "<hybpiper_stats.tsv>", default='hybpiper_stats')
+    parser.add_argument("namelist",
+                        help="text file with names of HybPiper output directories, one per line")
+    parser.add_argument("--seq_lengths_filename",
+                        help="File name for the sequence lengths *.tsv file. Default is <seq_lengths.tsv>.",
+                        default='seq_lengths')
+    parser.add_argument("--stats_filename",
+                        help="File name for the stats *.tsv file. Default is <hybpiper_stats.tsv>",
+                        default='hybpiper_stats')
     args = parser.parse_args()
     main(args)
 

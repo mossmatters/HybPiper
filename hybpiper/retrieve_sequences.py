@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 
 """
-Usage:
-    python retrieve_sequences.py targets.fasta sequence_dir aa/dna/intron/supercontig
-
-This script will get the sequences generated from multiple runs of the HybSeqPipeline (assemble.py).
-Specify either a directory with all the HybPiper output directories or a file containing sequences of interest. 
+This script will get the sequences generated from multiple runs of the 'hybpiper assemble' command.
+Specify either a directory with all the HybPiper output directories or a file containing sample names of interest.
 It retrieves all the gene names from the bait file used in the run of the pipeline.
 
-You must specify whether you want the protein (aa) or nucleotide (dna) sequences.
-You can also specify 'intron' to retrieve the intron sequences,
-or 'supercontig' to get intron and exon sequences.
+You must specify whether you want the protein (aa), nucleotide (dna) sequences.
 
-Will output unaligned fasta files, one per gene, to current directory.
+You can also specify 'intron' to retrieve the intron sequences, or 'supercontig' to get intron and exon sequences.
+
+Will output unaligned fasta files, one per gene.
 """
 
 import os

@@ -8,7 +8,7 @@ hybpiper_url = 'https://github.com/chrisjackson-pellicle/HybPiper.git'
 hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.assemble:main']}
 
 setuptools.setup(name='hybpiper',
-                 version='1.4',
+                 version='2.0',
                  packages=setuptools.find_packages(),
                  scripts=['hybpiper/gene_recovery_heatmap.py',
                           'hybpiper/assemble.py',
