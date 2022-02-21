@@ -313,7 +313,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 raise ValueError(f'Slice coordinate not found for hit {hit}')
 
     # Write concatenated Intronerated supercontig_seqrecord with Ns between hits:
-    intron_supercontig_id = f'{sample_name}-{gene_name}'
+    intron_supercontig_id = f'{sample_name}'
 
     intronerate_supercontig_seq_with_n = Seq('NNNNNNNNNN'.join([str(seq.seq) for seq in
                                                                 spades_contigs_for_intronerate_supercontig]))

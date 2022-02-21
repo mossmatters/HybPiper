@@ -1532,16 +1532,21 @@ def add_stats_parser(subparsers):
     """
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
-    parser_stats.add_argument('baitfile', help='FASTA file containing bait sequences for each gene. If there are '
-                                               'multiple baits for a gene, the id must be of the form: >Taxon-geneName')
+    parser_stats.add_argument('baitfile',
+                              help='FASTA file containing bait sequences for each gene. If there are multiple baits '
+                                   'for a gene, the id must be of the form: >Taxon-geneName')
+    parser_stats.add_argument("baitfile_sequence_type", help="Sequence type (dna or aa) in the baitfile provided",
+                              choices=["dna", "DNA", "aa", "AA"])
+    parser_stats.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover lengths for",
+                              choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
     parser_stats.add_argument('namelist', help="Text file with names of HybPiper output directories, one per line")
-    # parser_stats.add_argument("sequence_type", help="Sequence type (dna or aa) of the baitfile used")
-    parser_stats.add_argument("sequence_type", help="Sequence type (dna, aa or supercontig) to recover lengths for",
-                              choices=["dna", "DNA", "aa", "AA", "supercontig", "SUPERCONTIG"])
-    # parser_stats.add_argument('--blastx_adjustment', dest="blastx_adjustment", action='store_true',
-    #                           help="Adjust stats for when blastx is used i.e. protein references, in cases where "
-    #                                "get_seq_lengths() has been run with parameter <dna> rather than <aa>",
-    #                           default=False)
+    parser_stats.add_argument("--seq_lengths_filename",
+                              help="File name for the sequence lengths *.tsv file. Default is <seq_lengths.tsv>.",
+                              default='seq_lengths')
+    parser_stats.add_argument("--stats_filename",
+                              help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
+                              default='hybpiper_stats')
+
     # Set function for subparser <parser_stats>:
     parser_stats.set_defaults(func=hybpiper_stats_main)
 
@@ -1557,12 +1562,17 @@ def add_retrieve_sequences_parser(subparsers):
     parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
                                                                                  'multiple runs of HybPiper')
     parser_retrieve_sequences.add_argument('targetfile', help="FASTA File containing target sequences")
-    parser_retrieve_sequences.add_argument('sample_names', help="Directory containing Hybpiper output OR a file "
-                                                                "containing HybPiper output names, one per line")
-    parser_retrieve_sequences.add_argument('sequence_type', help="Type of sequence to extract",
+    parser_retrieve_sequences.add_argument('--sample_names',
+                                           help='Directory containing Hybpiper output OR a file containing HybPiper '
+                                                'output names, one per line',
+                                           default=None)
+    parser_retrieve_sequences.add_argument('--single_sample_name',
+                                           help='A single sample name to recover sequences for',
+                                           default=None)
+    parser_retrieve_sequences.add_argument('sequence_type', help='Type of sequence to extract',
                                            choices=["dna", "aa", "intron", "supercontig"])
-    parser_retrieve_sequences.add_argument("--hybpiper_dir", help="Specify directory containing HybPiper output")
-    parser_retrieve_sequences.add_argument("--fasta_dir", help="Specify directory for output FASTA files")
+    parser_retrieve_sequences.add_argument("--hybpiper_dir", help='Specify directory containing HybPiper output')
+    parser_retrieve_sequences.add_argument("--fasta_dir", help='Specify directory for output FASTA files')
 
     # Set function for subparser <parser_retrieve_sequences>:
     parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
