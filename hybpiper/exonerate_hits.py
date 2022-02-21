@@ -163,6 +163,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         if set(contigs_with_more_than_one_exonerate_hit) != set_of_consecutive_spades_contigs:
             logger.info(f'There is more than one Exonerate hit for at least one SPAdes contig, but these do NOT appear '
                         f'consecutively with respect to the protein query. CHECK THIS!')
+            print(f'WARNING: issue with gene {gene_name}. There is more than one Exonerate hit for at least one SPAdes '
+                  f'contig, but these do NOT appear consecutively with respect to the protein query. CHECK THIS!')
+            return
         else:
             logger.debug(f'There is more than one Exonerate hit for at least one SPAdes contig, and these appear '
                          f'consecutively with respect to the protein query. Proceeding...')
@@ -175,6 +178,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         if len(set(hit_strands)) != 1:
             logger.info(f'There is more than one Exonerate hit for {spades_contig}, but these do NOT appear on the '
                         f'same strand. CHECK THIS!')
+            print(f'WARNING: issue with gene {gene_name}. more than one Exonerate hit for {spades_contig}, '
+                  f'but these do NOT appear on the same strand. CHECK THIS!')
+            return
         else:
             logger.debug(f'There is more than one Exonerate hit for {spades_contig}, and these appear on the '
                          f'same strand. Proceeding...')
