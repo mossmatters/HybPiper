@@ -1478,6 +1478,7 @@ class Exonerate(object):
             print(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
 
             # Make sure each read is assigned to a contig range:
+            self.logger.info(f'About to test forward_enclosing_contig_range is not None for gene {gene_name}')
             assert forward_enclosing_contig_range is not None
             assert reverse_enclosing_contig_range is not None
 
