@@ -911,6 +911,7 @@ def exonerate(gene_name,
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
                          f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
+            logger.debug(f'Running intronerate')
             exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger,
                                        no_padding_supercontigs=no_padding_supercontigs)
     else:
@@ -1447,7 +1448,7 @@ def add_assemble_parser(subparsers):
                                       'proteins from each gene')
     parser_assemble.add_argument('--cpu', type=int, default=0,
                                  help='Limit the number of CPUs. Default is to use all cores available.')
-    parser_assemble.add_argument('--evalue', type=float, default=1e-10,
+    parser_assemble.add_argument('--evalue', type=float, default=1e-4,
                                  help='e-value threshold for blastx hits, default: %(default)s')
     parser_assemble.add_argument('--max_target_seqs', type=int, default=10,
                                  help='Max target seqs to save in blast search, default: %(default)s')

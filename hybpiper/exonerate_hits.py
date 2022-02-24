@@ -220,25 +220,25 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         # print(hit_data_dict['hit_sequence'].description)
         three_prime_bases_trimmed = hit_data_dict['hit_sequence'].description.split(':')[-1].strip()
 
-        def convert_coords_revcomp(list_of_range_tuples):
-            """
-            This function takes a list of Exonerate SearchIO query range tuples for a hit on the negative strand,
-            and converts them so that they are consistent with those from a hit on the positive strand. The
-            reverse-complemented SPAdes contig can then be processed with the approach used for positive strand
-            hits.
-
-            => e.g. for SPAdes contig with length 873 and query range list [(284, 377), (2, 119)]:
-            [(284, 377), (2, 119)] -> [(496, 589), (754, 871)]
-
-            :param list list_of_range_tuples: list of Exonerate SearchIO query range tuples
-            :return list converted_list: list of query range tuples converted to positive strand coordinates
-            """
-
-            range_tuples_reversed = [tuple(reversed(revcomp_hit_range)) for revcomp_hit_range in
-                                     list_of_range_tuples]
-            converted_list = [(raw_spades_contig_length - revcomp_hit_range[0], raw_spades_contig_length -
-                               revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
-            return converted_list
+        # def convert_coords_revcomp(list_of_range_tuples):
+        #     """
+        #     This function takes a list of Exonerate SearchIO hit range tuples for a hit on the negative strand,
+        #     and converts them so that they are consistent with those from a hit on the positive strand. The
+        #     reverse-complemented SPAdes contig can then be processed with the approach used for positive strand
+        #     hits.
+        #
+        #     => e.g. for SPAdes contig with length 873 and hit range list [(284, 377), (2, 119)]:
+        #     [(284, 377), (2, 119)] -> [(496, 589), (754, 871)]
+        #
+        #     :param list list_of_range_tuples: list of Exonerate SearchIO hit range tuples
+        #     :return list converted_list: list of hit range tuples converted to positive strand coordinates
+        #     """
+        #
+        #     range_tuples_reversed = [tuple(reversed(revcomp_hit_range)) for revcomp_hit_range in
+        #                              list_of_range_tuples]
+        #     converted_list = [(raw_spades_contig_length - revcomp_hit_range[0], raw_spades_contig_length -
+        #                        revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
+        #     return converted_list
 
         # If no trimming has been performed for a SPAdes contig, or the overlap between adjacent Exonerate contig
         # hits is <= 3 amino acids, add the whole contig:
@@ -271,7 +271,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
 
             elif hit_data_dict['hit_strand'] == -1:
-                trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
+                # trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
+                trimmed_hit_ranges_all = Exonerate._convert_coords_revcomp(trimmed_hit_ranges_all,
+                                                                          raw_spades_contig_length)
                 raw_spades_contig = raw_spades_contig.reverse_complement()
                 raw_spades_contig.id = raw_spades_contig_id
                 raw_spades_contig.name = raw_spades_contig_id
@@ -284,7 +286,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
             slice_found = False
 
             if hit_data_dict['hit_strand'] == -1:
-                trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
+                # trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
+                trimmed_hit_ranges_all = Exonerate._convert_coords_revcomp(trimmed_hit_ranges_all,
+                                                                          raw_spades_contig_length)
                 raw_spades_contig = raw_spades_contig.reverse_complement()
                 raw_spades_contig.id = raw_spades_contig_id
                 raw_spades_contig.name = raw_spades_contig_id
@@ -310,7 +314,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                     cumulative_hit_span += hit_span  # keep track of supercontig length covered by previous ranges
                 else:
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
-                                 f' {hit_range[1]}. The 3prime is of the supercontig occurs in this exon!')
+                                 f' {hit_range[1]}. The 3prime end of the supercontig occurs in this exon!')
                     slice_coordinate = hit_length_adjusted
                     spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
                     slice_found = True
@@ -445,7 +449,8 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
 def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
                                         thresh, logger, prefix, discordant_cutoff, edit_distance, bbmap_subfilter,
-                                        bbmap_memory, bbmap_threads, interleaved_fasta_file, nosupercontigs):
+                                        bbmap_memory, bbmap_threads, interleaved_fasta_file, nosupercontigs,
+                                        spades_assembly_dict):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
     => Generates paralog warning and fasta files.
@@ -456,7 +461,7 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
     :param str query_file: path to the protein query fasta file.
     :param float paralog_warning_min_length_percentage: percentage coverage of query required for paralog warning.
     :param int thresh: minimum percentage similarity threshold used to filter Exonerate hits.
-    :param logging.Logger logger: a logger object
+    :param logger logger: a logger object
     :param str prefix: path to gene/sample folder e.g. gene001/sampleID
     :param int discordant_cutoff: number of discordant read pairs for a supercontig to be flagged as chimeric
     :param int edit_distance: edit distance threshold for identifying discordant read pairs
@@ -465,6 +470,7 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
     :param int bbmap_threads: number of threads to use for bbmap.sh
     :param None, str interleaved_fasta_file: path the the file of interleaved R1 and R2 fasta seqs, if present
     :param bool nosupercontigs: if True, return the longest Exonerate hit only
+    :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
@@ -484,7 +490,8 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
                                  bbmap_memory=bbmap_memory,
                                  bbmap_threads=bbmap_threads,
                                  interleaved_fasta_file=interleaved_fasta_file,
-                                 nosupercontigs=nosupercontigs)
+                                 nosupercontigs=nosupercontigs,
+                                 spades_assembly_dict=spades_assembly_dict)
 
     logger.debug(exonerate_result)
 
@@ -523,7 +530,8 @@ class Exonerate(object):
                  bbmap_memory=1,
                  bbmap_threads=1,
                  interleaved_fasta_file=None,
-                 nosupercontigs=False):
+                 nosupercontigs=False,
+                 spades_assembly_dict=None):
         """
         Initialises class attributes.
 
@@ -540,6 +548,7 @@ class Exonerate(object):
         :param int bbmap_threads: number of threads to use for bbmap.sh
         :param str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
         :param bool nosupercontigs: if True, return the longest Exonerate hit only
+        :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         """
 
         if len(searchio_object) != 1:  # This should always be 1 for a single Exonerate query
@@ -559,19 +568,21 @@ class Exonerate(object):
         self.chimera_bbmap_subfilter = bbmap_subfilter
         self.chimera_bbmap_memory = bbmap_memory
         self.chimera_bbmap_threads = bbmap_threads
+        self.spades_assembly_dict = spades_assembly_dict
         self.hits_filtered_by_pct_similarity_dict = self._parse_searchio_object()
         self.hits_subsumed_hits_removed_dict = self._remove_subsumed_hits()
         self.hits_subsumed_hits_removed_overlaps_trimmed_dict = self._trim_overlapping_hits()
         self.long_paralogs_dict = self._recover_long_paralogs()
         self.paralog_warning_by_contig_depth = self._paralog_warning_by_contig_depth()
         self.supercontig_seqrecord = self._create_supercontig()
+        self.supercontig_hit_ranges = self._get_supercontig_hit_ranges()
         if self.nosupercontigs:  # only generate a no_supercontig_seqrecord (and write report) if nosupercontigs is True
             self.no_supercontig_seqrecord = self._no_supercontig()
         else:
             self.no_supercontig_seqrecord = None
 
-        # Only perform test if supercontigs are being created AND interleaved_fasta_file is not None AND a multi-hit
-        # supercontig has been created:
+        # Only perform chimera test if supercontigs are being created AND interleaved_fasta_file is not None AND a
+        # multi-hit supercontig has been created:
         if self.hits_filtered_by_pct_similarity_dict and not self.nosupercontigs and interleaved_fasta_file and not \
                 self.supercontig_seqrecord.description == 'single_hit':
             self.chimera_warning_bool = self._supercontig_chimera_warning()
@@ -1010,6 +1021,112 @@ class Exonerate(object):
 
         return supercontig_seqrecord
 
+    @staticmethod
+    def _convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
+        """
+        This function takes a list of Exonerate SearchIO hit range tuples for a hit on the negative strand,
+        and converts them so that they are consistent with those from a hit on the positive strand. The
+        reverse-complemented SPAdes contig can then be processed with the approach used for positive strand
+        hits.
+
+        => e.g. for SPAdes contig with length 873 and hit range list [(284, 377), (2, 119)]:
+        [(284, 377), (2, 119)] -> [(496, 589), (754, 871)]
+
+        :param list list_of_range_tuples: list of Exonerate SearchIO hit range tuples
+        :param int raw_spades_contig_length: integer corresponding to the length of the SPAdes contig
+        :return list converted_list: list of hit range tuples converted to positive strand coordinates
+        """
+
+        range_tuples_reversed = [tuple(reversed(revcomp_hit_range)) for revcomp_hit_range in
+                                 list_of_range_tuples]
+        converted_list = [(raw_spades_contig_length - revcomp_hit_range[0], raw_spades_contig_length -
+                           revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
+        return converted_list
+
+    def _get_supercontig_hit_ranges(self):
+        """
+        Returns a dictionary of hit_id:exon coordinates for the full exon-only supercontig fasta sequence (i.e.
+        starting at zero and with introns removed).
+
+        :return dict hit_ranges_dict: a dictionary of hit_id: exon coordinates
+        """
+
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
+
+        hit_ranges_dict = defaultdict(list)
+
+        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only supercontig sequence
+        for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
+            spades_name = hit.split(',')[0]
+            raw_spades_contig_length = len(self.spades_assembly_dict[spades_name])
+            hit_exonerate_sequence_length = len(hit_dict_values['hit_sequence'].seq)
+            print(f'spades_name is: {spades_name}')
+            print(f'raw_spades_contig_length is: {raw_spades_contig_length}')
+            print(f'hit_exonerate_sequence_length is: {hit_exonerate_sequence_length}')
+            hit_range = hit_dict_values['hit_range']
+            print(f'hit_range is: {hit_range}')
+            hit_range_all = hit_dict_values['hit_range_all']
+            hit_inter_ranges = hit_dict_values['hit_inter_ranges']
+
+            if len(hit_inter_ranges) == 0:  # i.e. no introns
+                print(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
+                hit_ranges_dict[hit].append('no introns')
+                cumulative_hit_length += hit_exonerate_sequence_length
+            else:
+                if hit_dict_values['hit_strand'] == -1:  # Convert ranges so that they apply to the revcomp contig
+                    print(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
+                    hit_inter_ranges = self._convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
+                    print(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
+                    print(f'hit_range_all before conversion is: {hit_range_all}')
+                    hit_range_all = self._convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
+                    print(f'hit_range_all after conversion is: {hit_range_all}')
+                else:
+                    print(f'hit_inter_ranges is: {hit_inter_ranges}')
+                    print(f'hit_range_all is: {hit_range_all}')
+
+                # Adjust range coordinates so that they start at zero (i.e. first position of the Exonerate fasta
+                # sequence for this hit:
+                hit_start_coordinate = hit_range_all[0][0]
+                print(f'hit_start_coordinate is: {hit_start_coordinate}')
+                hit_range_all_start_at_zero = [(item[0] - hit_start_coordinate, item[1] - hit_start_coordinate)
+                                               for item in hit_range_all]
+                print(f'hit_range_all_exon_only_contig is: {hit_range_all_start_at_zero}')
+
+                # Adjust range coordinates to remove intron lengths:
+                cumulative_intron_length = 0
+                hit_ranges_dict[hit].append(hit_range_all_start_at_zero[0])
+                for pair in list(pairwise_longest(hit_range_all_start_at_zero)):
+                    # print(pair)
+                    if pair[1] is not None:  # as pairwise_longest() will pad a range tuple without a pair with 'None'
+                        intron_length = pair[1][0] - pair[0][1]
+                        cumulative_intron_length += intron_length
+                        # print(f'intron_length is: {intron_length}')
+                        no_intron_coordinates = (pair[1][0] - cumulative_intron_length,
+                                                 pair[1][1] - cumulative_intron_length)
+                        no_intron_coordinates = tuple(no_intron_coordinates)
+                        hit_ranges_dict[hit].append(no_intron_coordinates)
+
+                # Adjust hit ranges to account for previous contigs in the supercontig:
+                print(f'hit_ranges_dict is: {hit_ranges_dict}')
+                hit_ranges_adjusted = [(int(item[0]) + cumulative_hit_length, int(item[1]) + cumulative_hit_length) for
+                                       item in
+                                       hit_ranges_dict[hit]]
+                print(f'hit_ranges_adjusted is: {hit_ranges_adjusted}')
+                hit_ranges_dict[hit] = hit_ranges_adjusted  # replace with adjusted values
+
+                # for range in hit_ranges_adjusted:
+                #     print(range)
+                #     print(self.supercontig_seqrecord.seq[range[0]:range[1]])
+
+                # string = 'ATCGATCG'
+                # string_slice = string[0:5]
+                # print(string_slice)
+
+        print(f'hit_ranges_dict is: {hit_ranges_dict}')
+
+        return hit_ranges_dict
+
     def write_trimmed_supercontig_hits_to_file(self):
         """
         Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the filtered, sorted and trimmed
@@ -1210,10 +1327,15 @@ class Exonerate(object):
         => Maps R1 and R2 reads for the sample/gene against the supercontig sequence.
         => Counts correctly mapped read pairs where one read maps with 100% length and identity to the supercontig
         reference, and the other read has a number of substitutions greater than a given threshold. This is
-        like to occur across hit boundaries, where hits are derived from different paralogs.
+        likely to occur across hit boundaries, where hits are derived from different paralogs.
+        => Ignore read pairs unless 1) they fall entirely withing exon sequences (i.e. they don't overlap exon-intron
+        boundaries which would cause spurious mismatches); 2) R1 occurs in a different Exonerate hit contig to R2
 
         :return bool: True is a chimera warning is produced and written to file.
         """
+
+        print(f'from within _supercontig_chimera_warning, self.supercontig_hit_ranges is: '
+              f'{self.supercontig_hit_ranges}')
 
         if not self.hits_filtered_by_pct_similarity_dict:
             return None
@@ -1254,6 +1376,42 @@ class Exonerate(object):
             self.logger.error(f'bbmap_command stdout is: {exc.stdout}')
             self.logger.error(f'bbmap_command stderr is: {exc.stderr}')
 
+        # Get a list of individual contig ranges within the supercontig (dna_seqrecord_to_write):
+        hits_processed = []
+        individual_contig_ranges_in_supercontig = []
+        # individual_contig_ranges_in_supercontig_dict = defaultdict(list)
+        cumulative_contig_length = 0
+        for hit, hit_data_dict in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
+            spades_contig_name = hit.split(',')[0]
+            if spades_contig_name in hits_processed:
+                raise ValueError(f'Chimera test: contig {spades_contig_name} already processed for sample'
+                                 f' {sample_name}, gene {gene_name} ')  # TODO account for this
+            # print(hit)
+            # print(hit_data_dict)
+            contig_length = len(hit_data_dict['hit_sequence'])
+            # print(f'Contig {hit} length is {contig_length}')
+            if len(individual_contig_ranges_in_supercontig) == 0:  # i.e. it's the first contig
+                contig_range_tuple = (hit, 0, contig_length)
+                individual_contig_ranges_in_supercontig.append(contig_range_tuple)
+                # individual_contig_ranges_in_supercontig_dict[spades_contig_name].append(contig_range_tuple)
+                # print(f'contig_range_tuple is: {contig_range_tuple}')
+            else:
+                contig_start_coordinate = individual_contig_ranges_in_supercontig[-1][-1]  # + 1  # start after last
+                # range
+                # print(f'contig_start_coordinate is: {contig_start_coordinate}')
+                contig_end_coordinate = contig_start_coordinate + contig_length  # - 1  # correct for zero-based
+                # indexing
+                contig_range_tuple = (hit, contig_start_coordinate, contig_end_coordinate)
+                individual_contig_ranges_in_supercontig.append(contig_range_tuple)
+                # individual_contig_ranges_in_supercontig_dict[spades_contig_name].append(contig_range_tuple)
+                # print(f'contig_range_tuple is: {contig_range_tuple}')
+
+        print(f'individual_contig_ranges_in_supercontig is: {individual_contig_ranges_in_supercontig}')
+        # print(f'individual_contig_ranges_in_supercontig_dict is: {individual_contig_ranges_in_supercontig_dict}')
+
+        # Check that the max range corresponds to the length of the supercontig sequence
+        assert individual_contig_ranges_in_supercontig[-1][-1] == len(self.supercontig_seqrecord)
+
         # Parse the sam file produced by bbmap.sh:
         samfile_reads = []
         with open(f'{self.prefix}/chimera_test_supercontig.sam') as samfile:
@@ -1262,31 +1420,114 @@ class Exonerate(object):
                 if not line.startswith('@'):
                     samfile_reads.append(line)
 
-        # Count number of discordant read pairs and, if above threshold, write and return a warning:
-        discordant_reads = 0
-        with open(f'{self.prefix}/chimera_test_diagnostic_reads.sam', 'w') as diagnostic_reads:
-            for forward, reverse in grouped(samfile_reads, 2):
-                forward_edit_distance = (forward.split('\t')[11]).split(':')[2]
-                reverse_edit_distance = (reverse.split('\t')[11]).split(':')[2]
-                if int(forward_edit_distance) == 0 and int(reverse_edit_distance) >= \
-                        self.chimera_edit_distance:
-                    discordant_reads += 1
-                    diagnostic_reads.write(forward)
-                    diagnostic_reads.write(reverse)
-                elif int(reverse_edit_distance) == 0 and int(forward_edit_distance) >= \
-                        self.chimera_edit_distance:
-                    discordant_reads += 1
-                    diagnostic_reads.write(forward)
-                    diagnostic_reads.write(reverse)
+        # Count the number of discordant read pairs and recover R1 and R2 in a list for further filtering:
+        discordant_read_list = []
+        for forward, reverse in grouped(samfile_reads, 2):
+            forward_edit_distance = (forward.split('\t')[11]).split(':')[2]
+            reverse_edit_distance = (reverse.split('\t')[11]).split(':')[2]
+            if int(forward_edit_distance) == 0 and int(reverse_edit_distance) >= \
+                    self.chimera_edit_distance:
+                discordant_read_list.append(forward)
+                discordant_read_list.append(reverse)
+            elif int(reverse_edit_distance) == 0 and int(forward_edit_distance) >= \
+                    self.chimera_edit_distance:
+                discordant_read_list.append(forward)
+                discordant_read_list.append(reverse)
 
-        if discordant_reads > self.chimera_discordant_cutoff:
-            # Write report file for gene
-            with open(f'{self.prefix}/putative_chimeric_supercontigs.csv', 'w') as \
-                    discordant_supercontig_reportfile:
-                log_entry = f'{sample_name},{gene_name}, Chimera WARNING for supercontig. Sequence may be derived ' \
-                            f'from multiple paralogs.'
-                discordant_supercontig_reportfile.write(f'{log_entry}\n')
-            return True
+        self.logger.debug(f'There are {int(len(discordant_read_list) / 2)} discordant read pairs prior to range '
+                          f'filtering')
+        print(f'There are {int(len(discordant_read_list) / 2)} discordant read pairs prior to range filtering')
+        # print(discordant_read_list)
+
+        # Filter discordant read pairs to remove any that 1) don't fall entirely withing exon sequences (i.e. they
+        # overlap exon-intron boundaries which would cause spurious mismatches); 2) don't have each read mapping to
+        # different Exonerate hit contigs:
+        discordant_read_list_pass_filtering = []
+        for forward, reverse in grouped(discordant_read_list, 2):
+            # print(forward)
+            # print(reverse)
+            forward_start_coordinate = int(forward.split('\t')[3]) - 1  # SAM uses 1-based, adjust to zero-based
+            forward_seq_len = len(forward.split('\t')[9])
+            forward_end_coordinate = forward_start_coordinate + forward_seq_len
+            reverse_start_coordinate = int(reverse.split('\t')[3]) - 1  # SAM uses 1-based, adjust to zero-based
+            reverse_seq_len = len(reverse.split('\t')[9])
+            reverse_end_coordinate = reverse_start_coordinate + reverse_seq_len
+            print(forward_start_coordinate, forward_seq_len, forward_end_coordinate)
+            print(reverse_start_coordinate, reverse_seq_len, reverse_end_coordinate)
+            # forward_range_tuple = (forward_start_coordinate, forward_end_coordinate)
+            # reverse_range_tuple = (reverse_start_coordinate, reverse_end_coordinate)
+            # print(f'forward_range_tuple is: {forward_range_tuple}')
+            # print(f'reverse_range_tuple is: {reverse_range_tuple}')
+
+            # Check if each read falls within a different contig:
+            print(f'individual_contig_ranges_in_supercontig is {individual_contig_ranges_in_supercontig}')
+
+            forward_enclosing_contig_range = None
+            reverse_enclosing_contig_range = None
+
+            for range_tuple in individual_contig_ranges_in_supercontig:
+                if forward_start_coordinate >= range_tuple[1] and forward_end_coordinate <= range_tuple[2]:
+                    forward_enclosing_contig_name = range_tuple[0]
+                    forward_enclosing_contig_name_spades_only = range_tuple[0].split(',')[0]
+                    forward_enclosing_contig_range = range_tuple
+                if reverse_start_coordinate >= range_tuple[1] and reverse_end_coordinate <= range_tuple[2]:
+                    reverse_enclosing_contig_name = range_tuple[0]
+                    reverse_enclosing_contig_name_spades_only = range_tuple[0].split(',')[0]
+                    reverse_enclosing_contig_range = range_tuple
+            print(f'forward_enclosing_contig_range is: {forward_enclosing_contig_range}')
+            print(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
+
+            # Make sure each read is assigned to a contig range:
+            assert forward_enclosing_contig_range is not None
+            assert reverse_enclosing_contig_range is not None
+
+            forward_contig_exon_ranges = self.supercontig_hit_ranges[forward_enclosing_contig_name]
+            reverse_contig_exon_ranges = self.supercontig_hit_ranges[reverse_enclosing_contig_name]
+
+            print(f'forward_contig_exon_ranges is: {forward_contig_exon_ranges}')
+            print(f'reverse_contig_exon_ranges is: {reverse_contig_exon_ranges}')
+
+            # if forward_enclosing_contig_range == reverse_enclosing_contig_range:  # i.e. they map to same contig
+            if forward_enclosing_contig_name_spades_only == reverse_enclosing_contig_name_spades_only:
+                print(f'Both reads occur in the same contig. Skipping read pair!')
+                continue
+            else:  # Now check that reads don't overlap exon-intron boundaries within each contig
+                print(f'Reads occur in different contigs. Check for exon-intron overlaps...')
+                forward_occurs_in_exons_only = False
+                reverse_occurs_in_exons_only = False
+                for range_tuple in forward_contig_exon_ranges:
+                    if forward_start_coordinate >= range_tuple[0] and forward_end_coordinate <= range_tuple[1]:
+                        forward_occurs_in_exons_only = True
+                        break
+                for range_tuple in reverse_contig_exon_ranges:
+                    if reverse_start_coordinate >= range_tuple[0] and reverse_end_coordinate <= range_tuple[1]:
+                        reverse_occurs_in_exons_only = True
+                        break
+
+                # Check both reads occur in exons only, and skip if not:
+                if forward_occurs_in_exons_only and reverse_occurs_in_exons_only:
+                    discordant_read_list_pass_filtering.append(forward)
+                    discordant_read_list_pass_filtering.append(reverse)
+                else:
+                    print(f'One or both read pairs overlap with exon-intron boundaries - skipping read pair')
+
+            # If there are discordant read pairs passing filtering, write them to a SAM file, and write to log:
+            if discordant_read_list_pass_filtering:
+                number_of_discordant_read_pairs_passing_filtering = int(len(discordant_read_list_pass_filtering) / 2)
+                with open(f'{self.prefix}/chimera_test_diagnostic_reads.sam', 'w') as diagnostic_reads:
+                    for forward_read, reverse_read in grouped(discordant_read_list_pass_filtering, 2):
+                        diagnostic_reads.write(forward_read)
+                        diagnostic_reads.write(reverse_read)
+
+                if number_of_discordant_read_pairs_passing_filtering > self.chimera_discordant_cutoff:
+                    # Write report file for gene
+                    with open(f'{self.prefix}/putative_chimeric_supercontigs.csv', 'w') as \
+                            discordant_supercontig_reportfile:
+                        log_entry = f'{sample_name},{gene_name}, Chimera WARNING for supercontig. Sequence may be ' \
+                                    f'derived from multiple paralogs.'
+                        discordant_supercontig_reportfile.write(f'{log_entry}\n')
+                        # print(log_entry)
+                    return True
 
         return False
 
@@ -1365,7 +1606,7 @@ class Exonerate(object):
 
     def __repr__(self):
         """
-        Returns a human readable summary of the Exonerate object.
+        Returns a human-readable summary of the Exonerate object.
         """
 
         attrs = []
@@ -1501,11 +1742,11 @@ def create_output_directories(prefix, assemblyfile):
     return prefix
 
 
-########################################################################################################################
-# Define main(), including argparse options
-########################################################################################################################
+def standalone():
+    """
+    Used when this module is run as a stand-alone script. Parses command line arguments and runs function main().:
+    """
 
-def main():
     parser = argparse.ArgumentParser(
         description="exonerate_hits.py; Generate gene-by-gene protein and nucleotide files from Bait Capture Assembly")
     parser.add_argument("--debug", help="Print debugging information for development testing.",
@@ -1513,7 +1754,8 @@ def main():
     parser.add_argument("proteinfile", help="FASTA file containing one 'bait' sequence per protein.")
     parser.add_argument("assemblyfile", help="FASTA file containing DNA sequence assembly.")
     parser.add_argument("--prefix", help="Prefix for directory, files, and sequences generated from this assembly. If "
-                                         "not specified, will be extracted from assembly file sample_name.", default=None)
+                                         "not specified, will be extracted from assembly file sample_name.",
+                        default=None)
     parser.add_argument("--no_sequences", help="Do not generate protein and nucleotide sequence files.",
                         action="store_true", default=False)
     parser.add_argument("--first_search_filename",
@@ -1541,14 +1783,28 @@ def main():
                         help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
                              "to be generated. Default is %(default)s")
     parser.add_argument("--pad_supercontig_query_gaps_with_n",
-                        help="When contructing supercontigs, pad any gaps between hits (with respect to the query "
+                        help="When constructing supercontigs, pad any gaps between hits (with respect to the query "
                              "protein) with a number of Ns corresponding to the query gap multiplied by 3",
                         action="store_true", dest='supercontig_pad_n', default=False)
     parser.add_argument("--run_intronerate",
                         help="Run intronerate to recover fasta files for supercontig with introns (if present), "
                              "and introns-only", action="store_true", dest='intronerate', default=False)
+    parser.add_argument("--no_padding_supercontigs",
+                        help='If Intronerate is run, and a supercontig is created by concatenating multiple SPAdes '
+                             'contigs, do not add 10 "N" characters between contig joins. By default, Ns will be '
+                             'added.', action='store_true', dest='no_padding_supercontigs',
+                        default=False)
 
     args = parser.parse_args()
+
+    main(args)
+
+
+########################################################################################################################
+# Define main()
+########################################################################################################################
+
+def main(args):
 
     # Setup logger for main():
     logger = logging.getLogger()
@@ -1592,28 +1848,35 @@ def main():
                                                            bbmap_memory=args.bbmap_memory,
                                                            bbmap_threads=args.bbmap_threads,
                                                            interleaved_fasta_file=path_to_interleaved_fasta,
-                                                           nosupercontigs=args.nosupercontigs)
+                                                           nosupercontigs=args.nosupercontigs,
+                                                           spades_assembly_dict=spades_assembly_dict)
     if not exonerate_result.supercontig_seqrecord:
         return
 
     logger.debug(f'There were {len(exonerate_result.hits_filtered_by_pct_similarity_dict)} Exonerate '
                  f'hits for {args.proteinfile} after filtering by similarity threshold {args.thresh}.')
 
-    if intronerate:
-        if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
-                len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
-            logger.debug(f'Sequence for gene is derived from a single Exonerate hit with no introns - '
-                         f'intronerate will not be run for this gene')
-        else:
-            logger.debug(f'Running intronerate')
-            intronerate(exonerate_result, spades_assembly_dict, logger=logger)
+    # if intronerate:
+    #     if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
+    #             len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
+    #         logger.debug(f'Sequence for gene is derived from a single Exonerate hit with no introns - '
+    #                      f'intronerate will not be run for this gene')
+    #     else:
+    #         logger.debug(f'Running intronerate')
+    #         intronerate(exonerate_result, spades_assembly_dict, logger=logger)
+
+    if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
+        logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict is:'
+                     f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
+        logger.debug(f'Running intronerate')
+        intronerate(exonerate_result, spades_assembly_dict, logger=logger,
+                    no_padding_supercontigs=args.no_padding_supercontigs)
 
 
 ########################################################################################################################
 # Run the script
 ########################################################################################################################
 if __name__ == "__main__":
-    main()
+    standalone()
 
 ################################################## END OF SCRIPT #######################################################
-
