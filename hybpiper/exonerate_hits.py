@@ -1479,7 +1479,11 @@ class Exonerate(object):
 
             # Make sure each read is assigned to a contig range:
             self.logger.info(f'About to test forward_enclosing_contig_range is not None for gene {gene_name}')
-            assert forward_enclosing_contig_range is not None
+            try:
+                assert forward_enclosing_contig_range is not None
+            except:
+                self.logger.info(f'Error with forward_enclosing_contig_range is not None for gene {gene_name}')
+                sys.exit()
             assert reverse_enclosing_contig_range is not None
 
             forward_contig_exon_ranges = self.supercontig_hit_ranges[forward_enclosing_contig_name]
