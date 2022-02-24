@@ -1454,10 +1454,6 @@ class Exonerate(object):
             reverse_end_coordinate = reverse_start_coordinate + reverse_seq_len
             print(forward_start_coordinate, forward_seq_len, forward_end_coordinate)
             print(reverse_start_coordinate, reverse_seq_len, reverse_end_coordinate)
-            # forward_range_tuple = (forward_start_coordinate, forward_end_coordinate)
-            # reverse_range_tuple = (reverse_start_coordinate, reverse_end_coordinate)
-            # print(f'forward_range_tuple is: {forward_range_tuple}')
-            # print(f'reverse_range_tuple is: {reverse_range_tuple}')
 
             # Check if each read falls within a different contig:
             print(f'individual_contig_ranges_in_supercontig is {individual_contig_ranges_in_supercontig}')
@@ -1477,14 +1473,20 @@ class Exonerate(object):
             print(f'forward_enclosing_contig_range is: {forward_enclosing_contig_range}')
             print(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
 
-            # Make sure each read is assigned to a contig range:
-            self.logger.info(f'About to test forward_enclosing_contig_range is not None for gene {gene_name}')
-            try:
-                assert forward_enclosing_contig_range is not None
-            except:
-                self.logger.info(f'Error with forward_enclosing_contig_range is not None for gene {gene_name}')
-                sys.exit()
-            assert reverse_enclosing_contig_range is not None
+            # Make sure each read is assigned to a contig range, or skip if it overlaps contig join:
+            # self.logger.info(f'About to test forward_enclosing_contig_range is not None for gene {gene_name}')
+            if not forward_enclosing_contig_range or not reverse_enclosing_contig_range:
+                print(f'One or both read pairs do not map within the range of a single contig (i.e. they overlap a '
+                      f'coordinate where two contigs have been concatenated). Skipping read pair')
+                continue
+
+            # try:
+            #     assert forward_enclosing_contig_range is not None
+            # except:
+            #     self.logger.info(f'Error with forward_enclosing_contig_range is not None for gene {gene_name}')
+            #     self.logger.info(f'read is {forward}')
+            #     sys.exit()
+            # assert reverse_enclosing_contig_range is not None
 
             forward_contig_exon_ranges = self.supercontig_hit_ranges[forward_enclosing_contig_name]
             reverse_contig_exon_ranges = self.supercontig_hit_ranges[reverse_enclosing_contig_name]
