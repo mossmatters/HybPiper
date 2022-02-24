@@ -906,7 +906,8 @@ def exonerate(gene_name,
             bbmap_memory=bbmap_memory,
             bbmap_threads=bbmap_threads,
             interleaved_fasta_file=path_to_interleaved_fasta,
-            nosupercontigs=nosupercontigs)
+            nosupercontigs=nosupercontigs,
+            spades_assembly_dict=spades_assembly_dict)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
