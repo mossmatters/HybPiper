@@ -4,7 +4,7 @@
 Takes the seq_lengths.txt file (output from running 'hybpiper get_seq_lengths') as input.
 
 For each sample and for each gene, calculates the percentage length recovered. This percentage is calculated as a
-fraction of the mean length for representative gene sequences in the target/bait file provided.
+fraction of the mean length for representative gene sequences in the target file provided.
 
 Generates a heatmap of percentage length recovery for each sample and each gene.
 

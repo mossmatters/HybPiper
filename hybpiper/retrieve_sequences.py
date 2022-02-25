@@ -3,7 +3,7 @@
 """
 This script will get the sequences generated from multiple runs of the 'hybpiper assemble' command.
 Specify either a directory with all the HybPiper output directories or a file containing sample names of interest.
-It retrieves all the gene names from the bait file used in the run of the pipeline.
+It retrieves all the gene names from the target file used in the run of the pipeline.
 
 You must specify whether you want the protein (aa), nucleotide (dna) sequences.
 
@@ -25,7 +25,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
 
     :param str seq_dir: directory to recover sequence from
     :param str filename: file name component used to reconstruct path to file
-    :param list target_genes: list of unique gene names in the bait/target file
+    :param list target_genes: list of unique gene names in the target file
     :param str sample_names: directory of samples, or text file with list of sample names
     :param None or str hybpiper_dir: if provided, a path to the directory containing HybPiper output
     :param None or str fasta_dir: directory name for output files, default is current directory
@@ -90,7 +90,7 @@ def recover_sequences_from_one_sample(seq_dir,
 
     :param str seq_dir: directory to recover sequence from
     :param str filename: file name component used to reconstruct path to file
-    :param list target_genes: list of unique gene names in the bait/target file
+    :param list target_genes: list of unique gene names in the target file
     :param str single_sample_name: directory of a single sample
     :param None or str fasta_dir: directory name for output files, default is current directory
     :return None:
@@ -185,7 +185,7 @@ def main(args):
         seq_dir = 'intron'
         filename = 'supercontig'
 
-    # Use gene names parsed from a bait file.
+    # Use gene names parsed from a target file.
     targetfile = args.targetfile
     target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')]))
 

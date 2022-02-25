@@ -233,10 +233,10 @@ def check_dependencies(logger=None):
 
 def check_targetfile(targetfile, using_bwa, logger=None):
     """
-    Checks bait-file fasta header formatting ("taxon*-unique_gene_ID").
+    Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     Reports the number of unique genes (each can have multiple representatives) in the targetfile.
     Performs a quick detection of whether targetfile is DNA or amino-acid.
-    Checks that seqs in bait file can be translated from the first codon position in the forwards frame (multiple of
+    Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
     three, no unexpected stop codons), and logs a warning if not.
 
     :param str targetfile: path to the targetfile
@@ -245,11 +245,11 @@ def check_targetfile(targetfile, using_bwa, logger=None):
     :return: None
     """
 
-    # Check bait-file fasta header formatting:
+    # Check target-file fasta header formatting:
     logger.info(f'{"[NOTE]:":10} Checking targetfile FASTA header formatting...')
     gene_lists = defaultdict(list)
-    with open(targetfile, 'r') as bait_file:
-        seqs = list(Bio.SeqIO.parse(bait_file, 'fasta'))
+    with open(targetfile, 'r') as target_file:
+        seqs = list(Bio.SeqIO.parse(target_file, 'fasta'))
         incorrectly_formatted_fasta_headers = []
         check_for_duplicate_genes_dict = {}
         for seq in seqs:
@@ -297,13 +297,13 @@ def check_targetfile(targetfile, using_bwa, logger=None):
             header = bf.readline()  # skip the first fasta header
             seqline = bf.readline().rstrip().upper()
             if using_bwa and set(seqline) - dna:
-                sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide bait '
+                sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide target '
                          f'file for BWA!')
             elif not using_bwa and not set(seqline) - dna:
-                sys.exit(f'{"ERROR:":10} Only ATCGN characters found in first line. You need a protein bait file for '
+                sys.exit(f'{"ERROR:":10} Only ATCGN characters found in first line. You need a protein target file for '
                          f'BLASTx!')
 
-    # Check that seqs in bait file can be translated from the first codon position in the forwards frame:
+    # Check that seqs in target file can be translated from the first codon position in the forwards frame:
     if using_bwa:
         seqs_needed_padding_dict = defaultdict(list)
         seqs_with_stop_codons_dict = defaultdict(list)
@@ -324,8 +324,8 @@ def check_targetfile(targetfile, using_bwa, logger=None):
                 seqs_with_stop_codons_dict[gene_name].append(seq)
 
         if seqs_with_stop_codons_dict:
-            seq_list = [seq.name for gene_name, bait_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
-                        in bait_file_Sequence_list]
+            seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
+                        in target_file_Sequence_list]
             logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your targetfile that contain unexpected '
                         f'stop codons when translated in the first forwards frame. \n{" " * 11}If your targetfile '
                         f'contains only protein-coding sequences, please check these sequences. \n{" " * 11}Sequence '
@@ -333,8 +333,8 @@ def check_targetfile(targetfile, using_bwa, logger=None):
             logger.debug(f'Bait/target file sequences with unexpected stop codons: {seq_list}')
 
         if seqs_needed_padding_dict:
-            seq_list = [seq.name for gene_name, bait_file_Sequence_list in seqs_needed_padding_dict.items() for seq
-                        in bait_file_Sequence_list]
+            seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_needed_padding_dict.items() for seq
+                        in target_file_Sequence_list]
             logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your targetfile that are not multiples '
                         f'of three. \n{" " * 11}If your targetfile contains only protein-coding sequences, please check '
                         f'these sequences. \n{" " * 11}Sequence names can be found in the sample log file.\n')
@@ -378,7 +378,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     :param int cpu: number of threads/cpus to use for BWA mapping
     :param bool unpaired: True if an unpaired file has been provided, False if not
     :param logging.Logger logger: a logger object
-    :return: None, or the path to the *.bam output file from BWA alignment of sample reads to the bait file
+    :return: None, or the path to the *.bam output file from BWA alignment of sample reads to the target file
     """
 
     targetfile_basename = os.path.basename(targetfile)
@@ -663,7 +663,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
 
     Distribute the 'best' target file sequence (translated if necessary) to each gene directory.
 
-    :param str bamfile: *.bam output file from BWA alignment of sample reads to the bait file
+    :param str bamfile: *.bam output file from BWA alignment of sample reads to the target file
     :param list readfiles: one or more read files used as input to the pipeline
     :param str targetfile: path to targetfile (i.e. the target file)
     :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
@@ -873,7 +873,7 @@ def exonerate(gene_name,
     try:
         spades_assembly_dict, best_protein_ref_dict = exonerate_hits.parse_spades_and_best_reference(
             f'{gene_name}/{gene_name}_contigs.fasta',
-            f'{gene_name}/{gene_name}_baits.fasta',
+            f'{gene_name}/{gene_name}_targets.fasta',
             prefix)
 
         logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
@@ -889,13 +889,13 @@ def exonerate(gene_name,
         return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
-    exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_baits.fasta',
+    exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_targets.fasta',
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
                                                              prefix)
     if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
         exonerate_result = exonerate_hits.parse_exonerate_and_get_supercontig(
             exonerate_text_output,
-            query_file=f'{gene_name}/{gene_name}_baits.fasta',
+            query_file=f'{gene_name}/{gene_name}_targets.fasta',
             paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
             thresh=thresh,
             logger=logger,
@@ -1088,7 +1088,7 @@ def assemble(args):
 
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
-    # Check that the target/bait-file and input read files exist and aren't empty:
+    # Check that the target/target-file and input read files exist and aren't empty:
     for read_file in readfiles:
         if os.path.isfile(read_file) and not os.path.getsize(read_file) == 0:
             logger.debug(f'Input read file {read_file} exists and is not empty, proceeding...')
@@ -1100,9 +1100,9 @@ def assemble(args):
         else:
             sys.exit(f'Input read file {args.unpaired} does not exist or is empty!')
     if os.path.isfile(args.targetfile) and not os.path.getsize(args.targetfile) == 0:
-        logger.debug(f'Input target/bait file {args.targetfile} exists and is not empty, proceeding...')
+        logger.debug(f'Input target/target file {args.targetfile} exists and is not empty, proceeding...')
     else:
-        sys.exit(f'Input target/bait file {args.targetfile} does not exist or is empty!')
+        sys.exit(f'Input target/target file {args.targetfile} does not exist or is empty!')
 
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
@@ -1145,7 +1145,7 @@ def assemble(args):
         print(__doc__)
         return
 
-    # Check that the bait file is formatted correctly, translates correctly:
+    # Check that the target file is formatted correctly, translates correctly:
     check_targetfile(targetfile, args.bwa, logger=logger)
 
     if args.unpaired:
@@ -1423,13 +1423,13 @@ def add_assemble_parser(subparsers):
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
                                       'will assume it is paired Illumina reads.',
                                  default=[], required=True)
-    parser_assemble.add_argument('--targetfile', '-b',
-                                 help='FASTA file containing bait sequences for each gene. If there are multiple '
-                                      'baits for a gene, the id must be of the form: >Taxon-geneName',
+    parser_assemble.add_argument('--targetfile', '-t',
+                                 help='FASTA file containing target sequences for each gene. If there are multiple '
+                                      'targets for a gene, the id must be of the form: >Taxon-geneName',
                                  default=None, required=True)
     group_1 = parser_assemble.add_mutually_exclusive_group()
     group_1.add_argument('--bwa', dest='bwa', action='store_true',
-                         help='Use BWA to search reads for hits to target. Requires BWA and a bait file that is '
+                         help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
                               'nucleotides!', default=False)
     group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx',
                          default=False)
@@ -1441,7 +1441,7 @@ def add_assemble_parser(subparsers):
                                       '*_all.blastx file. \nUseful for re-running assembly/exonerate steps with '
                                       'different options.')
     parser_assemble.add_argument('--no-distribute', dest='distribute', action='store_false',
-                                 help='Do not distribute the reads and bait sequences to sub-directories.')
+                                 help='Do not distribute the reads and target sequences to sub-directories.')
     parser_assemble.add_argument('--no-assemble', dest='assemble', action='store_false',
                                  help='Skip the SPAdes assembly stage.')
     parser_assemble.add_argument('--no-exonerate', dest='exonerate', action='store_false',
@@ -1535,7 +1535,7 @@ def add_stats_parser(subparsers):
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
     parser_stats.add_argument('targetfile',
-                              help='FASTA file containing bait sequences for each gene. If there are multiple baits '
+                              help='FASTA file containing target sequences for each gene. If there are multiple targets '
                                    'for a gene, the id must be of the form: >Taxon-geneName')
     parser_stats.add_argument("targetfile_sequence_type", help="Sequence type (dna or aa) in the targetfile provided",
                               choices=["dna", "DNA", "aa", "AA"])

@@ -6,7 +6,7 @@
 
 """
 Writes a report file called "seq_lengths.tsv" (default filename, user can change this). The first line contains gene
-names. The second line contains the length of the reference sequences (baits). If there are multiple baits per gene,
+names. The second line contains the length of the reference sequences (targets). If there are multiple targets per gene,
 the mean length is reported. All other rows contain one sample per line.
 
 Parses the "seq_lengths.tsv" and gathers additional statistics about the HybPiper run. Writes a report file called
@@ -29,12 +29,12 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
     """
     Recover the sequence length of each target file gene (calculated as mean length if a representative sequence from
     more than one taxon is provided for a given gene). Calculate the percentage length recovery for each gene,
-    for each sample. If a protein bait/target file was used, convert target gene lengths to the number of nucleotides
+    for each sample. If a protein target file was used, convert target gene lengths to the number of nucleotides
     (i.e. amino-acids x 3).
 
     :param str targetfile: path to the targetfile
     :param str namelist: path to the text file containing sample names
-    :param str targetfile_sequence_type: sequence type in the bait-target file (aa or dna)
+    :param str targetfile_sequence_type: sequence type in the target file (aa or dna)
     :param str sequence_type_to_calculate_stats_for: gene (in nucleotides) or supercontig (in nucleotides)
     :param str seq_lengths_filename: optional filename for seq_lengths file. Default is seq_lengths.tsv
     :return str seq_lengths_report_filename: path to the sequence length report file written by this function
@@ -58,7 +58,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
 
     namelist_parsed = [n.rstrip() for n in open(namelist).readlines()]
 
-    # Get the names and lengths for each sequence in the bait/target file:
+    # Get the names and lengths for each sequence in the target file:
     gene_names = []
     reference_lengths = defaultdict(list)
     for prot in SeqIO.parse(targetfile, "fasta"):
@@ -266,8 +266,8 @@ def standalone():
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("targetfile",
-                        help="FASTA file containing bait sequences for each gene. If there are multiple baits for a "
-                             "gene, the id must be of the form: >Taxon-geneName")
+                        help="FASTA file containing target sequences for each gene. If there are multiple targets for "
+                             "a gene, the id must be of the form: >Taxon-geneName")
     parser.add_argument("targetfile_sequence_type",
                         help="Sequence type (dna or aa) in the targetfile provided",
                         choices=["dna", "DNA", "aa", "AA"])
