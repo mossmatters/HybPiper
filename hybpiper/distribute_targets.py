@@ -3,13 +3,13 @@
 """
 usage: python distribute_targets.py targetfile
 
-Taks a file containing all of the "baits" for a target enrichment. The file can contain multiple copies of the same
-bait as specified using a "-" delimiter. For example, the following:
+Taks a file containing all of the "targets" for a target enrichment. The file can contain multiple copies of the same
+target as specified using a "-" delimiter. For example, the following:
 
 Anomodon-rbcl
 Physcomitrella-rbcl
 
-Given multiple baits, the script will choose the most appropriate 'reference' sequence
+Given multiple targets, the script will choose the most appropriate 'reference' sequence
 using the highest cumulative BLAST scores or Mapping Quality (BWA) across all hits.
 
 Output directories can also be created, one for each target category (the default is to put them all in the current one)
@@ -107,7 +107,7 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
-    tallyfile = open('bait_tallies.txt', 'w')
+    tallyfile = open('target_tallies.txt', 'w')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
@@ -160,7 +160,7 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
             besthit_counts[top_taxon] += 1
         else:
             besthit_counts[top_taxon] = 1
-    tallyfile = open('bait_tallies.txt', 'w')
+    tallyfile = open('target_tallies.txt', 'w')
     for x in besthit_counts:
         tallyfile.write(f'{x}\t{besthit_counts[x]}\n')
     tallyfile.close()
@@ -209,8 +209,8 @@ def distribute_targets(targetfile, delim, besthits, translate=False, target=None
             else:       
                 besthit_taxon = besthits[gene_id]
             if '-'.join(sequence.id.split("-")[:-1]) == besthit_taxon:
-                with open(os.path.join(gene_id, f'{gene_id}_baits.fasta'), 'w') as ref_bait_seq_file:
-                    SeqIO.write(sequence, ref_bait_seq_file, 'fasta')
+                with open(os.path.join(gene_id, f'{gene_id}_target.fasta'), 'w') as ref_target_seq_file:
+                    SeqIO.write(sequence, ref_target_seq_file, 'fasta')
         else:
             no_matches.append(gene_id)
     logger.info(f'{"[NOTE]:":10} {len(set(no_matches))} proteins had no good matches.')
@@ -220,7 +220,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-d', '--delimiter', help='Field separating FASTA ids for multiple sequences per target. '
                                                   'Default is "-" . For no delimeter, write None', default='-')
-    parser.add_argument('targetfile', help='FASTA file containing bait sequences')
+    parser.add_argument('targetfile', help='FASTA file containing target sequences')
     parser.add_argument('--blastx', help='tabular blastx results file, used to select the best target for each gene',
                         default=None)
     parser.add_argument('--bam', help='BAM file from BWA search, alternative to the BLASTx method', default=None)

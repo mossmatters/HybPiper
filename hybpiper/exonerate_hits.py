@@ -354,7 +354,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     # Run Exonerate to get the gff file:
     intronerate_query = f'{exonerate_object.prefix}/sequences/FAA/{gene_name}.FAA'
 
-    # Strip any "X" characters (inserted if sequence missing relative to bait/target file reference):
+    # Strip any "X" characters (inserted if sequence missing relative to target file reference):
     intronerate_query_stripped = f'{intronerate_processing_directory}/intronerate_query_stripped.fasta'
     with open(intronerate_query, 'r') as query_handle:
         query = SeqIO.read(query_handle, 'fasta')
@@ -1756,7 +1756,7 @@ def standalone():
         description="exonerate_hits.py; Generate gene-by-gene protein and nucleotide files from Bait Capture Assembly")
     parser.add_argument("--debug", help="Print debugging information for development testing.",
                         action="store_true", dest="loglevel", default=False)
-    parser.add_argument("proteinfile", help="FASTA file containing one 'bait' sequence per protein.")
+    parser.add_argument("proteinfile", help="FASTA file containing one 'target' sequence per protein.")
     parser.add_argument("assemblyfile", help="FASTA file containing DNA sequence assembly.")
     parser.add_argument("--prefix", help="Prefix for directory, files, and sequences generated from this assembly. If "
                                          "not specified, will be extracted from assembly file sample_name.",
