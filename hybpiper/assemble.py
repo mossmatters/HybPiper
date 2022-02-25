@@ -873,7 +873,7 @@ def exonerate(gene_name,
     try:
         spades_assembly_dict, best_protein_ref_dict = exonerate_hits.parse_spades_and_best_reference(
             f'{gene_name}/{gene_name}_contigs.fasta',
-            f'{gene_name}/{gene_name}_targets.fasta',
+            f'{gene_name}/{gene_name}_target.fasta',
             prefix)
 
         logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
