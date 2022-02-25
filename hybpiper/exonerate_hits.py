@@ -1480,14 +1480,6 @@ class Exonerate(object):
                       f'coordinate where two contigs have been concatenated). Skipping read pair')
                 continue
 
-            # try:
-            #     assert forward_enclosing_contig_range is not None
-            # except:
-            #     self.logger.info(f'Error with forward_enclosing_contig_range is not None for gene {gene_name}')
-            #     self.logger.info(f'read is {forward}')
-            #     sys.exit()
-            # assert reverse_enclosing_contig_range is not None
-
             forward_contig_exon_ranges = self.supercontig_hit_ranges[forward_enclosing_contig_name]
             reverse_contig_exon_ranges = self.supercontig_hit_ranges[reverse_enclosing_contig_name]
 
@@ -1503,10 +1495,16 @@ class Exonerate(object):
                 forward_occurs_in_exons_only = False
                 reverse_occurs_in_exons_only = False
                 for range_tuple in forward_contig_exon_ranges:
+                    if range_tuple == 'no introns':
+                        forward_occurs_in_exons_only = True
+                        break
                     if forward_start_coordinate >= range_tuple[0] and forward_end_coordinate <= range_tuple[1]:
                         forward_occurs_in_exons_only = True
                         break
                 for range_tuple in reverse_contig_exon_ranges:
+                    if range_tuple == 'no introns':
+                        reverse_occurs_in_exons_only = True
+                        break
                     if reverse_start_coordinate >= range_tuple[0] and reverse_end_coordinate <= range_tuple[1]:
                         reverse_occurs_in_exons_only = True
                         break
