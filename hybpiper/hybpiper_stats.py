@@ -24,7 +24,7 @@ from Bio import SeqIO
 from collections import defaultdict
 
 
-def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to_calculate_stats_for,
+def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_type_to_calculate_stats_for,
                     seq_lengths_filename):
     """
     Recover the sequence length of each target file gene (calculated as mean length if a representative sequence from
@@ -32,9 +32,9 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
     for each sample. If a protein bait/target file was used, convert target gene lengths to the number of nucleotides
     (i.e. amino-acids x 3).
 
-    :param str baitfile: path to the baitfile
+    :param str targetfile: path to the targetfile
     :param str namelist: path to the text file containing sample names
-    :param str baitfile_sequence_type: sequence type in the bait-target file (aa or dna)
+    :param str targetfile_sequence_type: sequence type in the bait-target file (aa or dna)
     :param str sequence_type_to_calculate_stats_for: gene (in nucleotides) or supercontig (in nucleotides)
     :param str seq_lengths_filename: optional filename for seq_lengths file. Default is seq_lengths.tsv
     :return str seq_lengths_report_filename: path to the sequence length report file written by this function
@@ -48,8 +48,8 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
     elif sequence_type_to_calculate_stats_for.upper() == "SUPERCONTIG":
         filetype = 'supercontig'
 
-    if not os.path.isfile(baitfile):
-        print(f'Baitfile {baitfile} not found!')
+    if not os.path.isfile(targetfile):
+        print(f'Baitfile {targetfile} not found!')
         sys.exit()
 
     if not os.path.isfile(namelist):
@@ -61,12 +61,12 @@ def get_seq_lengths(baitfile, namelist, baitfile_sequence_type, sequence_type_to
     # Get the names and lengths for each sequence in the bait/target file:
     gene_names = []
     reference_lengths = defaultdict(list)
-    for prot in SeqIO.parse(baitfile, "fasta"):
+    for prot in SeqIO.parse(targetfile, "fasta"):
         protname = prot.id.split("-")[-1]
         gene_names.append(protname)
-        if baitfile_sequence_type.upper() == 'AA':
+        if targetfile_sequence_type.upper() == 'AA':
             reference_lengths[protname].append(len(prot.seq) * 3)  # covert from amino-acids to nucleotides
-        elif baitfile_sequence_type.upper() == 'DNA':
+        elif targetfile_sequence_type.upper() == 'DNA':
             reference_lengths[protname].append(len(prot.seq))
 
     unique_names = list(set(gene_names))
@@ -265,11 +265,11 @@ def standalone():
     """
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("baitfile",
+    parser.add_argument("targetfile",
                         help="FASTA file containing bait sequences for each gene. If there are multiple baits for a "
                              "gene, the id must be of the form: >Taxon-geneName")
-    parser.add_argument("baitfile_sequence_type",
-                        help="Sequence type (dna or aa) in the baitfile provided",
+    parser.add_argument("targetfile_sequence_type",
+                        help="Sequence type (dna or aa) in the targetfile provided",
                         choices=["dna", "DNA", "aa", "AA"])
     parser.add_argument("sequence_type",
                         help="Sequence type (gene or supercontig) to recover stats for",
@@ -294,9 +294,9 @@ def main(args):
     """
 
     # Get sequence lengths for recovered genes, and write them to file:
-    seq_lengths_file_path = get_seq_lengths(args.baitfile,
+    seq_lengths_file_path = get_seq_lengths(args.targetfile,
                                             args.namelist,
-                                            args.baitfile_sequence_type,
+                                            args.targetfile_sequence_type,
                                             args.sequence_type,
                                             args.seq_lengths_filename)
 

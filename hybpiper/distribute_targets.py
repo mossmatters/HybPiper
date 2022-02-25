@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-usage: python distribute_targets.py baitfile
+usage: python distribute_targets.py targetfile
 
 Taks a file containing all of the "baits" for a target enrichment. The file can contain multiple copies of the same
 bait as specified using a "-" delimiter. For example, the following:
@@ -40,7 +40,7 @@ def pad_seq(sequence):
     if remainder == 0:
         return sequence, False
     else:
-        # logger.info(f'{"[WARN!]:":10} The baitfile nucleotide sequence {sequence.id} is not a multiple of 3!')
+        # logger.info(f'{"[WARN!]:":10} The targetfile nucleotide sequence {sequence.id} is not a multiple of 3!')
         sequence.seq = sequence.seq + Seq('N' * (3 - remainder))
         return sequence, True
 
@@ -167,12 +167,12 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
     return besthits    
 
      
-def distribute_targets(baitfile, delim, besthits, translate=False, target=None):
+def distribute_targets(targetfile, delim, besthits, translate=False, target=None):
     """
     Writes the single 'best' protein sequence from the target file (translated if neccessary) as a fasta file for each
     gene.
 
-    :param str baitfile: path to baitfile
+    :param str targetfile: path to targetfile
     :param str delim: symbol to use as gene delimeter; default is '-'
     :param dict besthits: dictionary of besthits[prot] = top_taxon
     :param bool translate: If True, translate nucleotide target SeqObject
@@ -188,7 +188,7 @@ def distribute_targets(baitfile, delim, besthits, translate=False, target=None):
         else:
             target_is_file = False    
         
-    targets = SeqIO.parse(baitfile, 'fasta')
+    targets = SeqIO.parse(targetfile, 'fasta')
     no_matches = []
     for sequence in targets:
         # Get the 'basename' of the protein
@@ -220,7 +220,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-d', '--delimiter', help='Field separating FASTA ids for multiple sequences per target. '
                                                   'Default is "-" . For no delimeter, write None', default='-')
-    parser.add_argument('baitfile', help='FASTA file containing bait sequences')
+    parser.add_argument('targetfile', help='FASTA file containing bait sequences')
     parser.add_argument('--blastx', help='tabular blastx results file, used to select the best target for each gene',
                         default=None)
     parser.add_argument('--bam', help='BAM file from BWA search, alternative to the BLASTx method', default=None)
@@ -238,7 +238,7 @@ def main():
         translate = True
         besthits = tailored_target_bwa(args.bam, args.unpaired, args.exclude)
 
-    distribute_targets(args.baitfile,
+    distribute_targets(args.targetfile,
                        delim=args.delimiter,
                        besthits=besthits,
                        translate=translate,

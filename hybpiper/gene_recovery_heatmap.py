@@ -191,7 +191,7 @@ def main(args):
     heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0)
     heatmap.set_xlabel("Gene name", fontsize=14, fontweight='bold', labelpad=20)
     heatmap.set_ylabel("Sample name", fontsize=14, fontweight='bold', labelpad=20)
-    plt.title("Percentage length recovery for each gene, relative to mean of baitfile references", fontsize=14,
+    plt.title("Percentage length recovery for each gene, relative to mean of targetfile references", fontsize=14,
               fontweight='bold', y=1.05)
     # plt.tight_layout()
 

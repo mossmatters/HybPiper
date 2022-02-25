@@ -186,8 +186,8 @@ def main(args):
         filename = 'supercontig'
 
     # Use gene names parsed from a bait file.
-    baitfile = args.targetfile
-    target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(baitfile, 'fasta')]))
+    targetfile = args.targetfile
+    target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')]))
 
     # Recover sequences from all samples:
     if args.sample_names:

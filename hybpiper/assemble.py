@@ -231,24 +231,24 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
-def check_baitfile(baitfile, using_bwa, logger=None):
+def check_targetfile(targetfile, using_bwa, logger=None):
     """
     Checks bait-file fasta header formatting ("taxon*-unique_gene_ID").
-    Reports the number of unique genes (each can have multiple representatives) in the baitfile.
-    Performs a quick detection of whether baitfile is DNA or amino-acid.
+    Reports the number of unique genes (each can have multiple representatives) in the targetfile.
+    Performs a quick detection of whether targetfile is DNA or amino-acid.
     Checks that seqs in bait file can be translated from the first codon position in the forwards frame (multiple of
     three, no unexpected stop codons), and logs a warning if not.
 
-    :param str baitfile: path to the baitfile
+    :param str targetfile: path to the targetfile
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param logging.Logger logger: a logger object
     :return: None
     """
 
     # Check bait-file fasta header formatting:
-    logger.info(f'{"[NOTE]:":10} Checking baitfile FASTA header formatting...')
+    logger.info(f'{"[NOTE]:":10} Checking targetfile FASTA header formatting...')
     gene_lists = defaultdict(list)
-    with open(baitfile, 'r') as bait_file:
+    with open(targetfile, 'r') as bait_file:
         seqs = list(Bio.SeqIO.parse(bait_file, 'fasta'))
         incorrectly_formatted_fasta_headers = []
         check_for_duplicate_genes_dict = {}
@@ -264,14 +264,14 @@ def check_baitfile(baitfile, using_bwa, logger=None):
 
     if incorrectly_formatted_fasta_headers:
         seq_list = ' '.join(incorrectly_formatted_fasta_headers)
-        logger.error(f'{"[ERROR!]:":10} The following sequences in your baitfile have incorrectly formatted fasta '
+        logger.error(f'{"[ERROR!]:":10} The following sequences in your targetfile have incorrectly formatted fasta '
                      f'headers:\n')
         fill = textwrap.fill(f'{seq_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.info('')
-        sys.exit(1)  # baitfile fasta header formatting should be fixed!
+        sys.exit(1)  # targetfile fasta header formatting should be fixed!
     else:
-        logger.info(f'{"[NOTE]:":10} The baitfile FASTA header formatting looks good!')
+        logger.info(f'{"[NOTE]:":10} The targetfile FASTA header formatting looks good!')
 
     # Check for duplicated genes:
     duplicated_genes = []
@@ -280,20 +280,20 @@ def check_baitfile(baitfile, using_bwa, logger=None):
             duplicated_genes.append(gene)
     if duplicated_genes:
         gene_list = ' '.join(duplicated_genes)
-        logger.error(f'{"[ERROR!]:":10} The following sequences in your baitfile occur more than once:\n')
+        logger.error(f'{"[ERROR!]:":10} The following sequences in your targetfile occur more than once:\n')
         fill = textwrap.fill(f'{gene_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.error(f'\nPlease remove duplicate genes before running HybPiper!')
-        sys.exit(1)  # duplicate genes in baitfile should be removed!
+        sys.exit(1)  # duplicate genes in targetfile should be removed!
 
-    # Report the number of unique genes represented in the baitfile:
-    logger.info(f'{"[NOTE]:":10} The baitfile contains at least one sequence for {len(gene_lists)} '
+    # Report the number of unique genes represented in the targetfile:
+    logger.info(f'{"[NOTE]:":10} The targetfile contains at least one sequence for {len(gene_lists)} '
                 f'unique genes.')
 
-    # Quick detection of whether baitfile is DNA or amino-acid:
+    # Quick detection of whether targetfile is DNA or amino-acid:
     dna = set('ATCGN')
-    if os.path.isfile(baitfile):
-        with open(baitfile) as bf:
+    if os.path.isfile(targetfile):
+        with open(targetfile) as bf:
             header = bf.readline()  # skip the first fasta header
             seqline = bf.readline().rstrip().upper()
             if using_bwa and set(seqline) - dna:
@@ -326,8 +326,8 @@ def check_baitfile(baitfile, using_bwa, logger=None):
         if seqs_with_stop_codons_dict:
             seq_list = [seq.name for gene_name, bait_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
                         in bait_file_Sequence_list]
-            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your baitfile that contain unexpected '
-                        f'stop codons when translated in the first forwards frame. \n{" " * 11}If your baitfile '
+            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your targetfile that contain unexpected '
+                        f'stop codons when translated in the first forwards frame. \n{" " * 11}If your targetfile '
                         f'contains only protein-coding sequences, please check these sequences. \n{" " * 11}Sequence '
                         f'names can be found in the sample log file.\n')
             logger.debug(f'Bait/target file sequences with unexpected stop codons: {seq_list}')
@@ -335,8 +335,8 @@ def check_baitfile(baitfile, using_bwa, logger=None):
         if seqs_needed_padding_dict:
             seq_list = [seq.name for gene_name, bait_file_Sequence_list in seqs_needed_padding_dict.items() for seq
                         in bait_file_Sequence_list]
-            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your baitfile that are not multiples '
-                        f'of three. \n{" " * 11}If your baitfile contains only protein-coding sequences, please check '
+            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your targetfile that are not multiples '
+                        f'of three. \n{" " * 11}If your targetfile contains only protein-coding sequences, please check '
                         f'these sequences. \n{" " * 11}Sequence names can be found in the sample log file.\n')
             logger.debug(f'Bait/target file sequences that are not multiples of three: {seq_list}')
 
@@ -368,12 +368,12 @@ def make_basename(readfiles, prefix=None):
     return '.', basename
 
 
-def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
+def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     """
-    Conduct a BWA search of input reads against the baitfile.
+    Conduct a BWA search of input reads against the targetfile.
 
     :param list readfiles: one or more read files used as input to the pipeline
-    :param str baitfile: path to baitfile (i.e. the target file)
+    :param str targetfile: path to targetfile (i.e. the target file)
     :param str basename: directory name for sample
     :param int cpu: number of threads/cpus to use for BWA mapping
     :param bool unpaired: True if an unpaired file has been provided, False if not
@@ -381,19 +381,19 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     :return: None, or the path to the *.bam output file from BWA alignment of sample reads to the bait file
     """
 
-    baitfile_basename = os.path.basename(baitfile)
+    targetfile_basename = os.path.basename(targetfile)
 
-    if os.path.isfile(baitfile):
-        if os.path.isfile(f'{baitfile_basename}.amb'):
-            db_file = baitfile_basename
+    if os.path.isfile(targetfile):
+        if os.path.isfile(f'{targetfile_basename}.amb'):
+            db_file = targetfile_basename
             logger.debug(f'Using existing BWA database. db_file is: {db_file}')
         else:
             logger.info(f'{"[NOTE]:":10} Making nucleotide bwa index in current directory.')
-            baitfiledir = os.path.split(baitfile)[0]
-            if baitfiledir:
-                if os.path.realpath(baitfiledir) != os.path.realpath('.'):
-                    shutil.copy(baitfile, '.')
-            db_file = os.path.split(baitfile)[1]
+            targetfiledir = os.path.split(targetfile)[0]
+            if targetfiledir:
+                if os.path.realpath(targetfiledir) != os.path.realpath('.'):
+                    shutil.copy(targetfile, '.')
+            db_file = os.path.split(targetfile)[1]
             make_bwa_index_cmd = f'bwa index {db_file}'
             logger.info(f'{"[CMD]:":10} {make_bwa_index_cmd}')
 
@@ -411,7 +411,7 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
                 return None
 
     else:
-        logger.error(f'ERROR: Cannot find baitfile at: {baitfile}')
+        logger.error(f'ERROR: Cannot find targetfile at: {targetfile}')
         return None
 
     if not cpu:
@@ -449,14 +449,14 @@ def bwa(readfiles, baitfile, basename, cpu, unpaired=False, logger=None):
     return f'{basename}.bam'  # No return for {basename}_unpaired.bam?
 
 
-def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None,
+def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None,
            diamond=False, diamond_sensitivity=False):
     """
     Creates a blast database from the full protein target file, and performs BLASTx searches of sample
     nucleotide read files against the protein database.
 
     :param list/str readfiles: list of paired read files OR  path to unpaired readfile if unpaired is True
-    :param str baitfile: path to baitfile (i.e. the target file)
+    :param str targetfile: path to targetfile (i.e. the target file)
     :param float evalue: evalue to use for BLASTx searches
     :param str basename: directory name for sample
     :param int cpu: number of threads/cpus to use for BLASTx searches
@@ -465,23 +465,23 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     :param logging.Logger logger: a logger object
     :param bool diamond: if True use DIAMOND instead of BLASTX
     :param bool/str diamond_sensitivity: sensitivity to use for DIAMOND. Default is False; uses default DIAMOND
-    :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs baitfile
+    :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs targetfile
     """
 
-    baitfile_basename = os.path.basename(baitfile)
+    targetfile_basename = os.path.basename(targetfile)
 
-    if os.path.isfile(baitfile):
-        if os.path.isfile(f'{baitfile_basename}.psq'):
-            db_file = baitfile_basename
+    if os.path.isfile(targetfile):
+        if os.path.isfile(f'{targetfile_basename}.psq'):
+            db_file = targetfile_basename
             logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
-        elif os.path.isfile(f'{baitfile_basename}.diamond'):
-            db_file = baitfile_basename
+        elif os.path.isfile(f'{targetfile_basename}.diamond'):
+            db_file = targetfile_basename
             logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
         else:
             logger.info(f'{"[NOTE]:":10} Making protein blastdb in current directory.')
-            if os.path.split(baitfile)[0]:
-                shutil.copy(baitfile, '.')
-            db_file = os.path.split(baitfile)[1]
+            if os.path.split(targetfile)[0]:
+                shutil.copy(targetfile, '.')
+            db_file = os.path.split(targetfile)[1]
             if diamond:
                 logger.info(f'{"[NOTE]:":10} Using DIAMOND instead of BLASTx!')
                 if diamond_sensitivity:
@@ -502,7 +502,7 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
                 logger.error(f'makeblastdb stderr is: {exc.stderr}')
                 return None
     else:
-        logger.error(f'Cannot find baitfile at: {baitfile}')
+        logger.error(f'Cannot find targetfile at: {targetfile}')
         return None
 
     # Remove previous blast results if they exist (because we will be appending)
@@ -596,14 +596,14 @@ def blastx(readfiles, baitfile, evalue, basename, cpu=None, max_target_seqs=10, 
     return f'{basename}.blastx'
 
 
-def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpaired_readfile=None, exclude=None,
+def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None,
                       merged=False, logger=None):
     """
     When using blastx, distribute sample reads to their corresponding target file hits.
 
     :param str blastx_outputfile: tabular format output file of BLASTx search
     :param list readfiles: one or more read files used as input to the pipeline
-    :param str baitfile: path to baitfile (i.e. the target file)
+    :param str targetfile: path to targetfile (i.e. the target file)
     :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
@@ -652,11 +652,11 @@ def distribute_blastx(blastx_outputfile, readfiles, baitfile, target=None, unpai
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_blast(blastx_outputfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(baitfile, delim='-', besthits=besthits, translate=False, target=target_string)
+    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=False, target=target_string)
     return None
 
 
-def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=None, exclude=None, merged=False,
+def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None, merged=False,
                    logger=None):
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
@@ -665,7 +665,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
 
     :param str bamfile: *.bam output file from BWA alignment of sample reads to the bait file
     :param list readfiles: one or more read files used as input to the pipeline
-    :param str baitfile: path to baitfile (i.e. the target file)
+    :param str targetfile: path to targetfile (i.e. the target file)
     :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
@@ -714,7 +714,7 @@ def distribute_bwa(bamfile, readfiles, baitfile, target=None, unpaired_readfile=
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_bwa(bamfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(baitfile, delim='-', besthits=besthits, translate=True, target=target_string)
+    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=True, target=target_string)
     return None
 
 
@@ -1099,10 +1099,10 @@ def assemble(args):
             logger.debug(f'Input read file {args.unpaired} exists and is not empty, proceeding...')
         else:
             sys.exit(f'Input read file {args.unpaired} does not exist or is empty!')
-    if os.path.isfile(args.baitfile) and not os.path.getsize(args.baitfile) == 0:
-        logger.debug(f'Input target/bait file {args.baitfile} exists and is not empty, proceeding...')
+    if os.path.isfile(args.targetfile) and not os.path.getsize(args.targetfile) == 0:
+        logger.debug(f'Input target/bait file {args.targetfile} exists and is not empty, proceeding...')
     else:
-        sys.exit(f'Input target/bait file {args.baitfile} does not exist or is empty!')
+        sys.exit(f'Input target/bait file {args.targetfile} does not exist or is empty!')
 
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
@@ -1137,16 +1137,16 @@ def assemble(args):
         return
 
     ####################################################################################################################
-    # Read in the target file (called baitfile here) and read files
+    # Read in the target file (called targetfile here) and read files
     ####################################################################################################################
-    if args.baitfile:
-        baitfile = os.path.abspath(args.baitfile)
+    if args.targetfile:
+        targetfile = os.path.abspath(args.targetfile)
     else:
         print(__doc__)
         return
 
     # Check that the bait file is formatted correctly, translates correctly:
-    check_baitfile(baitfile, args.bwa, logger=logger)
+    check_targetfile(targetfile, args.bwa, logger=logger)
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
@@ -1155,7 +1155,7 @@ def assemble(args):
     if len(args.readfiles) < 1:
         logger.error('ERROR: Please specify readfiles with -r')
         return
-    if not args.baitfile:
+    if not args.targetfile:
         logger.error('ERROR: Please specify a FASTA file containing target sequences.')
         return
 
@@ -1171,10 +1171,10 @@ def assemble(args):
             args.blast = False
             if args.unpaired:
                 # Note that unpaired_readfile is a single path to the file:
-                bwa(unpaired_readfile, baitfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
+                bwa(unpaired_readfile, targetfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
 
             # Note that readfiles is a list of one (single-end) or two (paired-end) paths to read files:
-            bamfile = bwa(readfiles, baitfile, basename, cpu=args.cpu, logger=logger)
+            bamfile = bwa(readfiles, targetfile, basename, cpu=args.cpu, logger=logger)
             if not bamfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
                              f'hybpiper_assemble.log file for sample {basename}!')
@@ -1189,11 +1189,11 @@ def assemble(args):
     ####################################################################################################################
     if args.blast:
         if args.unpaired:
-            blastx(unpaired_readfile, baitfile, args.evalue, basename, cpu=args.cpu,
+            blastx(unpaired_readfile, targetfile, args.evalue, basename, cpu=args.cpu,
                    max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
                    diamond_sensitivity=args.diamond_sensitivity)
 
-        blastx_outputfile = blastx(readfiles, baitfile, args.evalue, basename, cpu=args.cpu,
+        blastx_outputfile = blastx(readfiles, targetfile, args.evalue, basename, cpu=args.cpu,
                                    max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
                                    diamond_sensitivity=args.diamond_sensitivity)
 
@@ -1212,10 +1212,10 @@ def assemble(args):
         for fn in pre_existing_fastas:
             os.remove(fn)
         if args.bwa:
-            distribute_bwa(bamfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+            distribute_bwa(bamfile, readfiles, targetfile, args.target, unpaired_readfile, args.exclude,
                            merged=args.merged, logger=logger)
         else:  # distribute BLASTx results
-            distribute_blastx(blastx_outputfile, readfiles, baitfile, args.target, unpaired_readfile, args.exclude,
+            distribute_blastx(blastx_outputfile, readfiles, targetfile, args.target, unpaired_readfile, args.exclude,
                               merged=args.merged, logger=logger)
     if len(readfiles) == 2:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
@@ -1423,7 +1423,7 @@ def add_assemble_parser(subparsers):
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
                                       'will assume it is paired Illumina reads.',
                                  default=[], required=True)
-    parser_assemble.add_argument('--baitfile', '-b',
+    parser_assemble.add_argument('--targetfile', '-b',
                                  help='FASTA file containing bait sequences for each gene. If there are multiple '
                                       'baits for a gene, the id must be of the form: >Taxon-geneName',
                                  default=None, required=True)
@@ -1534,10 +1534,10 @@ def add_stats_parser(subparsers):
     """
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
-    parser_stats.add_argument('baitfile',
+    parser_stats.add_argument('targetfile',
                               help='FASTA file containing bait sequences for each gene. If there are multiple baits '
                                    'for a gene, the id must be of the form: >Taxon-geneName')
-    parser_stats.add_argument("baitfile_sequence_type", help="Sequence type (dna or aa) in the baitfile provided",
+    parser_stats.add_argument("targetfile_sequence_type", help="Sequence type (dna or aa) in the targetfile provided",
                               choices=["dna", "DNA", "aa", "AA"])
     parser_stats.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover lengths for",
                               choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
