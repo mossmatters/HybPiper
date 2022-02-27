@@ -895,7 +895,7 @@ def exonerate(gene_name,
     if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
         exonerate_result = exonerate_hits.parse_exonerate_and_get_stitched_contig(
             exonerate_text_output,
-            query_file=f'{gene_name}/{gene_name}_targets.fasta',
+            query_file=f'{gene_name}/{gene_name}_target.fasta',
             paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
             thresh=thresh,
             logger=logger,
