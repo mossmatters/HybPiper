@@ -204,8 +204,9 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
         if gene_failed:
             spades_failed.append(gene)
-    logger.info(f'{"[WARN!]:":10} Total number of genes with failed initial SPAdes run: {len(spades_failed)}.\nGene '
-                f'names can be found in the sample log file.')
+    logger.info(f'{"[WARN!]:":10} Total number of genes with failed initial SPAdes run: {len(spades_failed)}')
+    if len(spades_failed) != 0:
+        logger.info(f'{" "*10}Gene names can be found in the sample log file.')
     logger.debug(f'{" ".join(spades_failed)}\n')  # Write a list of genes with failed SPAdes initial runs
     return spades_failed
 
