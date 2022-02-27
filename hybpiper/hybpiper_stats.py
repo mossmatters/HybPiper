@@ -364,44 +364,44 @@ def main(args):
         stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
 
         # Supercontig information:
-        supercontig_produced = 0
-        no_supercontig = 0
+        stitched_contig_produced = 0
+        no_stitched_contig = 0
         # supercontig_no_trimming = 0
         # supercontig_with_trimming = 0
-        supercontig_skipped = 0
-        if os.path.isfile(f'{name}/{name}_genes_with_supercontigs.csv'):
-            with open(f'{name}/{name}_genes_with_supercontigs.csv') as supercontig_stats:
-                lines = supercontig_stats.readlines()
+        stitched_contig_skipped = 0
+        if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
+            with open(f'{name}/{name}_genes_with_stitched_contigs.csv') as stitched_contig_stats:
+                lines = stitched_contig_stats.readlines()
                 for gene_stats in lines:
                     stat = gene_stats.split(',')[2]
                     # print(stat)
                     if re.search('single Exonerate hit', stat):
-                        no_supercontig += 1
-                    elif re.search('Supercontig produced', stat):
-                        supercontig_produced += 1
+                        no_stitched_contig += 1
+                    elif re.search('Stitched contig produced', stat):
+                        stitched_contig_produced += 1
                     # elif re.search('NODE', stat):
                     #     supercontig_with_trimming += 1
                     # elif re.search('no contig trimming performed', stat):
                     #     supercontig_no_trimming += 1
-                    elif re.search('Supercontig step skipped', stat):
-                        supercontig_skipped += 1
+                    elif re.search('Stitched contig step skipped', stat):
+                        stitched_contig_skipped += 1
         # supercontigs_total = supercontig_no_trimming + supercontig_with_trimming
-        supercontigs_total = supercontig_produced
-        stats_dict[name].append(str(no_supercontig))
-        stats_dict[name].append(str(supercontigs_total))
+        stitched_contigs_produced_total = stitched_contig_produced
+        stats_dict[name].append(str(no_stitched_contig))
+        stats_dict[name].append(str(stitched_contigs_produced_total))
         # stats_dict[name].append(str(supercontig_with_trimming))
-        stats_dict[name].append(str(supercontig_skipped))
+        stats_dict[name].append(str(stitched_contig_skipped))
 
-        chimeric_supercontigs = 0
-        if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimera_supercontigs.csv'):
-            with open(f'{name}/{name}_genes_derived_from_putative_chimera_supercontigs.csv') as \
-                    chimeric_supercontig_stats:
-                lines = chimeric_supercontig_stats.readlines()
+        chimeric_stitched_contigs = 0
+        if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
+            with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contigs.csv') as \
+                    chimeric_stitched_contig_stats:
+                lines = chimeric_stitched_contig_stats.readlines()
                 for gene_stats in lines:
                     stat = gene_stats.split(',')[2]
-                    if re.search(' Chimera WARNING for supercontig.', stat):
-                        chimeric_supercontigs += 1
-        stats_dict[name].append(str(chimeric_supercontigs))
+                    if re.search(' Chimera WARNING for stitched contig.', stat):
+                        chimeric_stitched_contigs += 1
+        stats_dict[name].append(str(chimeric_stitched_contigs))
 
     # SeqLengths
     for name in stats_dict:

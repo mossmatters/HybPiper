@@ -40,13 +40,13 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
         os.mkdir(fasta_dir_no_chimeras)
 
     try:
-        with open(f'{name}/{name}_genes_derived_from_putative_chimera_supercontigs.csv') as chimeric:
+        with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contigs.csv') as chimeric:
             lines = chimeric.readlines()
             for line in lines:
                 chimeric_genes_to_skip.append(line.split(',')[1])
         logger.info(f'genes_to_skip from sample {name}: {chimeric_genes_to_skip}')
     except FileNotFoundError:
-        logger.info(f'No chimeric supercontig summary file found for gene {gene} sample {name}!')
+        logger.info(f'No chimeric stitched contig summary file found for gene {gene} sample {name}!')
 
     # Normal recovery of all sequences; writes to folder fasta_dir_all:
     if os.path.isdir(os.path.join(path, name, gene, name, 'paralogs')):
@@ -62,9 +62,9 @@ def retrieve_seqs(path, name, gene, fasta_dir_all=None, fasta_dir_no_chimeras=No
     else:
         num_seqs = "0"
 
-    # Skip any putative chimeric supercontig sequences; writes to folder fasta_dir_no_chimeras:
+    # Skip any putative chimeric stitched contig sequences; writes to folder fasta_dir_no_chimeras:
     if gene in chimeric_genes_to_skip:
-        logger.info(f'Skipping gene {gene} for sample {name} - putative chimeric supercontig sequence!')
+        logger.info(f'Skipping gene {gene} for sample {name} - putative chimeric stitched contig sequence!')
         # num_seqs = "0"
     else:
         if os.path.isdir(os.path.join(path, name, gene, name, 'paralogs')):

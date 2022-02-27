@@ -310,11 +310,11 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 hit_span = hit_range[1] - hit_range[0]
                 if hit_length_adjusted not in range(hit_range[0], hit_range[1]):  # i.e. 3' end of hit not in range
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} -'
-                                 f' {hit_range[1]}; the 3prime end of the supercontig does not occur in this exon!')
-                    cumulative_hit_span += hit_span  # keep track of supercontig length covered by previous ranges
+                                 f' {hit_range[1]}; the 3prime end of the stitched contig does not occur in this exon!')
+                    cumulative_hit_span += hit_span  # keep track of stitched contig length covered by previous ranges
                 else:
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
-                                 f' {hit_range[1]}. The 3prime end of the supercontig occurs in this exon!')
+                                 f' {hit_range[1]}. The 3prime end of the stitched contig occurs in this exon!')
                     slice_coordinate = hit_length_adjusted
                     spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
                     slice_found = True
@@ -447,15 +447,16 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 f'{intronerate_sequence_directory}')
 
 
-def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
-                                        thresh, logger, prefix, discordant_cutoff, edit_distance, bbmap_subfilter,
-                                        bbmap_memory, bbmap_threads, interleaved_fasta_file, nosupercontigs,
-                                        spades_assembly_dict):
+def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
+                                            thresh, logger, prefix, discordant_cutoff, edit_distance, bbmap_subfilter,
+                                            bbmap_memory, bbmap_threads, interleaved_fasta_file, no_stitched_contig,
+                                            spades_assembly_dict):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
     => Generates paralog warning and fasta files.
-    => Generates supercontig (or single hit) fasta files for nucleotide and amino-acid sequences.
-    => Performs a supercontig chimera test if file of R1/R2 interleaved reads is present and nosupercontigs is False.
+    => Generates stitched contig (or single hit) fasta files for nucleotide and amino-acid sequences.
+    => Performs a stitched contig chimera test if file of R1/R2 interleaved reads is present and no_stitched_contig is
+    False.
 
     :param str exonerate_text_output: path to the results text file output by Exonerate (--showalignment yes)
     :param str query_file: path to the protein query fasta file.
@@ -463,20 +464,20 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
     :param int thresh: minimum percentage similarity threshold used to filter Exonerate hits.
     :param logger logger: a logger object
     :param str prefix: path to gene/sample folder e.g. gene001/sampleID
-    :param int discordant_cutoff: number of discordant read pairs for a supercontig to be flagged as chimeric
+    :param int discordant_cutoff: number of discordant read pairs for a stitched contig to be flagged as chimeric
     :param int edit_distance: edit distance threshold for identifying discordant read pairs
     :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
     :param int bbmap_memory: GB of RAM to use for bbmap.sh
     :param int bbmap_threads: number of threads to use for bbmap.sh
     :param None, str interleaved_fasta_file: path the the file of interleaved R1 and R2 fasta seqs, if present
-    :param bool nosupercontigs: if True, return the longest Exonerate hit only
+    :param bool no_stitched_contig: if True, return the longest Exonerate hit only
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
     exonerate_hits_from_alignment = list(SearchIO.parse(exonerate_text_output, 'exonerate-text'))  # generator to list
 
-    logger.debug(f'nosupercontigs is: {nosupercontigs}')
+    logger.debug(f'no_stitched_contig is: {no_stitched_contig}')
 
     exonerate_result = Exonerate(searchio_object=exonerate_hits_from_alignment,
                                  query_file=query_file,
@@ -490,7 +491,7 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
                                  bbmap_memory=bbmap_memory,
                                  bbmap_threads=bbmap_threads,
                                  interleaved_fasta_file=interleaved_fasta_file,
-                                 nosupercontigs=nosupercontigs,
+                                 no_stitched_contig=no_stitched_contig,
                                  spades_assembly_dict=spades_assembly_dict)
 
     logger.debug(exonerate_result)
@@ -501,12 +502,12 @@ def parse_exonerate_and_get_supercontig(exonerate_text_output, query_file, paral
     # if exonerate_result.long_paralogs_dict:  # i.e. there are long paralogs recovered
     exonerate_result.write_long_paralogs_and_warnings_to_file()
 
-    if nosupercontigs:
-        exonerate_result.write_nosupercontig()
+    if no_stitched_contig:
+        exonerate_result.write_no_stitched_contig()
     else:
-        exonerate_result.write_supercontig_to_file()
+        exonerate_result.write_stitched_contig_to_file()
 
-    exonerate_result.write_trimmed_supercontig_hits_to_file()
+    exonerate_result.write_trimmed_stitched_contig_hits_to_file()
     exonerate_result.write_exonerate_stats_file()
 
     return exonerate_result
@@ -530,7 +531,7 @@ class Exonerate(object):
                  bbmap_memory=1,
                  bbmap_threads=1,
                  interleaved_fasta_file=None,
-                 nosupercontigs=False,
+                 no_stitched_contig=False,
                  spades_assembly_dict=None):
         """
         Initialises class attributes.
@@ -541,13 +542,13 @@ class Exonerate(object):
         :param int thresh: minimum percentage similarity threshold used to filter Exonerate hits
         :param logging.RootLogger logger: a logger object
         :param str prefix: path to gene/sample folder e.g. gene001/sampleID
-        :param int discordant_cutoff: number of discordant read pairs for a supercontig to be flagged as chimeric
+        :param int discordant_cutoff: number of discordant read pairs for a stitched contig to be flagged as chimeric
         :param int edit_distance: edit distance threshold for identifying discordant read pairs
         :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
         :param int bbmap_memory: GB of RAM to use for bbmap.sh
         :param int bbmap_threads: number of threads to use for bbmap.sh
         :param str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
-        :param bool nosupercontigs: if True, return the longest Exonerate hit only
+        :param bool no_stitched_contig: if True, return the longest Exonerate hit only
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         """
 
@@ -561,7 +562,7 @@ class Exonerate(object):
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
-        self.nosupercontigs = nosupercontigs
+        self.no_stitched_contig = no_stitched_contig
         self.interleaved_fasta_file = interleaved_fasta_file
         self.chimera_discordant_cutoff = discordant_cutoff
         self.chimera_edit_distance = edit_distance
@@ -574,18 +575,19 @@ class Exonerate(object):
         self.hits_subsumed_hits_removed_overlaps_trimmed_dict = self._trim_overlapping_hits()
         self.long_paralogs_dict = self._recover_long_paralogs()
         self.paralog_warning_by_contig_depth = self._paralog_warning_by_contig_depth()
-        self.supercontig_seqrecord = self._create_supercontig()
-        self.supercontig_hit_ranges = self._get_supercontig_hit_ranges()
-        if self.nosupercontigs:  # only generate a no_supercontig_seqrecord (and write report) if nosupercontigs is True
-            self.no_supercontig_seqrecord = self._no_supercontig()
+        self.stitched_contig_seqrecord = self._create_stitched_contig()
+        self.stitched_contig_hit_ranges = self._get_stitched_contig_hit_ranges()
+        # only generate a no_stitched_contig_seqrecord (and write report) if no_stitched_contig is True:
+        if self.no_stitched_contig:
+            self.no_stitched_contig_seqrecord = self._no_stitched_contig()
         else:
-            self.no_supercontig_seqrecord = None
+            self.no_stitched_contig_seqrecord = None
 
-        # Only perform chimera test if supercontigs are being created AND interleaved_fasta_file is not None AND a
-        # multi-hit supercontig has been created:
-        if self.hits_filtered_by_pct_similarity_dict and not self.nosupercontigs and interleaved_fasta_file and not \
-                self.supercontig_seqrecord.description == 'single_hit':
-            self.chimera_warning_bool = self._supercontig_chimera_warning()
+        # Only perform chimera test if stitched contigs are being created AND interleaved_fasta_file is not None AND a
+        # multi-hit stitched contig has been created:
+        if self.hits_filtered_by_pct_similarity_dict and not self.no_stitched_contig and interleaved_fasta_file and \
+                not self.stitched_contig_seqrecord.description == 'single_hit':
+            self.chimera_warning_bool = self._stitched_contig_chimera_warning()
         else:
             self.chimera_warning_bool = None
 
@@ -593,7 +595,7 @@ class Exonerate(object):
         """
         Parses the object returned by BioPython SearchIO.parse.
         => Calculates query-vs-hit similarity scores for each hit, and filters hit based on a given threshold
-        => Sorts similarity-filtered hsps by start position in the the protein query
+        => Sorts similarity-filtered hsps by start position in the protein query
         => Populates a dict of dicts for each hit, with hitname: {key:value hit data}
 
         :return collections.defaultdict filtered_by_similarity_hsps_dict: dict of dicts for each hit
@@ -924,7 +926,8 @@ class Exonerate(object):
 
         return exonerate_hits_filtered_no_subsumed
 
-    def _trim_overlapping_hits(self):  # for constructing the coding-seq-only supercontig via _create_supercontig()
+    def _trim_overlapping_hits(self):  # for constructing the coding-seq-only stitched contig via
+        # _create__stitched_contig()
         """
         => Takes a dictionary of hits that has been filtered via hit similarity to the query, and has had subsumed hits
         removed. If any of the remaining hits have overlaps in query ranges, the 3' end of the left hit is trimmed to
@@ -976,12 +979,12 @@ class Exonerate(object):
 
         return exonerate_hits_subsumed_and_trimmed_dict
 
-    def _create_supercontig(self):  # Here we're not dealing with intron sequence at all
+    def _create_stitched_contig(self):  # Here we're not dealing with intron sequence at all
         """
-        Takes a dictionary of filtered, sorted, and trimmed hits, and creates a supercontig SeqRecord by concatenating
-        the corresponding sequences. If only one hit is present, return a SeqRecord of this hit.
+        Takes a dictionary of filtered, sorted, and trimmed hits, and creates a stitched contig SeqRecord by
+        concatenating the corresponding sequences. If only one hit is present, return a SeqRecord of this hit.
 
-        :return Bio.SeqRecord.SeqRecord: no_supercontig or supercontig, depending on number of hits
+        :return Bio.SeqRecord.SeqRecord: no_stitched_contig or stitched_contig, depending on number of hits
         """
 
         if not self.hits_filtered_by_pct_similarity_dict:
@@ -992,34 +995,34 @@ class Exonerate(object):
 
         if len(self.hits_subsumed_hits_removed_overlaps_trimmed_dict) == 1:  # i.e. only one hit
             for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
-                no_supercontig_seqrecord = SeqRecord(
+                no_stitched_contig_seqrecord = SeqRecord(
                     seq=hit_dict_values['hit_sequence'].seq, id=sample_name, name=sample_name,
                     description='single_hit')
 
                 # Write report file:
-                if not self.nosupercontigs:
-                    log_entry = f'{sample_name},{gene_name}, No supercontig produced. Gene sequence contains a ' \
+                if not self.no_stitched_contig:
+                    log_entry = f'{sample_name},{gene_name}, No stitched contig produced. Gene sequence contains a ' \
                                 f'single Exonerate hit.'
-                    self._write_genes_with_supercontigs(log_entry)
+                    self._write_genes_with_stitched_contig(log_entry)
 
-                return no_supercontig_seqrecord
+                return no_stitched_contig_seqrecord
 
         # If multiple hits:
-        supercontig_hits = []
+        stitched_contig_hits = []
         for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
-            supercontig_hits.append(str(hit_dict_values['hit_sequence'].seq))
-        num_hits_in_supercontig = len(supercontig_hits)
-        supercontig_seqrecord = SeqRecord(seq=Seq(''.join(supercontig_hits)), id=sample_name, name=sample_name,
-                                          description=f'multi_hit_supercontig_comprising_'
-                                                      f'{num_hits_in_supercontig}_hits')
+            stitched_contig_hits.append(str(hit_dict_values['hit_sequence'].seq))
+        num_hits_in_stitched_contig = len(stitched_contig_hits)
+        stitched_contig_seqrecord = SeqRecord(seq=Seq(''.join(stitched_contig_hits)), id=sample_name, name=sample_name,
+                                              description=f'multi_hit_stitched_contig_comprising_'
+                                                          f'{num_hits_in_stitched_contig}_hits')
 
         # Write report file:
-        if not self.nosupercontigs:
-            log_entry = f'{sample_name},{gene_name}, Supercontig produced. Gene sequence contains more than one ' \
+        if not self.no_stitched_contig:
+            log_entry = f'{sample_name},{gene_name}, Stitched contig produced. Gene sequence contains more than one ' \
                         f'Exonerate hit.'
-            self._write_genes_with_supercontigs(log_entry)
+            self._write_genes_with_stitched_contig(log_entry)
 
-        return supercontig_seqrecord
+        return stitched_contig_seqrecord
 
     @staticmethod
     def _convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
@@ -1043,9 +1046,9 @@ class Exonerate(object):
                            revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
         return converted_list
 
-    def _get_supercontig_hit_ranges(self):
+    def _get_stitched_contig_hit_ranges(self):
         """
-        Returns a dictionary of hit_id:exon coordinates for the full exon-only supercontig fasta sequence (i.e.
+        Returns a dictionary of hit_id:exon coordinates for the full exon-only stitched contig fasta sequence (i.e.
         starting at zero and with introns removed).
 
         :return dict hit_ranges_dict: a dictionary of hit_id: exon coordinates
@@ -1056,7 +1059,7 @@ class Exonerate(object):
 
         hit_ranges_dict = defaultdict(list)
 
-        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only supercontig sequence
+        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only stitched_contig sequence
         for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
             spades_name = hit.split(',')[0]
             raw_spades_contig_length = len(self.spades_assembly_dict[spades_name])
@@ -1107,7 +1110,7 @@ class Exonerate(object):
                         no_intron_coordinates = tuple(no_intron_coordinates)
                         hit_ranges_dict[hit].append(no_intron_coordinates)
 
-                # Adjust hit ranges to account for previous contigs in the supercontig:
+                # Adjust hit ranges to account for previous contigs in the stitched_contig:
                 print(f'hit_ranges_dict is: {hit_ranges_dict}')
                 hit_ranges_adjusted = [(int(item[0]) + cumulative_hit_length, int(item[1]) + cumulative_hit_length) for
                                        item in
@@ -1117,7 +1120,7 @@ class Exonerate(object):
 
                 # for range in hit_ranges_adjusted:
                 #     print(range)
-                #     print(self.supercontig_seqrecord.seq[range[0]:range[1]])
+                #     print(self.stitched_contig_seqrecord.seq[range[0]:range[1]])
 
                 # string = 'ATCGATCG'
                 # string_slice = string[0:5]
@@ -1127,7 +1130,7 @@ class Exonerate(object):
 
         return hit_ranges_dict
 
-    def write_trimmed_supercontig_hits_to_file(self):
+    def write_trimmed_stitched_contig_hits_to_file(self):
         """
         Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the filtered, sorted and trimmed
         Exonerate hits to fasta file. Used for debugging.
@@ -1294,21 +1297,21 @@ class Exonerate(object):
                                                   f"\t{value['hit_range_all']}"
                                                   f"\tN/A\n"))
 
-    def write_supercontig_to_file(self):
+    def write_stitched_contig_to_file(self):
         """
-        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the supercontig (or single remaining
+        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the stitched_contig (or single remaining
         hit sequence) to fasta file.
 
         :return NoneType: no explicit return
         """
 
         gene_name = os.path.split(self.prefix)[-2]
-        hit_id = self.supercontig_seqrecord.id
-        name = self.supercontig_seqrecord.name
-        description = self.supercontig_seqrecord.description
+        hit_id = self.stitched_contig_seqrecord.id
+        name = self.stitched_contig_seqrecord.name
+        description = self.stitched_contig_seqrecord.description
 
-        dna_seqrecord_to_write = self.supercontig_seqrecord
-        amino_acid_seq_to_write = self.supercontig_seqrecord.seq.translate()
+        dna_seqrecord_to_write = self.stitched_contig_seqrecord
+        amino_acid_seq_to_write = self.stitched_contig_seqrecord.seq.translate()
         amino_acid_seqrecord_to_write = SeqRecord(seq=amino_acid_seq_to_write, id=hit_id, name=name,
                                                   description=description)  # as seq.translate() creates 'unknown'
 
@@ -1318,14 +1321,14 @@ class Exonerate(object):
         with open(f'{self.prefix}/sequences/FAA/{gene_name}.FAA', 'w') as faa_handle:
             SeqIO.write(amino_acid_seqrecord_to_write, faa_handle, 'fasta')
 
-    def _supercontig_chimera_warning(self):
+    def _stitched_contig_chimera_warning(self):
         """
         Produces a warning (boolean) if there's evidence that the Exonerate hit sequences used to stitch together
-        a supercontig are derived from different paralogs. Can only be performed when R1 and R2 reads are present (
+        a stitched contig are derived from different paralogs. Can only be performed when R1 and R2 reads are present (
         i.e. it doesn't work with single-end reads).
 
-        => Maps R1 and R2 reads for the sample/gene against the supercontig sequence.
-        => Counts correctly mapped read pairs where one read maps with 100% length and identity to the supercontig
+        => Maps R1 and R2 reads for the sample/gene against the stitched_contig sequence.
+        => Counts correctly mapped read pairs where one read maps with 100% length and identity to the stitched contig
         reference, and the other read has a number of substitutions greater than a given threshold. This is
         likely to occur across hit boundaries, where hits are derived from different paralogs.
         => Ignore read pairs unless 1) they fall entirely withing exon sequences (i.e. they don't overlap exon-intron
@@ -1334,8 +1337,8 @@ class Exonerate(object):
         :return bool: True is a chimera warning is produced and written to file.
         """
 
-        print(f'from within _supercontig_chimera_warning, self.supercontig_hit_ranges is: '
-              f'{self.supercontig_hit_ranges}')
+        print(f'from within _stitched_contig_chimera_warning, self.stitched_contig_hit_ranges is: '
+              f'{self.stitched_contig_hit_ranges}')
 
         if not self.hits_filtered_by_pct_similarity_dict:
             return None
@@ -1343,18 +1346,18 @@ class Exonerate(object):
         sample_name = os.path.split(self.prefix)[-1]
         gene_name = os.path.split(self.prefix)[-2]
 
-        # Write the supercontig sequence to fasta file for read mapping via bbmap:
-        dna_seqrecord_to_write = self.supercontig_seqrecord
-        with open(f'{self.prefix}/chimera_test_supercontig.fasta', 'w') as chimera_test_handle:
+        # Write the stitched_contig sequence to fasta file for read mapping via bbmap:
+        dna_seqrecord_to_write = self.stitched_contig_seqrecord
+        with open(f'{self.prefix}/chimera_test_stitched_contig.fasta', 'w') as chimera_test_handle:
             SeqIO.write(dna_seqrecord_to_write, chimera_test_handle, 'fasta')
 
-        # Map interleaved R1 and R2 reads against the supercontig sequence:
+        # Map interleaved R1 and R2 reads against the stitched_contig sequence:
         bbmap_command = f'bbmap.sh ' \
                         f'-Xmx{self.chimera_bbmap_memory}g ' \
                         f'-t={self.chimera_bbmap_threads} ' \
-                        f'ref={self.prefix}/chimera_test_supercontig.fasta ' \
+                        f'ref={self.prefix}/chimera_test_stitched_contig.fasta ' \
                         f'in={self.interleaved_fasta_file} ' \
-                        f'out={self.prefix}/chimera_test_supercontig.sam ' \
+                        f'out={self.prefix}/chimera_test_stitched_contig.sam ' \
                         f'interleaved=t ' \
                         f'pairedonly=t ' \
                         f'mappedonly=t ' \
@@ -1376,9 +1379,9 @@ class Exonerate(object):
             self.logger.error(f'bbmap_command stdout is: {exc.stdout}')
             self.logger.error(f'bbmap_command stderr is: {exc.stderr}')
 
-        # Get a list of individual contig ranges within the supercontig (dna_seqrecord_to_write):
+        # Get a list of individual contig ranges within the stitched_contig (dna_seqrecord_to_write):
         hits_processed = []
-        individual_contig_ranges_in_supercontig = []
+        individual_contig_ranges_in_stitched_contig = []
         # individual_contig_ranges_in_supercontig_dict = defaultdict(list)
         cumulative_contig_length = 0
         for hit, hit_data_dict in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
@@ -1390,31 +1393,31 @@ class Exonerate(object):
             # print(hit_data_dict)
             contig_length = len(hit_data_dict['hit_sequence'])
             # print(f'Contig {hit} length is {contig_length}')
-            if len(individual_contig_ranges_in_supercontig) == 0:  # i.e. it's the first contig
+            if len(individual_contig_ranges_in_stitched_contig) == 0:  # i.e. it's the first contig
                 contig_range_tuple = (hit, 0, contig_length)
-                individual_contig_ranges_in_supercontig.append(contig_range_tuple)
+                individual_contig_ranges_in_stitched_contig.append(contig_range_tuple)
                 # individual_contig_ranges_in_supercontig_dict[spades_contig_name].append(contig_range_tuple)
                 # print(f'contig_range_tuple is: {contig_range_tuple}')
             else:
-                contig_start_coordinate = individual_contig_ranges_in_supercontig[-1][-1]  # + 1  # start after last
+                contig_start_coordinate = individual_contig_ranges_in_stitched_contig[-1][-1]  # + 1  # start after last
                 # range
                 # print(f'contig_start_coordinate is: {contig_start_coordinate}')
                 contig_end_coordinate = contig_start_coordinate + contig_length  # - 1  # correct for zero-based
                 # indexing
                 contig_range_tuple = (hit, contig_start_coordinate, contig_end_coordinate)
-                individual_contig_ranges_in_supercontig.append(contig_range_tuple)
+                individual_contig_ranges_in_stitched_contig.append(contig_range_tuple)
                 # individual_contig_ranges_in_supercontig_dict[spades_contig_name].append(contig_range_tuple)
                 # print(f'contig_range_tuple is: {contig_range_tuple}')
 
-        print(f'individual_contig_ranges_in_supercontig is: {individual_contig_ranges_in_supercontig}')
+        print(f'individual_contig_ranges_in_stitched_contig is: {individual_contig_ranges_in_stitched_contig}')
         # print(f'individual_contig_ranges_in_supercontig_dict is: {individual_contig_ranges_in_supercontig_dict}')
 
-        # Check that the max range corresponds to the length of the supercontig sequence
-        assert individual_contig_ranges_in_supercontig[-1][-1] == len(self.supercontig_seqrecord)
+        # Check that the max range corresponds to the length of the stitched contig sequence
+        assert individual_contig_ranges_in_stitched_contig[-1][-1] == len(self.stitched_contig_seqrecord)
 
         # Parse the sam file produced by bbmap.sh:
         samfile_reads = []
-        with open(f'{self.prefix}/chimera_test_supercontig.sam') as samfile:
+        with open(f'{self.prefix}/chimera_test_stitched_contig.sam') as samfile:
             lines = samfile.readlines()
             for line in lines:
                 if not line.startswith('@'):
@@ -1456,12 +1459,12 @@ class Exonerate(object):
             print(reverse_start_coordinate, reverse_seq_len, reverse_end_coordinate)
 
             # Check if each read falls within a different contig:
-            print(f'individual_contig_ranges_in_supercontig is {individual_contig_ranges_in_supercontig}')
+            print(f'individual_contig_ranges_in_stitched_contig is {individual_contig_ranges_in_stitched_contig}')
 
             forward_enclosing_contig_range = None
             reverse_enclosing_contig_range = None
 
-            for range_tuple in individual_contig_ranges_in_supercontig:
+            for range_tuple in individual_contig_ranges_in_stitched_contig:
                 if forward_start_coordinate >= range_tuple[1] and forward_end_coordinate <= range_tuple[2]:
                     forward_enclosing_contig_name = range_tuple[0]
                     forward_enclosing_contig_name_spades_only = range_tuple[0].split(',')[0]
@@ -1480,8 +1483,8 @@ class Exonerate(object):
                       f'coordinate where two contigs have been concatenated). Skipping read pair')
                 continue
 
-            forward_contig_exon_ranges = self.supercontig_hit_ranges[forward_enclosing_contig_name]
-            reverse_contig_exon_ranges = self.supercontig_hit_ranges[reverse_enclosing_contig_name]
+            forward_contig_exon_ranges = self.stitched_contig_hit_ranges[forward_enclosing_contig_name]
+            reverse_contig_exon_ranges = self.sstitched_contig_hit_ranges[reverse_enclosing_contig_name]
 
             print(f'forward_contig_exon_ranges is: {forward_contig_exon_ranges}')
             print(f'reverse_contig_exon_ranges is: {reverse_contig_exon_ranges}')
@@ -1526,30 +1529,30 @@ class Exonerate(object):
 
                 if number_of_discordant_read_pairs_passing_filtering > self.chimera_discordant_cutoff:
                     # Write report file for gene
-                    with open(f'{self.prefix}/putative_chimeric_supercontigs.csv', 'w') as \
-                            discordant_supercontig_reportfile:
-                        log_entry = f'{sample_name},{gene_name}, Chimera WARNING for supercontig. Sequence may be ' \
-                                    f'derived from multiple paralogs.'
-                        discordant_supercontig_reportfile.write(f'{log_entry}\n')
+                    with open(f'{self.prefix}/putative_chimeric_stitched_contig.csv', 'w') as \
+                            discordant_stitched_contig_reportfile:
+                        log_entry = f'{sample_name},{gene_name}, Chimera WARNING for stitched_contig. Sequence may ' \
+                                    f'be derived from multiple paralogs.'
+                        discordant_stitched_contig_reportfile.write(f'{log_entry}\n')
                         # print(log_entry)
                     return True
 
         return False
 
-    def _write_genes_with_supercontigs(self, data):
+    def _write_genes_with_stitched_contig(self, data):
         """
-        Writes a file listing genes for which a supercontig was created (or skipped of flag --nosupecontigs was
-        provided to assemble.py). These per-sample files are collated in the assemble.py script after
+        Writes a file listing genes for which a stitched_contig was created (or skipped of flag --no_stitched_contig was
+        provided to hybpiper assemble). These per-sample files are collated in the assemble.py script after
         all genes have completed.
         """
 
-        with open(f'{self.prefix}/genes_with_supercontigs.csv', 'w') as supercontig_reportfile:
-            supercontig_reportfile.write(f'{data}\n')
+        with open(f'{self.prefix}/genes_with_stitched_contig.csv', 'w') as stitched_contig_reportfile:
+            stitched_contig_reportfile.write(f'{data}\n')
 
-    def _no_supercontig(self):
+    def _no_stitched_contig(self):
         """
         Identifies the single longest Exonerate hit; does not attempt to stitch multiple hits together into a
-        supercontig.
+        stitched contig.
 
         :return Bio.SeqRecord.SeqRecord: SeqRecord for the single longest Exonerate hit.
         """
@@ -1569,34 +1572,34 @@ class Exonerate(object):
         if len(sorted_by_hit_length) == 0:
             raise ValueError(f'The list sorted_by_hit_length for gene {gene_name} is empty!')
 
-        sorted_by_hit_length[0]['hit_sequence'].description = f'Flag nosupercontig used. Single longest hit ' \
+        sorted_by_hit_length[0]['hit_sequence'].description = f'Flag no_stitched_contig used. Single longest hit ' \
                                                               f'{sorted_by_hit_length[0]["hit_sequence"].id}'
         sorted_by_hit_length[0]['hit_sequence'].id = sample_name
         sorted_by_hit_length[0]['hit_sequence'].name = sample_name
 
         # Write report file:
-        log_entry = f'{sample_name},{gene_name}, Supercontig step skipped (user provided the ' \
-                    f'--nosupercontigs flag to readsfirst.py). Gene sequence contains the longest Exonerate hit ' \
-                    f'sequence only.'
-        self._write_genes_with_supercontigs(log_entry)
+        log_entry = f'{sample_name},{gene_name}, Stitched contig step skipped (user provided the ' \
+                    f'--no_stitched_contig flag to hybpiper assemble). Gene sequence contains the longest Exonerate ' \
+                    f'hit sequence only.'
+        self._write_genes_with_stitched_contig(log_entry)
 
         return sorted_by_hit_length[0]['hit_sequence']
 
-    def write_nosupercontig(self):
+    def write_no_stitched_contig(self):
         """
-        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the single longest exonerate hit (or
+        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the single longest Exonerate hit (or
         single remaining hit sequence) to fasta file.
 
         :return NoneType: no explicit return
         """
 
         gene_name = os.path.split(self.prefix)[-2]
-        hit_id = self.no_supercontig_seqrecord.id
-        name = self.no_supercontig_seqrecord.name
-        description = self.no_supercontig_seqrecord.description
+        hit_id = self.no_stitched_contig_seqrecord.id
+        name = self.no_stitched_contig_seqrecord.name
+        description = self.no_stitched_contig_seqrecord.description
 
-        dna_seqrecord_to_write = self.no_supercontig_seqrecord
-        amino_acid_seq_to_write = self.no_supercontig_seqrecord.seq.translate()
+        dna_seqrecord_to_write = self.no_stitched_contig_seqrecord
+        amino_acid_seq_to_write = self.no_stitched_contig_seqrecord.seq.translate()
         amino_acid_seqrecord_to_write = SeqRecord(seq=amino_acid_seq_to_write, id=hit_id, name=name,
                                                   description=description)
 
@@ -1660,19 +1663,19 @@ def report_no_sequences(protname):
     sys.stderr.write("No valid sequences remain for {}!\n".format(protname))
 
 
-def set_supercontig_chimera_test(nosupercontigs_bool, prefix):
+def set_stitched_contig_chimera_test(no_stitched_contig_bool, prefix):
     """
     Return True if a file of R1/R2 interleaved reads is found. Also return the path to the
     interleaved reads file.
 
-    :param bool nosupercontigs_bool: if True, no chimera test will be performed
+    :param bool no_stitched_contig_bool: if True, no chimera test will be performed
     :param str prefix:
     :return: bool, str path to interleaved fasta file for gene
     """
 
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
-    if not nosupercontigs_bool:
+    if not no_stitched_contig_bool:
         gene_folder = os.path.split(prefix)[0]
         interleaved_reads = f'{gene_folder}/{gene_folder}_interleaved.fasta'
 
@@ -1771,26 +1774,26 @@ def standalone():
     parser.add_argument("--depth_multiplier",
                         help="Accept any full-length hit if it has a coverage depth X times the next best hit. Set to "
                              "zero to not use depth. Default = 10", default=10, type=int)
-    parser.add_argument("--nosupercontigs",
-                        help="Do not create any supercontigs. The longest single Exonerate hit will be used",
-                        action="store_true", dest='nosupercontigs', default=False)
+    parser.add_argument("--no_stitched_contig",
+                        help="Do not create any stitched contigs. The longest single Exonerate hit will be used",
+                        action="store_true", dest='no_stitched_contig', default=False)
     parser.add_argument("--bbmap_memory", help="memory (RAM ) to use for bbmap.sh", default=1, type=int)
     parser.add_argument("--bbmap_threads", help="threads to use for bbmap.sh", default=2, type=int)
     parser.add_argument("--bbmap_subfilter", default=7, type=int,
                         help="Ban bbmap.sh alignments with more than this many substitutions. Default is %(default)s")
-    parser.add_argument("--chimeric_supercontig_edit_distance",
-                        help="Minimum number of differences between one read of a read pair vs the supercontig "
+    parser.add_argument("--chimeric_stitched_contig_edit_distance",
+                        help="Minimum number of differences between one read of a read pair vs the stitched_contig "
                              "reference for a read pair to be flagged as discordant", default=7, type=int)
-    parser.add_argument("--chimeric_supercontig_discordant_reads_cutoff",
-                        help="minimum number of discordant reads pairs required to flag a supercontigs as a potential "
-                             "hybrid of contigs from multiple paralogs", default=100, type=int)
+    parser.add_argument("--chimeric_stitched_contig_discordant_reads_cutoff",
+                        help="minimum number of discordant reads pairs required to flag a stitched_contig as a "
+                             "potential chimera of contigs from multiple paralogs", default=100, type=int)
     parser.add_argument("--paralog_warning_min_length_percentage", default=0.75, type=float,
                         help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
                              "to be generated. Default is %(default)s")
-    parser.add_argument("--pad_supercontig_query_gaps_with_n",
-                        help="When constructing supercontigs, pad any gaps between hits (with respect to the query "
-                             "protein) with a number of Ns corresponding to the query gap multiplied by 3",
-                        action="store_true", dest='supercontig_pad_n', default=False)
+    parser.add_argument("--pad_stitched_contig_query_gaps_with_n",
+                        help="When constructing stitched contigs, pad any gaps between hits (with respect to the "
+                             "query protein) with a number of Ns corresponding to the query gap multiplied by 3",
+                        action="store_true", dest='stitched_contig_pad_n', default=False)
     parser.add_argument("--run_intronerate",
                         help="Run intronerate to recover fasta files for supercontig with introns (if present), "
                              "and introns-only", action="store_true", dest='intronerate', default=False)
@@ -1825,9 +1828,10 @@ def main(args):
     # Create directories for output files based on the prefix name, or assemblyfile name:
     prefix = create_output_directories(args.prefix, args.assemblyfile)
 
-    # Set whether the chimeric supercontigs test will be performed, and whether a file of interleaved reads is found:
-    perform_supercontig_chimera_test, path_to_interleaved_fasta = set_supercontig_chimera_test(args.nosupercontigs,
-                                                                                               prefix)
+    # Set whether the chimeric stitched contig test will be performed, and whether a file of interleaved reads is found:
+    perform_stitched_contig_chimera_test, path_to_interleaved_fasta = set_stitched_contig_chimera_test(
+        args.no_stitched_contig,
+        prefix)
 
     # Read the SPAdes contigs and the 'best' protein reference seq into SeqIO dictionaries:
     spades_assembly_dict, best_protein_ref_dict = parse_spades_and_best_reference(args.assemblyfile,
@@ -1839,30 +1843,30 @@ def main(args):
                                               args.assemblyfile,
                                               prefix)
 
-    exonerate_result = parse_exonerate_and_get_supercontig(exonerate_text_output,
-                                                           query_file=args.proteinfile,
-                                                           paralog_warning_min_length_percentage=
-                                                           args.paralog_warning_min_length_percentage,
-                                                           thresh=args.thresh,
-                                                           logger=logger,
-                                                           prefix=prefix,
-                                                           discordant_cutoff=
-                                                           args.chimeric_supercontig_discordant_reads_cutoff,
-                                                           edit_distance=args.chimeric_supercontig_edit_distance,
-                                                           bbmap_subfilter=args.bbmap_subfilter,
-                                                           bbmap_memory=args.bbmap_memory,
-                                                           bbmap_threads=args.bbmap_threads,
-                                                           interleaved_fasta_file=path_to_interleaved_fasta,
-                                                           nosupercontigs=args.nosupercontigs,
-                                                           spades_assembly_dict=spades_assembly_dict)
-    if not exonerate_result.supercontig_seqrecord:
+    exonerate_result = parse_exonerate_and_get_stitched_contig(exonerate_text_output,
+                                                               query_file=args.proteinfile,
+                                                               paralog_warning_min_length_percentage=
+                                                               args.paralog_warning_min_length_percentage,
+                                                               thresh=args.thresh,
+                                                               logger=logger,
+                                                               prefix=prefix,
+                                                               discordant_cutoff=
+                                                               args.chimeric_stitched_contig_discordant_reads_cutoff,
+                                                               edit_distance=args.chimeric_stitched_contig_edit_distance,
+                                                               bbmap_subfilter=args.bbmap_subfilter,
+                                                               bbmap_memory=args.bbmap_memory,
+                                                               bbmap_threads=args.bbmap_threads,
+                                                               interleaved_fasta_file=path_to_interleaved_fasta,
+                                                               no_stitched_contig=args.no_stitched_contig,
+                                                               spades_assembly_dict=spades_assembly_dict)
+    if not exonerate_result.stitched_contig_seqrecord:
         return
 
     logger.debug(f'There were {len(exonerate_result.hits_filtered_by_pct_similarity_dict)} Exonerate '
                  f'hits for {args.proteinfile} after filtering by similarity threshold {args.thresh}.')
 
     # if intronerate:
-    #     if exonerate_result.supercontig_seqrecord.description == 'single_hit' and \
+    #     if exonerate_result.stitched_contig_seqrecord.description == 'single_hit' and \
     #             len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
     #         logger.debug(f'Sequence for gene is derived from a single Exonerate hit with no introns - '
     #                      f'intronerate will not be run for this gene')

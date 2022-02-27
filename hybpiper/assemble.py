@@ -816,12 +816,12 @@ def exonerate(gene_name,
               thresh=55,
               paralog_warning_min_length_percentage=0.75,
               depth_multiplier=10,
-              nosupercontigs=False,
+              no_stitched_contig=False,
               bbmap_memory=1,
               bbmap_subfilter=7,
               bbmap_threads=2,
-              chimeric_supercontig_edit_distance=5,
-              chimeric_supercontig_discordant_reads_cutoff=5,
+              chimeric_stitched_contig_edit_distance=5,
+              chimeric_stitched_contig_discordant_reads_cutoff=5,
               worker_configurer_func=None,
               counter=None,
               lock=None,
@@ -834,17 +834,17 @@ def exonerate(gene_name,
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
-    :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
+    :param bool no_stitched_contig: if True, don't create stitched contigs and just use longest Exonerate hit
     :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
-    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
-    :param int chimeric_supercontig_edit_distance: min num differences for a read pair to be flagged as discordant
-    :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as chimeric
+    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
+    :param int chimeric_stitched_contig_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched contig as chimeric
     :param function worker_configurer_func: function to configure logging to file
     :param multiprocessing.managers.ValueProxy counter:
     :param multiprocessing.managers.AcquirerProxy lock:
     :param int genes_to_process: total number of genes to be processed via Exonerate
-    :param bool intronerate: if True, run intronerate (if supercontig also produced)
+    :param bool intronerate: if True, run intronerate
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :return: str gene_name, str prot_length OR None, None
     """
@@ -861,12 +861,12 @@ def exonerate(gene_name,
                                                                                  f'{gene_name}_contigs.fasta')
     logger.debug(f'prefix is: {prefix}')
 
-    # Set whether the chimeric supercontigs test will be performed, and whether a file of interleaved reads is found:
-    perform_supercontig_chimera_test, path_to_interleaved_fasta = exonerate_hits.set_supercontig_chimera_test(
-        nosupercontigs,
+    # Set whether the chimeric stitched contig test will be performed, and whether a file of interleaved reads is found:
+    perform_stitched_contig_chimera_test, path_to_interleaved_fasta = exonerate_hits.set_stitched_contig_chimera_test(
+        no_stitched_contig,
         prefix)
 
-    logger.debug(f'perform_supercontig_chimera_test is: {perform_supercontig_chimera_test}')
+    logger.debug(f'perform_stitched_contig_chimera_test is: {perform_stitched_contig_chimera_test}')
     logger.debug(f'path_to_interleaved_fasta is: {path_to_interleaved_fasta}')
 
     # Read the SPAdes contigs and the 'best' protein reference seq into SeqIO dictionaries:
@@ -893,20 +893,20 @@ def exonerate(gene_name,
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
                                                              prefix)
     if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
-        exonerate_result = exonerate_hits.parse_exonerate_and_get_supercontig(
+        exonerate_result = exonerate_hits.parse_exonerate_and_get_stitched_contig(
             exonerate_text_output,
             query_file=f'{gene_name}/{gene_name}_targets.fasta',
             paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
             thresh=thresh,
             logger=logger,
             prefix=prefix,
-            discordant_cutoff=chimeric_supercontig_discordant_reads_cutoff,
-            edit_distance=chimeric_supercontig_edit_distance,
+            discordant_cutoff=chimeric_stitched_contig_discordant_reads_cutoff,
+            edit_distance=chimeric_stitched_contig_edit_distance,
             bbmap_subfilter=bbmap_subfilter,
             bbmap_memory=bbmap_memory,
             bbmap_threads=bbmap_threads,
             interleaved_fasta_file=path_to_interleaved_fasta,
-            nosupercontigs=nosupercontigs,
+            no_stitched_contig=no_stitched_contig,
             spades_assembly_dict=spades_assembly_dict)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
@@ -923,10 +923,10 @@ def exonerate(gene_name,
         sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
-    if not exonerate_text_output or not exonerate_result or not exonerate_result.supercontig_seqrecord:
+    if not exonerate_text_output or not exonerate_result or not exonerate_result.stitched_contig_seqrecord:
         return gene_name, None  # return gene_name to that exonerate_hits.py log can be re-logged to main log file
 
-    return gene_name, len(exonerate_result.supercontig_seqrecord)
+    return gene_name, len(exonerate_result.stitched_contig_seqrecord)
 
 
 def worker_configurer(gene_name):
@@ -967,12 +967,12 @@ def exonerate_multiprocessing(genes,
                               paralog_warning_min_length_percentage=0.75,
                               pool_threads=None,
                               depth_multiplier=10,
-                              nosupercontigs=False,
+                              no_stitched_contig=False,
                               bbmap_memory=1,
                               bbmap_subfilter=7,
                               bbmap_threads=2,
-                              chimeric_supercontig_edit_distance=5,
-                              chimeric_supercontig_discordant_reads_cutoff=5,
+                              chimeric_stitched_contig_edit_distance=5,
+                              chimeric_stitched_contig_discordant_reads_cutoff=5,
                               logger=None,
                               intronerate=False,
                               no_padding_supercontigs=False):
@@ -985,13 +985,13 @@ def exonerate_multiprocessing(genes,
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int pool_threads: number of threads/cpus to use for the ProcessPoolExecutor pool
     :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
-    :param bool nosupercontigs: if True, don't create supercontigs and just use longest Exonerate hit
+    :param bool no_stitched_contig: if True, don't create stitched contig and just use longest Exonerate hit
     :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
-    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric supercontigs
-    :param int chimeric_supercontig_edit_distance: min num differences for a read pair to be flagged as discordant
-    :param int chimeric_supercontig_discordant_reads_cutoff: min num discordant reads pairs to flag a supercontig as
-    chimeric
+    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
+    :param int chimeric_stitched_contig_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched
+    contig as chimeric
     :param logging.Logger logger: a logger object
     :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns)
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
@@ -1016,13 +1016,13 @@ def exonerate_multiprocessing(genes,
                                       thresh=thresh,
                                       paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
                                       depth_multiplier=depth_multiplier,
-                                      nosupercontigs=nosupercontigs,
+                                      no_stitched_contig=no_stitched_contig,
                                       bbmap_memory=bbmap_memory,
                                       bbmap_subfilter=bbmap_subfilter,
                                       bbmap_threads=bbmap_threads,
-                                      chimeric_supercontig_edit_distance=chimeric_supercontig_edit_distance,
-                                      chimeric_supercontig_discordant_reads_cutoff=
-                                      chimeric_supercontig_discordant_reads_cutoff,
+                                      chimeric_stitched_contig_edit_distance=chimeric_stitched_contig_edit_distance,
+                                      chimeric_stitched_contig_discordant_reads_cutoff=
+                                      chimeric_stitched_contig_discordant_reads_cutoff,
                                       worker_configurer_func=worker_configurer,
                                       counter=counter,
                                       lock=lock,
@@ -1303,12 +1303,12 @@ def assemble(args):
                                   thresh=args.thresh,
                                   paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                                   depth_multiplier=args.depth_multiplier,
-                                  nosupercontigs=args.nosupercontigs,
+                                  no_stitched_contig=args.no_stitched_contig,
                                   bbmap_memory=args.bbmap_memory,
                                   bbmap_subfilter=args.bbmap_subfilter,
-                                  chimeric_supercontig_edit_distance=args.chimeric_supercontig_edit_distance,
-                                  chimeric_supercontig_discordant_reads_cutoff=
-                                  args.chimeric_supercontig_discordant_reads_cutoff,
+                                  chimeric_stitched_contig_edit_distance=args.chimeric_stitched_contig_edit_distance,
+                                  chimeric_stitched_contig_discordant_reads_cutoff=
+                                  args.chimeric_stitched_contig_discordant_reads_cutoff,
                                   bbmap_threads=args.bbmap_threads,
                                   pool_threads=args.cpu,
                                   logger=logger,
@@ -1316,21 +1316,21 @@ def assemble(args):
                                   no_padding_supercontigs=args.no_padding_supercontigs)
 
     ####################################################################################################################
-    # Collate all supercontig and putative chimera read reports
+    # Collate all stitched contig and putative chimera read reports
     ####################################################################################################################
     logger.info(f'\n{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
 
     # Supercontigs:
-    collate_supercontig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_supercontigs.csv')]
-    with open(f'{basename}_genes_with_supercontigs.csv', 'w') as genes_with_supercontigs_handle:
-        for report_file in collate_supercontig_reports:
+    collate_stitched_contig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_stitched_contig.csv')]
+    with open(f'{basename}_genes_with_stitched_contig.csv', 'w') as genes_with_stitched_contig_handle:
+        for report_file in collate_stitched_contig_reports:
             with open(report_file, 'r') as report_handle:
                 lines = report_handle.readlines()
-                genes_with_supercontigs_handle.write('\n'.join(lines))
+                genes_with_stitched_contig_handle.write('\n'.join(lines))
 
     # Putative chimeras:
-    collate_putative_chimeras_reports = [x for x in glob.glob(f'*/{basename}/putative_chimeric_supercontigs.csv')]
-    with open(f'{basename}_genes_derived_from_putative_chimera_supercontigs.csv',
+    collate_putative_chimeras_reports = [x for x in glob.glob(f'*/{basename}/putative_chimeric_stitched_contig.csv')]
+    with open(f'{basename}_genes_derived_from_putative_chimeric_stitched_contig.csv',
               'w') as genes_with_chimeras_handle:
         for report_file in collate_putative_chimeras_reports:
             with open(report_file, 'r') as report_handle:
@@ -1485,22 +1485,23 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--exclude',
                                  help='Do not use any sequence with the specified string as a target sequence for '
                                       'exonerate. The sequence will be used for read sorting.', default=None)
-    parser_assemble.add_argument('--nosupercontigs', dest='nosupercontigs', action='store_true',
-                                 help='Do not create any supercontigs. The longest single Exonerate hit will be used',
+    parser_assemble.add_argument('--no_stitched_contig', dest='no_stitched_contig', action='store_true',
+                                 help='Do not create any stitched contigs. The longest single Exonerate hit will be '
+                                      'used',
                                  default=False)
     parser_assemble.add_argument('--bbmap_memory', default=1, type=int,
                                  help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1')
     parser_assemble.add_argument('--bbmap_subfilter', default=7, type=int,
                                  help='Ban alignments with more than this many substitutions. Default is %(default)s')
     parser_assemble.add_argument('--bbmap_threads', default=2, type=int,
-                                 help='Number of threads to use for BBmap when searching for chimeric supercontigs. '
+                                 help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
                                       'Default is %(default)s')
-    parser_assemble.add_argument('--chimeric_supercontig_edit_distance',
+    parser_assemble.add_argument('--chimeric_stitched_contig_edit_distance',
                                  help='Minimum number of differences between one read of a read pair vs the '
-                                      'supercontig reference for a read pair to be flagged as discordant', default=5,
-                                 type=int)
-    parser_assemble.add_argument('--chimeric_supercontig_discordant_reads_cutoff',
-                                 help='Minimum number of discordant reads pairs required to flag a supercontig as a '
+                                      'stitched contig reference for a read pair to be flagged as discordant',
+                                 default=5, type=int)
+    parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
+                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as a '
                                       'potential chimera of contigs from multiple paralogs', default=5, type=int)
     parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
                                  action='store_true', default=False)
@@ -1535,8 +1536,8 @@ def add_stats_parser(subparsers):
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
     parser_stats.add_argument('targetfile',
-                              help='FASTA file containing target sequences for each gene. If there are multiple targets '
-                                   'for a gene, the id must be of the form: >Taxon-geneName')
+                              help='FASTA file containing target sequences for each gene. If there are multiple '
+                                   'targets for a gene, the id must be of the form: >Taxon-geneName')
     parser_stats.add_argument("targetfile_sequence_type", help="Sequence type (dna or aa) in the targetfile provided",
                               choices=["dna", "DNA", "aa", "AA"])
     parser_stats.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover lengths for",
