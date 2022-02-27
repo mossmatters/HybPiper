@@ -889,7 +889,7 @@ def exonerate(gene_name,
         return gene_name, None  # return gene_name to that log can be re-logged to main log file
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
-    exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_targets.fasta',
+    exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_target.fasta',
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
                                                              prefix)
     if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
