@@ -1484,7 +1484,7 @@ class Exonerate(object):
                 continue
 
             forward_contig_exon_ranges = self.stitched_contig_hit_ranges[forward_enclosing_contig_name]
-            reverse_contig_exon_ranges = self.sstitched_contig_hit_ranges[reverse_enclosing_contig_name]
+            reverse_contig_exon_ranges = self.stitched_contig_hit_ranges[reverse_enclosing_contig_name]
 
             print(f'forward_contig_exon_ranges is: {forward_contig_exon_ranges}')
             print(f'reverse_contig_exon_ranges is: {reverse_contig_exon_ranges}')
