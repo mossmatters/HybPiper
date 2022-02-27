@@ -422,7 +422,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         intron_sequences.append(intron_seqrecord)
 
     # Only write an "introns.fasta" file in certain cases:
-    if exonerate_object.supercontig_seqrecord.description == 'single_hit' and \
+    if exonerate_object.supercontig_stitched_contig.description == 'single_hit' and \
             len(exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
         logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
                      f'only a supercontig sequence will be recovered (i.e. no "introns.fasta" file) will be recovered')
