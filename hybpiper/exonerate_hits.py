@@ -1319,7 +1319,7 @@ class Exonerate(object):
         :return bool: True is a chimera warning is produced and written to file.
         """
 
-        self.logger.info(f'self.stitched_contig_hit_ranges is: {self.stitched_contig_hit_ranges}')
+        self.logger.debug(f'self.stitched_contig_hit_ranges is: {self.stitched_contig_hit_ranges}')
 
         if not self.hits_filtered_by_pct_similarity_dict:
             return None
