@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 1.4 release candidate (February 2022)
+HybPiper Version 2.0 release candidate (February 2022)
 
-***NOTES ON VERSION 1.4***
+***NOTES ON VERSION 2.0***
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
 followed by a subcommand to run different parts of the pipeline. The available subcommands can be viewed by typing
@@ -218,17 +218,64 @@ def check_dependencies(logger=None):
                    'bbmerge.sh',
                    'diamond']
 
-    logger.info(f'{"[NOTE]:":10} Checking for external dependencies:\n')
+    if not logger:
+        print(f'{"[NOTE]:":10} Checking for external dependencies:\n')
+    else:
+        logger.info(f'{"[NOTE]:":10} Checking for external dependencies:\n')
     everything_is_awesome = True
     for e in executables:
         e_loc = py_which(e)
         if e_loc:
-            logger.info(f'{e:20} found at {e_loc}')
+            if not logger:
+                print(f'{e:20} found at {e_loc}')
+            else:
+                logger.info(f'{e:20} found at {e_loc}')
         else:
-            logger.info(f'{e:20} not found in your $PATH!')
+            if not logger:
+                print(f'{e:20} found at {e_loc}')
+            else:
+                logger.info(f'{e:20} not found in your $PATH!')
             everything_is_awesome = False
-    logger.info('')
+    if not logger:
+        print('')
+    else:
+        logger.info('')
     return everything_is_awesome
+
+
+def check_pipeline_modules(run_dir, logger=None):
+    """
+    Check for the presence of Python modules required by the pipeline (both assemble.py and downstream steps)
+
+    :param str run_dir: path to the run directory
+    :param logging.Logger logger: a logger object
+    :return bool: True if all modules are found, else False
+    """
+    pipeline_modules = ['distribute_reads_to_targets.py',
+                        'distribute_reads_to_targets_bwa.py',
+                        'distribute_targets.py',
+                        'exonerate_hits.py',
+                        'spades_runner.py',
+                        'gene_recovery_heatmap.py',
+                        'retrieve_sequences.py',
+                        'hybpiper_stats.py',
+                        'paralog_retriever.py']
+
+    for module in pipeline_modules:
+        if os.path.isfile(os.path.join(run_dir, module)):
+            if logger:
+                logger.debug(f'Found module {module}, continuing...')
+            else:
+                print(f'Found module {module}, continuing...')
+        else:
+            if logger:
+                logger.error(f'ERROR: Module {module} not found! Please make sure it is in the same directory as this '
+                             f'one!')
+            else:
+                print(f'ERROR: Module {module} not found! Please make sure it is in the same directory as this one!')
+                return False
+
+    return True
 
 
 def check_targetfile(targetfile, using_bwa, logger=None):
@@ -1074,11 +1121,22 @@ def assemble(args):
 
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
-    # Generate a directory for the sample:
-    basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
+    # If the flag --check_dependencies_only is present, check dependencies/modules then exit:
+    if args.check_dependencies_only:
+        if check_dependencies() and check_pipeline_modules(run_dir):
+            sys.exit(f'{"[NOTE]:":10} Everything looks good!')
+        else:
+            sys.exit('ERROR: One or more dependencies not found!')
 
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
+
+    # Check that the --readfiles/-r parameter has been supplied, as it's an expected argument for make_basename():
+    if len(readfiles) == 0:
+        sys.exit(f'Please provide read files using the parameter --readfiles or -r')
+
+    # Generate a directory for the sample:
+    basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
 
     # Create logger:
     if args.prefix:
@@ -1087,6 +1145,15 @@ def assemble(args):
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
 
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
+
+    ####################################################################################################################
+    # Check dependencies
+    ####################################################################################################################
+    if check_dependencies(logger=logger) and check_pipeline_modules(run_dir, logger=logger):
+        logger.info(f'{"[NOTE]:":10} Everything looks good!')
+    else:
+        logger.error('ERROR: One or more dependencies not found!')
+        return
 
     # Check that the target/target-file and input read files exist and aren't empty:
     for read_file in readfiles:
@@ -1422,11 +1489,11 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--readfiles', '-r', nargs='+',
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
                                       'will assume it is paired Illumina reads.',
-                                 default=[], required=True)
+                                 default=[])
     parser_assemble.add_argument('--targetfile', '-t',
                                  help='FASTA file containing target sequences for each gene. If there are multiple '
                                       'targets for a gene, the id must be of the form: >Taxon-geneName',
-                                 default=None, required=True)
+                                 default=None)
     group_1 = parser_assemble.add_mutually_exclusive_group()
     group_1.add_argument('--bwa', dest='bwa', action='store_true',
                          help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
@@ -1501,8 +1568,8 @@ def add_assemble_parser(subparsers):
                                       'stitched contig reference for a read pair to be flagged as discordant',
                                  default=5, type=int)
     parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
-                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as a '
-                                      'potential chimera of contigs from multiple paralogs', default=5, type=int)
+                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as '
+                                      'a potential chimera of contigs from multiple paralogs', default=5, type=int)
     parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
                                  action='store_true', default=False)
     parser_assemble.add_argument("--run_intronerate",
@@ -1518,6 +1585,10 @@ def add_assemble_parser(subparsers):
                                       'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
                                       'Ns will be added.', action='store_true', dest='no_padding_supercontigs',
                                  default=False)
+    parser_assemble.add_argument("--check_dependencies_only",
+                                 action='store_true',
+                                 help='Run the check for pipeline dependencies and exit. This check is run by default '
+                                      'when the full pipeline is run')
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
