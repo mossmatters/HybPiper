@@ -139,31 +139,34 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         logger.info(f'{"[CMD:]":10} {spades_cmd_with_merged}')
 
         try:
-            result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True)
+            # result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            #                         universal_newlines=True)
+            result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
             logger.debug(f'spades_cmd with merged check_returncode() is: {result.check_returncode()}')
             logger.debug(f'spades_cmd with merged stdout is: {result.stdout}')
-            logger.debug(f'spades_cmd with merged stderr is: {result.stderr}')
+            # logger.debug(f'spades_cmd with merged stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
             logger.debug(f'spades_cmd with merged FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd with merged stdout is: {exc.stdout}')
-            logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
+            # logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
             logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage. No contigs found for the following genes:\n')
 
         logger.info(f'{"[CMD:]":10} {spades_cmd_without_merged}')
         try:
+            # result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
+            #                         stderr=subprocess.PIPE, universal_newlines=True)
             result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE, universal_newlines=True)
+                                    universal_newlines=True)
             logger.debug(f'spades_cmd without merged check_returncode() is: {result.check_returncode()}')
             logger.debug(f'spades_cmd without merged stdout is: {result.stdout}')
-            logger.debug(f'spades_cmd without merged stderr is: {result.stderr}')
+            # logger.debug(f'spades_cmd without merged stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
             logger.debug(f'spades_cmd without merged FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd without merged stdout is: {exc.stdout}')
-            logger.debug(f'spades_cmd without merged stderr is: {exc.stderr}')
+            # logger.debug(f'spades_cmd without merged stderr is: {exc.stderr}')
             logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage.\n')
 
@@ -178,14 +181,14 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             #                         universal_newlines=True)
             result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE,
                                     universal_newlines=True)
-            logger.info(f'spades_cmd check_returncode() is: {result.check_returncode()}')
-            logger.info(f'spades_cmd stdout is: {result.stdout}')
+            logger.debug(f'spades_cmd check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'spades_cmd stdout is: {result.stdout}')
             # logger.info(f'spades_cmd stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
             logger.debug(f'spades_cmd FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd stdout is: {exc.stdout}')
-            logger.debug(f'spades_cmd stderr is: {exc.stderr}')
+            # logger.debug(f'spades_cmd stderr is: {exc.stderr}')
             logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
                         f'low coverage.\n')
 
@@ -262,16 +265,17 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     logger.info(f'{"[CMD]:":10} {redo_spades_cmd}')
 
     try:
-        result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
+        # result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        #                         universal_newlines=True)
+        result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
         logger.debug(f'redo_spades_cmd check_returncode() is: {result.check_returncode()}')
         logger.debug(f'redo_spades_cmd stdout is: {result.stdout}')
-        logger.debug(f'redo_spades_cmd stderr is: {result.stderr}')
+        # logger.debug(f'redo_spades_cmd stderr is: {result.stderr}')
 
     except subprocess.CalledProcessError as exc:
         logger.debug(f'redo_spades_cmd FAILED. Output is: {exc}')
         logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
-        logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
+        # logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
         logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                     f'coverage.\n')
 
@@ -289,7 +293,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         if gene_failed:
             spades_duds.append(gene)
     logger.info(f'{"[WARN!]:":10} Total number of genes with failed initial SPAdes run: {len(spades_duds)}.\nGene '
-                 f'names can be found in the sample log file.')
+                f'names can be found in the sample log file.')
     logger.debug(f'{" ".join(spades_duds)}\n')  # Write a list of genes with failed SPAdes re-runs
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
