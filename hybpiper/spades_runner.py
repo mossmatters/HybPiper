@@ -209,9 +209,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
         if gene_failed:
             spades_failed.append(gene)
-    logger.info(f'{"[WARN!]:":10} Total number of genes with failed initial SPAdes run: {len(spades_failed)}')
-    if len(spades_failed) != 0:
-        logger.info(f'{" "*11}Gene names can be found in the sample log file.')
+    logger.info(f'{"[WARN!]:":10} Total number of genes with failed initial SPAdes run: {len(spades_failed)}. Gene '
+                f'names can be found in the sample log file.')
     logger.debug(f'{" ".join(spades_failed)}\n')  # Write a list of genes with failed SPAdes initial runs
     return spades_failed
 
@@ -245,7 +244,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
 
         if len(all_kmers) < 2:
             spades_duds.append(gene)
-            continue
+            continue  # i.e. don't redo the SPAdes assembly for this gene
         else:
             genes_redos.append(gene)
         redo_kmers = [str(x) for x in all_kmers[:-1]]
@@ -255,7 +254,8 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
                      f'/{gene}_spades'
         redo_cmds_file.write(spades_cmd + "\n")
 
-    logger.info(f'{"[WARN!]:":10} All Kmers failed for {len(spades_duds)} genes!')
+    logger.info(f'{"[WARN!]:":10} In initial assemblies all Kmers failed for {len(spades_duds)} genes; these will not '
+                f'be re-run')
 
     redo_cmds_file.close()
     if cpu:
@@ -280,6 +280,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                     f'coverage.')
 
+    # Check whether SPAdes re-runs were successful:
     for gene in genes_redos:
         gene_failed = False
         if os.path.isfile(f'{gene}/{gene}_spades/contigs.fasta'):
@@ -293,8 +294,8 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
 
         if gene_failed:
             spades_duds.append(gene)
-    logger.info(f'{"[WARN!]:":10} Total number of genes with failed SPAdes re-run: {len(spades_duds)}.\n{" "*11}Gene '
-                f'names can be found in the sample log file.')
+    logger.info(f'{"[WARN!]:":10} Total number of genes with failed SPAdes re-runs: {len(spades_duds)}. Gene names '
+                f'can be found in the sample log file.')
     logger.debug(f'{" ".join(spades_duds)}\n')  # Write a list of genes with failed SPAdes re-runs
     with open('spades_duds.txt', 'w') as spades_duds_file:
         spades_duds_file.write('\n'.join(spades_duds))
