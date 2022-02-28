@@ -1155,6 +1155,9 @@ def assemble(args):
         logger.error('ERROR: One or more dependencies not found!')
         return
 
+    ####################################################################################################################
+    # Check read and target files
+    ####################################################################################################################
     # Check that the target/target-file and input read files exist and aren't empty:
     for read_file in readfiles:
         if os.path.isfile(read_file) and not os.path.getsize(read_file) == 0:
@@ -1184,24 +1187,6 @@ def assemble(args):
                  f'{os.path.basename(readfiles[0])}), along with a file of unpaired reads via the --unpaired '
                  f'parameter ({os.path.basename(args.unpaired)}). Please concatenate these two files and provide the '
                  f'single file as input using the -r/--readfiles parameter')
-
-    ####################################################################################################################
-    # Check dependencies
-    ####################################################################################################################
-    if check_dependencies(logger=logger):
-        other_scripts = ['distribute_reads_to_targets.py', 'distribute_reads_to_targets_bwa.py',
-                         'distribute_targets.py', 'exonerate_hits.py', 'spades_runner.py']
-        for script in other_scripts:
-            if os.path.isfile(os.path.join(run_dir, script)):
-                logger.debug(f'Found script {script}, continuing...')
-            else:
-                logger.error(f'ERROR: Script {script} not found! Please make sure it is in the same directory as '
-                             f'this one!')
-                return
-        logger.info(f'{"[NOTE]:":10} Everything looks good!')
-    else:
-        logger.error('ERROR: One or more dependencies not found!')
-        return
 
     ####################################################################################################################
     # Read in the target file (called targetfile here) and read files
