@@ -1588,7 +1588,8 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument("--check_dependencies_only",
                                  action='store_true',
                                  help='Run the check for pipeline dependencies and exit. This check is run by default '
-                                      'when the full pipeline is run')
+                                      'when the full pipeline is run',
+                                 default=False)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
