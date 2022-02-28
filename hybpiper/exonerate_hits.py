@@ -1049,7 +1049,7 @@ class Exonerate(object):
     def _get_stitched_contig_hit_ranges(self):
         """
         Returns a dictionary of hit_id:exon coordinates for the full exon-only stitched contig fasta sequence (i.e.
-        starting at zero and with introns removed).
+        starting at nucleotide zero and with introns removed).
 
         :return dict hit_ranges_dict: a dictionary of hit_id: exon coordinates
         """
@@ -1059,74 +1059,56 @@ class Exonerate(object):
 
         hit_ranges_dict = defaultdict(list)
 
-        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only stitched_contig sequence
+        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only stitched contig sequence
         for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
+            self.logger.debug(f'hit is: {hit}')
             spades_name = hit.split(',')[0]
             raw_spades_contig_length = len(self.spades_assembly_dict[spades_name])
             hit_exonerate_sequence_length = len(hit_dict_values['hit_sequence'].seq)
-            print(f'spades_name is: {spades_name}')
-            print(f'raw_spades_contig_length is: {raw_spades_contig_length}')
-            print(f'hit_exonerate_sequence_length is: {hit_exonerate_sequence_length}')
-            hit_range = hit_dict_values['hit_range']
-            print(f'hit_range is: {hit_range}')
             hit_range_all = hit_dict_values['hit_range_all']
             hit_inter_ranges = hit_dict_values['hit_inter_ranges']
 
             if len(hit_inter_ranges) == 0:  # i.e. no introns
-                print(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
+                self.logger.debug(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
                 hit_ranges_dict[hit].append('no introns')
                 cumulative_hit_length += hit_exonerate_sequence_length
             else:
                 if hit_dict_values['hit_strand'] == -1:  # Convert ranges so that they apply to the revcomp contig
-                    print(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
+                    self.logger.debug(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
                     hit_inter_ranges = self._convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
-                    print(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
-                    print(f'hit_range_all before conversion is: {hit_range_all}')
+                    self.logger.debug(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
+                    self.logger.debug(f'hit_range_all before conversion is: {hit_range_all}')
                     hit_range_all = self._convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
-                    print(f'hit_range_all after conversion is: {hit_range_all}')
+                    self.logger.debug(f'hit_range_all after conversion is: {hit_range_all}')
                 else:
-                    print(f'hit_inter_ranges is: {hit_inter_ranges}')
-                    print(f'hit_range_all is: {hit_range_all}')
+                    self.logger.debug(f'hit_inter_ranges is: {hit_inter_ranges}')
+                    self.logger.debug(f'hit_range_all is: {hit_range_all}')
 
-                # Adjust range coordinates so that they start at zero (i.e. first position of the Exonerate fasta
-                # sequence for this hit:
+                # Adjust range coordinates so that they start at zero (i.e. first nucleotide position of the Exonerate
+                # fasta sequence for this hit:
                 hit_start_coordinate = hit_range_all[0][0]
-                print(f'hit_start_coordinate is: {hit_start_coordinate}')
                 hit_range_all_start_at_zero = [(item[0] - hit_start_coordinate, item[1] - hit_start_coordinate)
                                                for item in hit_range_all]
-                print(f'hit_range_all_exon_only_contig is: {hit_range_all_start_at_zero}')
+                self.logger.debug(f'hit_range_all_start_at_zero is: {hit_range_all_start_at_zero}')
 
                 # Adjust range coordinates to remove intron lengths:
                 cumulative_intron_length = 0
-                hit_ranges_dict[hit].append(hit_range_all_start_at_zero[0])
+                hit_ranges_dict[hit].append(hit_range_all_start_at_zero[0])  # add the first exon
                 for pair in list(pairwise_longest(hit_range_all_start_at_zero)):
-                    # print(pair)
                     if pair[1] is not None:  # as pairwise_longest() will pad a range tuple without a pair with 'None'
                         intron_length = pair[1][0] - pair[0][1]
                         cumulative_intron_length += intron_length
-                        # print(f'intron_length is: {intron_length}')
                         no_intron_coordinates = (pair[1][0] - cumulative_intron_length,
                                                  pair[1][1] - cumulative_intron_length)
                         no_intron_coordinates = tuple(no_intron_coordinates)
                         hit_ranges_dict[hit].append(no_intron_coordinates)
 
                 # Adjust hit ranges to account for previous contigs in the stitched_contig:
-                print(f'hit_ranges_dict is: {hit_ranges_dict}')
                 hit_ranges_adjusted = [(int(item[0]) + cumulative_hit_length, int(item[1]) + cumulative_hit_length) for
-                                       item in
-                                       hit_ranges_dict[hit]]
-                print(f'hit_ranges_adjusted is: {hit_ranges_adjusted}')
+                                       item in hit_ranges_dict[hit]]
                 hit_ranges_dict[hit] = hit_ranges_adjusted  # replace with adjusted values
 
-                # for range in hit_ranges_adjusted:
-                #     print(range)
-                #     print(self.stitched_contig_seqrecord.seq[range[0]:range[1]])
-
-                # string = 'ATCGATCG'
-                # string_slice = string[0:5]
-                # print(string_slice)
-
-        print(f'hit_ranges_dict is: {hit_ranges_dict}')
+        self.logger.debug(f'hit_ranges_dict is: {hit_ranges_dict}')
 
         return hit_ranges_dict
 
@@ -1331,14 +1313,13 @@ class Exonerate(object):
         => Counts correctly mapped read pairs where one read maps with 100% length and identity to the stitched contig
         reference, and the other read has a number of substitutions greater than a given threshold. This is
         likely to occur across hit boundaries, where hits are derived from different paralogs.
-        => Ignore read pairs unless 1) they fall entirely withing exon sequences (i.e. they don't overlap exon-intron
-        boundaries which would cause spurious mismatches); 2) R1 occurs in a different Exonerate hit contig to R2
+        => Ignores read pairs unless 1) R1 occurs in a different Exonerate hit contig to R2; 2) they fall entirely
+        within exon sequences (i.e. they don't overlap exon-intronboundaries which would cause spurious mismatches)
 
         :return bool: True is a chimera warning is produced and written to file.
         """
 
-        print(f'from within _stitched_contig_chimera_warning, self.stitched_contig_hit_ranges is: '
-              f'{self.stitched_contig_hit_ranges}')
+        self.logger.info(f'self.stitched_contig_hit_ranges is: {self.stitched_contig_hit_ranges}')
 
         if not self.hits_filtered_by_pct_similarity_dict:
             return None
@@ -1382,37 +1363,26 @@ class Exonerate(object):
         # Get a list of individual contig ranges within the stitched_contig (dna_seqrecord_to_write):
         hits_processed = []
         individual_contig_ranges_in_stitched_contig = []
-        # individual_contig_ranges_in_supercontig_dict = defaultdict(list)
-        cumulative_contig_length = 0
         for hit, hit_data_dict in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
             spades_contig_name = hit.split(',')[0]
             if spades_contig_name in hits_processed:
+                # TODO I think this can be removed, but keeping to catch issue so I can test it:
                 raise ValueError(f'Chimera test: contig {spades_contig_name} already processed for sample'
-                                 f' {sample_name}, gene {gene_name} ')  # TODO account for this
-            # print(hit)
-            # print(hit_data_dict)
+                                 f' {sample_name}, gene {gene_name} ')
             contig_length = len(hit_data_dict['hit_sequence'])
-            # print(f'Contig {hit} length is {contig_length}')
             if len(individual_contig_ranges_in_stitched_contig) == 0:  # i.e. it's the first contig
                 contig_range_tuple = (hit, 0, contig_length)
                 individual_contig_ranges_in_stitched_contig.append(contig_range_tuple)
-                # individual_contig_ranges_in_supercontig_dict[spades_contig_name].append(contig_range_tuple)
-                # print(f'contig_range_tuple is: {contig_range_tuple}')
             else:
-                contig_start_coordinate = individual_contig_ranges_in_stitched_contig[-1][-1]  # + 1  # start after last
-                # range
-                # print(f'contig_start_coordinate is: {contig_start_coordinate}')
-                contig_end_coordinate = contig_start_coordinate + contig_length  # - 1  # correct for zero-based
-                # indexing
+                contig_start_coordinate = individual_contig_ranges_in_stitched_contig[-1][-1]  # start after last range
+                contig_end_coordinate = contig_start_coordinate + contig_length
                 contig_range_tuple = (hit, contig_start_coordinate, contig_end_coordinate)
                 individual_contig_ranges_in_stitched_contig.append(contig_range_tuple)
-                # individual_contig_ranges_in_supercontig_dict[spades_contig_name].append(contig_range_tuple)
-                # print(f'contig_range_tuple is: {contig_range_tuple}')
 
-        print(f'individual_contig_ranges_in_stitched_contig is: {individual_contig_ranges_in_stitched_contig}')
-        # print(f'individual_contig_ranges_in_supercontig_dict is: {individual_contig_ranges_in_supercontig_dict}')
+        self.logger.debug(f'individual_contig_ranges_in_stitched_contig is:'
+                          f' {individual_contig_ranges_in_stitched_contig}')
 
-        # Check that the max range corresponds to the length of the stitched contig sequence
+        # Check that the max range value corresponds to the length of the stitched contig sequence:
         assert individual_contig_ranges_in_stitched_contig[-1][-1] == len(self.stitched_contig_seqrecord)
 
         # Parse the sam file produced by bbmap.sh:
@@ -1428,39 +1398,29 @@ class Exonerate(object):
         for forward, reverse in grouped(samfile_reads, 2):
             forward_edit_distance = (forward.split('\t')[11]).split(':')[2]
             reverse_edit_distance = (reverse.split('\t')[11]).split(':')[2]
-            if int(forward_edit_distance) == 0 and int(reverse_edit_distance) >= \
-                    self.chimera_edit_distance:
+            if int(forward_edit_distance) == 0 and int(reverse_edit_distance) >= self.chimera_edit_distance:
                 discordant_read_list.append(forward)
                 discordant_read_list.append(reverse)
-            elif int(reverse_edit_distance) == 0 and int(forward_edit_distance) >= \
-                    self.chimera_edit_distance:
+            elif int(reverse_edit_distance) == 0 and int(forward_edit_distance) >= self.chimera_edit_distance:
                 discordant_read_list.append(forward)
                 discordant_read_list.append(reverse)
 
         self.logger.debug(f'There are {int(len(discordant_read_list) / 2)} discordant read pairs prior to range '
                           f'filtering')
-        print(f'There are {int(len(discordant_read_list) / 2)} discordant read pairs prior to range filtering')
-        # print(discordant_read_list)
 
-        # Filter discordant read pairs to remove any that 1) don't fall entirely withing exon sequences (i.e. they
-        # overlap exon-intron boundaries which would cause spurious mismatches); 2) don't have each read mapping to
-        # different Exonerate hit contigs:
+        # Filter discordant read pairs to remove any that 1) don't have each read mapping to different Exonerate hit
+        # contigs; 2) don't fall entirely withing exon sequences (i.e. they overlap exon-intron boundaries which
+        # would cause spurious mismatches); 2) don't have each read mapping to different Exonerate hit contigs:
         discordant_read_list_pass_filtering = []
         for forward, reverse in grouped(discordant_read_list, 2):
-            # print(forward)
-            # print(reverse)
             forward_start_coordinate = int(forward.split('\t')[3]) - 1  # SAM uses 1-based, adjust to zero-based
             forward_seq_len = len(forward.split('\t')[9])
             forward_end_coordinate = forward_start_coordinate + forward_seq_len
             reverse_start_coordinate = int(reverse.split('\t')[3]) - 1  # SAM uses 1-based, adjust to zero-based
             reverse_seq_len = len(reverse.split('\t')[9])
             reverse_end_coordinate = reverse_start_coordinate + reverse_seq_len
-            print(forward_start_coordinate, forward_seq_len, forward_end_coordinate)
-            print(reverse_start_coordinate, reverse_seq_len, reverse_end_coordinate)
 
             # Check if each read falls within a different contig:
-            print(f'individual_contig_ranges_in_stitched_contig is {individual_contig_ranges_in_stitched_contig}')
-
             forward_enclosing_contig_range = None
             reverse_enclosing_contig_range = None
 
@@ -1473,28 +1433,27 @@ class Exonerate(object):
                     reverse_enclosing_contig_name = range_tuple[0]
                     reverse_enclosing_contig_name_spades_only = range_tuple[0].split(',')[0]
                     reverse_enclosing_contig_range = range_tuple
-            print(f'forward_enclosing_contig_range is: {forward_enclosing_contig_range}')
-            print(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
+            self.logger.debug(f'forward_enclosing_contig_range is: {forward_enclosing_contig_range}')
+            self.logger.debug(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
 
             # Make sure each read is assigned to a contig range, or skip if it overlaps contig join:
-            # self.logger.info(f'About to test forward_enclosing_contig_range is not None for gene {gene_name}')
             if not forward_enclosing_contig_range or not reverse_enclosing_contig_range:
-                print(f'One or both read pairs do not map within the range of a single contig (i.e. they overlap a '
-                      f'coordinate where two contigs have been concatenated). Skipping read pair')
+                self.logger.debug(f'One or both read pairs do not map within the range of a single contig (i.e. they '
+                                  f'overlap a coordinate where two contigs have been concatenated). Skipping read pair')
                 continue
 
             forward_contig_exon_ranges = self.stitched_contig_hit_ranges[forward_enclosing_contig_name]
             reverse_contig_exon_ranges = self.stitched_contig_hit_ranges[reverse_enclosing_contig_name]
 
-            print(f'forward_contig_exon_ranges is: {forward_contig_exon_ranges}')
-            print(f'reverse_contig_exon_ranges is: {reverse_contig_exon_ranges}')
+            self.logger.debug(f'forward_contig_exon_ranges is: {forward_contig_exon_ranges}')
+            self.logger.debug(f'reverse_contig_exon_ranges is: {reverse_contig_exon_ranges}')
 
-            # if forward_enclosing_contig_range == reverse_enclosing_contig_range:  # i.e. they map to same contig
+            # Check if the SPAdes only name each contig are the same:
             if forward_enclosing_contig_name_spades_only == reverse_enclosing_contig_name_spades_only:
-                print(f'Both reads occur in the same contig. Skipping read pair!')
+                self.logger.debug(f'Both reads occur in the same SPAdes contig. Skipping read pair!')
                 continue
-            else:  # Now check that reads don't overlap exon-intron boundaries within each contig
-                print(f'Reads occur in different contigs. Check for exon-intron overlaps...')
+            else:  # If contig is not the same, check that reads don't overlap exon-intron boundaries within each contig
+                self.logger.debug(f'Reads occur in different contigs. Check for exon-intron overlaps...')
                 forward_occurs_in_exons_only = False
                 reverse_occurs_in_exons_only = False
                 for range_tuple in forward_contig_exon_ranges:
@@ -1517,7 +1476,8 @@ class Exonerate(object):
                     discordant_read_list_pass_filtering.append(forward)
                     discordant_read_list_pass_filtering.append(reverse)
                 else:
-                    print(f'One or both read pairs overlap with exon-intron boundaries - skipping read pair')
+                    self.logger.debug(f'One or both read pairs overlap with exon-intron boundaries - skipping read '
+                                      f'pair')
 
             # If there are discordant read pairs passing filtering, write them to a SAM file, and write to log:
             if discordant_read_list_pass_filtering:
@@ -1534,7 +1494,6 @@ class Exonerate(object):
                         log_entry = f'{sample_name},{gene_name}, Chimera WARNING for stitched_contig. Sequence may ' \
                                     f'be derived from multiple paralogs.'
                         discordant_stitched_contig_reportfile.write(f'{log_entry}\n')
-                        # print(log_entry)
                     return True
 
         return False
