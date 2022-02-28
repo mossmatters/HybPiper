@@ -174,11 +174,13 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         logger.info(f'{"[CMD]:":10} {spades_cmd}')
 
         try:
-            result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            # result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            #                         universal_newlines=True)
+            result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE,
                                     universal_newlines=True)
-            logger.debug(f'spades_cmd check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'spades_cmd stdout is: {result.stdout}')
-            logger.info(f'spades_cmd stderr is: {result.stderr}')
+            logger.info(f'spades_cmd check_returncode() is: {result.check_returncode()}')
+            logger.info(f'spades_cmd stdout is: {result.stdout}')
+            # logger.info(f'spades_cmd stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
             logger.debug(f'spades_cmd FAILED. Output is: {exc}')
