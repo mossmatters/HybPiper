@@ -68,7 +68,7 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
 
     :param str blastxfilename: path the BLASTx tabular output file
     :param bool unpaired: if True, process a *_unpaired.bam file
-    :param str exclude: no not use any target sequence specified by this string
+    :param str exclude: no not use any target sequence specified by this taxon name string
     :return: dict besthits: dictionary of besthits[prot] = top_taxon
     """
 
@@ -87,7 +87,7 @@ def tailored_target_blast(blastxfilename, unpaired=False, exclude=None):
         protname = hitname[-1]
         taxon = '-'.join(hitname[:-1])
         if exclude and exclude in taxon:
-            continue
+            continue  # i.e. don't use sequences from this taxon
         else:
             if protname in hitcounts:
                 if taxon in hitcounts[protname]:
@@ -120,7 +120,7 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
 
     :param str bamfilename: path to *.bam output of BWA mapping
     :param bool unpaired: if True, process a *_unpaired.bam file
-    :param str exclude: no not use any target sequence specified by this string
+    :param str exclude: no not use any target sequence specified by this taxon name string
     :return: dict besthits: dictionary of besthits[prot] = top_taxon
     """
 
@@ -140,7 +140,7 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
         taxon = '-'.join(hitname[:-1])
 
         if exclude and exclude in taxon:
-            continue
+            continue  # i.e. don't use sequences from this taxon
         else:
             if protname in hitcounts:
                 if taxon in hitcounts[protname]:
@@ -169,41 +169,43 @@ def tailored_target_bwa(bamfilename, unpaired=False, exclude=None):
      
 def distribute_targets(targetfile, delim, besthits, translate=False, target=None):
     """
-    Writes the single 'best' protein sequence from the target file (translated if neccessary) as a fasta file for each
+    Writes the single 'best' protein sequence from the target file (translated if necessary) as a fasta file for each
     gene.
 
     :param str targetfile: path to targetfile
     :param str delim: symbol to use as gene delimeter; default is '-'
     :param dict besthits: dictionary of besthits[prot] = top_taxon
     :param bool translate: If True, translate nucleotide target SeqObject
-    :param str target: always choose the target specified by this string
+    :param str target: always choose the target specified by this string (or target name in file)
     :return:
     """
 
     if target:
         if os.path.isfile(target):
+            print(f'{"[NOTE]:":10} Reading preferred target names from {target}')
             logger.info(f'{"[NOTE]:":10} Reading preferred target names from {target}')
-            genes_to_targets = {x.split()[0]: x.rstrip().split()[1] for x in open(target)}
+            genes_to_targets = {x.split()[0]: x.rstrip().split()[1] for x in open(target)}  # creates dictionary
+            print(f'genes_to_targets is: {genes_to_targets}')
             target_is_file = True
         else:
+            print('nah')
             target_is_file = False    
         
     targets = SeqIO.parse(targetfile, 'fasta')
     no_matches = []
     for sequence in targets:
-        # Get the 'basename' of the protein
+        # Get the 'basename' of the target sequence
         gene_id = sequence.id.split(delim)[-1]
         if translate:
             seq, needed_padding = pad_seq(sequence)
             sequence.seq = seq.seq.translate()
-        # print(prot)
 
-        mkdir_p(gene_id)
+        mkdir_p(gene_id)  # Make a directory for the gene
         
         if gene_id in besthits:
             if target:
                 if target_is_file:
-                    besthit_taxon = genes_to_targets[gene_id]
+                    besthit_taxon = genes_to_targets[gene_id]  # recover specified target from dict using gene as key
                 else:
                     besthit_taxon = target
             else:       
@@ -213,7 +215,7 @@ def distribute_targets(targetfile, delim, besthits, translate=False, target=None
                     SeqIO.write(sequence, ref_target_seq_file, 'fasta')
         else:
             no_matches.append(gene_id)
-    logger.info(f'{"[NOTE]:":10} {len(set(no_matches))} proteins had no good matches.')
+    logger.info(f'{"[NOTE]:":10} {len(set(no_matches))} genes had no good matches.')
 
 
 def main():

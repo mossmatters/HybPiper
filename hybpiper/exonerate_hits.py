@@ -751,17 +751,15 @@ class Exonerate(object):
             all_names_and_percent_ids.append((paralog_name, paralog_data_dict['hit_similarity']))
         all_names_and_percent_ids.sort(reverse=True, key=itemgetter(1))
         max_percent_similarity_paralog_name = all_names_and_percent_ids[0][0]
-        max_percent_id = all_names_and_percent_ids[0][1]  # single float
         paralog_dicts[max_percent_similarity_paralog_name]['hit_sequence'].description = 'paralog_main_by_percent_id'
         return paralog_dicts
 
     def write_long_paralogs_and_warnings_to_file(self):
         """
-        => Renames long paralog sequences for writing to fasta file, using the suffix'.main' for the 'main' seleted
+        => Renames long paralog sequences for writing to fasta file, using the suffix'.main' for the 'main' selected
         paralog, and then incrementing suffixes for the remaining paralogs ('*.0', '*.1', ...).
         => Writes a fasta file of long paralog sequences.
         => Writes a *.txt file with paralog warnings for long paralogs.
-        => FIXME: what to do with the paralog warning via contig depth across query?
 
         :return NoneType: no explicit return
         """

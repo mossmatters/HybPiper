@@ -20,7 +20,7 @@ To view available parameters and help for any subcommand, simply type e.g. 'hybp
 NOTE: the command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
-    python path_to/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+    python /<path_to>/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
 ...this is now replaced by the command:
 
@@ -34,10 +34,10 @@ is now incorporated in to the 'hybpiper assemble' command. It can be enabled usi
 
 NOTE: the command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
 the command 'hybpiper stats'. The sequence length details that were previously printed to screen are now written to
-the file 'seq_lengths.tsv'. Similarity, the stats details that were previously written to screen by
-'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv'.
+the file 'seq_lengths.tsv', by default. Similarity, the stats details that were previously written to screen by
+'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv', by default.
 
-For full details of all commands and changes, please reads the wiki page at **LINK** and the changelog at **LINK**.
+For full details of all commands and changes, please reads the Wiki page at **LINK** and the changelog at **LINK**.
 """
 
 import argparse
@@ -62,20 +62,22 @@ import pkg_resources
 try:
     import Bio
 except ImportError:
-    sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python used to run HybPiper?")
+    sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python installation used to run "
+             f"HybPiper?")
 try:
     import progressbar
 except ImportError:
-    sys.exit(f"Required Python package 'progressbar2' not found. Is it installed for the Python used to run HybPiper?")
+    sys.exit(f"Required Python package 'progressbar2' not found. Is it installed for the Python installation used to "
+             f"run HybPiper?")
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
 biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)[:2]]
 if biopython_version[0:2] < [1, 80]:
     sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
-             f"Please update your Biopython for the Python use to run HybPiper!")
+             f"Please update your Biopython for the Python installation used to run HybPiper!")
 
-# Import HybPiper modules required for assemble.py:
+# Import HybPiper modules required by assemble.py:
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
@@ -204,7 +206,7 @@ def check_dependencies(logger=None):
     Checks for the presence of executables and Python packages. Returns a boolean.
 
     :param logging.Logger logger: a logger object
-    return: bool everything_is_awesome: True if all dependencies are found and are executable
+    return: bool everything_is_awesome: True if all dependencies are found and are executable, else False
     """
 
     executables = ['blastx',
@@ -651,7 +653,8 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     :param str blastx_outputfile: tabular format output file of BLASTx search
     :param list readfiles: one or more read files used as input to the pipeline
     :param str targetfile: path to targetfile (i.e. the target file)
-    :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
+    :param str target: specific target(s) to use. Tab-delimited file (one <gene>\t<taxon_name> per line) or single
+    taxon name
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
@@ -686,7 +689,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
-        target_string = f'--target {target}'
+        target_string = f'{target}'
     else:
         target_string = None
     if unpaired_readfile:
@@ -699,7 +702,8 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_blast(blastx_outputfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=False, target=target_string)
+    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=False,
+                                          target=target_string)
     return None
 
 
@@ -713,7 +717,8 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     :param str bamfile: *.bam output file from BWA alignment of sample reads to the target file
     :param list readfiles: one or more read files used as input to the pipeline
     :param str targetfile: path to targetfile (i.e. the target file)
-    :param str target: specific target(s) to use. Tab-delimited file (one gene per line) or single seq name
+    :param str target: specific target(s) to use. Tab-delimited file (one <gene>\t<taxon_name> per line) or single
+    taxon name
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
@@ -747,8 +752,8 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
                                                          unpaired_readfile=unpaired_readfile)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
-    if target:
-        target_string = f'--target {target}'
+    if target:  # i.e. a target name or file of name is specified manually
+        target_string = f'{target}'
     else:
         target_string = None
     if unpaired_readfile:
@@ -756,12 +761,13 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     else:
         unpaired_bool = False
     if exclude:
-        exclude_string = f'--exclude {exclude}'
+        exclude_string = f'{exclude}'
     else:
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_bwa(bamfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=True, target=target_string)
+    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=True,
+                                          target=target_string)
     return None
 
 
@@ -1119,6 +1125,7 @@ def assemble(args):
     :return None: no return value specified; default is None
     """
 
+    # Get the run directory containing the assemble.py module:
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
     # If the flag --check_dependencies_only is present, check dependencies/modules then exit:
@@ -1211,6 +1218,22 @@ def assemble(args):
         logger.error('ERROR: Please specify a FASTA file containing target sequences.')
         return
 
+    ####################################################################################################################
+    # Check manually provided targets if provided via the parameter --target
+    ####################################################################################################################
+    if args.target:
+        target_path = os.path.abspath(args.target)
+        if os.path.isfile(target_path):
+            logger.debug(f'A file of preferred target sequences for Exonerate searches has been provided: '
+                         f'{target_path}')
+            target = target_path
+        else:
+            logger.debug(f'A single preferred target sequence taxon name for Exonerate searches has been provided: '
+                         f'{args.target}')
+            target = args.target
+    else:
+        target = None
+
     # Move in to the sample directory:
     os.chdir(os.path.join(basedir, basename))
 
@@ -1257,17 +1280,18 @@ def assemble(args):
             blastx_outputfile = f'{basename}.blastx'
 
     ####################################################################################################################
-    # Distribute reads to gene directories for either BLASTx or BWA mapping
+    # Distribute reads to gene directories from either BLASTx or BWA mapping
     ####################################################################################################################
+
     if args.distribute:
         pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
         for fn in pre_existing_fastas:
             os.remove(fn)
         if args.bwa:
-            distribute_bwa(bamfile, readfiles, targetfile, args.target, unpaired_readfile, args.exclude,
+            distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
                            merged=args.merged, logger=logger)
         else:  # distribute BLASTx results
-            distribute_blastx(blastx_outputfile, readfiles, targetfile, args.target, unpaired_readfile, args.exclude,
+            distribute_blastx(blastx_outputfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
                               merged=args.merged, logger=logger)
     if len(readfiles) == 2:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
@@ -1483,14 +1507,14 @@ def add_assemble_parser(subparsers):
     group_1.add_argument('--bwa', dest='bwa', action='store_true',
                          help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
                               'nucleotides!', default=False)
-    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx',
+    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx.',
                          default=False)
     parser_assemble.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
                                                                    'very-sensitive', 'ultra-sensitive'],
-                                 help='Use the provided sensitivity for DIAMOND searches', default=False)
+                                 help='Use the provided sensitivity for DIAMOND searches.', default=False)
     parser_assemble.add_argument('--no-blast', dest='blast', action='store_false',
-                                 help='Do not run the blast step. Downstream steps will still depend on the '
-                                      '*_all.blastx file. \nUseful for re-running assembly/exonerate steps with '
+                                 help='Do not run the BLASTx step. Downstream steps will still depend on the '
+                                      '*_all.blastx file. \nUseful for re-running assembly/Exonerate steps with '
                                       'different options.')
     parser_assemble.add_argument('--no-distribute', dest='distribute', action='store_false',
                                  help='Do not distribute the reads and target sequences to sub-directories.')
@@ -1504,12 +1528,12 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--evalue', type=float, default=1e-4,
                                  help='e-value threshold for blastx hits, default: %(default)s')
     parser_assemble.add_argument('--max_target_seqs', type=int, default=10,
-                                 help='Max target seqs to save in blast search, default: %(default)s')
+                                 help='Max target seqs to save in BLASTx search, default: %(default)s')
     parser_assemble.add_argument('--cov_cutoff', type=int, default=8,
                                  help='Coverage cutoff for SPAdes. default: %(default)s')
     parser_assemble.add_argument('--kvals', nargs='+',
                                  help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
-                                      'larger k-values! Default auto-detection by SPAdes.', default=None)
+                                      'larger k-values! Default is auto-detection by SPAdes.', default=None)
     parser_assemble.add_argument('--thresh', type=int,
                                  help='Percent identity threshold for retaining Exonerate hits. Default is 55, '
                                       'but increase this if you are worried about contaminant sequences.', default=55)
@@ -1527,43 +1551,46 @@ def add_assemble_parser(subparsers):
                                  help='Use GNU Parallel to kill long-running processes if they take longer than X '
                                       'percent of average.', default=0, type=int)
     parser_assemble.add_argument('--target',
-                                 help='Use this target to align sequences for each gene. Other targets for that gene '
-                                      'will be used only for read sorting. Can be a tab-delimited file (one gene per '
-                                      'line) or a single sequence name', default=None)
+                                 help='Use the target file sequence with this taxon name in Exonerate searches for '
+                                      'each gene. Other targets for that gene will be used only for read sorting. Can '
+                                      'be a tab-delimited file (one <gene>\\t<taxon_name> per line) or a single taxon '
+                                      'name.',
+                                 default=None)
+    parser_assemble.add_argument('--exclude',
+                                 help='Do not use any sequence with the specified taxon name string in Exonerate '
+                                      'searches. Sequenced from this taxon will still be used for read sorting.',
+                                 default=None)
     parser_assemble.add_argument('--unpaired',
                                  help='Include a single FASTQ file with unpaired reads along with the two paired read '
                                       'files',
                                  default=False)
-    parser_assemble.add_argument('--exclude',
-                                 help='Do not use any sequence with the specified string as a target sequence for '
-                                      'exonerate. The sequence will be used for read sorting.', default=None)
     parser_assemble.add_argument('--no_stitched_contig', dest='no_stitched_contig', action='store_true',
                                  help='Do not create any stitched contigs. The longest single Exonerate hit will be '
-                                      'used',
+                                      'used.',
                                  default=False)
     parser_assemble.add_argument('--bbmap_memory', default=1, type=int,
-                                 help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1')
+                                 help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1.')
     parser_assemble.add_argument('--bbmap_subfilter', default=7, type=int,
-                                 help='Ban alignments with more than this many substitutions. Default is %(default)s')
+                                 help='Ban alignments with more than this many substitutions. Default is %(default)s.')
     parser_assemble.add_argument('--bbmap_threads', default=2, type=int,
                                  help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
-                                      'Default is %(default)s')
+                                      'Default is %(default)s.')
     parser_assemble.add_argument('--chimeric_stitched_contig_edit_distance',
                                  help='Minimum number of differences between one read of a read pair vs the '
-                                      'stitched contig reference for a read pair to be flagged as discordant',
+                                      'stitched contig reference for a read pair to be flagged as discordant.',
                                  default=5, type=int)
     parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
                                  help='Minimum number of discordant reads pairs required to flag a stitched contig as '
                                       'a potential chimera of contigs from multiple paralogs', default=5, type=int)
-    parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads',
+    parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true', default=False)
     parser_assemble.add_argument("--run_intronerate",
                                  help='Run intronerate to recover fasta files for supercontigs with introns (if '
-                                      'present), and introns-only', action='store_true', dest='intronerate',
+                                      'present), and introns-only.', action='store_true', dest='intronerate',
                                  default=False)
     parser_assemble.add_argument("--keep_spades_folder",
                                  help='Keep the SPAdes folder for each gene. Default action is to delete it following '
-                                      'contig recovery (dramatically reduces the total files number)',
+                                      'contig recovery (dramatically reduces the total files number).',
                                  action='store_true', dest='keep_spades', default=False)
     parser_assemble.add_argument("--no_padding_supercontigs",
                                  help='If Intronerate is run, and a supercontig is created by concatenating multiple '
@@ -1573,7 +1600,7 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument("--check_dependencies_only",
                                  action='store_true',
                                  help='Run the check for pipeline dependencies and exit. This check is run by default '
-                                      'when the full pipeline is run',
+                                      'when the full pipeline is run.',
                                  default=False)
 
     # Set defaults for subparser <parser_assemble>:
