@@ -114,16 +114,16 @@ def standalone():
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('seq_lengths_file',
-                        help="filename for the seq_lengths file (output of 'hybpiper get_seq_lengths')")
+                        help="Filename for the seq_lengths file (output by the 'hybpiper stats' command)")
     parser.add_argument('--heatmap_filename',
-                        help='filename for the output heatmap, saved by default as a *.png file. Defaults to '
+                        help='Filename for the output heatmap, saved by default as a *.png file. Defaults to '
                              '"heatmap"',
                         default='heatmap')
     parser.add_argument('--figure_length', type=int,
                         help='Length dimension (in inches) for the output heatmap file. Default is '
                              'automatically calculated based on the number of genes', default=None)
     parser.add_argument('--figure_height', type=int,
-                        help='height dimension (in inches) for the output heatmap file. Default is '
+                        help='Height dimension (in inches) for the output heatmap file. Default is '
                              'automatically calculated based on the number of samples', default=None)
     parser.add_argument('--sample_text_size', type=int,
                         help='Size (in points) for the sample text labels in the output heatmap file. Default is '

@@ -119,7 +119,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**1.4 release candidate** *December, 2021*
+**2.40release candidate** *March, 2022*
 
 This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, 
 additional functionality, and additional output. Changes include:

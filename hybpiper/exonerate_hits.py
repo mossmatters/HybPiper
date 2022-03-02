@@ -450,7 +450,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
                                             thresh, logger, prefix, discordant_cutoff, edit_distance, bbmap_subfilter,
                                             bbmap_memory, bbmap_threads, interleaved_fasta_file, no_stitched_contig,
-                                            spades_assembly_dict):
+                                            spades_assembly_dict, depth_multiplier):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
     => Generates paralog warning and fasta files.
@@ -472,6 +472,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
     :param None, str interleaved_fasta_file: path the the file of interleaved R1 and R2 fasta seqs, if present
     :param bool no_stitched_contig: if True, return the longest Exonerate hit only
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
+    :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
@@ -492,7 +493,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
                                  bbmap_threads=bbmap_threads,
                                  interleaved_fasta_file=interleaved_fasta_file,
                                  no_stitched_contig=no_stitched_contig,
-                                 spades_assembly_dict=spades_assembly_dict)
+                                 spades_assembly_dict=spades_assembly_dict,
+                                 depth_multiplier=depth_multiplier)
 
     logger.debug(exonerate_result)
 
@@ -532,7 +534,8 @@ class Exonerate(object):
                  bbmap_threads=1,
                  interleaved_fasta_file=None,
                  no_stitched_contig=False,
-                 spades_assembly_dict=None):
+                 spades_assembly_dict=None,
+                 depth_multiplier=10):
         """
         Initialises class attributes.
 
@@ -550,6 +553,7 @@ class Exonerate(object):
         :param str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
         :param bool no_stitched_contig: if True, return the longest Exonerate hit only
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
+        :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
         """
 
         if len(searchio_object) != 1:  # This should always be 1 for a single Exonerate query
@@ -570,6 +574,7 @@ class Exonerate(object):
         self.chimera_bbmap_memory = bbmap_memory
         self.chimera_bbmap_threads = bbmap_threads
         self.spades_assembly_dict = spades_assembly_dict
+        self.depth_multiplier = depth_multiplier
         self.hits_filtered_by_pct_similarity_dict = self._parse_searchio_object()
         self.hits_subsumed_hits_removed_dict = self._remove_subsumed_hits()
         self.hits_subsumed_hits_removed_overlaps_trimmed_dict = self._trim_overlapping_hits()
@@ -705,11 +710,10 @@ class Exonerate(object):
         else:
             raise ValueError(f'Issue naming paralogs, please check!')
 
-    @staticmethod
-    def _best_long_paralog_by_depth(paralog_dicts):
+    def _best_long_paralog_by_depth(self, paralog_dicts):
         """
-        Checks if one of the paralogs in the dict paralog_dicts has a SPAdes coverage value >=10 times all other
-        paralogs. If so, annotates the high-depth paralog SeqRecord description. If not, returns None.
+        Checks if one of the paralogs in the dict paralog_dicts has a SPAdes coverage value >=10 times (default) all
+        other paralogs. If so, annotates the high-depth paralog SeqRecord description. If not, returns None.
 
         :param collections.defaultdict paralog_dicts: dictionary of dictionaries; hitname: {key:value hit data}
         :return NoneType, collections.defaultdict: paralog_dicts with seq.description 'paralog_main_by_depth'
@@ -726,7 +730,7 @@ class Exonerate(object):
             paralog_dicts[max_depth_paralog_name]['hit_sequence'].description = 'paralog_main_by_default'
             return paralog_dicts
 
-        depth_threshold = max_depth / 10  # hardcoded to 10 at present
+        depth_threshold = max_depth / self.depth_multiplier  # default depth_multiplier is 10
         try:
             assert all(depth <= depth_threshold for depth in remaining_depths)
             paralog_dicts[max_depth_paralog_name]['hit_sequence'].description = 'paralog_main_by_depth'

@@ -886,13 +886,14 @@ def exonerate(gene_name,
     :param str basename: directory name for sample
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
-    :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
+    :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
     :param bool no_stitched_contig: if True, don't create stitched contigs and just use longest Exonerate hit
     :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
     :param int chimeric_stitched_contig_edit_distance: min num differences for a read pair to be flagged as discordant
-    :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched contig as chimeric
+    :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched
+    contig as chimeric
     :param function worker_configurer_func: function to configure logging to file
     :param multiprocessing.managers.ValueProxy counter:
     :param multiprocessing.managers.AcquirerProxy lock:
@@ -960,7 +961,8 @@ def exonerate(gene_name,
             bbmap_threads=bbmap_threads,
             interleaved_fasta_file=path_to_interleaved_fasta,
             no_stitched_contig=no_stitched_contig,
-            spades_assembly_dict=spades_assembly_dict)
+            spades_assembly_dict=spades_assembly_dict,
+            depth_multiplier=depth_multiplier)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
@@ -1037,7 +1039,7 @@ def exonerate_multiprocessing(genes,
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int pool_threads: number of threads/cpus to use for the ProcessPoolExecutor pool
-    :param int depth_multiplier: accept full-length Exonerate hit if coverage depth <depth_multiplier>x next best hit
+    :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
     :param bool no_stitched_contig: if True, don't create stitched contig and just use longest Exonerate hit
     :param int bbmap_memory: GB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
@@ -1542,8 +1544,10 @@ def add_assemble_parser(subparsers):
                                       'length for a paralog warning and sequence to be generated. Default is %('
                                       'default)s')
     parser_assemble.add_argument('--depth_multiplier',
-                                 help='Accept any full-length exonerate hit if it has a coverage depth X times the '
-                                      'next best hit. Set to zero to not use depth. Default = 10', default=10, type=int)
+                                 help='Assign a long paralog as the "main" sequence if it has a coverage depth '
+                                      '<depth_multiplier> times all other long paralogs. Set to zero to not use '
+                                      'depth. Default = 10',
+                                 default=10, type=int)
     parser_assemble.add_argument('--prefix',
                                  help='Directory name for pipeline output, default is to use the FASTQ file name.',
                                  default=None)
@@ -1705,17 +1709,17 @@ def add_gene_recovery_heatmap_parser(subparsers):
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
                                                                                   'the HybPiper run')
     parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
-                                              help="filename for the seq_lengths file (output of 'hybpiper "
-                                                   "get_seq_lengths')")
+                                              help="Filename for the seq_lengths file (output of the 'hybpiper "
+                                                   "stats' command)")
     parser_gene_recovery_heatmap.add_argument('--heatmap_filename',
-                                              help='filename for the output heatmap, saved by default as a *.png file. '
+                                              help='Filename for the output heatmap, saved by default as a *.png file. '
                                                    'Defaults to "heatmap"', default='heatmap')
     parser_gene_recovery_heatmap.add_argument('--figure_length', type=int,
                                               help='Length dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
                                                    'genes', default=None)
     parser_gene_recovery_heatmap.add_argument('--figure_height', type=int,
-                                              help='height dimension (in inches) for the output heatmap file. '
+                                              help='Height dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
                                                    'samples', default=None)
     parser_gene_recovery_heatmap.add_argument('--sample_text_size', type=int,
