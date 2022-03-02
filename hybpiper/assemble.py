@@ -1611,7 +1611,7 @@ def add_assemble_parser(subparsers):
 
     # If no arguments are provided, print usage. Note that args.readfiles and args.targetfile can't be made
     #  required if we want the option of supplying --check_dependencies_only as the only parameter:
-    if len(sys.argv) == 2:  # i.e. hybpiper assemble
+    if len(sys.argv) == 2 and sys.argv[1] == 'assemble':  # i.e. hybpiper assemble
         parser_assemble.print_usage()
         sys.exit(1)
 
