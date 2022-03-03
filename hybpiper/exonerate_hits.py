@@ -220,26 +220,6 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         # print(hit_data_dict['hit_sequence'].description)
         three_prime_bases_trimmed = hit_data_dict['hit_sequence'].description.split(':')[-1].strip()
 
-        # def convert_coords_revcomp(list_of_range_tuples):
-        #     """
-        #     This function takes a list of Exonerate SearchIO hit range tuples for a hit on the negative strand,
-        #     and converts them so that they are consistent with those from a hit on the positive strand. The
-        #     reverse-complemented SPAdes contig can then be processed with the approach used for positive strand
-        #     hits.
-        #
-        #     => e.g. for SPAdes contig with length 873 and hit range list [(284, 377), (2, 119)]:
-        #     [(284, 377), (2, 119)] -> [(496, 589), (754, 871)]
-        #
-        #     :param list list_of_range_tuples: list of Exonerate SearchIO hit range tuples
-        #     :return list converted_list: list of hit range tuples converted to positive strand coordinates
-        #     """
-        #
-        #     range_tuples_reversed = [tuple(reversed(revcomp_hit_range)) for revcomp_hit_range in
-        #                              list_of_range_tuples]
-        #     converted_list = [(raw_spades_contig_length - revcomp_hit_range[0], raw_spades_contig_length -
-        #                        revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
-        #     return converted_list
-
         # If no trimming has been performed for a SPAdes contig, or the overlap between adjacent Exonerate contig
         # hits is <= 3 amino acids, add the whole contig:
         if three_prime_bases_trimmed == 'N/A' or int(three_prime_bases_trimmed) <= 9:
@@ -426,9 +406,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
             len(exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
         logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
                      f'only a supercontig sequence will be recovered (i.e. no "introns.fasta" file) will be recovered')
-    elif len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig_without_ns target
+    elif len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig target
         logger.debug(f'No introns for gene {gene_name}! This is likely caused by Exonerate splitting the '
-                     f'"intronerate_supercontig_without_ns" target in to multiple HSPs (i.e. it could not find an '
+                     f'"intronerate_supercontig" target in to multiple HSPs (i.e. it could not find an '
                      f'intron). Skipping intron recovery for this gene.')
     else:
         with open(f'{intronerate_processing_directory}/{gene_name}_introns.fasta', 'w') as introns_fasta_handle:

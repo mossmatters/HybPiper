@@ -312,12 +312,12 @@ def main(args):
                   "GenesAt25pct",
                   "GenesAt50pct",
                   "GenesAt75pct",
-                  "Genesat150pct",
+                  "GenesAt150pct",
                   "ParalogWarningsLong",
                   "ParalogWarningsDepth",
-                  "GenesWithoutSupercontigs",
-                  "GenesWithSupercontigs",
-                  "GenesWithSupercontigSkipped",
+                  "GenesWithoutStitchedContigs",
+                  "GenesWithStitchedContigs",
+                  "GenesWithStitchedContigsSkipped",
                   "GenesWithChimeraWarning"
                   ]
 

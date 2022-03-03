@@ -35,7 +35,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     if os.path.isdir(sample_names):
         sampledir = sample_names
         sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir, x)) and not
-        x.startswith('.')]
+                        x.startswith('.')]
     else:
         sample_names = [x.rstrip() for x in open(sample_names)]
         if hybpiper_dir:
