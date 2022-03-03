@@ -1296,7 +1296,7 @@ class Exonerate(object):
         reference, and the other read has a number of substitutions greater than a given threshold. This is
         likely to occur across hit boundaries, where hits are derived from different paralogs.
         => Ignores read pairs unless 1) R1 occurs in a different Exonerate hit contig to R2; 2) they fall entirely
-        within exon sequences (i.e. they don't overlap exon-intronboundaries which would cause spurious mismatches)
+        within exon sequences (i.e. they don't overlap exon-intron boundaries which would cause spurious mismatches)
 
         :return bool: True is a chimera warning is produced and written to file.
         """
