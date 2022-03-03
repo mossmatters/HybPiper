@@ -1685,14 +1685,26 @@ def add_paralog_retriever_parser(subparsers):
 
     parser_paralog_retriever = subparsers.add_parser('paralog_retriever', help='Retrieve paralog sequences for a '
                                                                                'given gene, for all samples')
-    parser_paralog_retriever.add_argument('namelist', help="Text file containing list of HybPiper output directories, "
-                                                           "one per line.")
-    parser_paralog_retriever.add_argument('gene', help="Name of gene to extract paralogs")
-    parser_paralog_retriever.add_argument('--fasta_dir_all', help='Specify directory for output FASTA files (ALL)',
+    parser_paralog_retriever.add_argument('namelist',
+                                          help='Text file containing list of HybPiper output directories, '
+                                               'one per line.')
+    parser_paralog_retriever.add_argument('targetfile',
+                                          help="FASTA file containing target sequences for each gene. Used to extract "
+                                               "unique gene names for paralog recovery")
+    parser_paralog_retriever.add_argument('--fasta_dir_all',
+                                          help='Specify directory for output FASTA files (ALL)',
                                           default='paralogs_all')
-    parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras', help='Specify directory for output FASTA files ('
-                                                                          'no putative chimeric sequences)',
-                                          default='paralogs_no_chimeras')
+    parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras',
+                                          help='Specify directory for output FASTA files (no putative chimeric '
+                                               'sequences)',
+                                           default='paralogs_no_chimeras')
+    parser_paralog_retriever.add_argument('--paralog_report_filename',
+                                          help='Specify the filename for the paralog *.tsv report table',
+                                          default='paralog_report')
+    parser_paralog_retriever.add_argument('--genes_with_paralogs_filename',
+                                          help='Specify the filename for the *.txt list of genes with paralogs in at '
+                                               'least one sample',
+                                          default='genes_with_paralogs')
 
     # Set function for subparser <paralog_retriever>:
     parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
