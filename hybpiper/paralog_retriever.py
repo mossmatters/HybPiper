@@ -29,6 +29,33 @@ logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 
+def get_chimeric_genes_for_sample(sample_directory_name):
+    """
+    Returns a list of putative chimeric gene sequences for a given sample
+
+    :param str sample_directory_name: directory name for the sample
+    :return list chimeric_genes_to_skip: a list of putative chimeric gene sequences for the sample
+    """
+
+    chimeric_genes_to_skip = []
+    try:
+        with open(f'{sample_directory_name}/'
+                  f'{sample_directory_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
+            lines = chimeric.readlines()
+            for line in lines:
+                chimeric_genes_to_skip.append(line.split(',')[1])
+        if chimeric_genes_to_skip:
+            logger.info(f'Putative chimeric gene sequences to skip from sample {sample_directory_name}:'
+                        f' {chimeric_genes_to_skip}')
+        else:
+            logger.info(f'No putative chimeric gene sequences to skip from sample {sample_directory_name}')
+    except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
+        logger.info(f'No chimeric stitched contig summary file found for gene sample {sample_directory_name}!')
+        raise
+
+    return chimeric_genes_to_skip
+
+
 def retrieve_seqs(sample_base_directory_path, sample_directory_name, target_genes, fasta_dir_all=None, fasta_dir_no_chimeras=None):
     """
     Iterates over a list of gene name for a given sample, and for each gene produces two *.fasta files:  1) all
@@ -49,22 +76,24 @@ def retrieve_seqs(sample_base_directory_path, sample_directory_name, target_gene
     if not os.path.isdir(fasta_dir_no_chimeras):
         os.mkdir(fasta_dir_no_chimeras)
 
-    # Recover a list of putative chimeric genes for the sample:
-    chimeric_genes_to_skip = []
-    try:
-        with open(f'{sample_directory_name}/'
-                  f'{sample_directory_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
-            lines = chimeric.readlines()
-            for line in lines:
-                chimeric_genes_to_skip.append(line.split(',')[1])
-        if chimeric_genes_to_skip:
-            logger.info(f'Putative chimeric gene sequences to skip from sample {sample_directory_name}:'
-                        f' {chimeric_genes_to_skip}')
-        else:
-            logger.info(f'No putative chimeric gene sequences to skip from sample {sample_directory_name}')
-    except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
-        logger.info(f'No chimeric stitched contig summary file found for gene sample {sample_directory_name}!')
-        raise
+    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sample_directory_name)
+
+    # # Recover a list of putative chimeric genes for the sample:
+    # chimeric_genes_to_skip = []
+    # try:
+    #     with open(f'{sample_directory_name}/'
+    #               f'{sample_directory_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
+    #         lines = chimeric.readlines()
+    #         for line in lines:
+    #             chimeric_genes_to_skip.append(line.split(',')[1])
+    #     if chimeric_genes_to_skip:
+    #         logger.info(f'Putative chimeric gene sequences to skip from sample {sample_directory_name}:'
+    #                     f' {chimeric_genes_to_skip}')
+    #     else:
+    #         logger.info(f'No putative chimeric gene sequences to skip from sample {sample_directory_name}')
+    # except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
+    #     logger.info(f'No chimeric stitched contig summary file found for gene sample {sample_directory_name}!')
+    #     raise
 
     # Normal recovery of all sequences; writes to folder fasta_dir_all:
     stats_for_report = [sample_directory_name]

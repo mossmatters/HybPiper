@@ -1670,6 +1670,9 @@ def add_retrieve_sequences_parser(subparsers):
                                            choices=["dna", "aa", "intron", "supercontig"])
     parser_retrieve_sequences.add_argument("--hybpiper_dir", help='Specify directory containing HybPiper output')
     parser_retrieve_sequences.add_argument("--fasta_dir", help='Specify directory for output FASTA files')
+    parser_retrieve_sequences.add_argument('--skip_chimeric_genes', action='store_true', dest='skip_chimeric',
+                                           help='Do not recover sequences for putative chimeric genes',
+                                           default=False)
 
     # Set function for subparser <parser_retrieve_sequences>:
     parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
@@ -1697,7 +1700,7 @@ def add_paralog_retriever_parser(subparsers):
     parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras',
                                           help='Specify directory for output FASTA files (no putative chimeric '
                                                'sequences)',
-                                           default='paralogs_no_chimeras')
+                                          default='paralogs_no_chimeras')
     parser_paralog_retriever.add_argument('--paralog_report_filename',
                                           help='Specify the filename for the paralog *.tsv report table',
                                           default='paralog_report')

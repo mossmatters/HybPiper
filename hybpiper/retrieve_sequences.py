@@ -16,10 +16,52 @@ import os
 import sys
 import argparse
 from Bio import SeqIO
+import logging
+
+
+# Create a custom logger
+
+# Log to Terminal (stderr):
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setLevel(logging.INFO)
+
+# Setup logger:
+logger = logging.getLogger(f'hybpiper.{__name__}')
+
+# Add handlers to the logger
+logger.addHandler(console_handler)
+logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
+
+
+def get_chimeric_genes_for_sample(sample_directory_name):
+    """
+    Returns a list of putative chimeric gene sequences for a given sample
+
+    :param str sample_directory_name: directory name for the sample
+    :return list chimeric_genes_to_skip: a list of putative chimeric gene sequences for the sample
+    """
+
+    chimeric_genes_to_skip = []
+    try:
+        with open(f'{sample_directory_name}/'
+                  f'{sample_directory_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
+            lines = chimeric.readlines()
+            for line in lines:
+                chimeric_genes_to_skip.append(line.split(',')[1])
+        # if chimeric_genes_to_skip:
+        #     logger.info(f'Putative chimeric gene sequences to skip from sample {sample_directory_name}:'
+        #                 f' {chimeric_genes_to_skip}')
+        # else:
+        #     logger.info(f'No putative chimeric gene sequences to skip from sample {sample_directory_name}')
+    except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
+        logger.info(f'No chimeric stitched contig summary file found for gene sample {sample_directory_name}!')
+        raise
+
+    return chimeric_genes_to_skip
 
 
 def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_names, hybpiper_dir=None,
-                                       fasta_dir=None):
+                                       fasta_dir=None, skip_chimeric=False):
     """
     Recovers sequences (dna, amino acid, supercontig or intron) for all genes from all samples
 
@@ -29,6 +71,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     :param str sample_names: directory of samples, or text file with list of sample names
     :param None or str hybpiper_dir: if provided, a path to the directory containing HybPiper output
     :param None or str fasta_dir: directory name for output files, default is current directory
+    :param bool skip_chimeric: if True, skip putative chimeric genes
     :return None:
     """
 
@@ -50,7 +93,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     else:
         fasta_dir = '.'
 
-    print(f'Retrieving {len(target_genes)} genes from {len(sample_names)} samples')
+    logger.info(f'Retrieving {len(target_genes)} genes from {len(sample_names)} samples')
     for gene in target_genes:
         numSeqs = 0
 
@@ -63,6 +106,14 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
         with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
             for sample in sample_names:
 
+                # Recover a list of putative chimeric genes for the sample, and skip gene if in list:
+                if skip_chimeric:
+                    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sample)
+                    # print(f'chimeric_genes_to_skip is: {chimeric_genes_to_skip}')
+                    if gene in chimeric_genes_to_skip:
+                        logger.info(f'Skipping putative chimeric stitched contig sequence for {gene}, sample {sample}')
+                        continue
+
                 # Get path to the gene/intron/supercontig sequence:
                 if seq_dir == 'intron':
                     sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir,
@@ -72,27 +123,30 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
                                                f'{gene}.{seq_dir}')
                 try:
                     seq = next(SeqIO.parse(sample_path, 'fasta'))
+                    # print(seq)
                     SeqIO.write(seq, outfile, 'fasta')
                     numSeqs += 1
                 # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
                 except FileNotFoundError:
                     pass
-        print(f'Found {numSeqs} sequences for {gene}.')
+        logger.info(f'Found {numSeqs} sequences for gene {gene}.')
 
 
 def recover_sequences_from_one_sample(seq_dir,
                                       filename,
                                       target_genes,
                                       single_sample_name,
-                                      fasta_dir=None):
+                                      fasta_dir=None,
+                                      skip_chimeric=False):
     """
     Recovers sequences (dna, amino acid, supercontig or intron) for all genes from one sample
 
     :param str seq_dir: directory to recover sequence from
-    :param str filename: file name component used to reconstruct path to file
+    :param str filename: file name component used to reconstruct path to file (None, intron or supercontig)
     :param list target_genes: list of unique gene names in the target file
     :param str single_sample_name: directory of a single sample
     :param None or str fasta_dir: directory name for output files, default is current directory
+    :param bool skip_chimeric: if True, skip putative chimeric genes
     :return None:
     """
 
@@ -106,9 +160,8 @@ def recover_sequences_from_one_sample(seq_dir,
             os.mkdir(fasta_dir)
     else:
         fasta_dir = '.'
-    print(f'Retrieving {len(target_genes)} genes from sample {single_sample_name}...')
+    logger.info(f'Retrieving {len(target_genes)} genes from sample {single_sample_name}...')
     sequences_to_write = []
-    numSeqs = 0
 
     # Construct names for intron and supercontig output files:
     if seq_dir in ['intron', 'supercontig']:
@@ -116,6 +169,16 @@ def recover_sequences_from_one_sample(seq_dir,
     else:
         outfilename = f'{seq_dir}.fasta'
     for gene in target_genes:
+        numSeqs = 0
+        # Recover a list of putative chimeric genes for the sample, and skip gene if in list:
+        if skip_chimeric:
+            chimeric_genes_to_skip = get_chimeric_genes_for_sample(single_sample_name)
+            # print(f'chimeric_genes_to_skip is: {chimeric_genes_to_skip}')
+            if gene in chimeric_genes_to_skip:
+                logger.info(f'Skipping putative chimeric stitched contig sequence for {gene}, sample'
+                            f' {single_sample_name}')
+                continue
+
         # Get path to the gene/intron/supercontig sequence:
         if seq_dir == 'intron':
             sample_path = os.path.join(single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
@@ -131,7 +194,7 @@ def recover_sequences_from_one_sample(seq_dir,
         # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
         except FileNotFoundError:
             pass
-    print(f'Found {numSeqs} sequences for sample {single_sample_name}.')
+        logger.info(f'Found {numSeqs} sequences for gene {gene}.')
 
     with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
         SeqIO.write(sequences_to_write, outfile, 'fasta')
@@ -143,16 +206,26 @@ def standalone():
     """
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('targetfile', help='FASTA File containing target sequences')
+    parser.add_argument('targetfile',
+                        help='FASTA File containing target sequences')
     parser.add_argument('--sample_names',
                         help='Directory containing Hybpiper output OR a file containing HybPiper output names, '
-                             'one per line', default=None)
+                             'one per line',
+                        default=None)
     parser.add_argument('--single_sample_name',
                         help='A single sample name to recover sequences for', default=None)
-    parser.add_argument('sequence_type', help='Type of sequence to extract', choices=['dna', 'aa', 'intron',
-                                                                                      'supercontig'])
-    parser.add_argument('--hybpiper_dir', help='Specify directory containing HybPiper output', default=None)
-    parser.add_argument('--fasta_dir', help='Specify directory for output FASTA files', default=None)
+    parser.add_argument('sequence_type',
+                        help='Type of sequence to extract',
+                        choices=['dna', 'aa', 'intron', 'supercontig'])
+    parser.add_argument('--hybpiper_dir', help='Specify directory containing HybPiper output',
+                        default=None)
+    parser.add_argument('--fasta_dir', help='Specify directory for output FASTA files',
+                        default=None)
+    parser.add_argument('--skip_chimeric_genes',
+                        action='store_true',
+                        dest='skip_chimeric',
+                        help='Do not recover sequences for putative chimeric genes',
+                        default=False)
 
     args = parser.parse_args()
     main(args)
@@ -196,13 +269,15 @@ def main(args):
                                            target_genes,
                                            args.sample_names,
                                            args.hybpiper_dir,
-                                           args.fasta_dir)
+                                           args.fasta_dir,
+                                           args.skip_chimeric)
     elif args.single_sample_name:
         recover_sequences_from_one_sample(seq_dir,
                                           filename,
                                           target_genes,
                                           args.single_sample_name,
-                                          args.fasta_dir)
+                                          args.fasta_dir,
+                                          args.skip_chimeric)
 
 
 if __name__ == "__main__":
