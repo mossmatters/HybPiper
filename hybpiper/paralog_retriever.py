@@ -40,7 +40,7 @@ def retrieve_seqs(sample_base_directory_path, sample_directory_name, target_gene
     :param list target_genes: a list of target gene names
     :param str fasta_dir_all: folder name for fasta files with all paralogs
     :param str fasta_dir_no_chimeras: folder name for fasta files with all paralogs except putative chimeras
-    :return xxx num_seqs: xxx
+    :return list stats_for_report, genes_with_paralogs: lists of sequence counts and gene names for writing reports
     """
 
     # Make output directories:
@@ -139,7 +139,8 @@ def standalone():
     parser.add_argument('namelist',
                         help='Text file containing list of HybPiper output directories, one per line.')
     parser.add_argument('targetfile',
-                        help="FASTA file containing target sequences for each gene. Used to extract unique gene names for paralog recovery")
+                        help="FASTA file containing target sequences for each gene. Used to extract unique gene names "
+                             "for paralog recovery")
     parser.add_argument('--fasta_dir_all',
                         help='Specify directory for output FASTA files (ALL)',
                         default='paralogs_all')
