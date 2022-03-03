@@ -909,7 +909,7 @@ class Exonerate(object):
         return exonerate_hits_filtered_no_subsumed
 
     def _trim_overlapping_hits(self):  # for constructing the coding-seq-only stitched contig via
-        # _create__stitched_contig()
+        # _create_stitched_contig()
         """
         => Takes a dictionary of hits that has been filtered via hit similarity to the query, and has had subsumed hits
         removed. If any of the remaining hits have overlaps in query ranges, the 3' end of the left hit is trimmed to
