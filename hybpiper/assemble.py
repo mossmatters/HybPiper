@@ -1704,10 +1704,45 @@ def add_paralog_retriever_parser(subparsers):
     parser_paralog_retriever.add_argument('--paralog_report_filename',
                                           help='Specify the filename for the paralog *.tsv report table',
                                           default='paralog_report')
-    parser_paralog_retriever.add_argument('--genes_with_paralogs_filename',
-                                          help='Specify the filename for the *.txt list of genes with paralogs in at '
-                                               'least one sample',
-                                          default='genes_with_paralogs')
+    parser_paralog_retriever.add_argument('--paralogs_above_threshold_report_filename',
+                                          help='Specify the filename for the *.txt list of genes with paralogs in '
+                                               '<paralogs_list_threshold_percentage> number of samples',
+                                          default='paralogs_above_threshold_report')
+    parser_paralog_retriever.add_argument('--paralogs_list_threshold_percentage',
+                                          help='Percent of total number of samples and genes that must have paralog '
+                                               'warnings to be reported in the <genes_with_paralogs.txt> report file. '
+                                               'The default is 0.0, meaning that all genes and samples with at least '
+                                               'one paralog warning will be reported',
+                                          type=float,
+                                          default=0.0)
+    parser_paralog_retriever.add_argument('--heatmap_filename',
+                                          help='Filename for the output heatmap, saved by default as a *.png file. '
+                                               'Defaults to "paralog_heatmap"',
+                                          default='paralog_heatmap')
+    parser_paralog_retriever.add_argument('--figure_length', type=int,
+                                          help='Length dimension (in inches) for the output heatmap file. Default is '
+                                               'automatically calculated based on the number of genes',
+                                          default=None)
+    parser_paralog_retriever.add_argument('--figure_height', type=int,
+                                          help='Height dimension (in inches) for the output heatmap file. Default is '
+                                               'automatically calculated based on the number of samples',
+                                          default=None)
+    parser_paralog_retriever.add_argument('--sample_text_size', type=int,
+                                          help='Size (in points) for the sample text labels in the output heatmap '
+                                               'file. Default is automatically calculated based on the number of '
+                                               'samples',
+                                          default=None)
+    parser_paralog_retriever.add_argument('--gene_text_size', type=int,
+                                          help='Size (in points) for the gene text labels in the output heatmap file. '
+                                               'Default is automatically calculated based on the number of genes',
+                                          default=None)
+    parser_paralog_retriever.add_argument('--heatmap_filetype',
+                                          choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
+                                          help='File type to save the output heatmap image as. Default is png',
+                                          default='png')
+    parser_paralog_retriever.add_argument('--heatmap_dpi', type=int,
+                                          help='Dots per inch (DPI) for the output heatmap image. Default is 300',
+                                          default='300')
 
     # Set function for subparser <paralog_retriever>:
     parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
