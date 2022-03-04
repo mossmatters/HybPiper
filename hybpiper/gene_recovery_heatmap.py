@@ -13,6 +13,7 @@ Generates a heatmap of percentage length recovery for each sample and each gene.
 import sys
 import argparse
 import os
+import logging
 
 # Import non-standard-library modules:
 
@@ -30,6 +31,20 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     sys.exit(f"Required Python package 'matplotlib' not found. Is it installed for the Python used to run this script?")
+
+
+# Create a custom logger
+
+# Log to Terminal (stderr):
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setLevel(logging.INFO)
+
+# Setup logger:
+logger = logging.getLogger(f'hybpiper.{__name__}')
+
+# Add handlers to the logger
+logger.addHandler(console_handler)
+logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 ########################################################################################################################
 ########################################################################################################################
@@ -58,8 +73,8 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     num_samples = len(df.index)
     num_genes = len(df.columns)
 
-    print(f'Number of samples in input lengths file is: {num_samples}')
-    print(f'Number of genes in input lengths file is: {num_genes}')
+    logger.info(f'Number of samples in input lengths file is: {num_samples}')
+    logger.info(f'Number of genes in input lengths file is: {num_genes}')
 
     # Set default text label size (in points) unless specified at the command line:
     sample_text_size = sample_text_size if sample_text_size else 10
@@ -97,8 +112,8 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     elif num_genes > 400:
         fig_length = figure_length if figure_length else 120
 
-    print(f'fig_length: {fig_length} inches, figure_height: {figure_height} inches, sample_text_size:'
-          f' {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
+    logger.info(f'fig_length: {fig_length} inches, figure_height: {figure_height} inches, sample_text_size:'
+                f' {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
 
     return fig_length, figure_height, sample_text_size, gene_id_text_size
 
@@ -134,7 +149,7 @@ def standalone():
     parser.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
                         help='File type to save the output heatmap image as. Default is png', default='png')
     parser.add_argument('--heatmap_dpi', type=int,
-                        help='Dot per inch (DPI) for the output heatmap image. Default is 300',
+                        help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                         default='300')
 
     args = parser.parse_args()
@@ -148,10 +163,10 @@ def main(args):
     :param argparse.Namespace args:
     """
 
-    print(f'Running {__name__} with: {args}')
+    logger.info(f'Running {__name__} with: {args}')
 
     if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
-        print(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
+        logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
 
     # Read in the sequence length file:
     df = pd.read_csv(args.seq_lengths_file, delimiter='\t', )
@@ -196,9 +211,8 @@ def main(args):
     # plt.tight_layout()
 
     # Save heatmap as png file:
-    print(f'Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at {args.heatmap_dpi} DPI')
+    logger.info(f'Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at {args.heatmap_dpi} DPI')
     plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=args.heatmap_dpi, bbox_inches='tight')
-
 
 
 ########################################################################################################################
