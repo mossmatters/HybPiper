@@ -58,8 +58,6 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     :return None/str: None or outputfilename. The outputfilename is the Exonerate text fiel output
     """
 
-    print(f'prefix is: {prefix}')
-
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
     outputfilename = f'{prefix}/exonerate_results.fasta'
