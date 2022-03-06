@@ -14,6 +14,7 @@ import argparse
 from Bio import SeqIO
 import logging
 from collections import defaultdict
+from gene_recovery_heatmap import get_figure_dimensions
 
 try:
     import pandas as pd
@@ -42,67 +43,6 @@ logger = logging.getLogger(f'hybpiper.{__name__}')
 # Add handlers to the logger
 logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
-
-
-def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, gene_text_size):
-    """
-    Takes a dataframe and returns figure length (inches), figure height (inches), sample_text_size and gene_id_text_size
-    values based on the number of samples and genes in the paralog_report.tsv input file provided.
-
-    :param pandas.core.frame.DataFrame df: pandas dataframe of paralog_report.tsv after filtering and pivot
-    :param NoneType or int figure_length: if provided, dimension (in inches) for the figure length
-    :param NoneType or int figure_height: if provided, dimension (in inches) for the figure height
-    :param NoneType or int sample_text_size: if provided, dimension (in inches) for the figure sample text size
-    :param NoneType or int gene_text_size: if provided, dimension (in inches) for the figure gene_id text size
-    :return float fig_length, figure_height, sample_text_size, gene_id_text_size:
-    """
-
-    num_samples = len(df.index)
-    num_genes = len(df.columns)
-
-    logger.info(f'Number of samples in input paralog file is: {num_samples}')
-    logger.info(f'Number of genes in input paralog file is: {num_genes}')
-
-    # Set default text label size (in points) unless specified at the command line:
-    sample_text_size = sample_text_size if sample_text_size else 10
-    gene_id_text_size = gene_text_size if gene_text_size else 10
-
-    # Set figure height dimensions for a given number of samples:
-    if num_samples <= 10:
-        figure_height = figure_height if figure_height else 4
-    elif 10 < num_samples <= 20:
-        figure_height = figure_height if figure_height else 8
-    elif 20 < num_samples <= 50:
-        figure_height = figure_height if figure_height else 16
-    elif 50 < num_samples <= 100:
-        figure_height = figure_height if figure_height else 16
-    elif 100 < num_samples <= 200:
-        figure_height = figure_height if figure_height else 140
-    elif 200 < num_samples <= 400:
-        figure_height = figure_height if figure_height else 180
-    elif num_samples > 400:
-        figure_height = figure_height if figure_height else 240
-
-    # Set figure length dimensions for a given number of genes (i.e. number of unique genes in target file):
-    if num_genes <= 10:
-        fig_length = figure_length if figure_length else 4
-    elif 10 < num_genes <= 20:
-        fig_length = figure_length if figure_length else 6
-    elif 20 < num_genes <= 50:
-        fig_length = figure_length if figure_length else 8
-    elif 50 < num_genes <= 100:
-        fig_length = figure_length if figure_length else 8
-    elif 100 < num_genes <= 200:
-        fig_length = figure_length if figure_length else 70
-    elif 200 < num_genes <= 400:
-        fig_length = figure_length if figure_length else 90
-    elif num_genes > 400:
-        fig_length = figure_length if figure_length else 120
-
-    logger.info(f'fig_length: {fig_length} inches, figure_height: {figure_height} inches, sample_text_size:'
-                f' {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
-
-    return fig_length, figure_height, sample_text_size, gene_id_text_size
 
 
 def get_chimeric_genes_for_sample(sample_directory_name):
