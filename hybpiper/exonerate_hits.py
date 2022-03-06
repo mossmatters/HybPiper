@@ -54,9 +54,11 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
 
     :param str proteinfilename: path to the chosen target-file protein query fasta file
     :param str assemblyfilename: path to the SPAdes assembly contigs file
-    :param prefix:
+    :param dtr prefix: path of gene/sample name
     :return None/str: None or outputfilename. The outputfilename is the Exonerate text fiel output
     """
+
+    print(f'prefix is: {prefix}')
 
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
 
@@ -619,7 +621,6 @@ class Exonerate(object):
             hit_range = filtered_hsp[0].hit_range
             hit_range_all = filtered_hsp[0].hit_range_all
             hit_inter_ranges = filtered_hsp[0].hit_inter_ranges
-            # print(f'\nHIT INTER RANGES:\n{hit_inter_ranges}')
             hit_similarity = filtered_hsp[1]
             hsp_hit_strand_all = filtered_hsp[0].hit_strand_all
             assert len(set(hsp_hit_strand_all)) == 1  # Check that all HSP fragments are on the same strand
@@ -1597,21 +1598,14 @@ def grouped(iterable, n):
     return zip(*[iter(iterable)] * n)
 
 
-def report_no_sequences(protname):
-    """
-    CJJ: used in function main(). Not sure why this snippet gets its own function.
-    """
-    sys.stderr.write("No valid sequences remain for {}!\n".format(protname))
-
-
 def set_stitched_contig_chimera_test(no_stitched_contig_bool, prefix):
     """
     Return True if a file of R1/R2 interleaved reads is found. Also return the path to the
     interleaved reads file.
 
     :param bool no_stitched_contig_bool: if True, no chimera test will be performed
-    :param str prefix:
-    :return: bool, str path to interleaved fasta file for gene
+    :param str prefix: path of gene/sample name
+    :return: bool, str: path to interleaved fasta file for gene
     """
 
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
@@ -1637,12 +1631,10 @@ def parse_spades_and_best_reference(assemblyfile, proteinfile, prefix):
     Return a SeqIO dictionary for the SPAdes contigs (assemblyfile) and the 'best' protein
     reference for the sample/gene (proteinfile).
 
-    :param assemblyfile:
-    :type assemblyfile:
-    :param proteinfile:
-    :type proteinfile:
-    :return:
-    :rtype:
+    :param str assemblyfile: name of the FASTA file containing DNA sequence assembly
+    :param str proteinfile: name of the FASTA file containing the target protein sequence
+    :param str prefix: path of gene/sample name
+    :return dict, dict spades_assembly_dict, best_protein_ref_dict:
     """
 
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
@@ -1667,11 +1659,9 @@ def parse_spades_and_best_reference(assemblyfile, proteinfile, prefix):
 def create_output_directories(prefix, assemblyfile):
     """
 
-    :param prefix:
-    :type prefix:
-    :param assemblyfile:
-    :return:
-    :rtype:
+    :param str prefix: name of the sample
+    :param str assemblyfile: name of the FASTA file containing DNA sequence assembly
+    :return str: prefix: path of gene/sample name
     """
 
     if prefix:
@@ -1799,21 +1789,13 @@ def main(args):
                                                                bbmap_threads=args.bbmap_threads,
                                                                interleaved_fasta_file=path_to_interleaved_fasta,
                                                                no_stitched_contig=args.no_stitched_contig,
-                                                               spades_assembly_dict=spades_assembly_dict)
+                                                               spades_assembly_dict=spades_assembly_dict,
+                                                               depth_multiplier=args.depth_multiplier)
     if not exonerate_result.stitched_contig_seqrecord:
         return
 
     logger.debug(f'There were {len(exonerate_result.hits_filtered_by_pct_similarity_dict)} Exonerate '
                  f'hits for {args.proteinfile} after filtering by similarity threshold {args.thresh}.')
-
-    # if intronerate:
-    #     if exonerate_result.stitched_contig_seqrecord.description == 'single_hit' and \
-    #             len(exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
-    #         logger.debug(f'Sequence for gene is derived from a single Exonerate hit with no introns - '
-    #                      f'intronerate will not be run for this gene')
-    #     else:
-    #         logger.debug(f'Running intronerate')
-    #         intronerate(exonerate_result, spades_assembly_dict, logger=logger)
 
     if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
         logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict is:'
