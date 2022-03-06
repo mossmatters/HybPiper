@@ -1030,7 +1030,8 @@ def exonerate_multiprocessing(genes,
                               chimeric_stitched_contig_discordant_reads_cutoff=5,
                               logger=None,
                               intronerate=False,
-                              no_padding_supercontigs=False):
+                              no_padding_supercontigs=False,
+                              keep_exonerate_logs=False):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -1050,6 +1051,8 @@ def exonerate_multiprocessing(genes,
     :param logging.Logger logger: a logger object
     :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns)
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
+    :param bool keep_exonerate_logs: if True, keep individual Exonerate logs rather than deleting them after
+    re-logging to the main sample log file
     :return:
     """
 
@@ -1100,7 +1103,8 @@ def exonerate_multiprocessing(genes,
                         lines = gene_log_handle.readlines()
                         for line in lines:
                             logger.debug(line.strip())  # log contents to main logger
-                    # os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
+                    if not keep_exonerate_logs:
+                        os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
             except:  # FIXME make this more specific
                 logger.info(f'result is {future.result()}')
                 raise
@@ -1391,7 +1395,8 @@ def assemble(args):
                                   pool_threads=args.cpu,
                                   logger=logger,
                                   intronerate=args.intronerate,
-                                  no_padding_supercontigs=args.no_padding_supercontigs)
+                                  no_padding_supercontigs=args.no_padding_supercontigs,
+                                  keep_exonerate_logs=args.keep_exonerate_logs)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
@@ -1596,6 +1601,11 @@ def add_assemble_parser(subparsers):
                                  help='Keep the SPAdes folder for each gene. Default action is to delete it following '
                                       'contig recovery (dramatically reduces the total files number).',
                                  action='store_true', dest='keep_spades', default=False)
+    parser_assemble.add_argument("--keep_exonerate_logs",
+                                 help='Keep the individual *.log file for each run of the exonerate_hits.py '
+                                      'module. Default action is to delete it after re-logging it to the main sample '
+                                      '*.log file.',
+                                 action='store_true', dest='keep_exonerate_logs', default=False)
     parser_assemble.add_argument("--no_padding_supercontigs",
                                  help='If Intronerate is run, and a supercontig is created by concatenating multiple '
                                       'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '

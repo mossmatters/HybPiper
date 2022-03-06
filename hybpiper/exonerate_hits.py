@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 
 """
-# TODO
+This module takes a nucleotide SPAdes assembly for a gene (with contigs potentially containing exons and
+introns/intergenic sequence) and a protein sequence for the 'best' target file sequence for the gene. It performs an
+Exonerate search using the protein sequence as the query and the SPAdes contigs as targets (protein2genome model) and
+extracts exon regions to create (where possible) a contiguous coding sequence for the gene/sample.
+
+The module also performs the following tasks:
+
+- Identification of introns and supercontigs (containing both exons and introns) using the function intronerate().
+- Identification of paralogs.
+- Identification of putative chimeric stitched contigs (derived from multiple paralogs).
 """
 
 import shutil
@@ -28,7 +37,7 @@ def file_exists_and_not_empty(file_name):
     Check if file exists and is not empty by confirming that its size is not 0 bytes. Returns a boolean.
 
     :param str file_name: path to filename to check
-    :return: bool
+    :return bool: True if path is a file and is not size zero
     """
 
     return os.path.isfile(file_name) and not os.path.getsize(file_name) == 0
@@ -36,9 +45,9 @@ def file_exists_and_not_empty(file_name):
 
 def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     """
-    Conduct exonerate search (first with option `--refine full` and then without if it doesn't work).
+    Conduct Exonerate search (first with option `--refine full` and then without if it doesn't work).
 
-    Using the ryo option in exonerate, the header should contain all the useful information.
+    Using the ryo option in Exonerate, the header contains useful information.
 
     https://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate-manual
 
@@ -54,8 +63,10 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
 
     :param str proteinfilename: path to the chosen target-file protein query fasta file
     :param str assemblyfilename: path to the SPAdes assembly contigs file
-    :param dtr prefix: path of gene/sample name
-    :return None/str: None or outputfilename. The outputfilename is the Exonerate text fiel output
+    :param str prefix: path of gene/sample name
+    :return NoneType or str, None or outputfilename:
+        - None: returned if Exonerate searches fail to produce output file
+        - outputfilename: the Exonerate text file output
     """
 
     logger = logging.getLogger(f'{os.path.split(prefix)[0]}')
@@ -99,7 +110,6 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         return outputfilename
     else:
         logger.debug('Exonerate failed without --refine; bad SPAdes contig(s)?')
-        # raise RuntimeError(f'Exonerate failed without --refine for {prefix}')
         return None
 
 
@@ -113,7 +123,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     :param dict spades_contig_dict: a SeqIO dictionary of SPAdes contigs
     :param logging.Logger logger: a logger object
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
-    :return:
+    :return NoneType: no explicit return value
     """
 
     logger.debug(f'no_padding_supercontigs: {no_padding_supercontigs}')
@@ -251,8 +261,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
 
             elif hit_data_dict['hit_strand'] == -1:
-                # trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
-                trimmed_hit_ranges_all = Exonerate._convert_coords_revcomp(trimmed_hit_ranges_all,
+                trimmed_hit_ranges_all = Exonerate.convert_coords_revcomp(trimmed_hit_ranges_all,
                                                                           raw_spades_contig_length)
                 raw_spades_contig = raw_spades_contig.reverse_complement()
                 raw_spades_contig.id = raw_spades_contig_id
@@ -266,8 +275,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
             slice_found = False
 
             if hit_data_dict['hit_strand'] == -1:
-                # trimmed_hit_ranges_all = convert_coords_revcomp(trimmed_hit_ranges_all)
-                trimmed_hit_ranges_all = Exonerate._convert_coords_revcomp(trimmed_hit_ranges_all,
+                trimmed_hit_ranges_all = Exonerate.convert_coords_revcomp(trimmed_hit_ranges_all,
                                                                           raw_spades_contig_length)
                 raw_spades_contig = raw_spades_contig.reverse_complement()
                 raw_spades_contig.id = raw_spades_contig_id
@@ -1006,7 +1014,7 @@ class Exonerate(object):
         return stitched_contig_seqrecord
 
     @staticmethod
-    def _convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
+    def convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
         """
         This function takes a list of Exonerate SearchIO hit range tuples for a hit on the negative strand,
         and converts them so that they are consistent with those from a hit on the positive strand. The
@@ -1056,10 +1064,10 @@ class Exonerate(object):
             else:
                 if hit_dict_values['hit_strand'] == -1:  # Convert ranges so that they apply to the revcomp contig
                     self.logger.debug(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
-                    hit_inter_ranges = self._convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
+                    hit_inter_ranges = self.convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
                     self.logger.debug(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
                     self.logger.debug(f'hit_range_all before conversion is: {hit_range_all}')
-                    hit_range_all = self._convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
+                    hit_range_all = self.convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
                     self.logger.debug(f'hit_range_all after conversion is: {hit_range_all}')
                 else:
                     self.logger.debug(f'hit_inter_ranges is: {hit_inter_ranges}')
