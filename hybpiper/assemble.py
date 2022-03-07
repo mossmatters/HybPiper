@@ -1429,7 +1429,7 @@ def assemble(args):
     with open(f'{basename}_genes_with_long_paralog_warnings.txt', 'w') as long_paralogs_handle:
         for warning_file in paralog_warnings_long:
             with open(warning_file, 'r') as warning_handle:
-                report_line = warning_handle.readline()
+                report_line = warning_handle.readline().split()[0]  # only recover gene name
                 long_paralogs_handle.write(report_line)
     logger.info(f'{"[NOTE]:":10} WARNING: Potential long paralogs detected for {len(paralog_warnings_long)} genes!')
 
