@@ -72,8 +72,7 @@ def get_chimeric_genes_for_sample(sample_directory_name):
     return chimeric_genes_to_skip
 
 
-def retrieve_seqs(sample_base_directory_path, sample_directory_name, target_genes, fasta_dir_all=None,
-                  fasta_dir_no_chimeras=None):
+def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_directory_name, gene):
     """
     Iterates over a list of gene name for a given sample, and for each gene produces two *.fasta files:  1) all
     paralog sequences (or *.FNA if no paralogs) from all samples; 2)  all paralog sequences (or non-chimeric *.FNA if
@@ -81,111 +80,79 @@ def retrieve_seqs(sample_base_directory_path, sample_directory_name, target_gene
 
     :param str sample_base_directory_path: path to the parent directory of the sample folder
     :param str sample_directory_name: name of the sample directory
-    :param list target_genes: a list of target gene names
-    :param str fasta_dir_all: folder name for fasta files with all paralogs
-    :param str fasta_dir_no_chimeras: folder name for fasta files with all paralogs except putative chimeras
+    :param str gene: name of the gene to recover sequences for
     :return list stats_for_report, genes_with_paralogs: lists of sequence counts and gene names for writing reports
     """
 
-    # Make output directories:
-    if not os.path.isdir(fasta_dir_all):
-        os.mkdir(fasta_dir_all)
-    if not os.path.isdir(fasta_dir_no_chimeras):
-        os.mkdir(fasta_dir_no_chimeras)
-
     chimeric_genes_to_skip = get_chimeric_genes_for_sample(sample_directory_name)
 
-    # Normal recovery of all sequences; writes to folder fasta_dir_all:
-    stats_for_report = [sample_directory_name]
-    genes_with_paralogs = [sample_directory_name]
-    seqs_to_write = None
+    # Normal recovery of all sequences:
+    seqs_to_write_all = []
+    seqs_to_write_no_chimeras = []
+    num_seqs = 0  # default if no paralogs or *.FNA
+    has_paralogs = False
 
-    for gene in target_genes:
-        has_paralogs = False
-
-        # Get paths to paralogs file (might not be present if no paralogs) and *.FNA file:
-        paralog_fasta_file_path = os.path.join(sample_base_directory_path,
-                                               sample_directory_name,
-                                               gene,
-                                               sample_directory_name,
-                                               'paralogs',
-                                               f'{gene}_paralogs.fasta')
-
-        fna_fasta_file_path = os.path.join(sample_base_directory_path,
+    # Get paths to paralogs file (might not be present if no paralogs) and *.FNA file:
+    paralog_fasta_file_path = os.path.join(sample_base_directory_path,
                                            sample_directory_name,
                                            gene,
                                            sample_directory_name,
-                                           'sequences',
-                                           'FNA',
-                                           f'{gene}.FNA')
+                                           'paralogs',
+                                           f'{gene}_paralogs.fasta')
 
-        # Recover paralog sequences if present:
+    fna_fasta_file_path = os.path.join(sample_base_directory_path,
+                                       sample_directory_name,
+                                       gene,
+                                       sample_directory_name,
+                                       'sequences',
+                                       'FNA',
+                                       f'{gene}.FNA')
+
+    # Recover paralog sequences if present:
+    if os.path.isfile(paralog_fasta_file_path):
+        seqs_to_write = [x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')]
+        seqs_to_write_all.extend(seqs_to_write)
+        num_seqs = len(seqs_to_write)
+        has_paralogs = True
+
+    # ...or recover nucleotide *.FNA sequence if present:
+    elif os.path.isfile(fna_fasta_file_path):
+        seqs_to_write = SeqIO.read(fna_fasta_file_path, 'fasta')
+        seqs_to_write_all.append(seqs_to_write)
+        num_seqs = 1
+
+    # Now skip any putative chimeric stitched contig sequences:
+    if gene in chimeric_genes_to_skip:
+        logger.info(f'Skipping gene {gene} for sample {sample_directory_name}'
+                    f' - putative chimeric stitched contig sequence!')
+    else:
         if os.path.isfile(paralog_fasta_file_path):
-            seqs_to_write = [x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')]
-            num_seqs = len(seqs_to_write)
-            has_paralogs = True
-
-        # ...or recover nucleotide *.FNA sequence if present:
+            seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
         elif os.path.isfile(fna_fasta_file_path):
-            seqs_to_write = SeqIO.read(fna_fasta_file_path, 'fasta')
-            num_seqs = 1
+            seqs_to_write_no_chimeras.append(SeqIO.read(fna_fasta_file_path, 'fasta'))
 
-        if seqs_to_write:  # i.e. there were either paralogs or a *.FNA file for the gene
-            SeqIO.write(seqs_to_write, f'{fasta_dir_all}/{sample_directory_name}_{gene}_paralogs_all.fasta', 'fasta')
-        else:
-            num_seqs = 0
-
-        # Capture the number of sequences for this gene and add it to a list for report writing:
-        stats_for_report.append(num_seqs)
-
-        if has_paralogs:
-            genes_with_paralogs.append(gene)
-
-        # Skip any putative chimeric stitched contig sequences; writes to folder fasta_dir_no_chimeras:
-        if gene in chimeric_genes_to_skip:
-            logger.info(f'Skipping gene {gene} for sample {sample_directory_name}'
-                        f' - putative chimeric stitched contig sequence!')
-        else:
-            if os.path.isfile(paralog_fasta_file_path):
-                seqs_to_write = [x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')]
-
-            elif os.path.isfile(fna_fasta_file_path):
-                seqs_to_write = SeqIO.read(fna_fasta_file_path, 'fasta')
-
-            if seqs_to_write:  # i.e. there were either paralogs or a *.FNA file for the gene
-                SeqIO.write(seqs_to_write, f'{fasta_dir_no_chimeras}/'
-                                           f'{sample_directory_name}_{gene}_paralogs_all.fasta', 'fasta')
-
-    return stats_for_report, genes_with_paralogs
+    return num_seqs, has_paralogs, seqs_to_write_all, seqs_to_write_no_chimeras
 
 
-def write_paralogs_above_threshold_report(genes_with_paralogs_sample_lists, paralogs_list_threshold_percentage,
+def write_paralogs_above_threshold_report(gene_with_paralogs_to_sample_list_dict, paralogs_list_threshold_percentage,
                                           namelist, target_genes, paralogs_above_threshold_report_filename):
     """
     Writes a *.txt report list gene names and sample names for genes and samples that have paralogs in >=
 
-    :param list genes_with_paralogs_sample_lists: list of lists containing ['sample_name', gene_with_paralog1, 'etc']
+    :param dict gene_with_paralogs_to_sample_list_dict: dict of lists e.g. {'gene006': ['EG98'], 'gene026': ['EG30',
+    'EG98'], etc. }
     :param float paralogs_list_threshold_percentage: percentage threshold used for report calculations
     :param list namelist: list of sample names
-    :param list target_genes: list of target gen names
+    :param list target_genes: list of target gene names
     :param str paralogs_above_threshold_report_filename: file name for the report file
     :return:
     """
 
     # Calculate number of genes with warnings in >= paralogs_list_threshold_percentage samples:
     genes_with_paralogs_in_greater_than_threshold_samples = []
-    gene_paralog_count_dict = defaultdict(int)
 
-    for sample_gene_paralog_warning_list in genes_with_paralogs_sample_lists:
-        for gene_name in sample_gene_paralog_warning_list[1:]:
-            # print(gene_name)
-            gene_paralog_count_dict[gene_name] += 1
-    print(f'gene_paralog_count_dict is: {gene_paralog_count_dict}')
-
-    for gene, paralog_count in gene_paralog_count_dict.items():
-        if paralog_count / len(namelist) >= paralogs_list_threshold_percentage:  # Check percentage of samples
-            # print(gene)
-            # print(paralog_count/len(namelist))
+    for gene, sample_name_list in gene_with_paralogs_to_sample_list_dict.items():
+        if len(sample_name_list) / len(namelist) >= paralogs_list_threshold_percentage:  # Check percentage of samples
             genes_with_paralogs_in_greater_than_threshold_samples.append(gene)
 
     logger.info(f'There are {len(genes_with_paralogs_in_greater_than_threshold_samples)} genes with paralogs in >= '
@@ -194,20 +161,14 @@ def write_paralogs_above_threshold_report(genes_with_paralogs_sample_lists, para
 
     # Calculate number of samples with warnings in >= paralogs_list_threshold_percentage genes:
     samples_with_paralogs_in_greater_than_threshold_genes = []
-    sample_paralog_count_dict = defaultdict(int)
+    sample_to_paralogous_genes_count_dict = defaultdict(int)
 
-    for sample_gene_paralog_warning_list in genes_with_paralogs_sample_lists:
-        # print(sample_gene_paralog_warning_list)
-        sample_name = sample_gene_paralog_warning_list[0]
-        for gene_name in sample_gene_paralog_warning_list[1:]:
-            # print(gene_name)
-            sample_paralog_count_dict[sample_name] += 1
-    print(f'sample_paralog_count_dict is: {sample_paralog_count_dict}')
+    for gene, sample_name_list in gene_with_paralogs_to_sample_list_dict.items():
+        for sample_name in sample_name_list:
+            sample_to_paralogous_genes_count_dict[sample_name] += 1
 
-    for sample, paralog_count in sample_paralog_count_dict.items():
-        if paralog_count / len(target_genes) >= paralogs_list_threshold_percentage:
-            # print(sample)
-            # print(paralog_count/len(target_genes))
+    for sample, paralogous_genes_count in sample_to_paralogous_genes_count_dict.items():
+        if paralogous_genes_count / len(target_genes) >= paralogs_list_threshold_percentage:
             samples_with_paralogs_in_greater_than_threshold_genes.append(sample)
 
     logger.info(f'There are {len(samples_with_paralogs_in_greater_than_threshold_genes)} samples with paralogs in >= '
@@ -355,42 +316,62 @@ def main(args):
     :param argparse.Namespace args:
     """
 
+    # Make output directories:
+    if not os.path.isdir(args.fasta_dir_all):
+        os.mkdir(args.fasta_dir_all)
+    if not os.path.isdir(args.fasta_dir_no_chimeras):
+        os.mkdir(args.fasta_dir_no_chimeras)
+
     # Get a list of genes to recover, parsed from the target file:
-    target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(args.targetfile, 'fasta')]))
+    target_genes = sorted(list(set([x.id.split('-')[-1] for x in SeqIO.parse(args.targetfile, 'fasta')])))
 
     # Get a list of sample names:
     namelist = [x.rstrip() for x in open(args.namelist)]
 
-    stats_for_tsv_report_all_samples = []
-    genes_with_paralogs_sample_lists = []
-    for name in namelist:  # iterate over samples
-        sample_base_directory_path, sample_directory_name = os.path.split(name)
-        if not sample_directory_name:
-            sample_base_directory_path, sample_folder_name = os.path.split(sample_base_directory_path)
+    # Create dictionaries to capture data for reports/heatmap:
+    sample_to_gene_paralog_count_dict = defaultdict(dict)
+    gene_with_paralogs_to_sample_list_dict = defaultdict(list)
 
-        stats_for_tsv_report, genes_with_paralogs = retrieve_seqs(sample_base_directory_path,
-                                                                  sample_directory_name,
-                                                                  target_genes,
-                                                                  args.fasta_dir_all,
-                                                                  args.fasta_dir_no_chimeras)
+    # Iterate over each gene and capture data for all samples:
+    for gene in target_genes:
+        sequences_to_write_all = []
+        sequences_to_write_no_chimeras = []
+        for sample in namelist:  # iterate over all samples
+            sample_base_directory_path, sample_directory_name = os.path.split(sample)
+            if not sample_directory_name:
+                sample_base_directory_path, sample_folder_name = os.path.split(sample_base_directory_path)
 
-        stats_for_tsv_report_all_samples.append(stats_for_tsv_report)
-        genes_with_paralogs_sample_lists.append(genes_with_paralogs)
+            num_seqs, has_paralogs, seqs_to_write_all, seqs_to_write_no_chimeras = retrieve_gene_paralogs_from_sample(
+                sample_base_directory_path,
+                sample_directory_name,
+                gene)
 
-    # Write text statistics report:
-    write_paralogs_above_threshold_report(genes_with_paralogs_sample_lists,
-                                          args.paralogs_list_threshold_percentage,
-                                          namelist,
-                                          target_genes,
-                                          args.paralogs_above_threshold_report_filename)
+            # Add the number of sequences for this gene to the sample in the sample_to_gene_paralog_count_dict:
+            sample_to_gene_paralog_count_dict[sample][gene] = num_seqs
+
+            # If the gene has paralogs for this sample, add the sample name to the list for the gene in
+            # gene_with_paralogs_to_sample_list_dict:
+            if has_paralogs:
+                gene_with_paralogs_to_sample_list_dict[gene].append(sample)
+
+            # Add any paralog or *.FNA sequences to the write-to-file lists for this gene:
+            sequences_to_write_all.extend(seqs_to_write_all)
+            sequences_to_write_no_chimeras.extend(seqs_to_write_no_chimeras)
+
+        # Write the 'all' and 'no chimeras' fasta files for this gene:
+        with open(f'{args.fasta_dir_all}/{gene}_paralogs_all.fasta', 'w') as all_seqs_handle:
+            SeqIO.write(sequences_to_write_all, all_seqs_handle, 'fasta')
+
+        with open(f'{args.fasta_dir_no_chimeras}/{gene}_paralogs_no_chimeras.fasta', 'w') as no_chimera_seqs_handle:
+            SeqIO.write(sequences_to_write_no_chimeras, no_chimera_seqs_handle, 'fasta')
 
     # Write a *.tsv report, i.e. a matrix of sample names vs gene name with sequence counts:
     with open(f'{args.paralog_report_filename}.tsv', 'w') as paralog_report_handle:
         genes = '\t'.join(target_genes)
         paralog_report_handle.write(f'Species\t{genes}\n')
-        for stat_list in stats_for_tsv_report_all_samples:
-            stats = '\t'.join([str(stat) for stat in stat_list])
-            paralog_report_handle.write(f'{stats}\n')
+        for sample, gene_paralog_count_dict in sample_to_gene_paralog_count_dict.items():
+            gene_counts = '\t'.join([str(count) for count in gene_paralog_count_dict.values()])
+            paralog_report_handle.write(f'{sample}\t{gene_counts}\n')
 
     # Create a heatmap from the *.tsv file:
     create_paralog_heatmap(f'{args.paralog_report_filename}.tsv',
@@ -401,6 +382,13 @@ def main(args):
                            args.heatmap_filename,
                            args.heatmap_filetype,
                            args.heatmap_dpi)
+
+    # Write text statistics report:
+    write_paralogs_above_threshold_report(gene_with_paralogs_to_sample_list_dict,
+                                          args.paralogs_list_threshold_percentage,
+                                          namelist,
+                                          target_genes,
+                                          args.paralogs_above_threshold_report_filename)
 
 
 if __name__ == "__main__":
