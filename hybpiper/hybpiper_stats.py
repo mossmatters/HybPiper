@@ -370,7 +370,7 @@ def main(args):
         # supercontig_with_trimming = 0
         stitched_contig_skipped = 0
         if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
-            with open(f'{name}/{name}_genes_with_stitched_contigs.csv') as stitched_contig_stats:
+            with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
                 lines = stitched_contig_stats.readlines()
                 for gene_stats in lines:
                     stat = gene_stats.split(',')[2]

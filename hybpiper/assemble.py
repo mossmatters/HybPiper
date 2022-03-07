@@ -1403,7 +1403,7 @@ def assemble(args):
     ####################################################################################################################
     logger.info(f'\n{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
 
-    # Supercontigs:
+    # Stitched contigs:
     collate_stitched_contig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_stitched_contig.csv')]
     with open(f'{basename}_genes_with_stitched_contig.csv', 'w') as genes_with_stitched_contig_handle:
         for report_file in collate_stitched_contig_reports:
