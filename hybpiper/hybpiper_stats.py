@@ -394,7 +394,7 @@ def main(args):
 
         chimeric_stitched_contigs = 0
         if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
-            with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contigs.csv') as \
+            with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as \
                     chimeric_stitched_contig_stats:
                 lines = chimeric_stitched_contig_stats.readlines()
                 for gene_stats in lines:
