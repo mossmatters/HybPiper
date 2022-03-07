@@ -31,7 +31,7 @@ def file_exists_and_not_empty(file_name):
 
 
 def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
-                    unpaired=False, merged=False):
+                    unpaired=False, merged=False, single_cell_mode=False):
     """
     Generates a command string for running SPAdes via GNU parallel. Returns either a single string, or if merged=True
     returns two command strings corresponding to genes with merged and without merged sequences
@@ -44,8 +44,15 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
     :param int timeout: value for GNU parallel --timeout percentage
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
+    :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
     :return: str spades_cmd_with_merged, spades_cmd_without_merged, OR str spades_cmd
     """
+
+    if single_cell_mode:
+        logger.info(f'{"[NOTE]:":10} Running SPAdes in MDA (single-cell) mode - be sure to check your sequences!')
+        single_cell_mode_string = '--sc'
+    else:
+        single_cell_mode_string = ''
 
     if kvals:
         kvals = ','.join(kvals)
@@ -56,7 +63,8 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
     if timeout:
         parallel_cmd_list.append(f'--timeout {timeout}%')
 
-    spades_cmd_list = ['spades.py --only-assembler --threads 1 --cov-cutoff', str(cov_cutoff)]
+    spades_cmd_list = [f'spades.py --only-assembler {single_cell_mode_string} --threads 1 --cov-cutoff',
+                       str(cov_cutoff)]
     # spades_cmd_list = ["spades.py --only-assembler --sc --threads 1 --cov-cutoff", str(cov_cutoff)]  # CJJ added --sc
     if kvals:
         spades_cmd_list.append(f'-k {kvals}')
@@ -111,7 +119,7 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
 
 
 def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
-                   merged=False):
+                   merged=False, single_cell_mode=False):
     """
     Run SPAdes on each gene separately using GNU parallel. Returns a list of genes for which the SPAdes assemblies
     failed.
@@ -124,6 +132,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     :param int timeout: value for GNU parallel --timeout percentage
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
+    :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
     :return: list spades_failed: list of genes for which the SPAdes assemblies failed.
     """
 
@@ -135,7 +144,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
     if merged:
         spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
-            genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout)
+            genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout,
+            single_cell_mode=single_cell_mode)
         logger.info(f'{"[CMD:]":10} {spades_cmd_with_merged}')
 
         try:
@@ -172,7 +182,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
     else:
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
-                                     merged=merged, timeout=timeout)
+                                     merged=merged, timeout=timeout, single_cell_mode=single_cell_mode)
 
         logger.info(f'{"[CMD]:":10} {spades_cmd}')
 

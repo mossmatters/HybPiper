@@ -772,7 +772,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
 
 
 def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
-           merged=False, logger=None, keep_folder=False):
+           merged=False, logger=None, keep_folder=False, single_cell_mode=False):
     """
     Run SPAdes on each gene separately using GNU parallel.
 
@@ -785,7 +785,8 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
     :param logging.Logger logger: a logger object
-    :param bool keep_folder: If True, don't delete the SPAdes assembly folder after contig recovery
+    :param bool keep_folder: if True, don't delete the SPAdes assembly folder after contig recovery
+    :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
     :return: list spades_genelist: a list of gene names that had successful SPAdes assemblies (contigs.fasta produced)
     """
 
@@ -809,7 +810,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
     spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
                                                  kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
-                                                 merged=merged)
+                                                 merged=merged, single_cell_mode=single_cell_mode)
     logger.info(f'{"[NOTE]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
     if len(spades_failed) > 0:
         with open('failed_spades.txt', 'w') as failed_spadefile:
@@ -1336,22 +1337,25 @@ def assemble(args):
     if args.assemble:
         if len(readfiles) == 1:
             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                     paired=False, timeout=args.timeout, logger=logger, keep_folder=args.keep_spades)
+                                     paired=False, timeout=args.timeout, logger=logger, keep_folder=args.keep_spades,
+                                     single_cell_mode=args.spades_single_cell)
         elif len(readfiles) == 2:
             if args.merged and not unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, logger=logger, keep_folder=args.keep_spades)
+                                         timeout=args.timeout, merged=True, logger=logger,
+                                         keep_folder=args.keep_spades, single_cell_mode=args.spades_single_cell)
             elif args.merged and unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True, unpaired=True, logger=logger,
-                                         keep_folder=args.keep_spades)
+                                         keep_folder=args.keep_spades, single_cell_mode=args.spades_single_cell)
             elif unpaired_readfile and not args.merged:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, unpaired=True, logger=logger,
-                                         keep_folder=args.keep_spades)
+                                         keep_folder=args.keep_spades, single_cell_mode=args.spades_single_cell)
             else:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, logger=logger, keep_folder=args.keep_spades)
+                                         timeout=args.timeout, logger=logger, keep_folder=args.keep_spades,
+                                         single_cell_mode=args.spades_single_cell)
 
         else:
             logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
@@ -1538,6 +1542,9 @@ def add_assemble_parser(subparsers):
                                  help='Max target seqs to save in BLASTx search, default: %(default)s')
     parser_assemble.add_argument('--cov_cutoff', type=int, default=8,
                                  help='Coverage cutoff for SPAdes. default: %(default)s')
+    parser_assemble.add_argument('--single_cell_assembly', action='store_true', dest='spades_single_cell',
+                                 default=False,
+                                 help='Run SPAdes assemblies in MDA(single - cell) mode. Default is False')
     parser_assemble.add_argument('--kvals', nargs='+',
                                  help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
                                       'larger k-values! Default is auto-detection by SPAdes.', default=None)
