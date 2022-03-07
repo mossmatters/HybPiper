@@ -48,11 +48,6 @@ def get_chimeric_genes_for_sample(sample_directory_name):
             lines = chimeric.readlines()
             for line in lines:
                 chimeric_genes_to_skip.append(line.split(',')[1])
-        # if chimeric_genes_to_skip:
-        #     logger.info(f'Putative chimeric gene sequences to skip from sample {sample_directory_name}:'
-        #                 f' {chimeric_genes_to_skip}')
-        # else:
-        #     logger.info(f'No putative chimeric gene sequences to skip from sample {sample_directory_name}')
     except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
         logger.info(f'No chimeric stitched contig summary file found for gene sample {sample_directory_name}!')
         raise

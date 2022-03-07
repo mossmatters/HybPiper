@@ -15,6 +15,7 @@ from Bio import SeqIO
 import logging
 from collections import defaultdict
 from gene_recovery_heatmap import get_figure_dimensions
+from retrieve_sequences import get_chimeric_genes_for_sample
 
 try:
     import pandas as pd
@@ -43,33 +44,6 @@ logger = logging.getLogger(f'hybpiper.{__name__}')
 # Add handlers to the logger
 logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
-
-
-def get_chimeric_genes_for_sample(sample_directory_name):
-    """
-    Returns a list of putative chimeric gene sequences for a given sample
-
-    :param str sample_directory_name: directory name for the sample
-    :return list chimeric_genes_to_skip: a list of putative chimeric gene sequences for the sample
-    """
-
-    chimeric_genes_to_skip = []
-    try:
-        with open(f'{sample_directory_name}/'
-                  f'{sample_directory_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
-            lines = chimeric.readlines()
-            for line in lines:
-                chimeric_genes_to_skip.append(line.split(',')[1])
-        if chimeric_genes_to_skip:
-            logger.info(f'Putative chimeric gene sequences to skip from sample {sample_directory_name}:'
-                        f' {chimeric_genes_to_skip}')
-        else:
-            logger.info(f'No putative chimeric gene sequences to skip from sample {sample_directory_name}')
-    except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
-        logger.info(f'No chimeric stitched contig summary file found for gene sample {sample_directory_name}!')
-        raise
-
-    return chimeric_genes_to_skip
 
 
 def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_directory_name, gene):
