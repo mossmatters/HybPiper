@@ -1544,7 +1544,7 @@ def add_assemble_parser(subparsers):
                                  help='Coverage cutoff for SPAdes. default: %(default)s')
     parser_assemble.add_argument('--single_cell_assembly', action='store_true', dest='spades_single_cell',
                                  default=False,
-                                 help='Run SPAdes assemblies in MDA(single - cell) mode. Default is False')
+                                 help='Run SPAdes assemblies in MDA (single-cell) mode. Default is False')
     parser_assemble.add_argument('--kvals', nargs='+',
                                  help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
                                       'larger k-values! Default is auto-detection by SPAdes.', default=None)
@@ -1577,7 +1577,7 @@ def add_assemble_parser(subparsers):
                                       'searches. Sequenced from this taxon will still be used for read sorting.',
                                  default=None)
     parser_assemble.add_argument('--unpaired',
-                                 help='Include a single FASTQ file with unpaired reads along with the two paired read '
+                                 help='Include a single FASTQ file with unpaired reads along with two paired read '
                                       'files',
                                  default=False)
     parser_assemble.add_argument('--no_stitched_contig', dest='no_stitched_contig', action='store_true',
