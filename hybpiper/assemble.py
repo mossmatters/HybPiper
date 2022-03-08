@@ -1540,7 +1540,7 @@ def add_assemble_parser(subparsers):
                                  help='e-value threshold for blastx hits, default: %(default)s')
     parser_assemble.add_argument('--max_target_seqs', type=int, default=10,
                                  help='Max target seqs to save in BLASTx search, default: %(default)s')
-    parser_assemble.add_argument('--cov_cutoff', type=int, default=8,
+    parser_assemble.add_argument('--cov_cutoff', default=8,
                                  help='Coverage cutoff for SPAdes. default: %(default)s')
     parser_assemble.add_argument('--single_cell_assembly', action='store_true', dest='spades_single_cell',
                                  default=False,

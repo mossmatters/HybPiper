@@ -17,31 +17,30 @@ by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 ### Purpose
 
 HybPiper was designed for targeted sequence capture, in which DNA sequencing libraries are enriched for gene regions of 
-interest, especially for phylogenetics. HybPiper is a suite of Python scripts that wrap and connect bioinformatics 
-tools in order to extract target sequences from high-throughput DNA sequencing reads. 
+interest, especially for phylogenetics. HybPiper is a suite of Python scripts/modules that wrap and connect 
+bioinformatics tools in order to extract target sequences from high-throughput DNA sequencing reads. 
 
 
-Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences. HybPiper pipeline 
+Targeted bait capture is a technique for sequencing many loci simultaneously based on bait sequences. The HybPiper pipeline 
 starts with high-throughput sequencing reads (for example from Illumina MiSeq), and assigns them to target genes using 
-BLASTx or BWA. The reads are distributed to separate directories, where they are assembled separately using SPAdes. 
+BLASTx/DIAMOND or BWA. The reads are distributed to separate directories, where they are assembled separately using SPAdes. 
 The main output is a FASTA file of the (in frame) CDS portion of the sample for each target region, and a separate file 
 with the translated protein sequence.
 
-# CJJ remove below?
-HybPiper also includes post-processing scripts, run after the main pipeline, to also extract the intronic regions 
-flanking each exon, investigate putative paralogs, and calculate sequencing depth. For more information, 
-[please see our wiki](https://github.com/mossmatters/HybPiper/wiki/).
+HybPiper also includes commands to extract the intronic regions flanking each exon, and investigate putative paralogs. 
+For more information, [please see our wiki](https://github.com/mossmatters/HybPiper/wiki/).
 
-HybPiper is run separately for each sample (single or paired-end sequence reads). When HybPiper generates sequence 
-files from the reads, it does so in a standardized directory hierarchy. Many of the post-processing scripts rely on 
+HybPiper is run separately for each sample (single or paired-end sequence reads, with an optional file of unpaired 
+reads in the latter scenerio). When HybPiper generates sequence 
+files from the reads, it does so in a standardized directory hierarchy. Many of the post-processing commands rely on 
 this directory hierarchy, so do not modify it after running the initial pipeline. It is a good idea to run the 
 pipeline for each sample from the same directory. You will end up with one directory per run of HybPiper, and some of 
-the later scripts take advantage of this predictable directory structure.
+the later commands take advantage of this predictable directory structure.
 
 
 ---
 # Dependencies
-* Python 3.6 or later
+* [Python 3.6](https://www.python.org/downloads/) or later
 * [BIOPYTHON 1.80 or later](http://biopython.org/wiki/Main_Page) (For parsing and handling FASTA and FASTQ files, and parsing Exonerate alignments)
 * [EXONERATE](http://www.ebi.ac.uk/about/vertebrate-genomics/software/exonerate) (For aligning recovered sequences to target proteins)
 * [BLAST command line tools](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Aligning reads to target proteins)
