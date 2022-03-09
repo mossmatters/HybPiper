@@ -171,13 +171,13 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
     if contigs_with_more_than_one_exonerate_hit:
         if set(contigs_with_more_than_one_exonerate_hit) != set_of_consecutive_spades_contigs:
-            logger.info(f'There is more than one Exonerate hit for at least one SPAdes contig, but these do NOT appear '
-                        f'consecutively with respect to the protein query. CHECK THIS!')
+            logger.info(f'\nThere is more than one Exonerate hit for at least one SPAdes contig, but these do NOT '
+                        f'appear consecutively with respect to the protein query. CHECK THIS!')
             print(f'WARNING: issue with gene {gene_name}. There is more than one Exonerate hit for at least one SPAdes '
                   f'contig, but these do NOT appear consecutively with respect to the protein query. CHECK THIS!')
             return
         else:
-            logger.debug(f'There is more than one Exonerate hit for at least one SPAdes contig, and these appear '
+            logger.debug(f'\nThere is more than one Exonerate hit for at least one SPAdes contig, and these appear '
                          f'consecutively with respect to the protein query. Proceeding...')
 
     # Check hit strands:
@@ -849,7 +849,7 @@ class Exonerate(object):
         hit_vs_query_ranges_all = []
         for hit, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
             for query_range in hit_dict_values['query_range_all']:
-                assert query_range[1] > query_range[0]
+                assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
                 hit_vs_query_range = (query_range[0], query_range[1])
                 hit_vs_query_ranges_all.append(hit_vs_query_range)
 
