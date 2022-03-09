@@ -1600,29 +1600,34 @@ def add_assemble_parser(subparsers):
                                       'a potential chimera of contigs from multiple paralogs', default=5, type=int)
     parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true', default=False)
-    parser_assemble.add_argument("--run_intronerate",
+    parser_assemble.add_argument('--run_intronerate',
                                  help='Run intronerate to recover fasta files for supercontigs with introns (if '
                                       'present), and introns-only.', action='store_true', dest='intronerate',
                                  default=False)
-    parser_assemble.add_argument("--keep_spades_folder",
+    parser_assemble.add_argument('--keep_spades_folder',
                                  help='Keep the SPAdes folder for each gene. Default action is to delete it following '
                                       'contig recovery (dramatically reduces the total files number).',
                                  action='store_true', dest='keep_spades', default=False)
-    parser_assemble.add_argument("--keep_exonerate_logs",
+    parser_assemble.add_argument('--keep_exonerate_logs',
                                  help='Keep the individual *.log file for each run of the exonerate_hits.py '
                                       'module. Default action is to delete it after re-logging it to the main sample '
                                       '*.log file.',
                                  action='store_true', dest='keep_exonerate_logs', default=False)
-    parser_assemble.add_argument("--no_padding_supercontigs",
+    parser_assemble.add_argument('--no_padding_supercontigs',
                                  help='If Intronerate is run, and a supercontig is created by concatenating multiple '
                                       'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
                                       'Ns will be added.', action='store_true', dest='no_padding_supercontigs',
                                  default=False)
-    parser_assemble.add_argument("--check_dependencies_only",
+    parser_assemble.add_argument('--check_dependencies_only',
                                  action='store_true',
                                  help='Run the check for pipeline dependencies and exit. This check is run by default '
                                       'when the full pipeline is run.',
                                  default=False)
+    parser_assemble.add_argument('--version', '-v',
+                                 dest='version',
+                                 action='version',
+                                 version='%(prog)s 2.0 build 0.0.1',
+                                 help='Print the HybPiper version number.')
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
