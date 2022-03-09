@@ -364,9 +364,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                         f'--verbose 0 --showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
                         f' {intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'
 
-    logger.debug(f'Intronerate run of Exonerate for gff: {exonerate_command}')
+    logger.debug(f'Intronerate run of Exonerate for gff with --refine: {exonerate_command}')
 
-    try:
+    try:  # with refine
         result = subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 universal_newlines=True)
         logger.debug(f'Exonerate with "--refine" check_returncode() is: {result.check_returncode()}')
@@ -377,9 +377,35 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         logger.debug(f'Exonerate with "--refine" stdout is: {exc.stdout}')
         logger.debug(f'Exonerate with "--refine" stderr is: {exc.stderr}')
 
-        # CJJ only use introns that occur in between detected exons, as there's no guarantee that the query protein is
-        #  full length (we don't want flanking exonic regions in the raw SPAdes contigs being annotated as introns by
-        #  mistake).
+    # Exonerate with --refine can fail (empty output file) with no error
+    if file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
+        logger.debug('Exonerate run for Intronerate ran with --refine')
+    else:
+        exonerate_command = f'exonerate -m protein2genome -q {intronerate_query_stripped} -t ' \
+                            f'{exonerate_supercontig_reference} --verbose 0 --showalignment yes --showvulgar no ' \
+                            f'--showtargetgff yes > {intronerate_processing_directory}' \
+                            f'/{gene_name}_intronerate_fasta_and_gff.txt'
+        logger.debug(f'Intronerate run of Exonerate for gff without --refine: {exonerate_command}')
+        try:  # without refine
+            result = subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    universal_newlines=True)
+            logger.debug(f'Exonerate without "--refine" check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'Exonerate without "--refine" stdout is: {result.stdout}')
+            logger.debug(f'Exonerate without "--refine" stderr is: {result.stderr}')
+        except subprocess.CalledProcessError as exc:
+            logger.debug(f'Exonerate without "--refine" FAILED for {gene_name}. Output is: {exc}')
+            logger.debug(f'Exonerate without "--refine" stdout is: {exc.stdout}')
+            logger.debug(f'Exonerate without "--refine" stderr is: {exc.stderr}')
+
+    # Exonerate without --refine can fail (emtpy file) with no error
+    if file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
+        logger.debug('Exonerate ran without --refine')
+    else:
+        return
+
+    # CJJ only use introns that occur in between detected exons, as there's no guarantee that the query protein is
+    #  full length (we don't want flanking exonic regions in the raw SPAdes contigs being annotated as introns by
+    #  mistake).
 
     # Parse out the gff lines only from the `intronerate_fasta_and_gff.gff` file:
     with open(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt',
