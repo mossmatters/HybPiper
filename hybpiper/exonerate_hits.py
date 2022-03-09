@@ -166,7 +166,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         if all_exonerate_hit_contig_names_in_order[i] == all_exonerate_hit_contig_names_in_order[i + 1]:
             set_of_consecutive_spades_contigs.add(all_exonerate_hit_contig_names_in_order[i])
 
-    logger.debug(f'Set of SPAdes contigs with Exonerate hits that occur consecutively with respect to the protein '
+    logger.debug(f'Set of SPAdes contigs with Exonerate  hits that occur consecutively with respect to the protein '
                  f'query: {set_of_consecutive_spades_contigs}')
 
     if contigs_with_more_than_one_exonerate_hit:
@@ -701,6 +701,7 @@ class Exonerate(object):
         for hit_dict_key, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
             total_hit_vs_query_coverage_length = 0
             for query_range in hit_dict_values['query_range_all']:
+                print(query_range)
                 assert query_range[1] > query_range[0]
                 hit_vs_query_coverage = query_range[1] - query_range[0]
                 total_hit_vs_query_coverage_length += hit_vs_query_coverage
