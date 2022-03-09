@@ -1821,7 +1821,7 @@ def parse_arguments():
     parser.add_argument('--version', '-v',
                         dest='version',
                         action='version',
-                        version='%(prog)s 2.0rc build 3',
+                        version='%(prog)s 2.0rc build 4',
                         help='Print the HybPiper version number.')
 
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
