@@ -701,8 +701,12 @@ class Exonerate(object):
         for hit_dict_key, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
             total_hit_vs_query_coverage_length = 0
             for query_range in hit_dict_values['query_range_all']:
-                print(query_range)
-                assert query_range[1] > query_range[0]
+                try:
+                    assert query_range[1] > query_range[0]
+                except AssertionError:
+                    print(self.hits_filtered_by_pct_similarity_dict)
+                    print(query_range)
+                    raise
                 hit_vs_query_coverage = query_range[1] - query_range[0]
                 total_hit_vs_query_coverage_length += hit_vs_query_coverage
             # total_hit_vs_query_coverage_length += 1  # compensate for Python zero based indexing
