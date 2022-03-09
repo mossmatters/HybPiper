@@ -1623,11 +1623,6 @@ def add_assemble_parser(subparsers):
                                  help='Run the check for pipeline dependencies and exit. This check is run by default '
                                       'when the full pipeline is run.',
                                  default=False)
-    parser_assemble.add_argument('--version', '-v',
-                                 dest='version',
-                                 action='version',
-                                 version='%(prog)s 2.0 build 0.0.1',
-                                 help='Print the HybPiper version number.')
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
@@ -1823,6 +1818,11 @@ def parse_arguments():
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='To view parameters and help for a subcommand, use e.g. "assemble '
                                             '--help"')
+    parser.add_argument('--version', '-v',
+                        dest='version',
+                        action='version',
+                        version='%(prog)s 2.0 build 0.0.1',
+                        help='Print the HybPiper version number.')
 
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
     add_assemble_parser(subparsers)
