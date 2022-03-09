@@ -401,6 +401,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     if file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
         logger.debug('Exonerate ran without --refine')
     else:
+        logger.debug(f'Exonerate within intronerate() FAILED - skipping Intronerate for gene {gene_name}.')
         return
 
     # CJJ only use introns that occur in between detected exons, as there's no guarantee that the query protein is
