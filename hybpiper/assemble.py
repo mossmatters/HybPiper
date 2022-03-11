@@ -59,31 +59,36 @@ from concurrent.futures import wait, as_completed
 import pkg_resources
 
 # Import non-standard-library modules:
+unsuccessful_imports = []
 try:
     import Bio
 except ImportError:
-    sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python installation used to run "
-             f"HybPiper?")
+    unsuccessful_imports.append('Bio')
+    # sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python installation used to run "
+    #          f"HybPiper?")
 try:
     import progressbar
 except ImportError:
-    sys.exit(f"Required Python package 'progressbar2' not found. Is it installed for the Python installation used to "
-             f"run HybPiper?")
+    unsuccessful_imports.append('progressbar')
 try:
     import seaborn
 except ImportError:
-    sys.exit(f"Required Python package 'seaborn' not found. Is it installed for the Python installation used to run "
-             f"HybPiper?")
+    unsuccessful_imports.append('seaborn')
+
 try:
     import matplotlib
 except ImportError:
-    sys.exit(f"Required Python package 'matplotlib' not found. Is it installed for the Python installation used to run "
-             f"HybPiper?")
+    unsuccessful_imports.append('matplotlib')
+
 try:
     import pandas
 except ImportError:
-    sys.exit(f"Required Python package 'pandas' not found. Is it installed for the Python installation used to run "
-             f"HybPiper?")
+    unsuccessful_imports.append('pandas')
+
+if unsuccessful_imports:
+    package_list = '\n'.join(unsuccessful_imports)
+    sys.exit(f"The required Python packages are not found:\n{package_list}\nAre the installed for the Python "
+             f"installation used to run HybPiper?")
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
