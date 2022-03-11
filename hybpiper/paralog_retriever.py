@@ -233,10 +233,11 @@ def standalone():
                         help="FASTA file containing target sequences for each gene. Used to extract unique gene names "
                              "for paralog recovery")
     parser.add_argument('--fasta_dir_all',
-                        help='Specify directory for output FASTA files (ALL)',
+                        help='Specify directory for output FASTA files (ALL). Default is "paralogs_all".',
                         default='paralogs_all')
     parser.add_argument('--fasta_dir_no_chimeras',
-                        help='Specify directory for output FASTA files (no putative chimeric sequences)',
+                        help='Specify directory for output FASTA files (no putative chimeric sequences). Default is '
+                             '"fasta_dir_no_chimeras".',
                         default='paralogs_no_chimeras')
     parser.add_argument('--paralog_report_filename',
                         help='Specify the filename for the paralog *.tsv report table',

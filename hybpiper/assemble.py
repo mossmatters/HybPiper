@@ -69,6 +69,21 @@ try:
 except ImportError:
     sys.exit(f"Required Python package 'progressbar2' not found. Is it installed for the Python installation used to "
              f"run HybPiper?")
+try:
+    import seaborn
+except ImportError:
+    sys.exit(f"Required Python package 'seaborn' not found. Is it installed for the Python installation used to run "
+             f"HybPiper?")
+try:
+    import matplotlib
+except ImportError:
+    sys.exit(f"Required Python package 'matplotlib' not found. Is it installed for the Python installation used to run "
+             f"HybPiper?")
+try:
+    import pandas
+except ImportError:
+    sys.exit(f"Required Python package 'pandas' not found. Is it installed for the Python installation used to run "
+             f"HybPiper?")
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
@@ -152,7 +167,7 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     :return None or path of executable
     """
 
-    # Check that a given file can be accessed with the correct mode. Additionally check that `file` is not a
+    # Check that a given file can be accessed with the correct mode. Additionally, check that `file` is not a
     # directory, as on Windows directories pass the os.access check.
     def _access_check(fn, mode):
         return (os.path.exists(fn) and os.access(fn, mode)
@@ -224,6 +239,7 @@ def check_dependencies(logger=None):
         print(f'{"[NOTE]:":10} Checking for external dependencies:\n')
     else:
         logger.info(f'{"[NOTE]:":10} Checking for external dependencies:\n')
+
     everything_is_awesome = True
     for e in executables:
         e_loc = py_which(e)
@@ -243,41 +259,6 @@ def check_dependencies(logger=None):
     else:
         logger.info('')
     return everything_is_awesome
-
-
-def check_pipeline_modules(run_dir, logger=None):
-    """
-    Check for the presence of Python modules required by the pipeline (both assemble.py and downstream steps)
-
-    :param str run_dir: path to the run directory
-    :param logging.Logger logger: a logger object
-    :return bool: True if all modules are found, else False
-    """
-    pipeline_modules = ['distribute_reads_to_targets.py',
-                        'distribute_reads_to_targets_bwa.py',
-                        'distribute_targets.py',
-                        'exonerate_hits.py',
-                        'spades_runner.py',
-                        'gene_recovery_heatmap.py',
-                        'retrieve_sequences.py',
-                        'hybpiper_stats.py',
-                        'paralog_retriever.py']
-
-    for module in pipeline_modules:
-        if os.path.isfile(os.path.join(run_dir, module)):
-            if logger:
-                logger.debug(f'Found module {module}, continuing...')
-            else:
-                print(f'Found module {module}, continuing...')
-        else:
-            if logger:
-                logger.error(f'ERROR: Module {module} not found! Please make sure it is in the same directory as this '
-                             f'one!')
-            else:
-                print(f'ERROR: Module {module} not found! Please make sure it is in the same directory as this one!')
-                return False
-
-    return True
 
 
 def check_targetfile(targetfile, using_bwa, logger=None):
@@ -1135,13 +1116,6 @@ def assemble(args):
     # Get the run directory containing the assemble.py module:
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
-    # If the flag --check_dependencies_only is present, check dependencies/modules then exit:
-    if args.check_dependencies_only:
-        if check_dependencies() and check_pipeline_modules(run_dir):
-            sys.exit(f'{"[NOTE]:":10} Everything looks good!')
-        else:
-            sys.exit('ERROR: One or more dependencies not found!')
-
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
@@ -1161,9 +1135,9 @@ def assemble(args):
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
     ####################################################################################################################
-    # Check dependencies
+    # Check dependencies and import required HybPiper and other third party modules
     ####################################################################################################################
-    if check_dependencies(logger=logger) and check_pipeline_modules(run_dir, logger=logger):
+    if check_dependencies(logger=logger):
         logger.info(f'{"[NOTE]:":10} Everything looks good!')
     else:
         logger.error('ERROR: One or more dependencies not found!')
@@ -1509,11 +1483,11 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--readfiles', '-r', nargs='+',
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
                                       'will assume it is paired Illumina reads.',
-                                 default=[])
+                                 required=True)
     parser_assemble.add_argument('--targetfile', '-t',
                                  help='FASTA file containing target sequences for each gene. If there are multiple '
                                       'targets for a gene, the id must be of the form: >Taxon-geneName',
-                                 default=None)
+                                 required=True)
     group_1 = parser_assemble.add_mutually_exclusive_group()
     group_1.add_argument('--bwa', dest='bwa', action='store_true',
                          help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
@@ -1618,23 +1592,12 @@ def add_assemble_parser(subparsers):
                                       'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
                                       'Ns will be added.', action='store_true', dest='no_padding_supercontigs',
                                  default=False)
-    parser_assemble.add_argument('--check_dependencies_only',
-                                 action='store_true',
-                                 help='Run the check for pipeline dependencies and exit. This check is run by default '
-                                      'when the full pipeline is run.',
-                                 default=False)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
 
     # Set function for subparser <parser_assemble>:
     parser_assemble.set_defaults(func=assemble)
-
-    # If no arguments are provided, print usage. Note that args.readfiles and args.targetfile can't be made
-    #  required if we want the option of supplying --check_dependencies_only as the only parameter:
-    if len(sys.argv) == 2 and sys.argv[1] == 'assemble':  # i.e. hybpiper assemble
-        parser_assemble.print_usage()
-        sys.exit(1)
 
 
 def add_stats_parser(subparsers):
@@ -1712,11 +1675,12 @@ def add_paralog_retriever_parser(subparsers):
                                           help="FASTA file containing target sequences for each gene. Used to extract "
                                                "unique gene names for paralog recovery")
     parser_paralog_retriever.add_argument('--fasta_dir_all',
-                                          help='Specify directory for output FASTA files (ALL)',
+                                          help='Specify directory for output FASTA files (ALL). Default is '
+                                               '"paralogs_all".',
                                           default='paralogs_all')
     parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras',
                                           help='Specify directory for output FASTA files (no putative chimeric '
-                                               'sequences)',
+                                               'sequences). Default is "paralogs_no_chimeras".',
                                           default='paralogs_no_chimeras')
     parser_paralog_retriever.add_argument('--paralog_report_filename',
                                           help='Specify the filename for the paralog *.tsv report table',
@@ -1823,6 +1787,11 @@ def parse_arguments():
                         action='version',
                         version='%(prog)s 2.0rc build 4',
                         help='Print the HybPiper version number.')
+    parser.add_argument('--check_dependencies',
+                        dest='check_dependencies',
+                        action='store_true',
+                        default=False,
+                        help='Run the check for all pipeline dependencies and exit')
 
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
     add_assemble_parser(subparsers)
@@ -1834,6 +1803,16 @@ def parse_arguments():
     # Parse and return all arguments:
     arguments = parser.parse_args()
 
+    # Get the run directory containing the assemble.py module:
+    run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
+
+    # If the flag --check_dependencies was provided, check all HybPiper dependencies and exit:
+    if arguments.check_dependencies:
+        if check_dependencies():
+            sys.exit(f'{"[NOTE]:":10} Everything looks good!')
+        else:
+            sys.exit(f'\n{"[ERROR]:":10} One or more dependencies not found!')
+
     return arguments
 
 
@@ -1843,7 +1822,7 @@ def main():
         print(__doc__)
         sys.exit(1)
 
-    # Parse arguments for the subcommand used:
+    # Parse arguments for the command/subcommand used:
     args = parse_arguments()
 
     # Run the function associated with the subcommand:
