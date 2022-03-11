@@ -20,17 +20,17 @@ To view available parameters and help for any subcommand, simply type e.g. 'hybp
 NOTE: the command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
-    python /<path_to>/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+    python /<path_to>/reads_first.py -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
 ...this is now replaced by the command:
 
-    hybpiper assemble -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+    hybpiper assemble -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
 NOTE: the recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
 is now incorporated in to the 'hybpiper assemble' command. It can be enabled using the flag
 '--run_intronerate', e.g.:
 
-    hybpiper assemble -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
+    hybpiper assemble -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
 
 NOTE: the command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
 the command 'hybpiper stats'. The sequence length details that were previously printed to screen are now written to
@@ -57,6 +57,9 @@ import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
 import pkg_resources
+
+# f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
+f'HybPiper requires Python 3.6 or higher.'
 
 # Import non-standard-library modules:
 unsuccessful_imports = []
@@ -85,17 +88,17 @@ except ImportError:
 
 if unsuccessful_imports:
     package_list = '\n'.join(unsuccessful_imports)
-    sys.exit(f"The required Python packages are not found:\n\n{package_list}\n\nAre they installed for the Python "
-             f"installation used to run HybPiper?")
+    sys.exit(f'The required Python packages are not found:\n\n{package_list}\n\nAre they installed for the Python '
+             f'installation used to run HybPiper?')
 
 # Check that user has the minimum required version of Biopython (1.80):
 biopython_version_print = pkg_resources.get_distribution('biopython').version
 biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)[:2]]
 if biopython_version[0:2] < [1, 80]:
-    sys.exit(f"HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. "
-             f"Please update your Biopython for the Python installation used to run HybPiper!")
+    sys.exit(f'HybPiper required Biopython version 1.80 or above. You are using version {biopython_version_print}. '
+             f'Please update your Biopython for the Python installation used to run HybPiper!')
 
-# Import HybPiper modules required by assemble.py:
+# Import HybPiper modules:
 import distribute_reads_to_targets_bwa
 import distribute_reads_to_targets
 import distribute_targets
@@ -105,10 +108,6 @@ import hybpiper_stats
 import retrieve_sequences
 import paralog_retriever
 import gene_recovery_heatmap
-
-
-# f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
-f'Must be using Python 3.6 or higher.'
 
 
 ########################################################################################################################
