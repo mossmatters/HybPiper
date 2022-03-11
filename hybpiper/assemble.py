@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.0 release candidate (February 2022)
+HybPiper Version 2.0 release candidate (March 2022)
 
-***NOTES ON VERSION 2.0***
+############################
+### NOTES ON VERSION 2.0 ###
+############################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
 followed by a subcommand to run different parts of the pipeline. The available subcommands can be viewed by typing
