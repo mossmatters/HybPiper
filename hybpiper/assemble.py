@@ -64,8 +64,6 @@ try:
     import Bio
 except ImportError:
     unsuccessful_imports.append('Bio')
-    # sys.exit(f"Required Python package 'Bio' not found. Is it installed for the Python installation used to run "
-    #          f"HybPiper?")
 try:
     import progressbar
 except ImportError:
@@ -87,7 +85,7 @@ except ImportError:
 
 if unsuccessful_imports:
     package_list = '\n'.join(unsuccessful_imports)
-    sys.exit(f"The required Python packages are not found:\n{package_list}\nAre the installed for the Python "
+    sys.exit(f"The required Python packages are not found:\n\n{package_list}\n\nAre they installed for the Python "
              f"installation used to run HybPiper?")
 
 # Check that user has the minimum required version of Biopython (1.80):
