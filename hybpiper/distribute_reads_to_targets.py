@@ -16,7 +16,7 @@ import os
 import errno
 import argparse
 import logging
-from distribute_reads_to_targets_bwa import distribute_reads
+from hybpiper.distribute_reads_to_targets_bwa import distribute_reads
 import progressbar
 
 

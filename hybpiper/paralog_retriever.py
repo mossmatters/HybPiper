@@ -14,8 +14,8 @@ import argparse
 from Bio import SeqIO
 import logging
 from collections import defaultdict
-from gene_recovery_heatmap import get_figure_dimensions
-from retrieve_sequences import get_chimeric_genes_for_sample
+from hybpiper.gene_recovery_heatmap import get_figure_dimensions
+from hybpiper.retrieve_sequences import get_chimeric_genes_for_sample
 
 try:
     import pandas as pd
