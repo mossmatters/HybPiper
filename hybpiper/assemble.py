@@ -101,15 +101,15 @@ if biopython_version[0:2] < [1, 80]:
              f'Please update your Biopython for the Python installation used to run HybPiper!')
 
 # Import HybPiper modules:
-import distribute_reads_to_targets_bwa
-import distribute_reads_to_targets
-import distribute_targets
-import spades_runner
-import exonerate_hits
-import hybpiper_stats
-import retrieve_sequences
-import paralog_retriever
-import gene_recovery_heatmap
+from hybpiper import distribute_reads_to_targets_bwa
+from hybpiper import distribute_reads_to_targets
+from hybpiper import distribute_targets
+from hybpiper import spades_runner
+from hybpiper import exonerate_hits
+from hybpiper import hybpiper_stats
+from hybpiper import retrieve_sequences
+from hybpiper import paralog_retriever
+from hybpiper import gene_recovery_heatmap
 
 
 ########################################################################################################################

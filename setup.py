@@ -10,7 +10,7 @@ hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.assemble:main'
 setuptools.setup(name='hybpiper',
                  version='2.0',
                  packages=setuptools.find_packages(),
-                 # scripts=['hybpiper/assemble.py'],
+
                  # scripts=['hybpiper/assemble.py',
                  #          'hybpiper/gene_recovery_heatmap.py',
                  #          'hybpiper/distribute_reads_to_targets_bwa.py',
