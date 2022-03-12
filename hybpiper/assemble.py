@@ -375,8 +375,8 @@ def check_targetfile(targetfile, using_bwa, logger=None):
                         in target_file_Sequence_list]
             logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your target file that contain '
                         f'unexpected stop codons when translated in the first forwards frame. \n{" " * 11}If your '
-                        f'target file contains only protein-coding sequences, please check these sequences. \
-                        n{" " * 11}Sequence names can be found in the sample log file.\n')
+                        f'target file contains only protein-coding sequences, please check these sequences. '
+                        f'\n{" " * 11}Sequence names can be found in the sample log file.\n')
             logger.debug(f'Target file sequences with unexpected stop codons: {seq_list}')
 
         if seqs_needed_padding_dict:
