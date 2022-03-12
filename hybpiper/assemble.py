@@ -267,23 +267,27 @@ def check_dependencies(logger=None):
 
 def check_targetfile(targetfile, using_bwa, logger=None):
     """
-    Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
-    Reports the number of unique genes (each can have multiple representatives) in the targetfile.
-    Performs a quick detection of whether targetfile is DNA or amino-acid.
-    Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
-    three, no unexpected stop codons), and logs a warning if not.
+    - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
+    - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
+    - Performs a quick detection of whether targetfile is DNA or amino-acid.
+    - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
+      three, no unexpected stop codons), and logs a warning if not.
+    - If targetfile comprises nucleotides but using_bwa is False, translate the targetfile and return the path
 
     :param str targetfile: path to the targetfile
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param logging.Logger logger: a logger object
-    :return: None
+    :return: None, str: NoneType or path to the translated targetfile
     """
 
     # Check target-file fasta header formatting:
     logger.info(f'{"[NOTE]:":10} Checking targetfile FASTA header formatting...')
+
+    target_file_path, target_file_name = os.path.split(targetfile)
+    file_name, ext = os.path.splitext(target_file_name)
     gene_lists = defaultdict(list)
-    with open(targetfile, 'r') as target_file:
-        seqs = list(Bio.SeqIO.parse(target_file, 'fasta'))
+    with open(targetfile, 'r') as target_file_handle:
+        seqs = list(Bio.SeqIO.parse(target_file_handle, 'fasta'))
         incorrectly_formatted_fasta_headers = []
         check_for_duplicate_genes_dict = {}
         for seq in seqs:
@@ -325,20 +329,26 @@ def check_targetfile(targetfile, using_bwa, logger=None):
                 f'unique genes.')
 
     # Quick detection of whether targetfile is DNA or amino-acid:
+    translate_target_file = False
     dna = set('ATCGN')
     if os.path.isfile(targetfile):
         with open(targetfile) as bf:
             header = bf.readline()  # skip the first fasta header
             seqline = bf.readline().rstrip().upper()
-            if using_bwa and set(seqline) - dna:
-                sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide target '
-                         f'file for BWA!')
-            elif not using_bwa and not set(seqline) - dna:
-                sys.exit(f'{"ERROR:":10} Only ATCGN characters found in first line. You need a protein target file for '
-                         f'BLASTx!')
+            if using_bwa and set(seqline) - dna:  # i.e. result is not an empty set
+                sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide '
+                         f'target file for BWA!')
+            elif not using_bwa and not set(seqline) - dna:  # i.e. the set is empty
+                logger.info(f'{"[WARN!]:":10} The target file provided appears to contain nucleotide sequences, '
+                            f'but BLASTx or DIAMOND has been selected for read mapping. Translating the target file...')
+                translate_target_file = True
+                # sys.exit(f'{"ERROR:":10} Only ATCGN characters found in first line. You need a protein target file for '
+                #          f'BLASTx!')
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
-    if using_bwa:
+    if using_bwa or translate_target_file:
+        translated_seqs_to_write = []
+
         seqs_needed_padding_dict = defaultdict(list)
         seqs_with_stop_codons_dict = defaultdict(list)
 
@@ -346,6 +356,9 @@ def check_targetfile(targetfile, using_bwa, logger=None):
             gene_name = seq.name.split('-')[-1]
             sequence, needed_padding = distribute_targets.pad_seq(seq)
             translated_seq = sequence.seq.translate()
+            if translate_target_file:
+                record = Bio.SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
+                translated_seqs_to_write.append(record)
             num_stop_codons = translated_seq.count('*')
 
             if needed_padding:
@@ -360,19 +373,30 @@ def check_targetfile(targetfile, using_bwa, logger=None):
         if seqs_with_stop_codons_dict:
             seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
                         in target_file_Sequence_list]
-            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your targetfile that contain unexpected '
-                        f'stop codons when translated in the first forwards frame. \n{" " * 11}If your targetfile '
-                        f'contains only protein-coding sequences, please check these sequences. \n{" " * 11}Sequence '
-                        f'names can be found in the sample log file.\n')
-            logger.debug(f'Bait/target file sequences with unexpected stop codons: {seq_list}')
+            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your target file that contain '
+                        f'unexpected stop codons when translated in the first forwards frame. \n{" " * 11}If your '
+                        f'target file contains only protein-coding sequences, please check these sequences. \
+                        n{" " * 11}Sequence names can be found in the sample log file.\n')
+            logger.debug(f'Target file sequences with unexpected stop codons: {seq_list}')
 
         if seqs_needed_padding_dict:
             seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_needed_padding_dict.items() for seq
                         in target_file_Sequence_list]
-            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your targetfile that are not multiples '
-                        f'of three. \n{" " * 11}If your targetfile contains only protein-coding sequences, please check '
-                        f'these sequences. \n{" " * 11}Sequence names can be found in the sample log file.\n')
-            logger.debug(f'Bait/target file sequences that are not multiples of three: {seq_list}')
+            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your target file that are not '
+                        f'multiples of three. \n{" " * 11}If your target file contains only protein-coding sequences, '
+                        f'please check these sequences. \n{" " * 11}Sequence names can be found in the sample log '
+                        f'file.\n')
+            logger.debug(f'Target file sequences that are not multiples of three: {seq_list}')
+
+        if translate_target_file:
+            translated_target_file= f'{target_file_path}/{file_name}_translated{ext}'
+            logger.info(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}')
+            with open(f'{translated_target_file}', 'w') as translated_handle:
+                Bio.SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+
+            return translated_target_file
+        else:
+            return targetfile
 
 
 def make_basename(readfiles, prefix=None):
@@ -866,7 +890,8 @@ def exonerate(gene_name,
               lock=None,
               genes_to_process=0,
               intronerate=False,
-              no_padding_supercontigs=False):
+              no_padding_supercontigs=False,
+              keep_intermediate_files=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
@@ -886,6 +911,8 @@ def exonerate(gene_name,
     :param int genes_to_process: total number of genes to be processed via Exonerate
     :param bool intronerate: if True, run intronerate
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
+    :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
+    processing
     :return: str gene_name, str prot_length OR None, None
     """
 
@@ -948,14 +975,18 @@ def exonerate(gene_name,
             interleaved_fasta_file=path_to_interleaved_fasta,
             no_stitched_contig=no_stitched_contig,
             spades_assembly_dict=spades_assembly_dict,
-            depth_multiplier=depth_multiplier)
+            depth_multiplier=depth_multiplier,
+            keep_intermediate_files=keep_intermediate_files)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
                          f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
             logger.debug(f'Running intronerate')
-            exonerate_hits.intronerate(exonerate_result, spades_assembly_dict, logger=logger,
-                                       no_padding_supercontigs=no_padding_supercontigs)
+            exonerate_hits.intronerate(exonerate_result,
+                                       spades_assembly_dict,
+                                       logger=logger,
+                                       no_padding_supercontigs=no_padding_supercontigs,
+                                       keep_intermediate_files=keep_intermediate_files)
     else:
         exonerate_result = False
 
@@ -1017,7 +1048,7 @@ def exonerate_multiprocessing(genes,
                               logger=None,
                               intronerate=False,
                               no_padding_supercontigs=False,
-                              keep_exonerate_logs=False):
+                              keep_intermediate_files=False):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -1037,7 +1068,7 @@ def exonerate_multiprocessing(genes,
     :param logging.Logger logger: a logger object
     :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns)
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
-    :param bool keep_exonerate_logs: if True, keep individual Exonerate logs rather than deleting them after
+    :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
     :return:
     """
@@ -1072,7 +1103,8 @@ def exonerate_multiprocessing(genes,
                                       lock=lock,
                                       genes_to_process=genes_to_process,
                                       intronerate=intronerate,
-                                      no_padding_supercontigs=no_padding_supercontigs)
+                                      no_padding_supercontigs=no_padding_supercontigs,
+                                      keep_intermediate_files=keep_intermediate_files)
                           for gene_name in genes]
         for future in future_results:
             future.add_done_callback(done_callback)
@@ -1089,7 +1121,7 @@ def exonerate_multiprocessing(genes,
                         lines = gene_log_handle.readlines()
                         for line in lines:
                             logger.debug(line.strip())  # log contents to main logger
-                    if not keep_exonerate_logs:
+                    if not keep_intermediate_files:
                         os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
             except:  # FIXME make this more specific
                 logger.info(f'result is {future.result()}')
@@ -1181,7 +1213,7 @@ def assemble(args):
                  f'single file as input using the -r/--readfiles parameter')
 
     ####################################################################################################################
-    # Read in the target file (called targetfile here) and read files
+    # Read in the target file and read files
     ####################################################################################################################
     if args.targetfile:
         targetfile = os.path.abspath(args.targetfile)
@@ -1189,8 +1221,9 @@ def assemble(args):
         print(__doc__)
         return
 
-    # Check that the target file is formatted correctly, translates correctly:
-    check_targetfile(targetfile, args.bwa, logger=logger)
+    # Check that the target file is formatted correctly and translates correctly. If it comprises nucleotides but
+    # arg.bwa is false, translate and return path to translated file:
+    targetfile = check_targetfile(targetfile, args.bwa, logger=logger)
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
@@ -1315,24 +1348,27 @@ def assemble(args):
     if args.assemble:
         if len(readfiles) == 1:
             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                     paired=False, timeout=args.timeout, logger=logger, keep_folder=args.keep_spades,
-                                     single_cell_mode=args.spades_single_cell)
+                                     paired=False, timeout=args.timeout, logger=logger,
+                                     keep_folder=args.keep_intermediate_files, single_cell_mode=args.spades_single_cell)
         elif len(readfiles) == 2:
             if args.merged and not unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True, logger=logger,
-                                         keep_folder=args.keep_spades, single_cell_mode=args.spades_single_cell)
+                                         keep_folder=args.keep_intermediate_files,
+                                         single_cell_mode=args.spades_single_cell)
             elif args.merged and unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, merged=True, unpaired=True, logger=logger,
-                                         keep_folder=args.keep_spades, single_cell_mode=args.spades_single_cell)
+                                         keep_folder=args.keep_intermediate_files,
+                                         single_cell_mode=args.spades_single_cell)
             elif unpaired_readfile and not args.merged:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                          timeout=args.timeout, unpaired=True, logger=logger,
-                                         keep_folder=args.keep_spades, single_cell_mode=args.spades_single_cell)
+                                         keep_folder=args.keep_intermediate_files,
+                                         single_cell_mode=args.spades_single_cell)
             else:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, logger=logger, keep_folder=args.keep_spades,
+                                         timeout=args.timeout, logger=logger, keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
 
         else:
@@ -1378,7 +1414,7 @@ def assemble(args):
                                   logger=logger,
                                   intronerate=args.intronerate,
                                   no_padding_supercontigs=args.no_padding_supercontigs,
-                                  keep_exonerate_logs=args.keep_exonerate_logs)
+                                  keep_intermediate_files=args.keep_intermediate_files)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
@@ -1582,15 +1618,11 @@ def add_assemble_parser(subparsers):
                                  help='Run intronerate to recover fasta files for supercontigs with introns (if '
                                       'present), and introns-only.', action='store_true', dest='intronerate',
                                  default=False)
-    parser_assemble.add_argument('--keep_spades_folder',
-                                 help='Keep the SPAdes folder for each gene. Default action is to delete it following '
-                                      'contig recovery (dramatically reduces the total files number).',
-                                 action='store_true', dest='keep_spades', default=False)
-    parser_assemble.add_argument('--keep_exonerate_logs',
-                                 help='Keep the individual *.log file for each run of the exonerate_hits.py '
-                                      'module. Default action is to delete it after re-logging it to the main sample '
-                                      '*.log file.',
-                                 action='store_true', dest='keep_exonerate_logs', default=False)
+    parser_assemble.add_argument('--keep_intermediate_files',
+                                 help='Keep all intermediate files and logs, which can be useful for '
+                                      'debugging.Default action is to delete them, which greatly reduces the total '
+                                      'file number).',
+                                 action='store_true', dest='keep_intermediate_files', default=False)
     parser_assemble.add_argument('--no_padding_supercontigs',
                                  help='If Intronerate is run, and a supercontig is created by concatenating multiple '
                                       'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '

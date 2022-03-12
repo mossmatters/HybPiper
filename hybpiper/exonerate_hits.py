@@ -113,7 +113,8 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         return None
 
 
-def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_supercontigs=False):
+def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_supercontigs=False,
+                keep_intermediate_files=False):
     """
     Attempts to identify introns within supercontigs, and writes fasta files containing 1) supercontig sequences
     containing exons AND introns, with 10 'N' characters inserted at any location SPAdes contigs have been
@@ -123,6 +124,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     :param dict spades_contig_dict: a SeqIO dictionary of SPAdes contigs
     :param logging.Logger logger: a logger object
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
+    :param bool keep_intermediate_files: if True, keep intermediate files from supercontig
     :return NoneType: no explicit return value
     """
 
@@ -463,7 +465,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
                                             thresh, logger, prefix, discordant_cutoff, edit_distance, bbmap_subfilter,
                                             bbmap_memory, bbmap_threads, interleaved_fasta_file, no_stitched_contig,
-                                            spades_assembly_dict, depth_multiplier):
+                                            spades_assembly_dict, depth_multiplier, keep_intermediate_files):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
     => Generates paralog warning and fasta files.
@@ -486,6 +488,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
     :param bool no_stitched_contig: if True, return the longest Exonerate hit only
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
+    :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
@@ -507,7 +510,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
                                  interleaved_fasta_file=interleaved_fasta_file,
                                  no_stitched_contig=no_stitched_contig,
                                  spades_assembly_dict=spades_assembly_dict,
-                                 depth_multiplier=depth_multiplier)
+                                 depth_multiplier=depth_multiplier,
+                                 keep_intermediate_files=keep_intermediate_files)
 
     logger.debug(exonerate_result)
 
@@ -522,7 +526,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
     else:
         exonerate_result.write_stitched_contig_to_file()
 
-    exonerate_result.write_trimmed_stitched_contig_hits_to_file()
+    if keep_intermediate_files:
+        exonerate_result.write_trimmed_stitched_contig_hits_to_file()
     exonerate_result.write_exonerate_stats_file()
 
     return exonerate_result
@@ -548,7 +553,8 @@ class Exonerate(object):
                  interleaved_fasta_file=None,
                  no_stitched_contig=False,
                  spades_assembly_dict=None,
-                 depth_multiplier=10):
+                 depth_multiplier=10,
+                 keep_intermediate_files=False):
         """
         Initialises class attributes.
 
@@ -567,6 +573,7 @@ class Exonerate(object):
         :param bool no_stitched_contig: if True, return the longest Exonerate hit only
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
+        :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
         """
 
         if len(searchio_object) != 1:  # This should always be 1 for a single Exonerate query
@@ -588,6 +595,7 @@ class Exonerate(object):
         self.chimera_bbmap_threads = bbmap_threads
         self.spades_assembly_dict = spades_assembly_dict
         self.depth_multiplier = depth_multiplier
+        self.keep_intermediate_files = keep_intermediate_files
         self.hits_filtered_by_pct_similarity_dict = self._parse_searchio_object()
         self.hits_subsumed_hits_removed_dict = self._remove_subsumed_hits()
         self.hits_subsumed_hits_removed_overlaps_trimmed_dict = self._trim_overlapping_hits()
@@ -700,15 +708,8 @@ class Exonerate(object):
             total_hit_vs_query_coverage_length = 0
             for query_range in hit_dict_values['query_range_all']:
                 assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
-                # try:
-                #     assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
-                # except AssertionError:
-                #     print(self.hits_filtered_by_pct_similarity_dict)
-                #     print(query_range)
-                #     raise
                 hit_vs_query_coverage = query_range[1] - query_range[0]
                 total_hit_vs_query_coverage_length += hit_vs_query_coverage
-            # total_hit_vs_query_coverage_length += 1  # compensate for Python zero based indexing
 
             # Check if hit is longer than threshold:
             if total_hit_vs_query_coverage_length / self.query_length > \
@@ -1412,6 +1413,9 @@ class Exonerate(object):
             for line in lines:
                 if not line.startswith('@'):
                     samfile_reads.append(line)
+
+        if not self.keep_intermediate_files:
+            os.remove(f'{self.prefix}/chimera_test_stitched_contig.sam')
 
         # Count the number of discordant read pairs and recover R1 and R2 in a list for further filtering:
         discordant_read_list = []
