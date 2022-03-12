@@ -1620,7 +1620,7 @@ def add_assemble_parser(subparsers):
                                  default=False)
     parser_assemble.add_argument('--keep_intermediate_files',
                                  help='Keep all intermediate files and logs, which can be useful for '
-                                      'debugging. tDefault action is to delete them, which greatly reduces the total '
+                                      'debugging. Default action is to delete them, which greatly reduces the total '
                                       'file number).',
                                  action='store_true', dest='keep_intermediate_files', default=False)
     parser_assemble.add_argument('--no_padding_supercontigs',
