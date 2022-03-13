@@ -59,6 +59,7 @@ import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
 import pkg_resources
+from collections import Counter
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
@@ -220,6 +221,39 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     return None
 
 
+def validate(seq, alphabet='dna'):
+    """
+    Check that a sequence only contains values from an alphabet. From https://www.biostars.org/p/102/
+
+    >>> seq1 = 'acgatGAGGCATTtagcgatgcgatc'       # True for dna and protein
+    >>> seq2 = 'FGFAGGAGFGAFFF'                   # False for dna, True for protein
+    >>> seq3 = 'acacac '                          # should return False (a space is not a nucleotide)
+    >>> validate(seq1, 'dna')
+    True
+    >>> validate(seq2, 'dna')
+    False
+    >>> validate(seq2, 'protein')
+    True
+    >>> validate(seq3, 'dna')
+    False
+
+    :param str seq: a string of letters representing a DNA or amino-acid sequence
+    :param str alphabet: the alphabet to validate against the seq. Choices {'dna', protein}
+    :return bool: True if given seq conforms with given alphabet
+    """
+
+    if alphabet not in ['dna', 'protein']:
+        raise ValueError(f"alphabet should be 'dna' or 'protein'. Current value is: {alphabet}")
+
+    alphabets = {'dna': re.compile('^[acgtn]*$', re.I),
+                 'protein': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I)}
+
+    if alphabets[alphabet].search(seq) is not None:
+        return True
+    else:
+        return False
+
+
 def check_dependencies(logger=None):
     """
     Checks for the presence of executables and Python packages. Returns a boolean.
@@ -281,7 +315,7 @@ def check_targetfile(targetfile, using_bwa, logger=None):
     """
 
     # Check target-file fasta header formatting:
-    logger.info(f'{"[NOTE]:":10} Checking targetfile FASTA header formatting...')
+    logger.info(f'{"[NOTE]:":10} Checking target file FASTA header formatting...')
 
     target_file_path, target_file_name = os.path.split(targetfile)
     file_name, ext = os.path.splitext(target_file_name)
@@ -302,14 +336,14 @@ def check_targetfile(targetfile, using_bwa, logger=None):
 
     if incorrectly_formatted_fasta_headers:
         seq_list = ' '.join(incorrectly_formatted_fasta_headers)
-        logger.error(f'{"[ERROR!]:":10} The following sequences in your targetfile have incorrectly formatted fasta '
+        logger.error(f'{"[ERROR!]:":10} The following sequences in your target file have incorrectly formatted fasta '
                      f'headers:\n')
         fill = textwrap.fill(f'{seq_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.info('')
         sys.exit(1)  # targetfile fasta header formatting should be fixed!
     else:
-        logger.info(f'{"[NOTE]:":10} The targetfile FASTA header formatting looks good!')
+        logger.info(f'{"[NOTE]:":10} The target file FASTA header formatting looks good!')
 
     # Check for duplicated genes:
     duplicated_genes = []
@@ -318,32 +352,37 @@ def check_targetfile(targetfile, using_bwa, logger=None):
             duplicated_genes.append(gene)
     if duplicated_genes:
         gene_list = ' '.join(duplicated_genes)
-        logger.error(f'{"[ERROR!]:":10} The following sequences in your targetfile occur more than once:\n')
+        logger.error(f'{"[ERROR!]:":10} The following sequences in your target file occur more than once:\n')
         fill = textwrap.fill(f'{gene_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.error(f'\nPlease remove duplicate genes before running HybPiper!')
         sys.exit(1)  # duplicate genes in targetfile should be removed!
 
     # Report the number of unique genes represented in the targetfile:
-    logger.info(f'{"[NOTE]:":10} The targetfile contains at least one sequence for {len(gene_lists)} '
+    logger.info(f'{"[NOTE]:":10} The target file contains at least one sequence for {len(gene_lists)} '
                 f'unique genes.')
 
-    # Quick detection of whether targetfile is DNA or amino-acid:
+    # Detect whether the target file is DNA or amino-acid:
     translate_target_file = False
-    dna = set('ATCGN')
-    if os.path.isfile(targetfile):
-        with open(targetfile) as bf:
-            header = bf.readline()  # skip the first fasta header
-            seqline = bf.readline().rstrip().upper()
-            if using_bwa and set(seqline) - dna:  # i.e. result is not an empty set
-                sys.exit(f'{"[ERROR]:":10} Characters other than ACTGN found in first line. You need a nucleotide '
-                         f'target file for BWA!')
-            elif not using_bwa and not set(seqline) - dna:  # i.e. the set is empty
-                logger.info(f'{"[WARN!]:":10} The target file provided appears to contain nucleotide sequences, '
-                            f'but BLASTx or DIAMOND has been selected for read mapping. Translating the target file...')
-                translate_target_file = True
-                # sys.exit(f'{"ERROR:":10} Only ATCGN characters found in first line. You need a protein target file for '
-                #          f'BLASTx!')
+    target_file_is_dna = True
+    number_of_target_sequences = len(seqs)
+    number_of_dna_sequencs = len([validate(str(seq.seq), 'dna') for seq in seqs if validate(str(seq.seq))])
+    logger.debug(f'There are {number_of_target_sequences} sequences in the target file, of which'
+                 f' {number_of_dna_sequencs} appear to be DNA')
+    if number_of_dna_sequencs / number_of_target_sequences >= 0.9:
+        logger.info(f'{"[NOTE]:":10} The target file appears to contain nucleotide sequences.')
+        target_file_is_dna = True
+    else:
+        logger.info(f'{"[NOTE]:":10} The target file appears to contain amino-acid sequences.')
+        target_file_is_dna = False
+
+    if using_bwa and not target_file_is_dna:
+        sys.exit(f'{"[ERROR]:":10} Your target file appears to contain amino-acid sequences. You need a nucleotide '
+                 f'target file for BWA!')
+    elif not using_bwa and target_file_is_dna:
+        logger.info(f'{"[WARN!]:":10} The target file appears to contain nucleotide sequences, but BLASTx or DIAMOND '
+                    f'has been selected for read mapping. Translating the target file...')
+        translate_target_file = True
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
     if using_bwa or translate_target_file:
