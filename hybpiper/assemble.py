@@ -364,7 +364,6 @@ def check_targetfile(targetfile, using_bwa, logger=None):
 
     # Detect whether the target file is DNA or amino-acid:
     translate_target_file = False
-    target_file_is_dna = True
     number_of_target_sequences = len(seqs)
     number_of_dna_sequencs = len([validate(str(seq.seq), 'dna') for seq in seqs if validate(str(seq.seq))])
     logger.debug(f'There are {number_of_target_sequences} sequences in the target file, of which'
