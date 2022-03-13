@@ -62,7 +62,6 @@ import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
 import pkg_resources
-from collections import Counter
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
