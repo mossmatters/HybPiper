@@ -358,7 +358,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
                                    seq_is_dna(str(seq.seq), ambiguity_characters=targetfile_ambiguity_codes)])
 
     logger.debug(f'There are {number_of_target_sequences} sequences in the target file, of which'
-                f' {number_of_dna_sequences} appear to be DNA')
+                 f' {number_of_dna_sequences} appear to be DNA')
 
     if number_of_dna_sequences == number_of_target_sequences:
         logger.info(f'{"[NOTE]:":10} The target file appears to contain nucleotide sequences.')
@@ -861,8 +861,6 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
         if len(spades_duds) == 0:
             logger.info(f'{"[NOTE]:":10} All SPAdes re-runs completed successfully!')
-        # else:
-        #     logger.error(f'{"[WARN!]:":10} SPAdes re-runs failed for genes {" ".join(spades_duds)}')
 
     if os.path.isfile('spades_duds.txt'):  # Written by spades_runner.rerun_spades()
         spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
@@ -1178,9 +1176,6 @@ def assemble(args):
     :param argparse.Namespace args: argparse namespace with subparser options for function assemble()
     :return None: no return value specified; default is None
     """
-
-    # Get the run directory containing the assemble.py module:
-    run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
 
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
