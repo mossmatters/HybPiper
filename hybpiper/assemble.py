@@ -40,6 +40,9 @@ the file 'seq_lengths.tsv', by default. Similarity, the stats details that were 
 'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv', by default.
 
 For full details of all commands and changes, please reads the Wiki page at **LINK** and the changelog at **LINK**.
+
+############################
+
 """
 
 import argparse
@@ -111,6 +114,7 @@ from hybpiper import hybpiper_stats
 from hybpiper import retrieve_sequences
 from hybpiper import paralog_retriever
 from hybpiper import gene_recovery_heatmap
+from hybpiper import hybpiper_subparsers
 
 
 ########################################################################################################################
@@ -221,34 +225,18 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     return None
 
 
-def validate(seq, alphabet='dna'):
+def seq_is_dna(seq, ambiguity_characters=None):
     """
-    Check that a sequence only contains values from an alphabet. From https://www.biostars.org/p/102/
-
-    >>> seq1 = 'acgatGAGGCATTtagcgatgcgatc'       # True for dna and protein
-    >>> seq2 = 'FGFAGGAGFGAFFF'                   # False for dna, True for protein
-    >>> seq3 = 'acacac '                          # should return False (a space is not a nucleotide)
-    >>> validate(seq1, 'dna')
-    True
-    >>> validate(seq2, 'dna')
-    False
-    >>> validate(seq2, 'protein')
-    True
-    >>> validate(seq3, 'dna')
-    False
+    Check that a sequence only contains values from the DNA alphabet.
 
     :param str seq: a string of letters representing a DNA or amino-acid sequence
-    :param str alphabet: the alphabet to validate against the seq. Choices {'dna', protein}
-    :return bool: True if given seq conforms with given alphabet
+    :param str ambiguity_characters: a string of allowed ambiguity characters
+    :return bool: True if given seq only contains values from the DNA alphabet
     """
 
-    if alphabet not in ['dna', 'protein']:
-        raise ValueError(f"alphabet should be 'dna' or 'protein'. Current value is: {alphabet}")
-
-    alphabets = {'dna': re.compile('^[acgtn]*$', re.I),
-                 'protein': re.compile('^[acdefghiklmnpqrstvwy]*$', re.I)}
-
-    if alphabets[alphabet].search(seq) is not None:
+    pattern = f'^[acgtn{ambiguity_characters}]*$'
+    dna_alphabet = re.compile(pattern, re.IGNORECASE)
+    if dna_alphabet.search(seq) is not None:
         return True
     else:
         return False
@@ -299,7 +287,7 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
-def check_targetfile(targetfile, using_bwa, logger=None):
+def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
@@ -310,6 +298,7 @@ def check_targetfile(targetfile, using_bwa, logger=None):
 
     :param str targetfile: path to the targetfile
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
+    :param str targetfile_ambiguity_codes: a string of allowed ambiguity codes when checking if targetfile is DNA
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
@@ -365,20 +354,24 @@ def check_targetfile(targetfile, using_bwa, logger=None):
     # Detect whether the target file is DNA or amino-acid:
     translate_target_file = False
     number_of_target_sequences = len(seqs)
-    number_of_dna_sequences = len([validate(str(seq.seq), 'dna') for seq in seqs if validate(str(seq.seq))])
+    number_of_dna_sequences = len([seq_is_dna(str(seq.seq), ambiguity_characters=targetfile_ambiguity_codes)
+                                   for seq in seqs if
+                                   seq_is_dna(str(seq.seq), ambiguity_characters=targetfile_ambiguity_codes)])
+
     logger.debug(f'There are {number_of_target_sequences} sequences in the target file, of which'
-                 f' {number_of_dna_sequences} appear to be DNA')
-    if number_of_dna_sequences / number_of_target_sequences >= 0.9:
+                f' {number_of_dna_sequences} appear to be DNA')
+
+    if number_of_dna_sequences == number_of_target_sequences:
         logger.info(f'{"[NOTE]:":10} The target file appears to contain nucleotide sequences.')
-        target_file_is_dna = True
+        target_file_id = 'dna'
     else:
         logger.info(f'{"[NOTE]:":10} The target file appears to contain amino-acid sequences.')
-        target_file_is_dna = False
+        target_file_id = 'protein'
 
-    if using_bwa and not target_file_is_dna:
+    if using_bwa and target_file_id == 'protein':
         sys.exit(f'{"[ERROR]:":10} Your target file appears to contain amino-acid sequences. You need a nucleotide '
                  f'target file for BWA!')
-    elif not using_bwa and target_file_is_dna:
+    elif not using_bwa and target_file_id == 'dna':
         logger.info(f'{"[WARN!]:":10} The target file appears to contain nucleotide sequences, but BLASTx or DIAMOND '
                     f'has been selected for read mapping. Translating the target file...')
         translate_target_file = True
@@ -1209,7 +1202,7 @@ def assemble(args):
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
     ####################################################################################################################
-    # Check dependencies and import required HybPiper and other third party modules
+    # Check dependencies
     ####################################################################################################################
     if check_dependencies(logger=logger):
         logger.info(f'{"[NOTE]:":10} Everything looks good!')
@@ -1261,7 +1254,7 @@ def assemble(args):
 
     # Check that the target file is formatted correctly and translates correctly. If it comprises nucleotides but
     # arg.bwa is false, translate and return path to translated file:
-    targetfile = check_targetfile(targetfile, args.bwa, logger=logger)
+    targetfile = check_targetfile(targetfile, args.bwa, args.targetfile_ambiguity_codes, logger=logger)
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
@@ -1417,7 +1410,7 @@ def assemble(args):
             return
 
     ####################################################################################################################
-    # Run Exonerate on the assembled SPAdes contigs, and Intronerate if flag --run_intronerate is used:
+    # Run Exonerate on the assembled SPAdes contigs, and intronerate() if flag --run_intronerate is supplied:
     ####################################################################################################################
 
     # return
@@ -1549,303 +1542,6 @@ def gene_recovery_heatmap_main(args):
     gene_recovery_heatmap.main(args)
 
 
-def add_assemble_parser(subparsers):
-    """
-    Parser for the main assembly stage of HybPiper i.e. reads_first.
-
-    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
-    :return None: no return value specified; default is None
-    """
-
-    parser_assemble = subparsers.add_parser('assemble', help='Assemble gene, intron, and supercontig sequences')
-    parser_assemble.add_argument('--readfiles', '-r', nargs='+',
-                                 help='One or more read files to start the pipeline. If exactly two are specified, '
-                                      'will assume it is paired Illumina reads.',
-                                 required=True)
-    parser_assemble.add_argument('--targetfile', '-t',
-                                 help='FASTA file containing target sequences for each gene. If there are multiple '
-                                      'targets for a gene, the id must be of the form: >Taxon-geneName',
-                                 required=True)
-    group_1 = parser_assemble.add_mutually_exclusive_group()
-    group_1.add_argument('--bwa', dest='bwa', action='store_true',
-                         help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
-                              'nucleotides!', default=False)
-    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx.',
-                         default=False)
-    parser_assemble.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
-                                                                   'very-sensitive', 'ultra-sensitive'],
-                                 help='Use the provided sensitivity for DIAMOND searches.', default=False)
-    parser_assemble.add_argument('--no-blast', dest='blast', action='store_false',
-                                 help='Do not run the BLASTx step. Downstream steps will still depend on the '
-                                      '*_all.blastx file. \nUseful for re-running assembly/Exonerate steps with '
-                                      'different options.')
-    parser_assemble.add_argument('--no-distribute', dest='distribute', action='store_false',
-                                 help='Do not distribute the reads and target sequences to sub-directories.')
-    parser_assemble.add_argument('--no-assemble', dest='assemble', action='store_false',
-                                 help='Skip the SPAdes assembly stage.')
-    parser_assemble.add_argument('--no-exonerate', dest='exonerate', action='store_false',
-                                 help='Do not run the Exonerate step, which assembles full length CDS regions and '
-                                      'proteins from each gene')
-    parser_assemble.add_argument('--cpu', type=int, default=0,
-                                 help='Limit the number of CPUs. Default is to use all cores available.')
-    parser_assemble.add_argument('--evalue', type=float, default=1e-4,
-                                 help='e-value threshold for blastx hits, default: %(default)s')
-    parser_assemble.add_argument('--max_target_seqs', type=int, default=10,
-                                 help='Max target seqs to save in BLASTx search, default: %(default)s')
-    parser_assemble.add_argument('--cov_cutoff', default=8,
-                                 help='Coverage cutoff for SPAdes. default: %(default)s')
-    parser_assemble.add_argument('--single_cell_assembly', action='store_true', dest='spades_single_cell',
-                                 default=False,
-                                 help='Run SPAdes assemblies in MDA (single-cell) mode. Default is False')
-    parser_assemble.add_argument('--kvals', nargs='+',
-                                 help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
-                                      'larger k-values! Default is auto-detection by SPAdes.', default=None)
-    parser_assemble.add_argument('--thresh', type=int,
-                                 help='Percent identity threshold for retaining Exonerate hits. Default is 55, '
-                                      'but increase this if you are worried about contaminant sequences.', default=55)
-    parser_assemble.add_argument('--paralog_min_length_percentage', default=0.75, type=float,
-                                 help='Minimum length percentage of a contig Exonerate hit vs reference protein '
-                                      'length for a paralog warning and sequence to be generated. Default is %('
-                                      'default)s')
-    parser_assemble.add_argument('--depth_multiplier',
-                                 help='Assign a long paralog as the "main" sequence if it has a coverage depth '
-                                      '<depth_multiplier> times all other long paralogs. Set to zero to not use '
-                                      'depth. Default = 10',
-                                 default=10, type=int)
-    parser_assemble.add_argument('--prefix',
-                                 help='Directory name for pipeline output, default is to use the FASTQ file name.',
-                                 default=None)
-    parser_assemble.add_argument('--timeout',
-                                 help='Use GNU Parallel to kill long-running processes if they take longer than X '
-                                      'percent of average.', default=0, type=int)
-    parser_assemble.add_argument('--target',
-                                 help='Use the target file sequence with this taxon name in Exonerate searches for '
-                                      'each gene. Other targets for that gene will be used only for read sorting. Can '
-                                      'be a tab-delimited file (one <gene>\\t<taxon_name> per line) or a single taxon '
-                                      'name.',
-                                 default=None)
-    parser_assemble.add_argument('--exclude',
-                                 help='Do not use any sequence with the specified taxon name string in Exonerate '
-                                      'searches. Sequenced from this taxon will still be used for read sorting.',
-                                 default=None)
-    parser_assemble.add_argument('--unpaired',
-                                 help='Include a single FASTQ file with unpaired reads along with two paired read '
-                                      'files',
-                                 default=False)
-    parser_assemble.add_argument('--no_stitched_contig', dest='no_stitched_contig', action='store_true',
-                                 help='Do not create any stitched contigs. The longest single Exonerate hit will be '
-                                      'used.',
-                                 default=False)
-    parser_assemble.add_argument('--bbmap_memory', default=1, type=int,
-                                 help='GB memory (RAM ) to use for bbmap.sh with exonerate_hits.py. Default is 1.')
-    parser_assemble.add_argument('--bbmap_subfilter', default=7, type=int,
-                                 help='Ban alignments with more than this many substitutions. Default is %(default)s.')
-    parser_assemble.add_argument('--bbmap_threads', default=2, type=int,
-                                 help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
-                                      'Default is %(default)s.')
-    parser_assemble.add_argument('--chimeric_stitched_contig_edit_distance',
-                                 help='Minimum number of differences between one read of a read pair vs the '
-                                      'stitched contig reference for a read pair to be flagged as discordant.',
-                                 default=5, type=int)
-    parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
-                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as '
-                                      'a potential chimera of contigs from multiple paralogs', default=5, type=int)
-    parser_assemble.add_argument('--merged', help='For assembly with both merged and unmerged (interleaved) reads.',
-                                 action='store_true', default=False)
-    parser_assemble.add_argument('--run_intronerate',
-                                 help='Run intronerate to recover fasta files for supercontigs with introns (if '
-                                      'present), and introns-only.', action='store_true', dest='intronerate',
-                                 default=False)
-    parser_assemble.add_argument('--keep_intermediate_files',
-                                 help='Keep all intermediate files and logs, which can be useful for '
-                                      'debugging. Default action is to delete them, which greatly reduces the total '
-                                      'file number).',
-                                 action='store_true', dest='keep_intermediate_files', default=False)
-    parser_assemble.add_argument('--no_padding_supercontigs',
-                                 help='If Intronerate is run, and a supercontig is created by concatenating multiple '
-                                      'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
-                                      'Ns will be added.', action='store_true', dest='no_padding_supercontigs',
-                                 default=False)
-
-    # Set defaults for subparser <parser_assemble>:
-    parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
-
-    # Set function for subparser <parser_assemble>:
-    parser_assemble.set_defaults(func=assemble)
-
-
-def add_stats_parser(subparsers):
-    """
-    Parser for hybpiper_stats, which now includes running get_seq_lengths
-
-    :param argparse._SubParsersAction subparsers:
-    :return None: no return value specified; default is None
-    """
-
-    parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
-    parser_stats.add_argument('targetfile',
-                              help='FASTA file containing target sequences for each gene. If there are multiple '
-                                   'targets for a gene, the id must be of the form: >Taxon-geneName')
-    parser_stats.add_argument("targetfile_sequence_type", help="Sequence type (dna or aa) in the targetfile provided",
-                              choices=["dna", "DNA", "aa", "AA"])
-    parser_stats.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover lengths for",
-                              choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
-    parser_stats.add_argument('namelist', help="Text file with names of HybPiper output directories, one per line")
-    parser_stats.add_argument("--seq_lengths_filename",
-                              help="File name for the sequence lengths *.tsv file. Default is <seq_lengths.tsv>.",
-                              default='seq_lengths')
-    parser_stats.add_argument("--stats_filename",
-                              help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
-                              default='hybpiper_stats')
-
-    # Set function for subparser <parser_stats>:
-    parser_stats.set_defaults(func=hybpiper_stats_main)
-
-
-def add_retrieve_sequences_parser(subparsers):
-    """
-    Parser for retrieve_sequences
-
-    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
-    :return None: no return value specified; default is None
-    """
-
-    parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
-                                                                                 'multiple runs of HybPiper')
-    parser_retrieve_sequences.add_argument('targetfile', help="FASTA File containing target sequences")
-    parser_retrieve_sequences.add_argument('--sample_names',
-                                           help='Directory containing Hybpiper output OR a file containing HybPiper '
-                                                'output names, one per line',
-                                           default=None)
-    parser_retrieve_sequences.add_argument('--single_sample_name',
-                                           help='A single sample name to recover sequences for',
-                                           default=None)
-    parser_retrieve_sequences.add_argument('sequence_type', help='Type of sequence to extract',
-                                           choices=["dna", "aa", "intron", "supercontig"])
-    parser_retrieve_sequences.add_argument("--hybpiper_dir", help='Specify directory containing HybPiper output')
-    parser_retrieve_sequences.add_argument("--fasta_dir", help='Specify directory for output FASTA files')
-    parser_retrieve_sequences.add_argument('--skip_chimeric_genes', action='store_true', dest='skip_chimeric',
-                                           help='Do not recover sequences for putative chimeric genes',
-                                           default=False)
-
-    # Set function for subparser <parser_retrieve_sequences>:
-    parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
-
-
-def add_paralog_retriever_parser(subparsers):
-    """
-    Parser for paralog_retriever
-
-    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
-    :return None: no return value specified; default is None
-    """
-
-    parser_paralog_retriever = subparsers.add_parser('paralog_retriever', help='Retrieve paralog sequences for a '
-                                                                               'given gene, for all samples')
-    parser_paralog_retriever.add_argument('namelist',
-                                          help='Text file containing list of HybPiper output directories, '
-                                               'one per line.')
-    parser_paralog_retriever.add_argument('targetfile',
-                                          help="FASTA file containing target sequences for each gene. Used to extract "
-                                               "unique gene names for paralog recovery")
-    parser_paralog_retriever.add_argument('--fasta_dir_all',
-                                          help='Specify directory for output FASTA files (ALL). Default is '
-                                               '"paralogs_all".',
-                                          default='paralogs_all')
-    parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras',
-                                          help='Specify directory for output FASTA files (no putative chimeric '
-                                               'sequences). Default is "paralogs_no_chimeras".',
-                                          default='paralogs_no_chimeras')
-    parser_paralog_retriever.add_argument('--paralog_report_filename',
-                                          help='Specify the filename for the paralog *.tsv report table',
-                                          default='paralog_report')
-    parser_paralog_retriever.add_argument('--paralogs_above_threshold_report_filename',
-                                          help='Specify the filename for the *.txt list of genes with paralogs in '
-                                               '<paralogs_list_threshold_percentage> number of samples',
-                                          default='paralogs_above_threshold_report')
-    parser_paralog_retriever.add_argument('--paralogs_list_threshold_percentage',
-                                          help='Percent of total number of samples and genes that must have paralog '
-                                               'warnings to be reported in the <genes_with_paralogs.txt> report file. '
-                                               'The default is 0.0, meaning that all genes and samples with at least '
-                                               'one paralog warning will be reported',
-                                          type=float,
-                                          default=0.0)
-    parser_paralog_retriever.add_argument('--heatmap_filename',
-                                          help='Filename for the output heatmap, saved by default as a *.png file. '
-                                               'Defaults to "paralog_heatmap"',
-                                          default='paralog_heatmap')
-    parser_paralog_retriever.add_argument('--figure_length', type=int,
-                                          help='Length dimension (in inches) for the output heatmap file. Default is '
-                                               'automatically calculated based on the number of genes',
-                                          default=None)
-    parser_paralog_retriever.add_argument('--figure_height', type=int,
-                                          help='Height dimension (in inches) for the output heatmap file. Default is '
-                                               'automatically calculated based on the number of samples',
-                                          default=None)
-    parser_paralog_retriever.add_argument('--sample_text_size', type=int,
-                                          help='Size (in points) for the sample text labels in the output heatmap '
-                                               'file. Default is automatically calculated based on the number of '
-                                               'samples',
-                                          default=None)
-    parser_paralog_retriever.add_argument('--gene_text_size', type=int,
-                                          help='Size (in points) for the gene text labels in the output heatmap file. '
-                                               'Default is automatically calculated based on the number of genes',
-                                          default=None)
-    parser_paralog_retriever.add_argument('--heatmap_filetype',
-                                          choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
-                                          help='File type to save the output heatmap image as. Default is png',
-                                          default='png')
-    parser_paralog_retriever.add_argument('--heatmap_dpi', type=int,
-                                          help='Dots per inch (DPI) for the output heatmap image. Default is 300',
-                                          default='300')
-
-    # Set function for subparser <paralog_retriever>:
-    parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
-
-
-def add_gene_recovery_heatmap_parser(subparsers):
-    """
-    Parser for gene_recovery_heatmap
-
-    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
-    :return None: no return value specified; default is None
-    """
-
-    parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
-                                                                                  'the HybPiper run')
-    parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
-                                              help="Filename for the seq_lengths file (output of the 'hybpiper "
-                                                   "stats' command)")
-    parser_gene_recovery_heatmap.add_argument('--heatmap_filename',
-                                              help='Filename for the output heatmap, saved by default as a *.png file. '
-                                                   'Defaults to "heatmap"', default='heatmap')
-    parser_gene_recovery_heatmap.add_argument('--figure_length', type=int,
-                                              help='Length dimension (in inches) for the output heatmap file. '
-                                                   'Default is automatically calculated based on the number of '
-                                                   'genes', default=None)
-    parser_gene_recovery_heatmap.add_argument('--figure_height', type=int,
-                                              help='Height dimension (in inches) for the output heatmap file. '
-                                                   'Default is automatically calculated based on the number of '
-                                                   'samples', default=None)
-    parser_gene_recovery_heatmap.add_argument('--sample_text_size', type=int,
-                                              help='Size (in points) for the sample text labels in the output heatmap '
-                                                   'file. Default is automatically calculated based on the '
-                                                   'number of samples', default=None)
-    parser_gene_recovery_heatmap.add_argument('--gene_text_size', type=int,
-                                              help='Size (in points) for the gene text labels in the output heatmap '
-                                                   'file. Default is automatically calculated based on the '
-                                                   'number of genes', default=None)
-    parser_gene_recovery_heatmap.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
-                                              help='File type to save the output heatmap image as. Default is *.png',
-                                              default='png')
-    parser_gene_recovery_heatmap.add_argument('--heatmap_dpi', type=int,
-                                              help='Dot per inch (DPI) for the output heatmap image. Default is 300',
-                                              default='300')
-
-    # Set function for subparser <parser_gene_recovery_heatmap>:
-    parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
-
-
 def parse_arguments():
     """
     Creates main parser and add subparsers. Parses command line arguments
@@ -1867,12 +1563,20 @@ def parse_arguments():
                         default=False,
                         help='Run the check for all pipeline dependencies and exit')
 
+    # Add subparsers:
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
-    add_assemble_parser(subparsers)
-    add_stats_parser(subparsers)
-    add_retrieve_sequences_parser(subparsers)
-    add_gene_recovery_heatmap_parser(subparsers)
-    add_paralog_retriever_parser(subparsers)
+    parser_assemble = hybpiper_subparsers.add_assemble_parser(subparsers)
+    parser_stats = hybpiper_subparsers.add_stats_parser(subparsers)
+    parser_retrieve_sequences = hybpiper_subparsers.add_retrieve_sequences_parser(subparsers)
+    parser_paralog_retriever = hybpiper_subparsers.add_paralog_retriever_parser(subparsers)
+    parser_gene_recovery_heatmap = hybpiper_subparsers.add_gene_recovery_heatmap_parser(subparsers)
+
+    # Set functions for subparsers:
+    parser_assemble.set_defaults(func=assemble)
+    parser_stats.set_defaults(func=hybpiper_stats_main)
+    parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
+    parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
+    parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
 
     # Parse and return all arguments:
     arguments = parser.parse_args()
