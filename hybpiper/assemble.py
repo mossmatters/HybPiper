@@ -365,10 +365,10 @@ def check_targetfile(targetfile, using_bwa, logger=None):
     # Detect whether the target file is DNA or amino-acid:
     translate_target_file = False
     number_of_target_sequences = len(seqs)
-    number_of_dna_sequencs = len([validate(str(seq.seq), 'dna') for seq in seqs if validate(str(seq.seq))])
+    number_of_dna_sequences = len([validate(str(seq.seq), 'dna') for seq in seqs if validate(str(seq.seq))])
     logger.debug(f'There are {number_of_target_sequences} sequences in the target file, of which'
-                 f' {number_of_dna_sequencs} appear to be DNA')
-    if number_of_dna_sequencs / number_of_target_sequences >= 0.9:
+                 f' {number_of_dna_sequences} appear to be DNA')
+    if number_of_dna_sequences / number_of_target_sequences >= 0.9:
         logger.info(f'{"[NOTE]:":10} The target file appears to contain nucleotide sequences.')
         target_file_is_dna = True
     else:
