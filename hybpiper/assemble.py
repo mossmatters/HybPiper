@@ -509,7 +509,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
                 return None
 
     else:
-        logger.error(f'ERROR: Cannot find targetfile at: {targetfile}')
+        logger.error(f'ERROR: Cannot find target file at: {targetfile}')
         return None
 
     if not cpu:
@@ -600,7 +600,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 logger.error(f'makeblastdb stderr is: {exc.stderr}')
                 return None
     else:
-        logger.error(f'Cannot find targetfile at: {targetfile}')
+        logger.error(f'Cannot find target file at: {targetfile}')
         return None
 
     # Remove previous blast results if they exist (because we will be appending)
