@@ -3,9 +3,9 @@
 """
 HybPiper Version 2.0 release candidate (March 2022)
 
-############################
-### NOTES ON VERSION 2.0 ###
-############################
+########################################################################################################################
+############################################## NOTES ON VERSION 2.0 ####################################################
+########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
 followed by a subcommand to run different parts of the pipeline. The available subcommands can be viewed by typing
@@ -19,7 +19,8 @@ followed by a subcommand to run different parts of the pipeline. The available s
 
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
-NOTE: the command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
+==> NOTE <==
+The command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
     python /<path_to>/reads_first.py -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
@@ -28,20 +29,22 @@ if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
     hybpiper assemble -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
-NOTE: the recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
+==> NOTE <==
+The recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
 is now incorporated in to the 'hybpiper assemble' command. It can be enabled using the flag
 '--run_intronerate', e.g.:
 
     hybpiper assemble -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
 
-NOTE: the command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
+==> NOTE <==
+The command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
 the command 'hybpiper stats'. The sequence length details that were previously printed to screen are now written to
 the file 'seq_lengths.tsv', by default. Similarity, the stats details that were previously written to screen by
 'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv', by default.
 
 For full details of all commands and changes, please reads the Wiki page at **LINK** and the changelog at **LINK**.
 
-############################
+########################################################################################################################
 
 """
 
