@@ -23,7 +23,7 @@ def add_assemble_parser(subparsers):
                                       'targets for a gene, the id must be of the form: >Taxon-geneName',
                                  required=True)
     parser_assemble.add_argument('--targetfile_ambiguity_codes',
-                                 help='Allowed ambiguity codes when testing whether the target file contains '
+                                 help='Allowed ambiguity codes; used when testing if the target file contains '
                                       'nucleotide or amino-acid sequences. Provide as a string without spaces e.g. '
                                       'VDB',
                                  default=None)

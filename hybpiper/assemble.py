@@ -72,7 +72,7 @@ f'HybPiper requires Python 3.6 or higher.'
 # Import non-standard-library modules:
 unsuccessful_imports = []
 try:
-    import Bio
+    from Bio import SeqIO, SeqRecord
 except ImportError:
     unsuccessful_imports.append('Bio')
 try:
@@ -166,13 +166,13 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     return logger_object
 
 
-def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
+def py_which(executable_name, mode=os.F_OK | os.X_OK, path=None):
     """
-    Given a command, mode, and a PATH string, return the path which conforms to the given mode on the PATH,
+    Given an executable_name, mode, and a PATH string, return the path which conforms to the given mode on the PATH,
     or None if there is no such file. `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
     of os.environ.get("PATH"), or can be overridden with a custom search path.
 
-    :param str cmd: executable name to search for
+    :param str executable_name: executable name to search for
     :param int mode: bitwise OR of integers from os.F_OK (existence of path) and os.X_OK (executable) access checks
     :param str path: None, or contents of $PATH variable (as recovered in function body)
     :return None or path of executable
@@ -186,44 +186,26 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
 
     # If we're given a path with a directory part, look it up directly rather than referring to PATH directories.
     # This includes checking relative to the current directory, e.g. ./script
-    if os.path.dirname(cmd):
-        if _access_check(cmd, mode):
-            return cmd
+    if os.path.dirname(executable_name):
+        if _access_check(executable_name, mode):
+            return executable_name
         return None
 
     if path is None:
         path = os.environ.get('PATH', os.defpath)
     if not path:
         return None
+
     path = path.split(os.pathsep)
+    checked_directories = set()
 
-    if sys.platform == 'win32':
-        # The current directory takes precedence on Windows.
-        if not os.curdir in path:
-            path.insert(0, os.curdir)
+    for directory in path:
+        if directory not in checked_directories:  # only check each directory once
+            checked_directories.add(directory)
+            name = os.path.join(directory, executable_name)
+            if _access_check(name, mode):
+                return name
 
-        # PATHEXT is necessary to check on Windows.
-        pathext = os.environ.get('PATHEXT', '').split(os.pathsep)
-        # See if the given file matches any of the expected path extensions. This will allow us to short circuit when
-        # given "python.exe".  If it does match, only test that one, otherwise we have to try others.
-        if any([cmd.lower().endswith(ext.lower()) for ext in pathext]):
-            files = [cmd]
-        else:
-            files = [cmd + ext for ext in pathext]
-    else:
-        # On other platforms you don't have things like PATHEXT to tell you what file suffixes are executable,
-        # so just pass on cmd as-is.
-        files = [cmd]
-
-    seen = set()
-    for dir in path:
-        normdir = os.path.normcase(dir)
-        if normdir not in seen:
-            seen.add(normdir)
-            for thefile in files:
-                name = os.path.join(dir, thefile)
-                if _access_check(name, mode):
-                    return name
     return None
 
 
@@ -279,18 +261,18 @@ def check_dependencies(logger=None):
         logger.info(f'{"[NOTE]:":10} Checking for external dependencies:\n')
 
     everything_is_awesome = True
-    for e in executables:
-        e_loc = py_which(e)
-        if e_loc:
+    for exe in executables:
+        exe_loc = py_which(exe)
+        if exe_loc:
             if not logger:
-                print(f'{e:20} found at {e_loc}')
+                print(f'{exe:20} found at {exe_loc}')
             else:
-                logger.info(f'{e:20} found at {e_loc}')
+                logger.info(f'{exe:20} found at {exe_loc}')
         else:
             if not logger:
-                print(f'{e:20} found at {e_loc}')
+                print(f'{exe:20} found at {exe_loc}')
             else:
-                logger.info(f'{e:20} not found in your $PATH!')
+                logger.info(f'{exe:20} not found in your $PATH!')
             everything_is_awesome = False
     if not logger:
         print('')
@@ -322,7 +304,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
     file_name, ext = os.path.splitext(target_file_name)
     gene_lists = defaultdict(list)
     with open(targetfile, 'r') as target_file_handle:
-        seqs = list(Bio.SeqIO.parse(target_file_handle, 'fasta'))
+        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
         incorrectly_formatted_fasta_headers = []
         check_for_duplicate_genes_dict = {}
         for seq in seqs:
@@ -416,7 +398,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
             sequence, needed_padding = distribute_targets.pad_seq(seq)
             translated_seq = sequence.seq.translate()
             if translate_target_file:
-                record = Bio.SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
+                record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
                 translated_seqs_to_write.append(record)
             num_stop_codons = translated_seq.count('*')
 
@@ -451,7 +433,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
             translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
             logger.info(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}')
             with open(f'{translated_target_file}', 'w') as translated_handle:
-                Bio.SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+                SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
             return translated_target_file
 
     return targetfile
