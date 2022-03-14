@@ -1774,6 +1774,11 @@ def standalone():
                              'contigs, do not add 10 "N" characters between contig joins. By default, Ns will be '
                              'added.', action='store_true', dest='no_padding_supercontigs',
                         default=False)
+    parser.add_argument('--keep_intermediate_files',
+                        help='Keep all intermediate files and logs, which can be useful for '
+                             'debugging. Default action is to delete them, which greatly reduces the total file '
+                             'number).',
+                        action='store_true', dest='keep_intermediate_files', default=False)
 
     args = parser.parse_args()
 
@@ -1831,7 +1836,8 @@ def main(args):
                                                                interleaved_fasta_file=path_to_interleaved_fasta,
                                                                no_stitched_contig=args.no_stitched_contig,
                                                                spades_assembly_dict=spades_assembly_dict,
-                                                               depth_multiplier=args.depth_multiplier)
+                                                               depth_multiplier=args.depth_multiplier,
+                                                               keep_intermediate_files=args.keep_intermediate_files)
     if not exonerate_result.stitched_contig_seqrecord:
         return
 
@@ -1842,8 +1848,11 @@ def main(args):
         logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict is:'
                      f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
         logger.debug(f'Running intronerate')
-        intronerate(exonerate_result, spades_assembly_dict, logger=logger,
-                    no_padding_supercontigs=args.no_padding_supercontigs)
+        intronerate(exonerate_result,
+                    spades_assembly_dict,
+                    logger=logger,
+                    no_padding_supercontigs=args.no_padding_supercontigs,
+                    keep_intermediate_files=args.keep_intermediate_files)
 
 
 ########################################################################################################################

@@ -227,18 +227,28 @@ def py_which(cmd, mode=os.F_OK | os.X_OK, path=None):
     return None
 
 
-def seq_is_dna(seq, ambiguity_characters=None):
+def seq_is_dna_or_protein(seq, alphabet='dna', ambiguity_characters=None):
     """
     Check that a sequence only contains values from the DNA alphabet.
 
+    Adapted from https://www.biostars.org/p/102/
+
     :param str seq: a string of letters representing a DNA or amino-acid sequence
+    :param str alphabet: the type of alphabet to search seq for; choices are 'dna' or 'protein'
     :param str ambiguity_characters: a string of allowed ambiguity characters
     :return bool: True if given seq only contains values from the DNA alphabet
     """
 
-    pattern = f'^[acgtn{ambiguity_characters}]*$'
-    dna_alphabet = re.compile(pattern, re.IGNORECASE)
-    if dna_alphabet.search(seq) is not None:
+    if alphabet not in ['dna', 'protein']:
+        raise ValueError(f'alphabet should be either "dna" or "protein". Current value is: {alphabet} ')
+
+    dna_pattern = f'^[acgtn{ambiguity_characters}]*$'
+    protein_pattern = f'^[acdefghiklmnpqrstvwyx{ambiguity_characters}]*$'
+
+    alphabets = {'dna': re.compile(dna_pattern, re.IGNORECASE),
+                 'protein': re.compile(protein_pattern, re.IGNORECASE)}
+
+    if alphabets[alphabet].search(seq) is not None:
         return True
     else:
         return False
@@ -293,7 +303,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
-    - Performs a quick detection of whether targetfile is DNA or amino-acid.
+    - Performs a detection of whether targetfile is DNA or amino-acid.
     - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
       three, no unexpected stop codons), and logs a warning if not.
     - If targetfile comprises nucleotides but using_bwa is False, translate the targetfile and return the path
@@ -305,7 +315,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
     :return: None, str: NoneType or path to the translated targetfile
     """
 
-    # Check target-file fasta header formatting:
+    # Check target file fasta header formatting:
     logger.info(f'{"[NOTE]:":10} Checking target file FASTA header formatting...')
 
     target_file_path, target_file_name = os.path.split(targetfile)
@@ -332,7 +342,7 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
         fill = textwrap.fill(f'{seq_list}')
         logger.info(textwrap.indent(fill, ' ' * 11))
         logger.info('')
-        sys.exit(1)  # targetfile fasta header formatting should be fixed!
+        sys.exit(1)  # target file fasta header formatting should be fixed!
     else:
         logger.info(f'{"[NOTE]:":10} The target file FASTA header formatting looks good!')
 
@@ -349,16 +359,17 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
         logger.error(f'\nPlease remove duplicate genes before running HybPiper!')
         sys.exit(1)  # duplicate genes in targetfile should be removed!
 
-    # Report the number of unique genes represented in the targetfile:
+    # Report the number of unique genes represented in the target file:
     logger.info(f'{"[NOTE]:":10} The target file contains at least one sequence for {len(gene_lists)} '
                 f'unique genes.')
 
     # Detect whether the target file is DNA or amino-acid:
     translate_target_file = False
     number_of_target_sequences = len(seqs)
-    number_of_dna_sequences = len([seq_is_dna(str(seq.seq), ambiguity_characters=targetfile_ambiguity_codes)
-                                   for seq in seqs if
-                                   seq_is_dna(str(seq.seq), ambiguity_characters=targetfile_ambiguity_codes)])
+    number_of_dna_sequences = len(
+        [seq_is_dna_or_protein(str(seq.seq), alphabet='dna', ambiguity_characters=targetfile_ambiguity_codes)
+         for seq in seqs if
+         seq_is_dna_or_protein(str(seq.seq), alphabet='dna', ambiguity_characters=targetfile_ambiguity_codes)])
 
     logger.debug(f'There are {number_of_target_sequences} sequences in the target file, of which'
                  f' {number_of_dna_sequences} appear to be DNA')
@@ -366,12 +377,27 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
     if number_of_dna_sequences == number_of_target_sequences:
         logger.info(f'{"[NOTE]:":10} The target file appears to contain nucleotide sequences.')
         target_file_id = 'dna'
-    else:
-        logger.info(f'{"[NOTE]:":10} The target file appears to contain amino-acid sequences.')
-        target_file_id = 'protein'
+    else:  # Check if all seqs contain only the protein alphabet (and optional ambiguity codes)
+        undetermined_seq_names = []
+        for seq in seqs:
+            try:
+                assert seq_is_dna_or_protein(
+                    str(seq.seq), alphabet='protein', ambiguity_characters=targetfile_ambiguity_codes)
+            except AssertionError:
+                logger.debug(f'Target file sequence {seq.id} can not be identified as nucleotide or protein, check!')
+                undetermined_seq_names.append(seq.id)
+        if undetermined_seq_names:
+            joined_names = ' '.join(undetermined_seq_names)
+            sys.exit(f'{"[ERROR!]:":10} HybPiper can not determine whether the target file provided contains '
+                     f'nucleotide or protein sequences. Please check your target file. If your sequences contain '
+                     f'ambiguity codes, please supply them as a string using the parameter '
+                     f'"--targetfile_ambiguity_codes". The undetermined sequences are:\n{joined_names}')
+        else:
+            logger.info(f'{"[NOTE]:":10} The target file appears to contain protein sequences.')
+            target_file_id = 'protein'
 
     if using_bwa and target_file_id == 'protein':
-        sys.exit(f'{"[ERROR]:":10} Your target file appears to contain amino-acid sequences. You need a nucleotide '
+        sys.exit(f'{"[ERROR]:":10} Your target file appears to contain protein sequences. You need a nucleotide '
                  f'target file for BWA!')
     elif not using_bwa and target_file_id == 'dna':
         logger.info(f'{"[WARN!]:":10} The target file appears to contain nucleotide sequences, but BLASTx or DIAMOND '
@@ -422,14 +448,13 @@ def check_targetfile(targetfile, using_bwa, targetfile_ambiguity_codes, logger=N
             logger.debug(f'Target file sequences that are not multiples of three: {seq_list}')
 
         if translate_target_file:
-            translated_target_file= f'{target_file_path}/{file_name}_translated{ext}'
+            translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
             logger.info(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}')
             with open(f'{translated_target_file}', 'w') as translated_handle:
                 Bio.SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-
             return translated_target_file
-        else:
-            return targetfile
+
+    return targetfile
 
 
 def make_basename(readfiles, prefix=None):
@@ -1210,7 +1235,7 @@ def assemble(args):
     ####################################################################################################################
     # Check read and target files
     ####################################################################################################################
-    # Check that the target/target-file and input read files exist and aren't empty:
+    # Check that the target-file and input read files exist and aren't empty:
     for read_file in readfiles:
         if os.path.isfile(read_file) and not os.path.getsize(read_file) == 0:
             logger.debug(f'Input read file {read_file} exists and is not empty, proceeding...')
