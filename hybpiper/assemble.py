@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 
 """
+ _    _            _       _____
+| |  | |          | |     |  _  \
+| |__| | __    __ | |___  | |_| |  _   _____   _____   _____
+|  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
+| |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
+|_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
+           / /                        | |
+          /_/                         |_|
+
 HybPiper Version 2.0 release candidate (March 2022)
 
 ########################################################################################################################
@@ -65,6 +74,21 @@ import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
 import pkg_resources
+
+
+# title = textwrap.dedent(
+#                             fr"""
+#                                  _    _            _       _____
+#                                 | |  | |          | |     |  _  \
+#                                 | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
+#                                 |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
+#                                 | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
+#                                 |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
+#                                            / /                        | |
+#                                           /_/                         |_|
+#                             """
+#     )
+
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
@@ -1553,22 +1577,22 @@ def parse_arguments():
     :return argparse.Namespace arguments: arguments for the given command/subcommand
     """
 
-    title = textwrap.dedent(
-                            fr"""
-                                 _    _            _       _____
-                                | |  | |          | |     |  _  \
-                                | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-                                |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
-                                | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
-                                |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-                                           / /                        | |
-                                          /_/                         |_|
-                            """
-    )
+    # title = textwrap.dedent(
+    #                         fr"""
+    #                              _    _            _       _____
+    #                             | |  | |          | |     |  _  \
+    #                             | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
+    #                             |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
+    #                             | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
+    #                             |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
+    #                                        / /                        | |
+    #                                       /_/                         |_|
+    #                         """
+    # )
 
     # print(title)
 
-    parser = argparse.ArgumentParser(prog='hybpiper', description=f'{title}\n{__doc__}',
+    parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='To view parameters and help for a subcommand, use e.g. "assemble '
                                             '--help"')
