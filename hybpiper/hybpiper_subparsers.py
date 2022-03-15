@@ -3,21 +3,6 @@
 """
 Contains argument subparsers
 """
-import textwrap
-
-title = textwrap.dedent(
-    fr"""
-     _    _            _       _____
-    | |  | |          | |     |  _  \
-    | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-    |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
-    | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
-    |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-               / /                        | |
-              /_/                         |_|
-    
-    """
-    )
 
 
 def add_assemble_parser(subparsers):
@@ -142,8 +127,6 @@ def add_assemble_parser(subparsers):
                                       'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
                                       'Ns will be added.', action='store_true', dest='no_padding_supercontigs',
                                  default=False)
-
-    print(title)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
