@@ -76,20 +76,6 @@ from concurrent.futures import wait, as_completed
 import pkg_resources
 
 
-# title = textwrap.dedent(
-#                             fr"""
-#                                  _    _            _       _____
-#                                 | |  | |          | |     |  _  \
-#                                 | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-#                                 |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
-#                                 | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
-#                                 |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-#                                            / /                        | |
-#                                           /_/                         |_|
-#                             """
-#     )
-
-
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
 
@@ -1576,21 +1562,6 @@ def parse_arguments():
 
     :return argparse.Namespace arguments: arguments for the given command/subcommand
     """
-
-    # title = textwrap.dedent(
-    #                         fr"""
-    #                              _    _            _       _____
-    #                             | |  | |          | |     |  _  \
-    #                             | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-    #                             |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
-    #                             | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
-    #                             |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-    #                                        / /                        | |
-    #                                       /_/                         |_|
-    #                         """
-    # )
-
-    # print(title)
 
     parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
                                      formatter_class=argparse.RawTextHelpFormatter,
