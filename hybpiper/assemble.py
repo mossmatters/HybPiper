@@ -1,15 +1,6 @@
 #!/usr/bin/env python
 
 """
- _    _            _       _____
-| |  | |          | |     |  _  \
-| |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-|  __  | \ \  / / |  __ \ |  ___/ | | |  _  \ |  .  | |  _  \
-| |  | |  \ \/ /  | |__ | | |     | | | |_| | |  __/  | |
-|_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-           / /                        | |
-          /_/                         |_|
-
 HybPiper Version 2.0 release candidate (March 2022)
 
 ########################################################################################################################
@@ -1561,6 +1552,22 @@ def parse_arguments():
 
     :return argparse.Namespace arguments: arguments for the given command/subcommand
     """
+
+    tile = textwrap.dedent(
+                            fr"""
+                                 _    _            _       _____
+                                | |  | |          | |     |  _  \
+                                | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
+                                |  __  | \ \  / / |  __ \ |  ___/ | | |  _  \ |  .  | |  _  \
+                                | |  | |  \ \/ /  | |__ | | |     | | | |_| | |  __/  | |
+                                |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
+                                           / /                        | |
+                                          /_/                         |_|
+                            """
+    )
+
+    print(tile)
+
     parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='To view parameters and help for a subcommand, use e.g. "assemble '
