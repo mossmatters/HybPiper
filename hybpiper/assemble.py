@@ -75,20 +75,6 @@ from multiprocessing import Manager
 from concurrent.futures import wait, as_completed
 import pkg_resources
 
-title = textwrap.dedent(
-    fr"""
-     _    _            _       _____
-    | |  | |          | |     |  _  \
-    | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-    |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
-    | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
-    |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-               / /                        | |
-              /_/                         |_|
-
-    """
-)
-
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'

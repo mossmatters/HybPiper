@@ -160,6 +160,8 @@ def add_stats_parser(subparsers):
     :return None: no return value specified; default is None
     """
 
+    print(title)
+
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
     parser_stats.add_argument('targetfile',
                               help='FASTA file containing target sequences for each gene. If there are multiple '
@@ -186,6 +188,8 @@ def add_retrieve_sequences_parser(subparsers):
     :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
     :return None: no return value specified; default is None
     """
+
+    print(title)
 
     parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
                                                                                  'multiple runs of HybPiper')
@@ -214,6 +218,8 @@ def add_paralog_retriever_parser(subparsers):
     :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
     :return None: no return value specified; default is None
     """
+
+    print(title)
 
     parser_paralog_retriever = subparsers.add_parser('paralog_retriever', help='Retrieve paralog sequences for a '
                                                                                'given gene, for all samples')
@@ -284,6 +290,8 @@ def add_gene_recovery_heatmap_parser(subparsers):
     :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
     :return None: no return value specified; default is None
     """
+
+    print(title)
 
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap', help='Create a gene recovery heatmap for '
                                                                                   'the HybPiper run')
