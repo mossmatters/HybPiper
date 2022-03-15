@@ -1211,8 +1211,6 @@ def assemble(args):
     :return None: no return value specified; default is None
     """
 
-    print(title)
-
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
@@ -1228,6 +1226,8 @@ def assemble(args):
         logger = setup_logger(__name__, f'{basename}/{args.prefix}_hybpiper_assemble')
     else:
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
+
+    logger.info(title)
 
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
