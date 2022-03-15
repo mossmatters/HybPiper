@@ -1553,22 +1553,22 @@ def parse_arguments():
     :return argparse.Namespace arguments: arguments for the given command/subcommand
     """
 
-    tile = textwrap.dedent(
+    title = textwrap.dedent(
                             fr"""
                                  _    _            _       _____
                                 | |  | |          | |     |  _  \
                                 | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-                                |  __  | \ \  / / |  __ \ |  ___/ | | |  _  \ |  _  | |  _  \
-                                | |  | |  \ \/ /  | |__ | | |     | | | |_| | |  __/  | |
+                                |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
+                                | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
                                 |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
                                            / /                        | |
                                           /_/                         |_|
                             """
     )
 
-    print(tile)
+    # print(title)
 
-    parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
+    parser = argparse.ArgumentParser(prog='hybpiper', description=f'{title}\n{__doc__}',
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='To view parameters and help for a subcommand, use e.g. "assemble '
                                             '--help"')
