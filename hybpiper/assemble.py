@@ -1211,7 +1211,7 @@ def assemble(args):
     :return None: no return value specified; default is None
     """
 
-    logger.info(title)
+    print(title)
 
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
