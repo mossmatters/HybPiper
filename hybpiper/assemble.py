@@ -32,7 +32,7 @@ To view available parameters and help for any subcommand, simply type e.g. 'hybp
 The command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
-    python /<path_to>/reads_first.py -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+    python /<path_to>/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
 ...this is now replaced by the command:
 
