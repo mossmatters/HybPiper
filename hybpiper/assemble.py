@@ -48,7 +48,7 @@ is now incorporated in to the 'hybpiper assemble' command. It can be enabled usi
 ==> NOTE <==
 The command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
 the command 'hybpiper stats'. The sequence length details that were previously printed to screen are now written to
-the file 'seq_lengths.tsv', by default. Similarity, the stats details that were previously written to screen by
+the file 'seq_lengths.tsv', by default. Similarly, the stats details that were previously written to screen by
 'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv', by default.
 
 For full details of all commands and changes, please reads the Wiki page at **LINK** and the changelog at **LINK**.
