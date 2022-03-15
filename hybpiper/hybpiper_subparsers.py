@@ -4,6 +4,22 @@
 Contains argument subparsers
 """
 
+import textwrap
+
+title = textwrap.dedent(
+    fr"""
+     _    _            _       _____
+    | |  | |          | |     |  _  \
+    | |__| | __    __ | |___  | |_| |  _   _____   _____   _____
+    |  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
+    | |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |
+    |_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
+               / /                        | |
+              /_/                         |_|
+
+    """
+)
+
 
 def add_assemble_parser(subparsers):
     """
@@ -12,6 +28,8 @@ def add_assemble_parser(subparsers):
     :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
     :return None: no return value specified; default is None
     """
+
+    print(title)
 
     parser_assemble = subparsers.add_parser('assemble', help='Assemble gene, intron, and supercontig sequences')
     parser_assemble.add_argument('--readfiles', '-r', nargs='+',
