@@ -1204,8 +1204,6 @@ def assemble(args):
     else:
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
 
-    logger.info(title)
-
     logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
 
     ####################################################################################################################
