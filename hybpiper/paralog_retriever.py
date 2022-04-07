@@ -229,9 +229,16 @@ def standalone():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('namelist',
                         help='Text file containing list of HybPiper output directories, one per line.')
-    parser.add_argument('targetfile',
-                        help="FASTA file containing target sequences for each gene. Used to extract unique gene names "
-                             "for paralog recovery")
+
+    group_1 = parser.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+                         help='FASTA file containing DNA target sequences for each gene. Used to extract unique gene '
+                              'names for paralog recovery. If there are multiple targets for a gene, the id must be '
+                              'of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+                         help='FASTA file containing amino-acid target sequences for each gene. Used to extract '
+                              'unique gene names for paralog recovery. If there are multiple targets for a gene, '
+                              'the id must be of the form: >Taxon-geneName')
     parser.add_argument('--fasta_dir_all',
                         help='Specify directory for output FASTA files (ALL). Default is "paralogs_all".',
                         default='paralogs_all')
@@ -280,6 +287,8 @@ def standalone():
                         help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                         default='300')
 
+    parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
+
     args = parser.parse_args()
     main(args)
 
@@ -291,6 +300,12 @@ def main(args):
     :param argparse.Namespace args:
     """
 
+    # Set target file name:
+    if args.targetfile_dna:
+        targetfile = args.targetfile_dna
+    elif args.targetfile_aa:
+        targetfile = args.targetfile_aa
+
     # Make output directories:
     if not os.path.isdir(args.fasta_dir_all):
         os.mkdir(args.fasta_dir_all)
@@ -298,7 +313,7 @@ def main(args):
         os.mkdir(args.fasta_dir_no_chimeras)
 
     # Get a list of genes to recover, parsed from the target file:
-    target_genes = sorted(list(set([x.id.split('-')[-1] for x in SeqIO.parse(args.targetfile, 'fasta')])))
+    target_genes = sorted(list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')])))
 
     # Get a list of sample names:
     namelist = [x.rstrip() for x in open(args.namelist)]

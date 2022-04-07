@@ -34,7 +34,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
 
     :param str targetfile: path to the targetfile
     :param str namelist: path to the text file containing sample names
-    :param str targetfile_sequence_type: sequence type in the target file (aa or dna)
+    :param str targetfile_sequence_type: sequence type in the target file ('DNA' or 'protein')
     :param str sequence_type_to_calculate_stats_for: gene (in nucleotides) or supercontig (in nucleotides)
     :param str seq_lengths_filename: optional filename for seq_lengths file. Default is seq_lengths.tsv
     :return str seq_lengths_report_filename: path to the sequence length report file written by this function
@@ -64,7 +64,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
     for prot in SeqIO.parse(targetfile, "fasta"):
         protname = prot.id.split("-")[-1]
         gene_names.append(protname)
-        if targetfile_sequence_type.upper() == 'AA':
+        if targetfile_sequence_type.upper() == 'PROTEIN':
             reference_lengths[protname].append(len(prot.seq) * 3)  # covert from amino-acids to nucleotides
         elif targetfile_sequence_type.upper() == 'DNA':
             reference_lengths[protname].append(len(prot.seq))
@@ -265,12 +265,13 @@ def standalone():
     """
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("targetfile",
-                        help="FASTA file containing target sequences for each gene. If there are multiple targets for "
-                             "a gene, the id must be of the form: >Taxon-geneName")
-    parser.add_argument("targetfile_sequence_type",
-                        help="Sequence type (dna or aa) in the targetfile provided",
-                        choices=["dna", "DNA", "aa", "AA"])
+    group_1 = parser.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
     parser.add_argument("sequence_type",
                         help="Sequence type (gene or supercontig) to recover stats for",
                         choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
@@ -282,6 +283,9 @@ def standalone():
     parser.add_argument("--stats_filename",
                         help="File name for the stats *.tsv file. Default is <hybpiper_stats.tsv>",
                         default='hybpiper_stats')
+
+    parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
+
     args = parser.parse_args()
     main(args)
 
@@ -293,10 +297,18 @@ def main(args):
     :param argparse.Namespace args:
     """
 
+    # Set target file type and path:
+    if args.targetfile_dna:
+        targetfile = args.targetfile_dna
+        targetfile_type = 'DNA'
+    elif args.targetfile_aa:
+        targetfile = args.targetfile_aa
+        targetfile_type = 'protein'
+
     # Get sequence lengths for recovered genes, and write them to file:
-    seq_lengths_file_path = get_seq_lengths(args.targetfile,
+    seq_lengths_file_path = get_seq_lengths(targetfile,
                                             args.namelist,
-                                            args.targetfile_sequence_type,
+                                            targetfile_type,
                                             args.sequence_type,
                                             args.seq_lengths_filename)
 

@@ -39,20 +39,18 @@ def add_assemble_parser(subparsers):
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
                                       'will assume it is paired Illumina reads.',
                                  required=True)
-    parser_assemble.add_argument('--targetfile', '-t',
-                                 help='FASTA file containing target sequences for each gene. If there are multiple '
-                                      'targets for a gene, the id must be of the form: >Taxon-geneName',
-                                 required=True)
-    parser_assemble.add_argument('--targetfile_ambiguity_codes',
-                                 help='Allowed ambiguity codes; used when testing if the target file contains '
-                                      'nucleotide or amino-acid sequences. Provide as a string without spaces e.g. '
-                                      'VDB',
-                                 default=None)
-    group_1 = parser_assemble.add_mutually_exclusive_group()
-    group_1.add_argument('--bwa', dest='bwa', action='store_true',
+    group_1 = parser_assemble.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    group_2 = parser_assemble.add_mutually_exclusive_group()
+    group_2.add_argument('--bwa', dest='bwa', action='store_true',
                          help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
                               'nucleotides!', default=False)
-    group_1.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx.',
+    group_2.add_argument('--diamond', dest='diamond', action='store_true', help='Use DIAMOND instead of BLASTx.',
                          default=False)
     parser_assemble.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
                                                                    'very-sensitive', 'ultra-sensitive'],
@@ -150,7 +148,10 @@ def add_assemble_parser(subparsers):
                                  default=False)
 
     # Set defaults for subparser <parser_assemble>:
-    parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True, )
+    # parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True,
+    #                              targetfile_aa=False, t_aa=False, targetfile_dna=False, t_dna=False)
+    parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True,
+                                 targetfile_dna=False, targetfile_aa=False)
 
     return parser_assemble
 
@@ -164,11 +165,13 @@ def add_stats_parser(subparsers):
     """
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
-    parser_stats.add_argument('targetfile',
-                              help='FASTA file containing target sequences for each gene. If there are multiple '
-                                   'targets for a gene, the id must be of the form: >Taxon-geneName')
-    parser_stats.add_argument("targetfile_sequence_type", help="Sequence type (dna or aa) in the targetfile provided",
-                              choices=["dna", "DNA", "aa", "AA"])
+    group_1 = parser_stats.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
     parser_stats.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover lengths for",
                               choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
     parser_stats.add_argument('namelist', help="Text file with names of HybPiper output directories, one per line")
@@ -178,6 +181,9 @@ def add_stats_parser(subparsers):
     parser_stats.add_argument("--stats_filename",
                               help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
                               default='hybpiper_stats')
+
+    # Set defaults for subparser <parser_stats>:
+    parser_stats.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
     return parser_stats
 
@@ -192,7 +198,13 @@ def add_retrieve_sequences_parser(subparsers):
 
     parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
                                                                                  'multiple runs of HybPiper')
-    parser_retrieve_sequences.add_argument('targetfile', help="FASTA File containing target sequences")
+    group_1 = parser_retrieve_sequences.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
     parser_retrieve_sequences.add_argument('--sample_names',
                                            help='Directory containing Hybpiper output OR a file containing HybPiper '
                                                 'output names, one per line',
@@ -207,6 +219,10 @@ def add_retrieve_sequences_parser(subparsers):
     parser_retrieve_sequences.add_argument('--skip_chimeric_genes', action='store_true', dest='skip_chimeric',
                                            help='Do not recover sequences for putative chimeric genes',
                                            default=False)
+
+    # Set defaults for subparser <parser_retrieve_sequences>:
+    parser_retrieve_sequences.set_defaults(targetfile_dna=False, targetfile_aa=False)
+
     return parser_retrieve_sequences
 
 
@@ -223,9 +239,15 @@ def add_paralog_retriever_parser(subparsers):
     parser_paralog_retriever.add_argument('namelist',
                                           help='Text file containing list of HybPiper output directories, '
                                                'one per line.')
-    parser_paralog_retriever.add_argument('targetfile',
-                                          help="FASTA file containing target sequences for each gene. Used to extract "
-                                               "unique gene names for paralog recovery")
+    group_1 = parser_paralog_retriever.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+                         help='FASTA file containing DNA target sequences for each gene. Used to extract unique gene '
+                              'names for paralog recovery. If there are multiple targets for a gene, the id must be '
+                              'of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+                         help='FASTA file containing amino-acid target sequences for each gene. Used to extract '
+                              'unique gene names for paralog recovery. If there are multiple targets for a gene, '
+                              'the id must be of the form: >Taxon-geneName')
     parser_paralog_retriever.add_argument('--fasta_dir_all',
                                           help='Specify directory for output FASTA files (ALL). Default is '
                                                '"paralogs_all".',
@@ -276,6 +298,9 @@ def add_paralog_retriever_parser(subparsers):
     parser_paralog_retriever.add_argument('--heatmap_dpi', type=int,
                                           help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                                           default='300')
+
+    # Set defaults for subparser <parser_paralog_retriever>:
+    parser_paralog_retriever.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
     return parser_paralog_retriever
 
