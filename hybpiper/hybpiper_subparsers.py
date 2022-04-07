@@ -148,8 +148,6 @@ def add_assemble_parser(subparsers):
                                  default=False)
 
     # Set defaults for subparser <parser_assemble>:
-    # parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True,
-    #                              targetfile_aa=False, t_aa=False, targetfile_dna=False, t_dna=False)
     parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True,
                                  targetfile_dna=False, targetfile_aa=False)
 
