@@ -107,11 +107,11 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
         lines_for_report.append(f'{name}\t{lengths_to_write}')
 
     # Write report file "seq_lengths.tsv"
-    print(f'Writing a sequence length table to file {seq_lengths_filename}.tsv')
     seq_lengths_report_filename = f'{seq_lengths_filename}.tsv'
     with open(seq_lengths_report_filename, 'w') as seq_lengths_handle:
         for item in lines_for_report:
             seq_lengths_handle.write(f'{item}\n')
+    print(f'A sequence length table has been written to file: {seq_lengths_filename}.tsv')
 
     return seq_lengths_report_filename
 
@@ -421,10 +421,10 @@ def main(args):
         stats_dict_for_printing = '\t'.join(stats_dict[name])
         lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
 
-    print(f'Writing a statistics table to file {args.stats_filename}.tsv')
     with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
         for item in lines_for_stats_report:
             hybpiper_stats_handle.write(f'{item}\n')
+    print(f'A statistics table has been written to file: {args.stats_filename}.tsv')
 
 
 if __name__ == "__main__":
