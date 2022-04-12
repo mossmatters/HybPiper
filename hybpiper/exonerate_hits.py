@@ -484,7 +484,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
     :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
     :param int bbmap_memory: GB of RAM to use for bbmap.sh
     :param int bbmap_threads: number of threads to use for bbmap.sh
-    :param None, str interleaved_fasta_file: path the the file of interleaved R1 and R2 fasta seqs, if present
+    :param None, str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
     :param bool no_stitched_contig: if True, return the longest Exonerate hit only
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
@@ -492,7 +492,15 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
-    exonerate_hits_from_alignment = list(SearchIO.parse(exonerate_text_output, 'exonerate-text'))  # generator to list
+    # Note that the BioPython SearchIO module still has some bugs when Exonerate returns an alignment with directly
+    #  abutting introns, or an alignment that ends on an intron. Will submit bug-fixes, but in the meantime catch any
+    #  errors and move on:
+
+    try:
+        exonerate_hits_from_alignment = list(SearchIO.parse(exonerate_text_output, 'exonerate-text'))
+    except AttributeError as e:
+        logger.debug(f'Error parsing Exonerate results file for prefix {prefix}\nError is: {e} ')
+        return None
 
     logger.debug(f'no_stitched_contig is: {no_stitched_contig}')
 

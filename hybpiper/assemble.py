@@ -210,6 +210,19 @@ def py_which(executable_name, mode=os.F_OK | os.X_OK, path=None):
     return None
 
 
+def check_exonerate_version():
+    """
+    Returns the Exonerate version e.g. 2.4.0
+
+    :return str version: the Exonerate version number
+    """
+
+    exonerate_help = subprocess.run(['exonerate', '-h'], capture_output=True)
+    version = re.search(r'\bexonerate version [0-9][.][0-9].[0-9]\b', str(exonerate_help)).group(0)
+    version_number = version.split()[-1]
+    return version_number
+
+
 def check_dependencies(logger=None):
     """
     Checks for the presence of executables and Python packages. Returns a boolean.
@@ -242,9 +255,19 @@ def check_dependencies(logger=None):
                 print(f'{exe:20} found at {exe_loc}')
             else:
                 logger.info(f'{exe:20} found at {exe_loc}')
+            if exe == 'exonerate':
+                version = check_exonerate_version()
+                if version not in ['2.4.0']:
+                    everything_is_awesome = False
+                    if not logger:
+                        print(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update your '
+                              f'Exonerate version!\n')
+                    else:
+                        logger.info(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update '
+                                    f'your Exonerate version!\n')
         else:
             if not logger:
-                print(f'{exe:20} found at {exe_loc}')
+                print(f'{exe:20} not found in your $PATH!')
             else:
                 logger.info(f'{exe:20} not found in your $PATH!')
             everything_is_awesome = False
