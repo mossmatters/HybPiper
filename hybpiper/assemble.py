@@ -278,6 +278,17 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
+def low_complexity_check(targetfile, targetfile_type):
+    """
+
+    :param str targetfile: path to the targetfile
+    :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
+    :return:
+    """
+
+
+
+
 def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
@@ -288,11 +299,15 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     - If targetfile is DNA but using_bwa is False, translate the targetfile and return the path
 
     :param str targetfile: path to the targetfile
-    :param str targetfile_type: string describing target file sequene type i.e 'DNA' or 'protein'
+    :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
+
+    # Check target file for low-complexity sequences:
+    low_complexity_check(targetfile, targetfile_type)
+
 
     # Check target file fasta header formatting:
     logger.info(f'{"[NOTE]:":10} Checking target file FASTA header formatting...')

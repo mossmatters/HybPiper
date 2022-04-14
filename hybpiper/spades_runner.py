@@ -2,8 +2,7 @@
 
 """
 Run the assembler SPAdes with re-dos if any of the k-mers are unsuccessful.
-The re-runs are attempted by removing the largest k-mer and re-running spades. If a final
-contigs.fasta file is generated, a 'spades.ok' file is saved.
+The re-runs are attempted by removing the largest k-mer and re-running spades.
 """
 
 import argparse
