@@ -406,8 +406,10 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
         sys.exit(f'{"[ERROR]:":10} You have specified that your target file contains protein sequences but provided '
                  f'the flag --bwa. You need a nucleotide target file to use BWA for read mapping!')
     elif not using_bwa and targetfile_type == 'DNA':
-        logger.info(f'{"[WARNING]:":10} You have specified that your target file contains DNA sequences, but BLASTx or '
-                    f'DIAMOND has been selected for read mapping. Translating the target file...')
+        fill = textwrap.fill(f'{"[WARNING]:":10} You have specified that your target file contains DNA sequences, '
+                             f'but BLASTx or DIAMOND has been selected for read mapping. Translating the target '
+                             f'file...', width=90, subsequent_indent=' ' * 11)
+        logger.info(f'{fill}')
         translate_target_file = True
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
@@ -438,27 +440,32 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
         if seqs_with_stop_codons_dict:
             seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
                         in target_file_Sequence_list]
-            logger.info(f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that contain '
-                        f'unexpected stop codons when translated in the first forwards frame. \n{" " * 11}If your '
-                        f'target file contains only protein-coding sequences, please check these sequences. '
-                        f'\n{" " * 11}Sequence names can be found in the sample log file.\n')
+            fill = textwrap.fill(
+                f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that contain unexpected '
+                f'stop codons when translated in the first forwards frame. If your target file contains only '
+                f'protein-coding sequences, please check these sequences. Sequence names can be found in the sample '
+                f'log file.', width=90, subsequent_indent=' ' * 11)
+            logger.info(f'{fill}')
             logger.debug(f'Target file sequences with unexpected stop codons: {seq_list}')
 
         if seqs_needed_padding_dict:
             seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_needed_padding_dict.items() for seq
                         in target_file_Sequence_list]
-            logger.info(f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not '
-                        f'multiples of three. \n{" " * 11}If your target file contains only protein-coding sequences, '
-                        f'please check these sequences. \n{" " * 11}Sequence names can be found in the sample log '
-                        f'file.\n')
+            fill = textwrap.fill(
+                f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not multiples of '
+                f'three. If your target file contains only protein-coding sequences, please check these sequences. '
+                f'Sequence names can be found in the sample log file.', width=90, subsequent_indent=' ' * 11)
+            logger.info(f'{fill}')
             logger.debug(f'Target file sequences that are not multiples of three: {seq_list}')
 
         if translate_target_file:
             translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
-            logger.info(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}')
+            fill = textwrap.fill(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}',
+                                 width=90, subsequent_indent=' ' * 11, break_long_words=False)
+            logger.info(f'{fill}')
             with open(f'{translated_target_file}', 'w') as translated_handle:
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-            targetfile = translated_target_file # i.e. use translated file for entropy and return value
+            targetfile = translated_target_file  # i.e. use translated file for entropy and return value
 
     # Check target file for low-complexity sequences:
     low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file)
@@ -467,7 +474,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
                                f'sequences with low complexity regions. The sequence names have been written to the '
                                f'log file and are printed below. These sequences can cause problems when running '
                                f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
-                               subsequent_indent=" "*11)
+                               subsequent_indent=" " * 11)
 
         fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
                                f'contains other representative sequences for the corresponding genes, and restart the '
@@ -478,19 +485,20 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
                                width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
 
         logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-        logger.info(f'\nSequences with low complexity regions are:\n')
+        logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
 
         for sequence in low_complexity_sequences:
-            logger.info(f'{sequence}')
+            logger.info(f'{" " * 10} {sequence}')
 
         if allow_low_complexity_targetfile_sequences:
             fill = textwrap.fill(
-                f'The flag "--allow_low_complexity_targetfile_sequences" has been supplied: HybPiper will '
-                f'continue running with low-complexity target file sequences. WARNING: this can result in '
-                f'many low-complexity sample reads mapping to such target file sequences, causing very long '
-                f'SPAdes assembly times and very large log files (i.e. GigaBytes). We STRONGLY recommend using '
-                f'the "--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes '
-                f'assemblies for genes that are taking a comparatively long time.', width=90)
+                f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
+                f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
+                f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
+                f'assembly times and very large log files (i.e. GigaBytes). We STRONGLY recommend using the '
+                f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
+                f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
+                break_on_hyphens=False)
 
             logger.info(f'\n{fill}\n')
         else:
@@ -553,7 +561,8 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
                     shutil.copy(targetfile, '.')
             db_file = os.path.split(targetfile)[1]
             make_bwa_index_cmd = f'bwa index {db_file}'
-            logger.info(f'{"[CMD]:":10} {make_bwa_index_cmd}')
+            fill = textwrap.fill(f'{"[CMD]:":10} {make_bwa_index_cmd}', width=90, subsequent_indent=' ' * 11)
+            logger.info(f'{fill}')
 
             try:
                 result = subprocess.run(make_bwa_index_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -589,7 +598,8 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     else:
         bwa_commands.append(f'{basename}.bam')
     full_command = ' '.join(bwa_commands)
-    logger.info(f'{"[CMD]:":10} {full_command}')
+    fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11)
+    logger.info(f'{fill}')
 
     try:
         result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -692,7 +702,8 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         else:
             full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
                            f" {basename}_unpaired.blastx"
-        logger.info(f'{"[CMD]:":10} {full_command}')
+        fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11)
+        logger.info(f'{fill}')
 
         try:
             result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -736,7 +747,8 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
                                f"'{blastx_command}' >> {basename}.blastx"
 
-            logger.info(f'{"[CMD]:":10} {full_command}')
+            fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11)
+            logger.info(f'{fill}')
 
             try:
                 result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -1325,7 +1337,10 @@ def assemble(args):
     else:
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
 
-    logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:\n{" ".join(sys.argv)}\n')
+    logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:')
+    fill = textwrap.fill(' '.join(sys.argv), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
+                         break_on_hyphens=False)
+    logger.info(f'{fill}\n')
 
     ####################################################################################################################
     # Check dependencies

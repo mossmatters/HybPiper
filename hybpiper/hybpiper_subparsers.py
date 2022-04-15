@@ -5,6 +5,11 @@ Contains argument subparsers
 """
 
 import textwrap
+import logging
+
+
+# Create logger:
+logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
 
 title = textwrap.dedent(
     fr"""
@@ -23,7 +28,7 @@ title = textwrap.dedent(
     """
 )
 
-print(title)
+logger.info(title)
 
 
 def add_assemble_parser(subparsers):
