@@ -146,7 +146,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
             genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout,
             single_cell_mode=single_cell_mode)
-        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_with_merged}', width=90, subsequent_indent=' ' * 11)
+        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_with_merged}', width=90, subsequent_indent=' ' * 11,
+                             break_long_words=False, break_on_hyphens=False)
         logger.info(f'{fill}')
 
         try:
@@ -164,7 +165,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                         f'coverage.')
 
-        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_without_merged}', width=90, subsequent_indent=' ' * 11)
+        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_without_merged}', width=90, subsequent_indent=' ' * 11,
+                             break_long_words=False, break_on_hyphens=False)
         logger.info(f'{fill}')
         try:
             # result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
@@ -186,7 +188,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
         spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
                                      merged=merged, timeout=timeout, single_cell_mode=single_cell_mode)
 
-        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd}', width=90, subsequent_indent=' ' * 11)
+        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd}', width=90, subsequent_indent=' ' * 11,
+                             break_long_words=False, break_on_hyphens=False)
         logger.info(f'{fill}')
 
         try:
@@ -276,7 +279,8 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     else:
         redo_spades_cmd = 'parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
-    fill = textwrap.fill(f'{"[CMD]:":10} {redo_spades_cmd}', width=90, subsequent_indent=' ' * 11)
+    fill = textwrap.fill(f'{"[CMD]:":10} {redo_spades_cmd}', width=90, subsequent_indent=' ' * 11,
+                         break_long_words=False, break_on_hyphens=False)
     logger.info(f'{fill}')
 
     try:

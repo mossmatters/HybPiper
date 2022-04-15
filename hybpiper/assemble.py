@@ -561,7 +561,8 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
                     shutil.copy(targetfile, '.')
             db_file = os.path.split(targetfile)[1]
             make_bwa_index_cmd = f'bwa index {db_file}'
-            fill = textwrap.fill(f'{"[CMD]:":10} {make_bwa_index_cmd}', width=90, subsequent_indent=' ' * 11)
+            fill = textwrap.fill(f'{"[CMD]:":10} {make_bwa_index_cmd}', width=90, subsequent_indent=' ' * 11,
+                                 break_long_words=False, break_on_hyphens=False)
             logger.info(f'{fill}')
 
             try:
@@ -598,7 +599,8 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     else:
         bwa_commands.append(f'{basename}.bam')
     full_command = ' '.join(bwa_commands)
-    fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11)
+    fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+                         break_long_words=False, break_on_hyphens=False)
     logger.info(f'{fill}')
 
     try:
@@ -702,7 +704,8 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         else:
             full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
                            f" {basename}_unpaired.blastx"
-        fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11)
+        fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+                             break_long_words=False, break_on_hyphens=False)
         logger.info(f'{fill}')
 
         try:
@@ -747,7 +750,8 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
                                f"'{blastx_command}' >> {basename}.blastx"
 
-            fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11)
+            fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+                                 break_long_words=False, break_on_hyphens=False)
             logger.info(f'{fill}')
 
             try:
