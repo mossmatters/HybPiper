@@ -465,7 +465,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
         fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
                                f'sequences with low complexity regions. The sequence names have been written to the '
                                f'log file and are printed below. These sequences can cause problems when running '
-                               f'HybPiper, see wiki <link>. We recommend the following approaches:', width=90,
+                               f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
                                subsequent_indent=" "*11)
 
         fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
