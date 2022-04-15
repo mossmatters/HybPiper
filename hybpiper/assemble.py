@@ -405,7 +405,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
         sys.exit(f'{"[ERROR]:":10} You have specified that your target file contains protein sequences but provided '
                  f'the flag --bwa. You need a nucleotide target file to use BWA for read mapping!')
     elif not using_bwa and targetfile_type == 'DNA':
-        logger.info(f'{"[WARN!]:":10} You have specified that your target file contains DNA sequences, but BLASTx or '
+        logger.info(f'{"[WARNING]:":10} You have specified that your target file contains DNA sequences, but BLASTx or '
                     f'DIAMOND has been selected for read mapping. Translating the target file...')
         translate_target_file = True
 
@@ -437,7 +437,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
         if seqs_with_stop_codons_dict:
             seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_with_stop_codons_dict.items() for seq
                         in target_file_Sequence_list]
-            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your target file that contain '
+            logger.info(f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that contain '
                         f'unexpected stop codons when translated in the first forwards frame. \n{" " * 11}If your '
                         f'target file contains only protein-coding sequences, please check these sequences. '
                         f'\n{" " * 11}Sequence names can be found in the sample log file.\n')
@@ -446,7 +446,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
         if seqs_needed_padding_dict:
             seq_list = [seq.name for gene_name, target_file_Sequence_list in seqs_needed_padding_dict.items() for seq
                         in target_file_Sequence_list]
-            logger.info(f'{"[WARN!]:":10} There are {len(seq_list)} sequences in your target file that are not '
+            logger.info(f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not '
                         f'multiples of three. \n{" " * 11}If your target file contains only protein-coding sequences, '
                         f'please check these sequences. \n{" " * 11}Sequence names can be found in the sample log '
                         f'file.\n')
