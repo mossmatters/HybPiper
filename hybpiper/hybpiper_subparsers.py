@@ -55,6 +55,11 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--diamond_sensitivity', choices=['mid-sensitive', 'sensitive', 'more-sensitive',
                                                                    'very-sensitive', 'ultra-sensitive'],
                                  help='Use the provided sensitivity for DIAMOND searches.', default=False)
+    parser_assemble.add_argument('--allow_low_complexity_targetfile_sequences',
+                                 dest='allow_low_complexity_targetfile_sequences', action='store_true', default=False,
+                                 help='Allow the pipeline to run even if target file sequences with low complexity '
+                                      'regions have been detected. We recommend using the parameter "--timeout" in '
+                                      'these cases.')
     parser_assemble.add_argument('--no-blast', dest='blast', action='store_false',
                                  help='Do not run the BLASTx step. Downstream steps will still depend on the '
                                       '*_all.blastx file. \nUseful for re-running assembly/Exonerate steps with '

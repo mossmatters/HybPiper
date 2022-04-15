@@ -335,7 +335,7 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file):
     return low_entropy_seqs
 
 
-def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
+def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexity_targetfile_sequences, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
@@ -347,6 +347,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
+    :param bool allow_low_complexity_targetfile_sequences: if True, allow HybPiper to continue running
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
@@ -472,8 +473,9 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
                                f'contains other representative sequences for the corresponding genes, and restart the '
                                f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
 
-        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--timeout 200". See wiki <link> for details.',
-                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
 
         logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
         logger.info(f'\nSequences with low complexity regions are:\n')
@@ -481,7 +483,18 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
         for sequence in low_complexity_sequences:
             logger.info(f'{sequence}')
 
-        sys.exit(1)
+        if allow_low_complexity_targetfile_sequences:
+            fill = textwrap.fill(
+                f'The flag "--allow_low_complexity_targetfile_sequences" has been supplied: HybPiper will '
+                f'continue running with low-complexity target file sequences. WARNING: this can result in '
+                f'many low-complexity sample reads mapping to such target file sequences, causing very long '
+                f'SPAdes assembly times and very large log files (i.e. GigaBytes). We STRONGLY recommend using '
+                f'the "--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes '
+                f'assemblies for genes that are taking a comparatively long time.', width=90)
+
+            logger.info(f'\n{fill}\n')
+        else:
+            sys.exit(1)
 
     return targetfile
 
@@ -1377,7 +1390,11 @@ def assemble(args):
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return the path to translated file:
-    targetfile = check_targetfile(targetfile, targetfile_type, args.bwa, logger=logger)
+    targetfile = check_targetfile(targetfile,
+                                  targetfile_type,
+                                  args.bwa,
+                                  args.allow_low_complexity_targetfile_sequences,
+                                  logger=logger)
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
