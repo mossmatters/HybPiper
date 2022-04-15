@@ -327,7 +327,7 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file):
         for i in range(0, len(seq.seq) - (window_size - 1)):
             window_seq = str(seq.seq[i:i + window_size])
             window_shannon_entropy = shannon_entropy(window_seq)
-            print(window_seq, window_shannon_entropy)
+            # print(window_seq, window_shannon_entropy)
             if window_shannon_entropy <= entropy_value:
                 low_entropy_seqs.add(seq.name)
                 break
