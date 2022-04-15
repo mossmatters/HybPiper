@@ -28,8 +28,9 @@ title = textwrap.dedent(
     """
 )
 
-# logger.info(title)
-print(title)
+logger.info(title)
+# print(title)
+logger.info('LUCY BEAGLE!!!!')
 
 
 def add_assemble_parser(subparsers):
