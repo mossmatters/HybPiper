@@ -462,16 +462,25 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     # Check target file for low-complexity sequences:
     low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file)
     if low_complexity_sequences:
-        logger.info(
-            f'\n{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains sequences '
-            f'with low complexity regions. The sequences names have been written to the log file and are printed '
-            f'below.\nThese sequences can cause problems when running HybPiper, see wiki <link>. We recommend the '
-            f'following approaches:\n\n\t1)\tRemove these sequence from your target file, ensuring that your file '
-            f'still contains other representative sequences for the corresponding genes.\n\t2)\tRe-start the run '
-            f'using the flag "--timeout 200". See wiki <link> for details.')
+        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+                               f'sequences with low complexity regions. The sequence names have been written to the '
+                               f'log file and are printed below. These sequences can cause problems when running '
+                               f'HybPiper, see wiki <link>. We recommend the following approaches:', width=90,
+                               subsequent_indent=" "*11)
+
+        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
+                               f'contains other representative sequences for the corresponding genes, and restart the '
+                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+
+        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--timeout 200". See wiki <link> for details.',
+                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+
+        logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
         logger.info(f'\nSequences with low complexity regions are:\n')
+
         for sequence in low_complexity_sequences:
             logger.info(f'{sequence}')
+
         sys.exit(1)
 
     return targetfile
