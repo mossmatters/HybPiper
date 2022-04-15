@@ -217,6 +217,31 @@ def py_which(executable_name, mode=os.F_OK | os.X_OK, path=None):
     return None
 
 
+def fill_custom_sep(source_text, separator_char, width=90, **kwargs):
+    """
+
+    From: https://stackoverflow.com/questions/65027376/how-to-get-textwrap-in-python-to-break-on-underscores-or-arbitrary-characters-n
+
+    :param source_text:
+    :param separator_char:
+    :param width:
+    :param kwargs:
+    :return:
+    """
+    chunk_start_index = 0
+    replaced_with_hyphens = source_text.replace(separator_char, '-')
+    returned = ""
+    for chunk in textwrap.wrap(replaced_with_hyphens, width, **kwargs):
+        if len(returned):
+            returned += '\n'  # Todo: Modifiable
+        chunk_length = len(chunk)
+        if chunk[-1] == "-" and source_text[chunk_start_index + (chunk_length - 1)] == separator_char:
+            chunk = chunk[:-1] + separator_char
+        returned += chunk
+        chunk_start_index += chunk_length
+    return returned
+
+
 def check_exonerate_version():
     """
     Returns the Exonerate version e.g. 2.4.0
@@ -495,7 +520,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
                 f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
                 f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
                 f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
-                f'assembly times and very large log files (i.e. GigaBytes). We STRONGLY recommend using the '
+                f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
                 f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
                 f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
                 break_on_hyphens=False)
@@ -704,6 +729,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         else:
             full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
                            f" {basename}_unpaired.blastx"
+
         fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
                              break_long_words=False, break_on_hyphens=False)
         logger.info(f'{fill}')
@@ -750,8 +776,11 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
                                f"'{blastx_command}' >> {basename}.blastx"
 
-            fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                                 break_long_words=False, break_on_hyphens=False)
+            fill = fill_custom_sep(f'{"[CMD]:":10} {full_command}', '/', width=90, subsequent_indent=' ' * 11,
+                                   break_long_words=False, break_on_hyphens=True)
+
+            # fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+            #                      break_long_words=False, break_on_hyphens=False)
             logger.info(f'{fill}')
 
             try:
