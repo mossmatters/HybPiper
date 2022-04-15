@@ -1639,7 +1639,7 @@ def assemble(args):
             with open(warning_file, 'r') as warning_handle:
                 report_line = warning_handle.readline().split()[0]  # only recover gene name
                 long_paralogs_handle.write(f'{report_line}\n')
-    logger.info(f'{"[NOTE]:":10} WARNING: Potential long paralogs detected for {len(paralog_warnings_long)} genes!')
+    logger.info(f'{"[WARNING]:":10} Potential long paralogs detected for {len(paralog_warnings_long)} genes!')
 
     # Collate report for paralogs via SPAdes contig depth, and write warning to screen:
     paralog_warnings_short = [x for x in glob.glob(f'*/{basename}/paralog_warning_by_contig_depth.txt')]
@@ -1651,7 +1651,7 @@ def assemble(args):
                 if report_line.split()[-1] == 'True':
                     paralog_warnings_short_true += 1
                 depth_paralogs_handle.write(report_line)
-    logger.info(f'{"[NOTE]:":10} WARNING: Potential paralogs detected via contig depth for'
+    logger.info(f'{"[WARNING]:":10} Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
 
     logger.info(f'\nFinished running "hybpiper assemble" for sample {basename}!\n')

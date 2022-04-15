@@ -28,7 +28,8 @@ title = textwrap.dedent(
     """
 )
 
-logger.info(title)
+# logger.info(title)
+print(title)
 
 
 def add_assemble_parser(subparsers):

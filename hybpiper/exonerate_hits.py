@@ -173,7 +173,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
     if contigs_with_more_than_one_exonerate_hit:
         if set(contigs_with_more_than_one_exonerate_hit) != set_of_consecutive_spades_contigs:
-            logger.info(f'\n{"[WARN!]:":10} There is more than one Exonerate hit for at least one SPAdes contig for '
+            logger.info(f'\n{"[WARNING]:":10} There is more than one Exonerate hit for at least one SPAdes contig for '
                         f'gene {gene_name}, sample {sample_name}, but these do NOT appear consecutively with respect '
                         f'to the protein query. CHECK THIS! Intron and supercontig sequences will not be recovered.')
             return
@@ -187,7 +187,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         hit_strands = [exonerate_dict['hit_strand'] for exonerate_dict in exonerate_dicts]
         logger.debug(f'hit_strands for {spades_contig} are: {hit_strands}')
         if len(set(hit_strands)) != 1:
-            logger.info(f'\n{"[WARN!]:":10} There is more than one Exonerate hit for {spades_contig} for gene'
+            logger.info(f'\n{"[WARNING]:":10} There is more than one Exonerate hit for {spades_contig} for gene'
                         f' {gene_name}, sample {sample_name}, but these do NOT appear on the same strand. CHECK THIS! '
                         f'Intron and supercontig sequences will not be recovered.')
             return

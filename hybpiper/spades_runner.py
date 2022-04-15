@@ -162,7 +162,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd with merged FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd with merged stdout is: {exc.stdout}')
             # logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
-            logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
+            logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
+                        f'low '
                         f'coverage.')
 
         fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_without_merged}', width=90, subsequent_indent=' ' * 11,
@@ -181,7 +182,8 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd without merged FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd without merged stdout is: {exc.stdout}')
             # logger.debug(f'spades_cmd without merged stderr is: {exc.stderr}')
-            logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
+            logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
+                        f'low '
                         f'coverage.')
 
     else:
@@ -205,7 +207,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd FAILED. Output is: {exc}')
             logger.debug(f'spades_cmd stdout is: {exc.stdout}')
             # logger.debug(f'spades_cmd stderr is: {exc.stderr}')
-            logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
+            logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
                         f'low coverage.')
 
     spades_successful = []
@@ -225,7 +227,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
         if gene_failed:
             spades_failed.append(gene)
-    logger.info(f'{"[WARN!]:":10} Total number of genes with failed initial SPAdes run: {len(spades_failed)}. Gene '
+    logger.info(f'{"[WARNING]:":10} Total number of genes with failed initial SPAdes run: {len(spades_failed)}. Gene '
                 f'names can be found in the sample log file.')
     logger.debug(f'{" ".join(spades_failed)}\n')  # Write a list of genes with failed SPAdes initial runs
     return spades_failed
@@ -270,7 +272,8 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
                      f'/{gene}_spades'
         redo_cmds_file.write(spades_cmd + "\n")
 
-    logger.info(f'{"[WARN!]:":10} In initial assemblies all Kmers failed for {len(spades_duds)} genes; these will not '
+    logger.info(f'{"[WARNING]:":10} In initial assemblies all Kmers failed for {len(spades_duds)} genes; these will '
+                f'not '
                 f'be re-run')
 
     redo_cmds_file.close()
@@ -295,7 +298,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         logger.debug(f'redo_spades_cmd FAILED. Output is: {exc}')
         logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
         # logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
-        logger.info(f'{"[WARN!]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
+        logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                     f'coverage.')
 
     # Check whether SPAdes re-runs were successful:
@@ -312,7 +315,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
 
         if gene_failed:
             spades_duds.append(gene)
-    logger.info(f'{"[WARN!]:":10} Total number of genes with failed SPAdes re-runs: {len(spades_duds)}. Gene names '
+    logger.info(f'{"[WARNING]:":10} Total number of genes with failed SPAdes re-runs: {len(spades_duds)}. Gene names '
                 f'can be found in the sample log file.')
     logger.debug(f'{" ".join(spades_duds)}\n')  # Write a list of genes with failed SPAdes re-runs
     with open('spades_duds.txt', 'w') as spades_duds_file:
