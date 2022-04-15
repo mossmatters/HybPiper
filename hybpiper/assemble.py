@@ -63,8 +63,9 @@ import datetime
 from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing
 from multiprocessing import Manager
-from concurrent.futures import wait, as_completed
+from concurrent.futures import wait, as_completed, TimeoutError
 import pkg_resources
+import collections
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -84,16 +85,22 @@ try:
     import seaborn
 except ImportError:
     unsuccessful_imports.append('seaborn')
-
 try:
     import matplotlib
 except ImportError:
     unsuccessful_imports.append('matplotlib')
-
 try:
     import pandas
 except ImportError:
     unsuccessful_imports.append('pandas')
+try:
+    import pebble
+except ImportError:
+    unsuccessful_imports.append('pebble')
+try:
+    import scipy
+except ImportError:
+    unsuccessful_imports.append('scipy')
 
 if unsuccessful_imports:
     package_list = '\n'.join(unsuccessful_imports)
@@ -278,15 +285,54 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
-def low_complexity_check(targetfile, targetfile_type):
+def shannon_entropy(fasta_seq):
     """
+    Calculate Shannon entropy for a given string.
+
+    :param fasta_seq: a string of characters (e.g. DNA or amino-acid sequence).
+    :return: shannon entropy value (float) for the given string.
+    """
+
+    characters = collections.Counter([tmp_character for tmp_character in fasta_seq])
+    # e.g. Counter({'A': 4, 'T': 4, 'G': 1,'C': 1})
+    dist = [x / sum(characters.values()) for x in characters.values()]  # e.g. [0.4, 0.4, 0.1, 0.1]
+
+    # use scipy to calculate entropy
+    entropy_value = scipy.stats.entropy(dist, base=2)
+    return entropy_value
+
+
+def low_complexity_check(targetfile, targetfile_type, translate_target_file):
+    """
+    For each sequence in a fasta file, recover the sequence string of a sliding window and calculate the Shannon
+    entropy value for it. If it is below a threshold, flag the entire sequence as low entropy and add it to a set.
+    Entropy will be calculated from protein sequences if a nucleotide target file has been translated for BLASTx or
+    DIAMOND. Returns the set of sequence names.
 
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
-    :return:
+    :param bool translate_target_file: True is a nucleotide target file has been translated for BLASTx orDIAMOND
+    :return set low_entropy_seqs: a set of sequences that contain low entropy substrings
     """
 
+    if targetfile_type == 'DNA' and not translate_target_file:
+        entropy_value = 1.5
+        window_size = 100
+    elif targetfile_type == 'protein' or targetfile_type == 'DNA' and translate_target_file:
+        entropy_value = 3.0
+        window_size = 50
 
+    low_entropy_seqs = set()
+    for seq in SeqIO.parse(targetfile, "fasta"):
+        for i in range(0, len(seq.seq) - (window_size - 1)):
+            window_seq = str(seq.seq[i:i + window_size])
+            window_shannon_entropy = shannon_entropy(window_seq)
+            print(window_seq, window_shannon_entropy)
+            if window_shannon_entropy <= entropy_value:
+                low_entropy_seqs.add(seq.name)
+                break
+
+    return low_entropy_seqs
 
 
 def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
@@ -304,10 +350,6 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
-
-    # Check target file for low-complexity sequences:
-    low_complexity_check(targetfile, targetfile_type)
-
 
     # Check target file fasta header formatting:
     logger.info(f'{"[NOTE]:":10} Checking target file FASTA header formatting...')
@@ -368,7 +410,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
         translate_target_file = True
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
-    if using_bwa or translate_target_file:
+    if using_bwa or translate_target_file:  # i.e. it's not a protein file
         translated_seqs_to_write = []
 
         seqs_needed_padding_dict = defaultdict(list)
@@ -415,7 +457,22 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
             logger.info(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}')
             with open(f'{translated_target_file}', 'w') as translated_handle:
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-            return translated_target_file
+            targetfile = translated_target_file # i.e. use translated file for entropy and return value
+
+    # Check target file for low-complexity sequences:
+    low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file)
+    if low_complexity_sequences:
+        logger.info(
+            f'\n{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains sequences '
+            f'with low complexity regions. The sequences names have been written to the log file and are printed '
+            f'below.\nThese sequences can cause problems when running HybPiper, see wiki <link>. We recommend the '
+            f'following approaches:\n\n\t1)\tRemove these sequence from your target file, ensuring that your file '
+            f'still contains other representative sequences for the corresponding genes.\n\t2)\tRe-start the run '
+            f'using the flag "--timeout 200". See wiki <link> for details.')
+        logger.info(f'\nSequences with low complexity regions are:\n')
+        for sequence in low_complexity_sequences:
+            logger.info(f'{sequence}')
+        sys.exit(1)
 
     return targetfile
 
@@ -880,17 +937,24 @@ def done_callback(future_returned):
     :return: None if future cancelled or error, future_returned.result() as result if successful
     """
 
-    if future_returned.cancelled():
-        print(f'{future_returned}: cancelled')
-        return future_returned.result()
-    elif future_returned.done():
-        error = future_returned.exception()  # returns None if no error raised
-        if error:
-            print(f'{future_returned}: error returned: {error}')
-            return future_returned.result()
-        else:
-            result = future_returned.result()
-            return result
+    try:
+        result = future_returned.result()  # blocks until results are ready
+    except TimeoutError as error:
+        print("Function took longer than %d seconds" % error.args[1])
+    except Exception as error:
+        print(f'Function raised {error}')
+        print(f'error.traceback is: {error.traceback}')  # traceback of the function
+
+    # if future_returned.cancelled():
+    #     print(f'{future_returned}: cancelled')
+    #     return future_returned.result()
+    # elif future_returned.done():
+    #     error = future_returned.exception()  # returns None if no error raised
+    #     if error:
+    #         print(f'{future_returned}: error returned: {error}')
+    #         return future_returned.result()
+    #     else:
+    #         return future_returned.result()
 
 
 def exonerate(gene_name,
@@ -1067,7 +1131,8 @@ def exonerate_multiprocessing(genes,
                               logger=None,
                               intronerate=False,
                               no_padding_supercontigs=False,
-                              keep_intermediate_files=False):
+                              keep_intermediate_files=False,
+                              timeout=None):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -1089,6 +1154,7 @@ def exonerate_multiprocessing(genes,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
+    :param int timeout: number of second for pebble.ProcessPool pool.schedule timeout
     :return:
     """
 
@@ -1100,31 +1166,31 @@ def exonerate_multiprocessing(genes,
         pool_threads = multiprocessing.cpu_count()
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
-    with ProcessPoolExecutor(max_workers=pool_threads) as pool:
+    with pebble.ProcessPool(max_workers=pool_threads) as pool:
         manager = Manager()
         lock = manager.Lock()
         counter = manager.Value('i', 0)
-        future_results = [pool.submit(exonerate,
-                                      gene_name,
-                                      basename,
-                                      thresh=thresh,
-                                      paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
-                                      depth_multiplier=depth_multiplier,
-                                      no_stitched_contig=no_stitched_contig,
-                                      bbmap_memory=bbmap_memory,
-                                      bbmap_subfilter=bbmap_subfilter,
-                                      bbmap_threads=bbmap_threads,
-                                      chimeric_stitched_contig_edit_distance=chimeric_stitched_contig_edit_distance,
-                                      chimeric_stitched_contig_discordant_reads_cutoff=
-                                      chimeric_stitched_contig_discordant_reads_cutoff,
-                                      worker_configurer_func=worker_configurer,
-                                      counter=counter,
-                                      lock=lock,
-                                      genes_to_process=genes_to_process,
-                                      intronerate=intronerate,
-                                      no_padding_supercontigs=no_padding_supercontigs,
-                                      keep_intermediate_files=keep_intermediate_files)
-                          for gene_name in genes]
+        kwargs_for_schedule = {"thresh": thresh,
+                               "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
+                               "depth_multiplier": depth_multiplier,
+                               "no_stitched_contig": no_stitched_contig,
+                               "bbmap_memory": bbmap_memory,
+                               "bbmap_subfilter": bbmap_subfilter,
+                               "bbmap_threads": bbmap_threads,
+                               "chimeric_stitched_contig_edit_distance": chimeric_stitched_contig_edit_distance,
+                               "chimeric_stitched_contig_discordant_reads_cutoff":
+                                   chimeric_stitched_contig_discordant_reads_cutoff,
+                               "worker_configurer_func": worker_configurer,
+                               "counter": counter,
+                               "lock": lock,
+                               "genes_to_process": genes_to_process,
+                               "intronerate": intronerate,
+                               "no_padding_supercontigs": no_padding_supercontigs,
+                               "keep_intermediate_files": keep_intermediate_files}
+
+        future_results = [pool.schedule(exonerate, args=[gene_name, basename], kwargs=kwargs_for_schedule,
+                                        timeout=timeout) for gene_name in genes]
+
         for future in future_results:
             future.add_done_callback(done_callback)
 
@@ -1142,11 +1208,62 @@ def exonerate_multiprocessing(genes,
                             logger.debug(line.strip())  # log contents to main logger
                     if not keep_intermediate_files:
                         os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
-            except:  # FIXME make this more specific
-                logger.info(f'result is {future.result()}')
+            # except:  # FIXME make this more specific
+            except TimeoutError:
+                logger.info(f'Process timeout - exonerate() took more than <timeout> seconds to complete and was '
+                            f'cancelled')
+            except:
                 raise
 
         wait(future_results, return_when="ALL_COMPLETED")
+
+    # with ProcessPoolExecutor(max_workers=pool_threads) as pool:
+    #     manager = Manager()
+    #     lock = manager.Lock()
+    #     counter = manager.Value('i', 0)
+    #     future_results = [pool.submit(exonerate,
+    #                                   gene_name,
+    #                                   basename,
+    #                                   thresh=thresh,
+    #                                   paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
+    #                                   depth_multiplier=depth_multiplier,
+    #                                   no_stitched_contig=no_stitched_contig,
+    #                                   bbmap_memory=bbmap_memory,
+    #                                   bbmap_subfilter=bbmap_subfilter,
+    #                                   bbmap_threads=bbmap_threads,
+    #                                   chimeric_stitched_contig_edit_distance=chimeric_stitched_contig_edit_distance,
+    #                                   chimeric_stitched_contig_discordant_reads_cutoff=
+    #                                   chimeric_stitched_contig_discordant_reads_cutoff,
+    #                                   worker_configurer_func=worker_configurer,
+    #                                   counter=counter,
+    #                                   lock=lock,
+    #                                   genes_to_process=genes_to_process,
+    #                                   intronerate=intronerate,
+    #                                   no_padding_supercontigs=no_padding_supercontigs,
+    #                                   keep_intermediate_files=keep_intermediate_files)
+    #                       for gene_name in genes]
+    #     for future in future_results:
+    #         future.add_done_callback(done_callback)
+    #
+    #     # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
+    #     for future in as_completed(future_results):
+    #         try:
+    #             gene_name, prot_length = future.result()
+    #             if gene_name:  # i.e. log the Exonerate run regardless of success
+    #                 gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+    #                 gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+    #                 gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+    #                 with open(gene_log_file_to_cat) as gene_log_handle:
+    #                     lines = gene_log_handle.readlines()
+    #                     for line in lines:
+    #                         logger.debug(line.strip())  # log contents to main logger
+    #                 if not keep_intermediate_files:
+    #                     os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
+    #         except:  # FIXME make this more specific
+    #             logger.info(f'result is {future.result()}')
+    #             raise
+    #
+    #     wait(future_results, return_when="ALL_COMPLETED")
 
         # Write the 'gene_name', 'prot_length' strings returned by each process to file:
         with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
@@ -1155,6 +1272,8 @@ def exonerate_multiprocessing(genes,
                     gene_name, prot_length = future.result()
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+                except TimeoutError:
+                    logger.info(f'Process timeout')
                 except ValueError:
                     logger.info(f'result is {future.result()}')
                     raise
