@@ -18,8 +18,6 @@ import textwrap
 # Create logger:
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
 
-logger.info('SAMUEL  BEAGLE!!!!')
-print('SAMUEL  BEAGLE!!!!')
 
 def file_exists_and_not_empty(file_name):
     """

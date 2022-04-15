@@ -6,6 +6,7 @@ Contains argument subparsers
 
 import textwrap
 import logging
+import sys
 
 
 # Create logger:
@@ -28,9 +29,9 @@ title = textwrap.dedent(
     """
 )
 
-logger.info(title)
-# print(title)
-logger.info('LUCY BEAGLE!!!!')
+
+sys.stderr.write(title)
+sys.stderr.flush()
 
 
 def add_assemble_parser(subparsers):
