@@ -226,6 +226,8 @@ def standalone():
                         dest='skip_chimeric',
                         help='Do not recover sequences for putative chimeric genes',
                         default=False)
+    parser.add_argument('--stats_file', help='Stats file produced by "hybpiper stats", required for selective '
+                                             'filtering of retrieved sequences ')
 
     parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
 

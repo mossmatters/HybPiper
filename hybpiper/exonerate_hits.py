@@ -29,18 +29,7 @@ from collections import Counter
 from operator import itemgetter
 import copy
 import itertools
-import pickle  # for debugging only
-
-
-def file_exists_and_not_empty(file_name):
-    """
-    Check if file exists and is not empty by confirming that its size is not 0 bytes. Returns a boolean.
-
-    :param str file_name: path to filename to check
-    :return bool: True if path is a file and is not size zero
-    """
-
-    return os.path.isfile(file_name) and not os.path.getsize(file_name) == 0
+from hybpiper import utils
 
 
 def initial_exonerate(proteinfilename, assemblyfilename, prefix):
@@ -87,7 +76,8 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         logger.debug(f'Exonerate with "--refine" stdout is: {exc.stdout}')
         logger.debug(f'Exonerate with "--refine" stderr is: {exc.stderr}')
 
-    if file_exists_and_not_empty(outputfilename):  # Exonerate with --refine can fail (empty output file) with no error
+    if utils.file_exists_and_not_empty(outputfilename):  # Exonerate with --refine can fail (empty output file) with no
+        # error
         logger.debug('Exonerate ran with --refine')
         return outputfilename
 
@@ -105,7 +95,8 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
             logger.debug(f'Exonerate without "--refine" stdout is: {exc.stdout}')
             logger.debug(f'Exonerate without "--refine" stderr is: {exc.stderr}')
 
-    if file_exists_and_not_empty(outputfilename):  # Exonerate without --refine can fail (emtpy file) with no error
+    if utils.file_exists_and_not_empty(outputfilename):  # Exonerate without --refine can fail (emtpy file) with no
+        # error
         logger.debug('Exonerate ran without --refine')
         return outputfilename
     else:
@@ -378,7 +369,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         logger.debug(f'Exonerate with "--refine" stderr is: {exc.stderr}')
 
     # Exonerate with --refine can fail (empty output file) with no error
-    if file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
+    if utils.file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
         logger.debug('Exonerate run for Intronerate ran with --refine')
     else:
         exonerate_command = f'exonerate -m protein2genome -q {intronerate_query_stripped} -t ' \
@@ -398,7 +389,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
             logger.debug(f'Exonerate without "--refine" stderr is: {exc.stderr}')
 
     # Exonerate without --refine can fail (emtpy file) with no error
-    if file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
+    if utils.file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
         logger.debug('Exonerate ran without --refine')
     else:
         logger.debug(f'Exonerate within intronerate() FAILED - skipping Intronerate for gene {gene_name}.')

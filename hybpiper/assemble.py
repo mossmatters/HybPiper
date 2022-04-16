@@ -125,6 +125,7 @@ from hybpiper import retrieve_sequences
 from hybpiper import paralog_retriever
 from hybpiper import gene_recovery_heatmap
 from hybpiper import hybpiper_subparsers
+from hybpiper import utils
 
 
 ########################################################################################################################
@@ -174,74 +175,6 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     return logger_object
 
 
-def py_which(executable_name, mode=os.F_OK | os.X_OK, path=None):
-    """
-    Given an executable_name, mode, and a PATH string, return the path which conforms to the given mode on the PATH,
-    or None if there is no such file. `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
-    of os.environ.get("PATH"), or can be overridden with a custom search path.
-
-    :param str executable_name: executable name to search for
-    :param int mode: bitwise OR of integers from os.F_OK (existence of path) and os.X_OK (executable) access checks
-    :param str path: None, or contents of $PATH variable (as recovered in function body)
-    :return None or path of executable
-    """
-
-    # Check that a given file can be accessed with the correct mode. Additionally, check that `file` is not a
-    # directory, as on Windows directories pass the os.access check.
-    def _access_check(fn, mode):
-        return (os.path.exists(fn) and os.access(fn, mode)
-                and not os.path.isdir(fn))
-
-    # If we're given a path with a directory part, look it up directly rather than referring to PATH directories.
-    # This includes checking relative to the current directory, e.g. ./script
-    if os.path.dirname(executable_name):
-        if _access_check(executable_name, mode):
-            return executable_name
-        return None
-
-    if path is None:
-        path = os.environ.get('PATH', os.defpath)
-    if not path:
-        return None
-
-    path = path.split(os.pathsep)
-    checked_directories = set()
-
-    for directory in path:
-        if directory not in checked_directories:  # only check each directory once
-            checked_directories.add(directory)
-            name = os.path.join(directory, executable_name)
-            if _access_check(name, mode):
-                return name
-
-    return None
-
-
-def fill_custom_sep(source_text, separator_char, width=90, **kwargs):
-    """
-
-    From: https://stackoverflow.com/questions/65027376/how-to-get-textwrap-in-python-to-break-on-underscores-or-arbitrary-characters-n
-
-    :param source_text:
-    :param separator_char:
-    :param width:
-    :param kwargs:
-    :return:
-    """
-    chunk_start_index = 0
-    replaced_with_hyphens = source_text.replace(separator_char, '-')
-    returned = ""
-    for chunk in textwrap.wrap(replaced_with_hyphens, width, **kwargs):
-        if len(returned):
-            returned += '\n'  # Todo: Modifiable
-        chunk_length = len(chunk)
-        if chunk[-1] == "-" and source_text[chunk_start_index + (chunk_length - 1)] == separator_char:
-            chunk = chunk[:-1] + separator_char
-        returned += chunk
-        chunk_start_index += chunk_length
-    return returned
-
-
 def check_exonerate_version():
     """
     Returns the Exonerate version e.g. 2.4.0
@@ -281,7 +214,7 @@ def check_dependencies(logger=None):
 
     everything_is_awesome = True
     for exe in executables:
-        exe_loc = py_which(exe)
+        exe_loc = utils.py_which(exe)
         if exe_loc:
             if not logger:
                 print(f'{exe:20} found at {exe_loc}')
@@ -485,9 +418,11 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
 
         if translate_target_file:
             translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
-            fill = textwrap.fill(f'{"[NOTE]:":10} Writing a translated target file to: {translated_target_file}',
-                                 width=90, subsequent_indent=' ' * 11, break_long_words=False)
+            fill = utils.fill_forward_slash(f'{"[NOTE]:":10} Writing a translated target file to:'
+                                            f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
+                                            break_long_words=False, break_on_forward_slash=True)
             logger.info(f'{fill}')
+
             with open(f'{translated_target_file}', 'w') as translated_handle:
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
@@ -684,7 +619,11 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
             else:
                 makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-            logger.info(f'{"[NOTE]:":10} {makeblastdb_cmd}')
+
+            fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
+                                 break_long_words=False, break_on_hyphens=False)
+            logger.info(f'{fill}')
+
             try:
                 result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                         universal_newlines=True)
@@ -730,8 +669,8 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
                            f" {basename}_unpaired.blastx"
 
-        fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                             break_long_words=False, break_on_hyphens=False)
+        fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+                                        break_long_words=False, break_on_forward_slash=True)
         logger.info(f'{fill}')
 
         try:
@@ -776,11 +715,8 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
                                f"'{blastx_command}' >> {basename}.blastx"
 
-            fill = fill_custom_sep(f'{"[CMD]:":10} {full_command}', '/', width=90, subsequent_indent=' ' * 11,
-                                   break_long_words=False, break_on_hyphens=True)
-
-            # fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-            #                      break_long_words=False, break_on_hyphens=False)
+            fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+                                            break_long_words=False, break_on_forward_slash=True)
             logger.info(f'{fill}')
 
             try:

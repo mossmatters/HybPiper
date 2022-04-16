@@ -13,21 +13,11 @@ import subprocess
 import re
 import logging
 import textwrap
+from hybpiper import utils
 
 
 # Create logger:
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
-
-
-def file_exists_and_not_empty(file_name):
-    """
-    Check if file exists and is not empty by confirming that its size is not 0 bytes. Returns a boolean.
-
-    :param str file_name: path to filename to check
-    :return: bool
-    """
-
-    return os.path.isfile(file_name) and not os.path.getsize(file_name) == 0
 
 
 def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
@@ -85,13 +75,13 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
             contents = gene_file.readlines()
         genelist_list = [gene.strip() for gene in contents]
 
-        genes_with_merged_reads = [gene for gene in genelist_list if file_exists_and_not_empty(
+        genes_with_merged_reads = [gene for gene in genelist_list if utils.file_exists_and_not_empty(
             f'{gene}/{gene}_merged.fastq')]
         with open(f'spades_genelist_with_merged.txt', 'w') as with_merged:
             for gene in genes_with_merged_reads:
                 with_merged.write(f'{gene}\n')
 
-        genes_without_merged_reads = [gene for gene in genelist_list if not file_exists_and_not_empty(
+        genes_without_merged_reads = [gene for gene in genelist_list if not utils.file_exists_and_not_empty(
             f'{gene}/{gene}_merged.fastq')]
         with open(f'spades_genelist_without_merged.txt', 'w') as without_merged:
             for gene in genes_without_merged_reads:
