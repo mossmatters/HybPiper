@@ -347,7 +347,6 @@ def main(args):
     for threshold in thresholds_to_filter:
         try:
             threshold_is_float = float(threshold)
-            # print(f'threshold_is_float: {threshold_is_float}')
         except ValueError:
             sys.exit(f'Please provide only integers or floats as threshold values. You have provided: {threshold}')
 
