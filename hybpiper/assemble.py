@@ -129,6 +129,7 @@ from hybpiper import paralog_retriever
 from hybpiper import gene_recovery_heatmap
 from hybpiper import hybpiper_subparsers
 from hybpiper import utils
+from hybpiper.utils import log_or_print
 
 
 ########################################################################################################################
@@ -210,39 +211,26 @@ def check_dependencies(logger=None):
                    'bbmerge.sh',
                    'diamond']
 
-    if not logger:
-        print(f'{"[INFO]:":10} Checking for external dependencies:\n')
-    else:
-        logger.info(f'{"[INFO]:":10} Checking for external dependencies:\n')
+    log_or_print(f'{"[INFO]:":10} Checking for external dependencies:\n', logger=logger)
 
     everything_is_awesome = True
     for exe in executables:
         exe_loc = utils.py_which(exe)
         if exe_loc:
-            if not logger:
-                print(f'{exe:20} found at {exe_loc}')
-            else:
-                logger.info(f'{exe:20} found at {exe_loc}')
+            log_or_print(f'{exe:20} found at {exe_loc}', logger=logger)
             if exe == 'exonerate':
                 version = check_exonerate_version()
                 if version not in ['2.4.0']:
                     everything_is_awesome = False
-                    if not logger:
-                        print(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update your '
-                              f'Exonerate version!\n')
-                    else:
-                        logger.info(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update '
-                                    f'your Exonerate version!\n')
+
+                    log_or_print(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update '
+                                 f'your Exonerate version!\n', logger=logger)
         else:
-            if not logger:
-                print(f'{exe:20} not found in your $PATH!')
-            else:
-                logger.info(f'{exe:20} not found in your $PATH!')
+            log_or_print(f'{exe:20} not found in your $PATH!', logger=logger)
             everything_is_awesome = False
-    if not logger:
-        print('')
-    else:
-        logger.info('')
+
+    log_or_print('', logger=logger)
+
     return everything_is_awesome
 
 
@@ -287,20 +275,19 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
         entropy_value = entropy_value if entropy_value else 3.0
         window_size = window_size if window_size else 50
 
-    if not logger:
-        fill_1 = textwrap.fill(f'{"[INFO]:":10} Running check for sequences with low-complexity regions.', width=90,
-                               subsequent_indent=" " * 11)
-        fill_2 = textwrap.fill(f'{"[INFO]:":10} Type of sequences: {targetfile_type}', width=90,
-                               subsequent_indent=" " * 11)
-        fill_3 = textwrap.fill(f'{"[INFO]:":10} Sliding window size: {window_size}', width=90,
-                               subsequent_indent=" " * 11)
-        fill_4 = textwrap.fill(f'{"[INFO]:":10} Minimum complexity threshold: {entropy_value}', width=90,
-                               subsequent_indent=" " * 11)
+    fill_1 = textwrap.fill(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...',
+                           width=90, subsequent_indent=" " * 11)
+    fill_2 = textwrap.fill(f'{"[INFO]:":10} Type of sequences: {targetfile_type}', width=90,
+                           subsequent_indent=" " * 11)
+    fill_3 = textwrap.fill(f'{"[INFO]:":10} Sliding window size: {window_size}', width=90,
+                           subsequent_indent=" " * 11)
+    fill_4 = textwrap.fill(f'{"[INFO]:":10} Minimum complexity threshold: {entropy_value}', width=90,
+                           subsequent_indent=" " * 11)
 
-        print(fill_1)
-        print(fill_2)
-        print(fill_3)
-        print(fill_4)
+    log_or_print(fill_1, logger=logger)
+    log_or_print(fill_2, logger=logger)
+    log_or_print(fill_3, logger=logger)
+    log_or_print(fill_4, logger=logger)
 
     low_entropy_seqs = set()
     for seq in SeqIO.parse(targetfile, "fasta"):
@@ -449,43 +436,43 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
 
-    # # Check target file for low-complexity sequences:
+    # Check target file for low-complexity sequences:
     # logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
-    # low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
-    # if low_complexity_sequences:
-    #     fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-    #                            f'sequences with low-complexity regions. The sequence names have been written to the '
-    #                            f'log file and are printed below. These sequences can cause problems when running '
-    #                            f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
-    #                            subsequent_indent=" " * 11)
-    #
-    #     fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-    #                            f'contains other representative sequences for the corresponding genes, and restart the '
-    #                            f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
-    #
-    #     fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
-    #                            f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
-    #                            width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
-    #
-    #     logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-    #     logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
-    #
-    #     for sequence in low_complexity_sequences:
-    #         logger.info(f'{" " * 10} {sequence}')
-    #
-    #     if allow_low_complexity_targetfile_sequences:
-    #         fill = textwrap.fill(
-    #             f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
-    #             f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
-    #             f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
-    #             f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
-    #             f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
-    #             f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
-    #             break_on_hyphens=False)
-    #
-    #         logger.info(f'\n{fill}')
-    #     else:
-    #         sys.exit(1)
+    low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
+    if low_complexity_sequences:
+        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+                               f'sequences with low-complexity regions. The sequence names have been written to the '
+                               f'log file and are printed below. These sequences can cause problems when running '
+                               f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
+                               subsequent_indent=" " * 11)
+
+        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
+                               f'contains other representative sequences for the corresponding genes, and restart the '
+                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+
+        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
+
+        logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
+        logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
+
+        for sequence in low_complexity_sequences:
+            logger.info(f'{" " * 10} {sequence}')
+
+        if allow_low_complexity_targetfile_sequences:
+            fill = textwrap.fill(
+                f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
+                f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
+                f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
+                f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
+                f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
+                f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
+                break_on_hyphens=False)
+
+            logger.info(f'\n{fill}')
+        else:
+            sys.exit(1)
 
     return targetfile
 

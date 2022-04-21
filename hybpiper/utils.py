@@ -9,6 +9,27 @@ from textwrap import TextWrapper
 import os
 
 
+def log_or_print(string, logger=None, logger_level='info'):
+    """
+    If a logger is provided, print to string using logger. If not, use print()
+
+    :param logging.Logger logger: a logger object
+    :param str string: a string to print
+    :param str logger_level: level to use for logger e.g. info/debug/error
+    :return:
+    """
+
+    if logger:
+        if logger_level == 'info':
+            logger.info(string)
+        elif logger_level == 'debug':
+            logger.debug(string)
+        elif logger_level == 'error':
+            logger.debug(string)
+    else:
+        print(string)
+
+
 def file_exists_and_not_empty(file_name):
     """
     Check if file exists and is not empty by confirming that its size is not 0 bytes. Returns a boolean.

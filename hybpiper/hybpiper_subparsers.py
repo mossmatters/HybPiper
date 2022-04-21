@@ -222,6 +222,9 @@ def add_retrieve_sequences_parser(subparsers):
     parser_retrieve_sequences.add_argument('--skip_chimeric_genes', action='store_true', dest='skip_chimeric',
                                            help='Do not recover sequences for putative chimeric genes',
                                            default=False)
+    parser_retrieve_sequences.add_argument('--stats_file',
+                                           help='Stats file produced by "hybpiper stats", required for selective '
+                                                'filtering of retrieved sequences')
 
     return parser_retrieve_sequences
 

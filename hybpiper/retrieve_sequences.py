@@ -17,6 +17,8 @@ import sys
 import argparse
 from Bio import SeqIO
 import logging
+import pandas
+import textwrap
 
 
 # Create a custom logger
@@ -55,8 +57,49 @@ def get_chimeric_genes_for_sample(sample_directory_name):
     return chimeric_genes_to_skip
 
 
+def get_samples_to_recover(filter_by, stats_df, target_genes):
+    """
+    Recovers a list of sample names that pass the filtering options requested. Returns the list
+
+    :param str stats_df: pandas dataframe from the stats file
+    :param list filter_by: a list of stats columns, >/< operators, and thresholds for filtering
+    :param list target_genes: a list of unique target gene names in the targetfile
+    :return list sample_to_retain: a list of sample names to retain after filtering
+    """
+
+    total_number_of_genes = len(target_genes)
+
+    # Permanently changes the pandas settings
+    # pandas.set_option('display.max_rows', None)
+    # pandas.set_option('display.max_columns', None)
+    # pandas.set_option('display.width', None)
+
+    for filter_criterion in filter_by:
+        column, operator, threshold = filter_criterion
+        try:
+            threshold = int(threshold)
+            logger.info(f'{"[INFO]:":10} Threshold for {column} is {operator} {threshold}')
+        except ValueError:
+            fill = textwrap.fill(f'{"[INFO]:":10} Threshold {threshold} for {column} is a float: calculating as '
+                                 'percentage of total number of genes in targetfile. Note that this threshold will be '
+                                 'rounded down, if necessary.', width=90, subsequent_indent=" " * 11)
+            logger.info(fill)
+            threshold = round(float(threshold) * total_number_of_genes)
+            logger.info(f'{"[INFO]:":10} Threshold for {column} is {operator} {threshold}')
+
+
+        if operator == '>':
+            stats_df = stats_df.loc[(stats_df[column] > threshold)]
+        elif operator == '<':
+            stats_df = stats_df.loc[(stats_df[column] < threshold)]
+
+    samples_to_retain = stats_df['Name'].tolist()
+
+    return samples_to_retain
+
+
 def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_names, hybpiper_dir=None,
-                                       fasta_dir=None, skip_chimeric=False):
+                                       fasta_dir=None, skip_chimeric=False, stats_file=None, filter_by=False):
     """
     Recovers sequences (dna, amino acid, supercontig or intron) for all genes from all samples
 
@@ -67,9 +110,27 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     :param None or str hybpiper_dir: if provided, a path to the directory containing HybPiper output
     :param None or str fasta_dir: directory name for output files, default is current directory
     :param bool skip_chimeric: if True, skip putative chimeric genes
+    :param str stats_file: path to the stats file if provided
+    :param list filter_by: a list of stats columns, >/< operators, and thresholds for filtering
     :return None:
     """
 
+    # Read in the stats file, if present:
+    if stats_file:
+        stats_df = pandas.read_csv(stats_file, delimiter='\t')
+        # print(stats_df)
+        samples_to_recover = get_samples_to_recover(filter_by, stats_df, target_genes)
+        if not samples_to_recover:
+            sys.exit(f'{"[ERROR]:":10} Your current filtering options will remove all samples! Please provide '
+                     f'different filtering options!')
+        logger.info(f'{"[INFO]:":10} The filtering options provided will recover sequences from'
+                    f' {len(samples_to_recover)} sample(s). These are:')
+        for sample in samples_to_recover:
+            logger.info(f'{" " * 11}{sample}')
+    else:
+        samples_to_recover = False
+
+    # Recover sample names from directory names or names in text file provided:
     if os.path.isdir(sample_names):
         sampledir = sample_names
         sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir, x)) and not
@@ -81,6 +142,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
         else:
             sampledir = '.'
 
+    # Set output directory:
     if fasta_dir:
         fasta_dir = fasta_dir
         if not os.path.isdir(fasta_dir):
@@ -88,7 +150,10 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     else:
         fasta_dir = '.'
 
-    logger.info(f'Retrieving {len(target_genes)} genes from {len(sample_names)} samples')
+    if samples_to_recover:
+        logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(samples_to_recover)} samples')
+    else:
+        logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(sample_names)} samples')
     for gene in target_genes:
         numSeqs = 0
 
@@ -100,6 +165,11 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
 
         with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
             for sample in sample_names:
+
+                # Filter samples:
+                if samples_to_recover and sample not in samples_to_recover:
+                    # print(f'Sample {sample} did not pass filtering criteria, skipping recovery...')
+                    continue
 
                 # Recover a list of putative chimeric genes for the sample, and skip gene if in list:
                 if skip_chimeric:
@@ -124,7 +194,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
                 # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
                 except FileNotFoundError:
                     pass
-        logger.info(f'Found {numSeqs} sequences for gene {gene}.')
+        logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}')
 
 
 def recover_sequences_from_one_sample(seq_dir,
@@ -155,7 +225,7 @@ def recover_sequences_from_one_sample(seq_dir,
             os.mkdir(fasta_dir)
     else:
         fasta_dir = '.'
-    logger.info(f'Retrieving {len(target_genes)} genes from sample {single_sample_name}...')
+    logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from sample {single_sample_name}...')
     sequences_to_write = []
 
     # Construct names for intron and supercontig output files:
@@ -170,7 +240,7 @@ def recover_sequences_from_one_sample(seq_dir,
             chimeric_genes_to_skip = get_chimeric_genes_for_sample(single_sample_name)
             # print(f'chimeric_genes_to_skip is: {chimeric_genes_to_skip}')
             if gene in chimeric_genes_to_skip:
-                logger.info(f'Skipping putative chimeric stitched contig sequence for {gene}, sample'
+                logger.info(f'{"[INFO]:":10} Skipping putative chimeric stitched contig sequence for {gene}, sample'
                             f' {single_sample_name}')
                 continue
 
@@ -202,10 +272,10 @@ def standalone():
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     group_1 = parser.add_mutually_exclusive_group(required=True)
-    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
                          help='FASTA file containing DNA target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
-    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa', default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
     group_2 = parser.add_mutually_exclusive_group(required=True)
@@ -227,11 +297,13 @@ def standalone():
                         dest='skip_chimeric',
                         help='Do not recover sequences for putative chimeric genes',
                         default=False)
-    parser.add_argument('--stats_file',
+    parser.add_argument('--stats_file', default=None,
                         help='Stats file produced by "hybpiper stats", required for selective filtering of retrieved '
-                             'sequences ')
-
-    parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
+                             'sequences')
+    parser.add_argument('--filter_by', action='append', nargs=3,
+                        help='Provide three space-separated arguments: 1) column of the stats_file to filter by, '
+                             '2) greater or less than symbol (> or <), 3) a threshold - either an integer (raw number '
+                             'of genes) or float (percentage of genes in analysis).')
 
     args = parser.parse_args()
     main(args)
@@ -243,6 +315,42 @@ def main(args):
 
     :param argparse.Namespace args:
     """
+
+    # Check some args:
+    columns = ['GenesMapped',
+               'GenesWithContigs',
+               'GenesWithSeqs',
+               'GenesAt25pct',
+               'GenesAt50pct',
+               'GenesAt75pct',
+               'Genesat150pct',
+               'ParalogWarningsLong',
+               'ParalogWarningsDepth',
+               'GenesWithoutSupercontigs',
+               'GenesWithSupercontigs',
+               'GenesWithSupercontigSkipped',
+               'GenesWithChimeraWarning']
+
+    operators = ['>', '<']
+
+    columns_to_filter = [item[0] for item in args.filter_by]
+    operators_to_filter = [item[1] for item in args.filter_by]
+    thresholds_to_filter = [item[2] for item in args.filter_by]
+
+    if not all(column in columns for column in columns_to_filter):
+        sys.exit(f'Only columns from the following list are allowed: {columns}')
+
+    if not all(operator in operators for operator in operators_to_filter):
+        sys.exit(f'Only operators from the following list are allowed: {operators}')
+
+    for threshold in thresholds_to_filter:
+        try:
+            threshold_is_float = float(threshold)
+            # print(f'threshold_is_float: {threshold_is_float}')
+        except ValueError:
+            sys.exit(f'Please provide only integers or floats as threshold values. You have provided: {threshold}')
+
+    # print(args.filter_by)
 
     # Set target file name:
     if args.targetfile_dna:
@@ -275,7 +383,9 @@ def main(args):
                                            args.sample_names,
                                            args.hybpiper_dir,
                                            args.fasta_dir,
-                                           args.skip_chimeric)
+                                           args.skip_chimeric,
+                                           args.stats_file,
+                                           args.filter_by)
     elif args.single_sample_name:
         recover_sequences_from_one_sample(seq_dir,
                                           filename,
