@@ -323,7 +323,7 @@ def main(args):
                'GenesAt25pct',
                'GenesAt50pct',
                'GenesAt75pct',
-               'Genesat150pct',
+               'GenesAt150pct',
                'ParalogWarningsLong',
                'ParalogWarningsDepth',
                'GenesWithoutSupercontigs',
