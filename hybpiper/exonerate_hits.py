@@ -29,6 +29,7 @@ from collections import Counter
 from operator import itemgetter
 import copy
 import itertools
+import shlex
 from hybpiper import utils
 
 
@@ -70,7 +71,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
 
     try:  # with --refine
         subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                       universal_newlines=True)
+                       universal_newlines=True, check=True)
     except subprocess.CalledProcessError as exc:
         logger.debug(f'Exonerate with "--refine" FAILED for {prefix}. Output is: {exc}')
         logger.debug(f'Exonerate with "--refine" stdout is: {exc.stdout}')
@@ -80,7 +81,6 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         # error
         logger.debug('Exonerate ran with --refine')
         return outputfilename
-
     else:
         try:  # without --refine
             exonerate_command = f'exonerate -m protein2genome --showalignment yes --showvulgar no -V 0 ' \
@@ -88,15 +88,15 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
                                 f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
             logger.debug(f'Exonerate command is: {exonerate_command}')
             subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                           universal_newlines=True)
+                           universal_newlines=True, check=True)
 
         except subprocess.CalledProcessError as exc:
             logger.debug(f'Exonerate without "--refine" FAILED for {prefix}. Output is: {exc}')
             logger.debug(f'Exonerate without "--refine" stdout is: {exc.stdout}')
             logger.debug(f'Exonerate without "--refine" stderr is: {exc.stderr}')
 
-    if utils.file_exists_and_not_empty(outputfilename):  # Exonerate without --refine can fail (emtpy file) with no
-        # error
+    # Exonerate without --refine can fail (emtpy file) with no error:
+    if utils.file_exists_and_not_empty(outputfilename):
         logger.debug('Exonerate ran without --refine')
         return outputfilename
     else:
@@ -359,7 +359,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
     try:  # with refine
         result = subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
+                                universal_newlines=True, check=True)
         logger.debug(f'Exonerate with "--refine" check_returncode() is: {result.check_returncode()}')
         logger.debug(f'Exonerate with "--refine" stdout is: {result.stdout}')
         logger.debug(f'Exonerate with "--refine" stderr is: {result.stderr}')
@@ -379,7 +379,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
         logger.debug(f'Intronerate run of Exonerate for gff without --refine: {exonerate_command}')
         try:  # without refine
             result = subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True)
+                                    universal_newlines=True, check=True)
             logger.debug(f'Exonerate without "--refine" check_returncode() is: {result.check_returncode()}')
             logger.debug(f'Exonerate without "--refine" stdout is: {result.stdout}')
             logger.debug(f'Exonerate without "--refine" stderr is: {result.stderr}')
@@ -1370,15 +1370,15 @@ class Exonerate(object):
 
         try:
             result = subprocess.run(bbmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True)
+                                    universal_newlines=True, check=True)
             self.logger.debug(f'bbmap_command check_returncode() is: {result.check_returncode()}')
             # self.logger.debug(f'bbmap_command stdout is: {result.stdout}')
             # self.logger.debug(f'bbmap_command stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
-            self.logger.error(f'bbmap_command FAILED. Output is: {exc}')
-            self.logger.error(f'bbmap_command stdout is: {exc.stdout}')
-            self.logger.error(f'bbmap_command stderr is: {exc.stderr}')
+            self.logger.debug(f'bbmap_command FAILED. Output is: {exc}')
+            self.logger.debug(f'bbmap_command stdout is: {exc.stdout}')
+            self.logger.debug(f'bbmap_command stderr is: {exc.stderr}')
 
         # Get a list of individual contig ranges within the stitched_contig (dna_seqrecord_to_write):
         hits_processed = []

@@ -63,9 +63,12 @@ import datetime
 from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing
 from multiprocessing import Manager
-from concurrent.futures import wait, as_completed, TimeoutError
+from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
 import pkg_resources
 import collections
+import time
+import statistics
+import psutil
 
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
@@ -208,9 +211,9 @@ def check_dependencies(logger=None):
                    'diamond']
 
     if not logger:
-        print(f'{"[NOTE]:":10} Checking for external dependencies:\n')
+        print(f'{"[INFO]:":10} Checking for external dependencies:\n')
     else:
-        logger.info(f'{"[NOTE]:":10} Checking for external dependencies:\n')
+        logger.info(f'{"[INFO]:":10} Checking for external dependencies:\n')
 
     everything_is_awesome = True
     for exe in executables:
@@ -260,7 +263,8 @@ def shannon_entropy(fasta_seq):
     return entropy_value
 
 
-def low_complexity_check(targetfile, targetfile_type, translate_target_file):
+def low_complexity_check(targetfile, targetfile_type, translate_target_file, window_size=None, entropy_value=None,
+                         logger=None):
     """
     For each sequence in a fasta file, recover the sequence string of a sliding window and calculate the Shannon
     entropy value for it. If it is below a threshold, flag the entire sequence as low entropy and add it to a set.
@@ -270,15 +274,33 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file):
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool translate_target_file: True is a nucleotide target file has been translated for BLASTx orDIAMOND
+    :param int or None window_size: number of characters to include in the sliding window
+    :param float or None entropy_value: entropy threshold within sliding window
+    :param logging.Logger logger: a logger object
     :return set low_entropy_seqs: a set of sequences that contain low entropy substrings
     """
 
     if targetfile_type == 'DNA' and not translate_target_file:
-        entropy_value = 1.5
-        window_size = 100
+        entropy_value = entropy_value if entropy_value else 1.5
+        window_size = window_size if window_size else 100
     elif targetfile_type == 'protein' or targetfile_type == 'DNA' and translate_target_file:
-        entropy_value = 3.0
-        window_size = 50
+        entropy_value = entropy_value if entropy_value else 3.0
+        window_size = window_size if window_size else 50
+
+    if not logger:
+        fill_1 = textwrap.fill(f'{"[INFO]:":10} Running check for sequences with low-complexity regions.', width=90,
+                               subsequent_indent=" " * 11)
+        fill_2 = textwrap.fill(f'{"[INFO]:":10} Type of sequences: {targetfile_type}', width=90,
+                               subsequent_indent=" " * 11)
+        fill_3 = textwrap.fill(f'{"[INFO]:":10} Sliding window size: {window_size}', width=90,
+                               subsequent_indent=" " * 11)
+        fill_4 = textwrap.fill(f'{"[INFO]:":10} Minimum complexity threshold: {entropy_value}', width=90,
+                               subsequent_indent=" " * 11)
+
+        print(fill_1)
+        print(fill_2)
+        print(fill_3)
+        print(fill_4)
 
     low_entropy_seqs = set()
     for seq in SeqIO.parse(targetfile, "fasta"):
@@ -311,7 +333,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
     """
 
     # Check target file fasta header formatting:
-    logger.info(f'{"[NOTE]:":10} Checking target file FASTA header formatting...')
+    logger.info(f'{"[INFO]:":10} Checking target file FASTA header formatting...')
 
     target_file_path, target_file_name = os.path.split(targetfile)
     file_name, ext = os.path.splitext(target_file_name)
@@ -339,7 +361,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
         logger.info('')
         sys.exit(1)  # target file fasta header formatting should be fixed!
     else:
-        logger.info(f'{"[NOTE]:":10} The target file FASTA header formatting looks good!')
+        logger.info(f'{"[INFO]:":10} The target file FASTA header formatting looks good!')
 
     # Check for duplicated genes:
     duplicated_genes = []
@@ -355,7 +377,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
         sys.exit(1)  # duplicate genes in targetfile should be removed!
 
     # Report the number of unique genes represented in the target file:
-    logger.info(f'{"[NOTE]:":10} The target file contains at least one sequence for {len(gene_lists)} '
+    logger.info(f'{"[INFO]:":10} The target file contains at least one sequence for {len(gene_lists)} '
                 f'unique genes.')
 
     # Detect whether the target file is DNA or amino-acid:
@@ -418,7 +440,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
 
         if translate_target_file:
             translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
-            fill = utils.fill_forward_slash(f'{"[NOTE]:":10} Writing a translated target file to:'
+            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
                                             f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
                                             break_long_words=False, break_on_forward_slash=True)
             logger.info(f'{fill}')
@@ -428,10 +450,11 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
 
     # Check target file for low-complexity sequences:
+    logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
     low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file)
     if low_complexity_sequences:
         fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-                               f'sequences with low complexity regions. The sequence names have been written to the '
+                               f'sequences with low-complexity regions. The sequence names have been written to the '
                                f'log file and are printed below. These sequences can cause problems when running '
                                f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
                                subsequent_indent=" " * 11)
@@ -460,7 +483,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
                 f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
                 break_on_hyphens=False)
 
-            logger.info(f'\n{fill}\n')
+            logger.info(f'\n{fill}')
         else:
             sys.exit(1)
 
@@ -514,7 +537,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
             db_file = targetfile_basename
             logger.debug(f'Using existing BWA database. db_file is: {db_file}')
         else:
-            logger.info(f'{"[NOTE]:":10} Making nucleotide bwa index in current directory.')
+            logger.info(f'{"[INFO]:":10} Making nucleotide bwa index in current directory.')
             targetfiledir = os.path.split(targetfile)[0]
             if targetfiledir:
                 if os.path.realpath(targetfiledir) != os.path.realpath('.'):
@@ -527,7 +550,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
 
             try:
                 result = subprocess.run(make_bwa_index_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
+                                        universal_newlines=True, check=True)
                 logger.debug(f'BWA index check_returncode() is: {result.check_returncode()}')
                 logger.debug(f'BWA index stdout is: {result.stdout}')
                 logger.debug(f'BWA index stderr is: {result.stderr}')
@@ -549,7 +572,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     if isinstance(readfiles, list) and len(readfiles) < 3:
         bwa_fastq = ' '.join(readfiles)
     elif isinstance(readfiles, str):
-        bwa_fastq = readfiles  # i.e. a path (str) to a file of unpaired (differ\nnet to single-end) reads
+        bwa_fastq = readfiles  # i.e. a path (str) to a file of unpaired (different to single-end) reads
     else:
         raise ValueError(f'Can not determine whether {readfiles} is single-end, paired-end or unpaired!')
 
@@ -559,13 +582,13 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     else:
         bwa_commands.append(f'{basename}.bam')
     full_command = ' '.join(bwa_commands)
-    fill = textwrap.fill(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                         break_long_words=False, break_on_hyphens=False)
+    fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
+                                    break_long_words=False, break_on_forward_slash=False)
     logger.info(f'{fill}')
 
     try:
         result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True)
+                                universal_newlines=True, check=True)
         logger.debug(f'BWA mapping check_returncode() is: {result.check_returncode()}')
         logger.debug(f'BWA mapping stdout is: {result.stdout}')
         logger.debug(f'BWA mapping stderr is: {result.stderr}')
@@ -608,14 +631,14 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             db_file = targetfile_basename
             logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
         else:
-            logger.info(f'{"[NOTE]:":10} Making protein blastdb in current directory.')
+            logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
             if os.path.split(targetfile)[0]:
                 shutil.copy(targetfile, '.')
             db_file = os.path.split(targetfile)[1]
             if diamond:
-                logger.info(f'{"[NOTE]:":10} Using DIAMOND instead of BLASTx!')
+                logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
                 if diamond_sensitivity:
-                    logger.info(f'{"[NOTE]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
+                    logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
                 makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
             else:
                 makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
@@ -626,7 +649,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
 
             try:
                 result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
+                                        universal_newlines=True, check=True)
                 logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
                 logger.debug(f'makeblastdb stdout is: {result.stdout}')
                 logger.debug(f'makeblastdb stderr is: {result.stderr}')
@@ -675,7 +698,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
 
         try:
             result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True)
+                                    universal_newlines=True, check=True)
             logger.debug(f'blastx unpaired check_returncode() is: {result.check_returncode()}')
             logger.debug(f'blastx unpaired stdout is: {result.stdout}')
             logger.debug(f'blastx unpaired stderr is: {result.stderr}')
@@ -721,7 +744,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
 
             try:
                 result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
+                                        universal_newlines=True, check=True)
                 logger.debug(f'blastx paired check_returncode() is: {result.check_returncode()}')
                 logger.debug(f'blastx paired stdout is: {result.stdout}')
                 logger.debug(f'blastx paired stderr is: {result.stderr}')
@@ -756,11 +779,11 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     read_hit_dict = distribute_reads_to_targets.read_sorting(blastx_outputfile)
 
     if len(readfiles) == 2:
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
                     f'will be distributed to gene directories')
         single_end = False
     elif len(readfiles) == 1:
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
                     f'be distributed to gene directories')
         single_end = True
     else:
@@ -772,7 +795,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(up_blastx_outputfile)
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
                                                      unpaired_readfile=unpaired_readfile)
@@ -802,7 +825,8 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
 
-    Distribute the 'best' target file sequence (translated if necessary) to each gene directory.
+    Distribute the 'best' target file sequence (translated if the target file contains nucleotide sequences) to each
+    gene directory.
 
     :param str bamfile: *.bam output file from BWA alignment of sample reads to the target file
     :param list readfiles: one or more read files used as input to the pipeline
@@ -820,11 +844,11 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     read_hit_dict = distribute_reads_to_targets_bwa.read_sorting(bamfile)
 
     if len(readfiles) == 2:
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
                     f'will be distributed to gene directories')
         single_end = False
     elif len(readfiles) == 1:
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
+        logger.info(f'{"[INFO":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
                     f'be distributed to gene directories')
         single_end = True
     else:
@@ -836,7 +860,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
         read_hit_dict_unpaired = distribute_reads_to_targets_bwa.read_sorting(up_bamfile)
-        logger.info(f'{"[NOTE]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
                                                          unpaired_readfile=unpaired_readfile)
@@ -901,17 +925,17 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
                                                  kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
                                                  merged=merged, single_cell_mode=single_cell_mode)
-    logger.info(f'{"[NOTE]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
+    logger.info(f'{"[INFO]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
     if len(spades_failed) > 0:
         with open('failed_spades.txt', 'w') as failed_spadefile:
             failed_spadefile.write('\n'.join(spades_failed))
 
         spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
-        logger.info(f'{"[NOTE]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
+        logger.info(f'{"[INFO]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
                     f'assemblies!')
 
         if len(spades_duds) == 0:
-            logger.info(f'{"[NOTE]:":10} All SPAdes re-runs completed successfully!')
+            logger.info(f'{"[INFO]:":10} All SPAdes re-runs completed successfully!')
 
     if os.path.isfile('spades_duds.txt'):  # Written by spades_runner.rerun_spades()
         spades_duds = [x.rstrip() for x in open('spades_duds.txt')]
@@ -944,6 +968,8 @@ def done_callback(future_returned):
         result = future_returned.result()  # blocks until results are ready
     except TimeoutError as error:
         print("Function took longer than %d seconds" % error.args[1])
+    except CancelledError as error:
+        print(f'Function raised CancelledError: {error}')
     except Exception as error:
         print(f'Function raised {error}')
         print(f'error.traceback is: {error.traceback}')  # traceback of the function
@@ -977,7 +1003,8 @@ def exonerate(gene_name,
               genes_to_process=0,
               intronerate=False,
               no_padding_supercontigs=False,
-              keep_intermediate_files=False):
+              keep_intermediate_files=False,
+              shared_dict=None):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
@@ -999,6 +1026,7 @@ def exonerate(gene_name,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
+    :param dict shared_dict: a multiprocessing.managers.DictProxy dictionary shared by the multoprocessing pool
     :return: str gene_name, str prot_length OR None, None
     """
 
@@ -1008,6 +1036,14 @@ def exonerate(gene_name,
     worker_configurer_func(gene_name)  # set up process-specific logging to file
     logger = logging.getLogger(gene_name)
     logger.setLevel(logging.DEBUG)
+
+    # Write gene name, start time, PID etc. to a dictionary shared by the multiprocessing pool:
+    start = time.time()
+    worker_stats = (gene_name, multiprocessing.current_process().pid, multiprocessing.Process().name, start)
+    logger.debug(f'worker_stats for {gene_name} are: {worker_stats}')
+    # print(f'worker_stats for {gene_name} are: {worker_stats}')
+    if gene_name not in shared_dict:
+        shared_dict[gene_name] = worker_stats
 
     # Create directories for output files based on the prefix name, or assemblyfile name:
     prefix = exonerate_hits.create_output_directories(f'{gene_name}/{basename}', f'{gene_name}/'
@@ -1037,14 +1073,18 @@ def exonerate(gene_name,
                      f"reference for gene {gene_name}, error is {e}")
         with lock:
             counter.value += 1
-            sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+            sys.stderr.write(f'\r{"[INFO]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                              f'/{genes_to_process}')
-        return gene_name, None  # return gene_name to that log can be re-logged to main log file
+
+        end = time.time()
+        proc_run_time = end - start
+        return gene_name, None, proc_run_time  # return gene_name to that log can be re-logged to main log file
 
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
     exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_target.fasta',
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
                                                              prefix)
+
     if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
         exonerate_result = exonerate_hits.parse_exonerate_and_get_stitched_contig(
             exonerate_text_output,
@@ -1078,13 +1118,18 @@ def exonerate(gene_name,
 
     with lock:
         counter.value += 1
-        sys.stderr.write(f'\r{"[NOTE]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+        sys.stderr.write(f'\r{"[INFO]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
     if not exonerate_text_output or not exonerate_result or not exonerate_result.stitched_contig_seqrecord:
-        return gene_name, None  # return gene_name to that exonerate_hits.py log can be re-logged to main log file
+        end = time.time()
+        proc_run_time = end - start
+        return gene_name, None, proc_run_time  # return gene_name to that exonerate_hits.py log can be re-logged to main log file
 
-    return gene_name, len(exonerate_result.stitched_contig_seqrecord)
+    end = time.time()
+    proc_run_time = end - start
+
+    return gene_name, len(exonerate_result.stitched_contig_seqrecord), proc_run_time
 
 
 def worker_configurer(gene_name):
@@ -1161,7 +1206,9 @@ def exonerate_multiprocessing(genes,
     :return:
     """
 
-    logger.info(f'{"[NOTE]:":10} Running exonerate_hits for {len(genes)} genes...')
+    logger.debug(f'timeout is: {timeout}')
+
+    logger.info(f'{"[INFO]:":10} Running exonerate_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
 
     if not pool_threads:
@@ -1169,10 +1216,14 @@ def exonerate_multiprocessing(genes,
         pool_threads = multiprocessing.cpu_count()
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
+    times = []  # list for pebble.ProcessPool process completion times
+    future_results_dict = defaultdict()
+
     with pebble.ProcessPool(max_workers=pool_threads) as pool:
         manager = Manager()
         lock = manager.Lock()
         counter = manager.Value('i', 0)
+        shared_dict = manager.dict()
         kwargs_for_schedule = {"thresh": thresh,
                                "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
                                "depth_multiplier": depth_multiplier,
@@ -1189,18 +1240,92 @@ def exonerate_multiprocessing(genes,
                                "genes_to_process": genes_to_process,
                                "intronerate": intronerate,
                                "no_padding_supercontigs": no_padding_supercontigs,
-                               "keep_intermediate_files": keep_intermediate_files}
+                               "keep_intermediate_files": keep_intermediate_files,
+                               "shared_dict": shared_dict}
 
-        future_results = [pool.schedule(exonerate, args=[gene_name, basename], kwargs=kwargs_for_schedule,
-                                        timeout=timeout) for gene_name in genes]
+        for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
+            exonerate_job = pool.schedule(exonerate, args=[gene_name, basename],  kwargs=kwargs_for_schedule,
+                                          timeout=None)
+            # exonerate_job.add_done_callback(done_callback)
+            future_results_dict[exonerate_job] = gene_name
 
-        for future in future_results:
-            future.add_done_callback(done_callback)
+        futures_list = [future for future in future_results_dict.keys()]
+
+        # Wait until at least three genes have been processed successfully and capture the run times for each process:
+        if timeout:
+            jobs_assessed = []
+            while len(times) < 3:
+                for future in futures_list:
+                    if future not in jobs_assessed:
+                        if future.done():
+                            print(future)
+                            print(future.result())
+                            try:
+                                gene_name, prot_length, run_time = future.result()
+                                if prot_length:  # i.e. if exonerate actually produced a sequence
+                                    times.append(run_time)
+                            except TimeoutError:
+                                logger.info(
+                                    f'Process timeout - exonerate() took more than {timeout} seconds to complete and '
+                                    f'was cancelled')
+                            except:
+                                raise
+                            jobs_assessed.append(future)
+                logger.info(f'Sleeping for 5 secs while waiting for median...')
+                time.sleep(5)
+            logger.info(f'times is: {times}')
+
+            # Iterate over remaining jobs every 5 seconds, calculating median run time and cancelling if > timeout %:
+            jobs_to_check = [future for future in futures_list if future not in jobs_assessed]
+            jobs_cancelled_due_to_timeout = []
+            while jobs_to_check:
+                for future in jobs_to_check:
+                    if future.done():
+                        try:
+                            gene_name, prot_length, run_time = future.result()
+                            times.append(run_time)
+                        except CancelledError:  # shouldn't raise as cancelled jobs are in jobs_assessed list
+                            raise
+                        jobs_assessed.append(future)
+                    else:
+                        if future.running():
+                            try:
+                                gene = future_results_dict[future]
+                                start_time = shared_dict[gene][3]
+                                parent_pid = shared_dict[gene][1]
+                                print(f'parent_pid is: {parent_pid}')
+                                current_time = time.time()
+                                running_time = current_time - start_time
+                                print(f'running_time for {gene} is: {running_time}')
+                                median_time = statistics.median(times)
+                                median_time_adjusted_for_timeout = (timeout / 100) * median_time
+                                print(f'median_time_adjusted_for_timeout is: {median_time_adjusted_for_timeout}')
+                                if running_time > median_time_adjusted_for_timeout:
+                                    print(f'CANCELLING future: {future} for gene {gene} as running time '
+                                          f'{running_time} is greater than {timeout}% of median {median_time}')
+                                    cancelled = future.cancel()
+                                    print(f'cancelled is {cancelled}')
+                                    try:
+                                        parent = psutil.Process(parent_pid)
+                                        for child in parent.children(recursive=True):
+                                            print(f'Child for parent {parent} is {child}')
+                                            child.kill()
+                                    except psutil.NoSuchProcess:
+                                        print(f'Can not find PID for {gene}, {parent_pid}')
+                                    jobs_cancelled_due_to_timeout.append(gene_name)
+                                    jobs_assessed.append(future)
+                            except KeyError:  # As it can take a few moments for the worker to write to the shared_dict
+                                pass
+                jobs_to_check = [future for future in futures_list if future not in jobs_assessed]
+                print(f'Sleeping for 5 secs...')
+                time.sleep(5)
+
+            print(f'jobs_cancelled_due_to_timeout is; {jobs_cancelled_due_to_timeout}')
 
         # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
-        for future in as_completed(future_results):
+        for future in as_completed(futures_list):
             try:
-                gene_name, prot_length = future.result()
+                gene_name, prot_length, run_time = future.result()
                 if gene_name:  # i.e. log the Exonerate run regardless of success
                     gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
                     gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
@@ -1215,68 +1340,24 @@ def exonerate_multiprocessing(genes,
             except TimeoutError:
                 logger.info(f'Process timeout - exonerate() took more than <timeout> seconds to complete and was '
                             f'cancelled')
+            except CancelledError:
+                logger.debug(f'CancelledError raised for future {future}')
             except:
                 raise
 
-        wait(future_results, return_when="ALL_COMPLETED")
-
-    # with ProcessPoolExecutor(max_workers=pool_threads) as pool:
-    #     manager = Manager()
-    #     lock = manager.Lock()
-    #     counter = manager.Value('i', 0)
-    #     future_results = [pool.submit(exonerate,
-    #                                   gene_name,
-    #                                   basename,
-    #                                   thresh=thresh,
-    #                                   paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
-    #                                   depth_multiplier=depth_multiplier,
-    #                                   no_stitched_contig=no_stitched_contig,
-    #                                   bbmap_memory=bbmap_memory,
-    #                                   bbmap_subfilter=bbmap_subfilter,
-    #                                   bbmap_threads=bbmap_threads,
-    #                                   chimeric_stitched_contig_edit_distance=chimeric_stitched_contig_edit_distance,
-    #                                   chimeric_stitched_contig_discordant_reads_cutoff=
-    #                                   chimeric_stitched_contig_discordant_reads_cutoff,
-    #                                   worker_configurer_func=worker_configurer,
-    #                                   counter=counter,
-    #                                   lock=lock,
-    #                                   genes_to_process=genes_to_process,
-    #                                   intronerate=intronerate,
-    #                                   no_padding_supercontigs=no_padding_supercontigs,
-    #                                   keep_intermediate_files=keep_intermediate_files)
-    #                       for gene_name in genes]
-    #     for future in future_results:
-    #         future.add_done_callback(done_callback)
-    #
-    #     # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
-    #     for future in as_completed(future_results):
-    #         try:
-    #             gene_name, prot_length = future.result()
-    #             if gene_name:  # i.e. log the Exonerate run regardless of success
-    #                 gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
-    #                 gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
-    #                 gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
-    #                 with open(gene_log_file_to_cat) as gene_log_handle:
-    #                     lines = gene_log_handle.readlines()
-    #                     for line in lines:
-    #                         logger.debug(line.strip())  # log contents to main logger
-    #                 if not keep_intermediate_files:
-    #                     os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
-    #         except:  # FIXME make this more specific
-    #             logger.info(f'result is {future.result()}')
-    #             raise
-    #
-    #     wait(future_results, return_when="ALL_COMPLETED")
+        wait(futures_list, return_when="ALL_COMPLETED")
 
         # Write the 'gene_name', 'prot_length' strings returned by each process to file:
         with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-            for future in future_results:
+            for future in futures_list:
                 try:
-                    gene_name, prot_length = future.result()
+                    gene_name, prot_length, run_time = future.result()
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
                 except TimeoutError:
                     logger.info(f'Process timeout')
+                except CancelledError:
+                    logger.debug(f'CancelledError raised for future {future}')
                 except ValueError:
                     logger.info(f'result is {future.result()}')
                     raise
@@ -1293,10 +1374,6 @@ def assemble(args):
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
-    # Check that the --readfiles/-r parameter has been supplied, as it's an expected argument for make_basename():
-    if len(readfiles) == 0:
-        sys.exit(f'Please provide read files using the parameter --readfiles or -r')
-
     # Generate a directory for the sample:
     basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
 
@@ -1306,18 +1383,20 @@ def assemble(args):
     else:
         logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
 
-    logger.info(f'{"[NOTE]:":10} HybPiper was called with these arguments:')
+    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
     fill = textwrap.fill(' '.join(sys.argv), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
+
+    logger.debug(f'args.start_from is: {args.start_from}')
 
     ####################################################################################################################
     # Check dependencies
     ####################################################################################################################
     if check_dependencies(logger=logger):
-        logger.info(f'{"[NOTE]:":10} Everything looks good!')
+        logger.info(f'{"[INFO]:":10} Everything looks good!')
     else:
-        logger.error('ERROR: One or more dependencies not found!')
+        logger.error(f'{"[ERROR]:":10} One or more dependencies not found!')
         return
 
     ####################################################################################################################
@@ -1345,13 +1424,13 @@ def assemble(args):
         else:
             sys.exit(f'Input read file {args.unpaired} does not exist or is empty!')
     if os.path.isfile(targetfile) and not os.path.getsize(targetfile) == 0:
-        logger.debug(f'Input target/target file {targetfile} exists and is not empty, proceeding...')
+        logger.debug(f'Input target file {targetfile} exists and is not empty, proceeding...')
     else:
-        sys.exit(f'Input target/target file {targetfile} does not exist or is empty!')
+        sys.exit(f'Input target file {targetfile} does not exist or is empty!')
 
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
-        logger.info(f'{"[NOTE]:":10} The flag --merged has been provided but only a single read file has been '
+        logger.info(f'{"[INFO]:":10} The flag --merged has been provided but only a single read file has been '
                     f'supplied. Setting --merged to False.')
         args.merged = False
 
@@ -1364,7 +1443,7 @@ def assemble(args):
                  f'single file as input using the -r/--readfiles parameter')
 
     ####################################################################################################################
-    # Read in the target file and read files
+    # Check/assign the target file and read files
     ####################################################################################################################
     if targetfile:
         targetfile = os.path.abspath(targetfile)
@@ -1385,10 +1464,10 @@ def assemble(args):
     else:
         unpaired_readfile = False
     if len(args.readfiles) < 1:
-        logger.error('ERROR: Please specify readfiles with -r')
+        logger.error(f'{"[ERROR]:":10}  Please specify readfiles with -r')
         return
     if not targetfile:
-        logger.error('ERROR: Please specify a FASTA file containing target sequences.')
+        logger.error(f'{"[ERROR]:":10}  Please specify a FASTA file containing target sequences.')
         return
 
     ####################################################################################################################
@@ -1411,96 +1490,139 @@ def assemble(args):
     os.chdir(os.path.join(basedir, basename))
 
     ####################################################################################################################
-    # Map reads to nucleotide targets with BWA
+    # Map reads to target file sequences
     ####################################################################################################################
-    # if args.bwa and not args.no_bwa:
-    if args.bwa:
-        if args.blast:
-            args.blast = False
+
+    if args.start_from not in ['map_reads']:  # 'map_reads' is the default
+        logger.info(f'{"[INFO]:":10} Parameter "--start_from {args.start_from}" supplied, skipping read mapping step!')
+
+        if args.bwa:
+            bamfile = f'{basename}.bam'
+            logger.debug(f'bamfile is: {bamfile}')
+            if not utils.file_exists_and_not_empty(bamfile):
+                fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided '
+                                     f'together with "--bwa", but no existing BWA bamfile with filename "{bamfile}" '
+                                     f'can be found. Are you sure you have run the pipeline mapping step already for '
+                                     f'this sample?', width=90, subsequent_indent=' ' * 11)
+                logger.info(fill)
+                sys.exit(1)
+        elif args.blast:
+            blastx_outputfile = f'{basename}.blastx'
+            logger.debug(f'blastx outputfile is: {blastx_outputfile}')
+            if not utils.file_exists_and_not_empty(blastx_outputfile):
+                fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided '
+                                     f' and BLASTx/DIAMOND is used for read mapping, but no existing *.blastx output '
+                                     f'file with filename "{blastx_outputfile}" can be found. Are you sure you have '
+                                     f'run the pipeline mapping step already for this sample?', width=90,
+                                     subsequent_indent=' ' * 11)
+                logger.info(fill)
+                sys.exit(1)
+    else:
+        if args.bwa:  # map reads to nucleotide targets with BWA
             if args.unpaired:
                 # Note that unpaired_readfile is a single path to the file:
                 bwa(unpaired_readfile, targetfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
-
             # Note that readfiles is a list of one (single-end) or two (paired-end) paths to read files:
             bamfile = bwa(readfiles, targetfile, basename, cpu=args.cpu, logger=logger)
             if not bamfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
                              f'hybpiper_assemble.log file for sample {basename}!')
                 return
-
             logger.debug(f'bamfile is: {bamfile}')
+
+        elif args.blast:  # map reads to protein targets with BLASTx
+            if args.unpaired:
+                blastx(unpaired_readfile, targetfile, args.evalue, basename, cpu=args.cpu,
+                       max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
+                       diamond_sensitivity=args.diamond_sensitivity)
+
+            blastx_outputfile = blastx(readfiles, targetfile, args.evalue, basename, cpu=args.cpu,
+                                       max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
+                                       diamond_sensitivity=args.diamond_sensitivity)
+
+            if not blastx_outputfile:
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
+                             f'hybpiper_assemble.log file for sample {basename}!')
+                return
         else:
-            bamfile = f'{basename}.bam'
-
-    ####################################################################################################################
-    # Map reads to protein targets with BLASTx
-    ####################################################################################################################
-    if args.blast:
-        if args.unpaired:
-            blastx(unpaired_readfile, targetfile, args.evalue, basename, cpu=args.cpu,
-                   max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
-                   diamond_sensitivity=args.diamond_sensitivity)
-
-        blastx_outputfile = blastx(readfiles, targetfile, args.evalue, basename, cpu=args.cpu,
-                                   max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
-                                   diamond_sensitivity=args.diamond_sensitivity)
-
-        if not blastx_outputfile:
-            logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-                         f'hybpiper_assemble.log file for sample {basename}!')
-            return
-        else:
-            blastx_outputfile = f'{basename}.blastx'
+            sys.exit(f'Can not determine whether BWA or BLASTx option is supplied, exiting...')
 
     ####################################################################################################################
     # Distribute reads to gene directories from either BLASTx or BWA mapping
     ####################################################################################################################
 
-    if args.distribute:
+    if args.start_from not in ['map_reads', 'distribute_reads']:
+        logger.info(f'{"[INFO]:":10} Parameter "--start_from {args.start_from}" supplied, skipping read and target '
+                    f'distribution step!')
         pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
-        for fn in pre_existing_fastas:
-            os.remove(fn)
+        if len(pre_existing_fastas) == 0:
+            fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided but '
+                                 f'no distributed reads (*_interleaved.fasta and/or *_unpaired.fasta) can be found '
+                                 f'for any gene. Are you sure you have run the pipeline read distribution step '
+                                 f'already for this sample?', width=90,
+                                 subsequent_indent=' ' * 11)
+            logger.info(fill)
+            sys.exit(1)
+    else:
+        pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
+        for fasta in pre_existing_fastas:
+            os.remove(fasta)
         if args.bwa:
             distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
                            merged=args.merged, logger=logger)
         else:  # distribute BLASTx results
             distribute_blastx(blastx_outputfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
                               merged=args.merged, logger=logger)
+
+    # Note that HybPiper expects either paired-end readfiles (parameter --readfiles) and an optional file of unpaired
+    #  reads (parameter --unpaired), or a single file of unpaired reads (parameter --readfiles). For each scenario,
+    #  the unpaired readfiles are written to a *_unpaired.fasta file.
     if len(readfiles) == 2:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
     else:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
     if len(genes) == 0:
-        logger.error('ERROR: No genes with BLAST hits! Exiting!')
+        logger.error('ERROR: No genes with reads, exiting!')
         return
 
     ####################################################################################################################
     # Assemble reads using SPAdes
     ####################################################################################################################
-    # If the --merged flag is provided, merge reads for SPAdes assembly
-    if args.merged:
-        logger.info(f'{"[NOTE]:":10} Merging reads for SPAdes assembly')
-        for gene in genes:
-            interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
-            logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
-            merged_out = f'{gene}/{gene}_merged.fastq'
-            unmerged_out = f'{gene}/{gene}_unmerged.fastq'
-            bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
-                              f'outu={unmerged_out}'
-            try:
-                result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True)
-                logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
-                logger.debug(f'bbmerge paired stdout is: {result.stdout}')
-                logger.debug(f'bbmerge paired stderr is: {result.stderr}')
 
-            except subprocess.CalledProcessError as exc:
-                logger.error(f'bbmerge paired FAILED. Output is: {exc}')
-                logger.error(f'bbmerge paired stdout is: {exc.stdout}')
-                logger.error(f'bbmerge paired stderr is: {exc.stderr}')
-                sys.exit('There was an issue when merging reads. Check read files!')
+    if args.start_from not in ['map_reads', 'distribute_reads', 'assemble_reads']:
+        logger.info(f'{"[INFO]:":10} Parameter "--start_from {args.start_from}" supplied, skipping read assembly step!')
+        pre_existing_assemblies = glob.glob('./*/*_contigs.fasta')
+        if len(pre_existing_assemblies) == 0:
+            fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided but '
+                                 f'no existing SPAdes assembly files (*_contigs.fasta) can be found for any gene. Are '
+                                 f'you sure you have run the pipeline read assembly step already for this sample?',
+                                 width=90, subsequent_indent=' ' * 11)
+            logger.info(fill)
+            sys.exit(1)
+    else:
+        # If the --merged flag is provided, merge reads for SPAdes assembly
+        if args.merged:
+            logger.info(f'{"[INFO]:":10} Merging reads for SPAdes assembly')
+            for gene in genes:
+                interleaved_reads_for_merged = f'{gene}/{gene}_interleaved.fastq'
+                logger.debug(f'interleaved_reads_for_merged file is {interleaved_reads_for_merged}\n')
+                merged_out = f'{gene}/{gene}_merged.fastq'
+                unmerged_out = f'{gene}/{gene}_unmerged.fastq'
+                bbmerge_command = f'bbmerge.sh interleaved=true in={interleaved_reads_for_merged} out={merged_out}  ' \
+                                  f'outu={unmerged_out}'
+                try:
+                    result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                            universal_newlines=True)
+                    logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
+                    logger.debug(f'bbmerge paired stdout is: {result.stdout}')
+                    logger.debug(f'bbmerge paired stderr is: {result.stderr}')
 
-    if args.assemble:
+                except subprocess.CalledProcessError as exc:
+                    logger.error(f'bbmerge paired FAILED. Output is: {exc}')
+                    logger.error(f'bbmerge paired stdout is: {exc.stdout}')
+                    logger.error(f'bbmerge paired stderr is: {exc.stderr}')
+                    sys.exit('There was an issue when merging reads. Check read files!')
+
         if len(readfiles) == 1:
             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
                                      paired=False, timeout=args.timeout, logger=logger,
@@ -1537,44 +1659,39 @@ def assemble(args):
     # Run Exonerate on the assembled SPAdes contigs, and intronerate() if flag --run_intronerate is supplied:
     ####################################################################################################################
 
-    # return
-    if args.exonerate:
-        genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
-
-        # Remove any pre-existing directories:
-        for g in genes:
-            if os.path.isdir(os.path.join(g, basename)):
-                shutil.rmtree(os.path.join(g, basename))
-
-        if os.path.isfile('genes_with_seqs.txt'):
-            os.remove('genes_with_seqs.txt')
-
-        if len(genes) == 0:
-            logger.error(f'{"[ERROR]:":10} No genes recovered for {basename}!')
-            return 1
-
-        exonerate_multiprocessing(genes,
-                                  basename,
-                                  thresh=args.thresh,
-                                  paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
-                                  depth_multiplier=args.depth_multiplier,
-                                  no_stitched_contig=args.no_stitched_contig,
-                                  bbmap_memory=args.bbmap_memory,
-                                  bbmap_subfilter=args.bbmap_subfilter,
-                                  chimeric_stitched_contig_edit_distance=args.chimeric_stitched_contig_edit_distance,
-                                  chimeric_stitched_contig_discordant_reads_cutoff=
-                                  args.chimeric_stitched_contig_discordant_reads_cutoff,
-                                  bbmap_threads=args.bbmap_threads,
-                                  pool_threads=args.cpu,
-                                  logger=logger,
-                                  intronerate=args.intronerate,
-                                  no_padding_supercontigs=args.no_padding_supercontigs,
-                                  keep_intermediate_files=args.keep_intermediate_files)
+    genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
+    # Remove any pre-existing directories:
+    for g in genes:
+        if os.path.isdir(os.path.join(g, basename)):
+            shutil.rmtree(os.path.join(g, basename))
+    if os.path.isfile('genes_with_seqs.txt'):
+        os.remove('genes_with_seqs.txt')
+    if len(genes) == 0:
+        logger.error(f'{"[ERROR]:":10} No genes recovered for {basename}!')
+        return 1
+    exonerate_multiprocessing(genes,
+                              basename,
+                              thresh=args.thresh,
+                              paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
+                              depth_multiplier=args.depth_multiplier,
+                              no_stitched_contig=args.no_stitched_contig,
+                              bbmap_memory=args.bbmap_memory,
+                              bbmap_subfilter=args.bbmap_subfilter,
+                              chimeric_stitched_contig_edit_distance=args.chimeric_stitched_contig_edit_distance,
+                              chimeric_stitched_contig_discordant_reads_cutoff=
+                              args.chimeric_stitched_contig_discordant_reads_cutoff,
+                              bbmap_threads=args.bbmap_threads,
+                              pool_threads=args.cpu,
+                              logger=logger,
+                              intronerate=args.intronerate,
+                              no_padding_supercontigs=args.no_padding_supercontigs,
+                              keep_intermediate_files=args.keep_intermediate_files,
+                              timeout=args.timeout)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
     ####################################################################################################################
-    logger.info(f'\n{"[NOTE]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
+    logger.info(f'\n{"[INFO]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
 
     # Stitched contigs:
     collate_stitched_contig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_stitched_contig.csv')]
@@ -1666,6 +1783,72 @@ def gene_recovery_heatmap_main(args):
     gene_recovery_heatmap.main(args)
 
 
+def check_dependencies_main(args):
+    """
+    # Calls the function check_dependencies() from module assemble
+
+    :param args: argparse namespace with subparser options for function check_dependencies()
+    :return: None: no return value specified; default is None
+    """
+
+    check_dependencies(logger=args.logger)
+
+
+def check_targetfile_main(args):
+    """
+    # Calls the function check_targetfile() from module assemble
+
+    :param args: argparse namespace with subparser options for function check_targetfile()
+    :return: None: no return value specified; default is None
+    """
+
+    # Set target file type and path:
+    if args.targetfile_dna:
+        targetfile = args.targetfile_dna
+        targetfile_type = 'DNA'
+    elif args.targetfile_aa:
+        targetfile = args.targetfile_aa
+        targetfile_type = 'protein'
+
+    if targetfile_type == 'DNA':
+        fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing DNA '
+                             f'sequences. These DNA sequences will be checked for low-complexity regions. NOTE: if you '
+                             f'run "hybpiper assemble" without providing the flag "--bwa" the DNA target file will be '
+                             f'translated and the check will be run again on the translated protein sequences; the '
+                             f'sequences flagged as having low-complexity regions can sometimes differ between a DNA '
+                             f'and a corresponding translated protein target file.', width=90,
+                             subsequent_indent=" " * 11)
+        print(fill)
+
+    low_complexity_sequences = low_complexity_check(targetfile,
+                                                    targetfile_type,
+                                                    translate_target_file=False,
+                                                    window_size=args.sliding_window_size,
+                                                    entropy_value=args.complexity_minimum_threshold,
+                                                    logger=args.logger)
+
+    if low_complexity_sequences:
+        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+                               f'sequences with low-complexity regions. The sequence names are printed below. These '
+                               f'sequences can cause problems when running HybPiper, see wiki <link>. We recommend '
+                               f'one of the following approaches:', width=90,
+                               subsequent_indent=" " * 11)
+
+        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
+                               f'contains other representative sequences for the corresponding genes, and restart the '
+                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+
+        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
+
+        print(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
+        print(f'\n{" " * 10} Sequences with low complexity regions are:\n')
+
+        for sequence in low_complexity_sequences:
+            print(f'{" " * 10} {sequence}')
+
+
 def parse_arguments():
     """
     Creates main parser and add subparsers. Parses command line arguments
@@ -1677,16 +1860,17 @@ def parse_arguments():
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='To view parameters and help for a subcommand, use e.g. "assemble '
                                             '--help"')
-    parser.add_argument('--version', '-v',
-                        dest='version',
-                        action='version',
-                        version='%(prog)s 2.0rc build 5',
-                        help='Print the HybPiper version number.')
-    parser.add_argument('--check_dependencies',
-                        dest='check_dependencies',
-                        action='store_true',
-                        default=False,
-                        help='Run the check for all pipeline dependencies and exit')
+    group_1 = parser.add_mutually_exclusive_group(required=False)
+    group_1.add_argument('--version', '-v',
+                         dest='version',
+                         action='version',
+                         version='%(prog)s 2.0rc build 5',
+                         help='Print the HybPiper version number.')
+    # group_1.add_argument('--check_dependencies',
+    #                      dest='check_dependencies',
+    #                      action='store_true',
+    #                      default=False,
+    #                      help='Run a check for all pipeline dependencies and exit')
 
     # Add subparsers:
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
@@ -1695,6 +1879,8 @@ def parse_arguments():
     parser_retrieve_sequences = hybpiper_subparsers.add_retrieve_sequences_parser(subparsers)
     parser_paralog_retriever = hybpiper_subparsers.add_paralog_retriever_parser(subparsers)
     parser_gene_recovery_heatmap = hybpiper_subparsers.add_gene_recovery_heatmap_parser(subparsers)
+    parser_check_dependencies = hybpiper_subparsers.add_check_dependencies_parser(subparsers)
+    parser_check_targetfile = hybpiper_subparsers.add_check_targetfile_parser(subparsers)
 
     # Set functions for subparsers:
     parser_assemble.set_defaults(func=assemble)
@@ -1702,19 +1888,14 @@ def parse_arguments():
     parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
     parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
+    parser_check_dependencies.set_defaults(func=check_dependencies_main)
+    parser_check_targetfile.set_defaults(func=check_targetfile_main)
 
     # Parse and return all arguments:
     arguments = parser.parse_args()
 
     # Get the run directory containing the assemble.py module:
     run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
-
-    # If the flag --check_dependencies was provided, check all HybPiper dependencies and exit:
-    if arguments.check_dependencies:
-        if check_dependencies():
-            sys.exit(f'{"[NOTE]:":10} Everything looks good!')
-        else:
-            sys.exit(f'\n{"[ERROR]:":10} One or more dependencies not found!')
 
     return arguments
 

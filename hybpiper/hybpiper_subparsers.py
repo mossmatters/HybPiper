@@ -48,10 +48,10 @@ def add_assemble_parser(subparsers):
                                       'will assume it is paired Illumina reads.',
                                  required=True)
     group_1 = parser_assemble.add_mutually_exclusive_group(required=True)
-    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
                          help='FASTA file containing DNA target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
-    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa', default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
     group_2 = parser_assemble.add_mutually_exclusive_group()
@@ -68,17 +68,13 @@ def add_assemble_parser(subparsers):
                                  help='Allow the pipeline to run even if target file sequences with low complexity '
                                       'regions have been detected. We recommend using the parameter "--timeout" in '
                                       'these cases.')
-    parser_assemble.add_argument('--no-blast', dest='blast', action='store_false',
-                                 help='Do not run the BLASTx step. Downstream steps will still depend on the '
-                                      '*_all.blastx file. \nUseful for re-running assembly/Exonerate steps with '
-                                      'different options.')
-    parser_assemble.add_argument('--no-distribute', dest='distribute', action='store_false',
-                                 help='Do not distribute the reads and target sequences to sub-directories.')
-    parser_assemble.add_argument('--no-assemble', dest='assemble', action='store_false',
-                                 help='Skip the SPAdes assembly stage.')
-    parser_assemble.add_argument('--no-exonerate', dest='exonerate', action='store_false',
-                                 help='Do not run the Exonerate step, which assembles full length CDS regions and '
-                                      'proteins from each gene')
+    parser_assemble.add_argument('--start_from', choices=['map_reads', 'distribute_reads', 'assemble_reads',
+                                                          'exonerate_contigs'],
+                                 help='Start the pipeline from the given step. Note that this relies on the presence '
+                                      'of output files for previous steps, produced by a previous run attempt. '
+                                      'Default is map_reads',
+                                 dest='start_from',
+                                 default='map_reads')
     parser_assemble.add_argument('--cpu', type=int, default=0,
                                  help='Limit the number of CPUs. Default is to use all cores available.')
     parser_assemble.add_argument('--evalue', type=float, default=1e-4,
@@ -109,8 +105,8 @@ def add_assemble_parser(subparsers):
                                  help='Directory name for pipeline output, default is to use the FASTQ file name.',
                                  default=None)
     parser_assemble.add_argument('--timeout',
-                                 help='Use GNU Parallel to kill long-running processes if they take longer than X '
-                                      'percent of average.', default=0, type=int)
+                                 help='Kill long-running processes if they take longer than X percent of average.',
+                                 default=0, type=int)
     parser_assemble.add_argument('--target',
                                  help='Use the target file sequence with this taxon name in Exonerate searches for '
                                       'each gene. Other targets for that gene will be used only for read sorting. Can '
@@ -161,8 +157,7 @@ def add_assemble_parser(subparsers):
                                  default=False)
 
     # Set defaults for subparser <parser_assemble>:
-    parser_assemble.set_defaults(check_depend=False, blast=True, distribute=True, assemble=True, exonerate=True,
-                                 targetfile_dna=False, targetfile_aa=False)
+    parser_assemble.set_defaults(blast=True)
 
     return parser_assemble
 
@@ -177,10 +172,10 @@ def add_stats_parser(subparsers):
 
     parser_stats = subparsers.add_parser('stats', help='Gather statistics about the HybPiper run(s)')
     group_1 = parser_stats.add_mutually_exclusive_group(required=True)
-    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
                          help='FASTA file containing DNA target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
-    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa', default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
     parser_stats.add_argument("sequence_type", help="Sequence type (gene or supercontig) to recover lengths for",
@@ -192,9 +187,6 @@ def add_stats_parser(subparsers):
     parser_stats.add_argument("--stats_filename",
                               help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
                               default='hybpiper_stats')
-
-    # Set defaults for subparser <parser_stats>:
-    parser_stats.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
     return parser_stats
 
@@ -210,10 +202,10 @@ def add_retrieve_sequences_parser(subparsers):
     parser_retrieve_sequences = subparsers.add_parser('retrieve_sequences', help='Retrieve sequences generated from '
                                                                                  'multiple runs of HybPiper')
     group_1 = parser_retrieve_sequences.add_mutually_exclusive_group(required=True)
-    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
                          help='FASTA file containing DNA target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
-    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa', default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
     parser_retrieve_sequences.add_argument('--sample_names',
@@ -230,9 +222,6 @@ def add_retrieve_sequences_parser(subparsers):
     parser_retrieve_sequences.add_argument('--skip_chimeric_genes', action='store_true', dest='skip_chimeric',
                                            help='Do not recover sequences for putative chimeric genes',
                                            default=False)
-
-    # Set defaults for subparser <parser_retrieve_sequences>:
-    parser_retrieve_sequences.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
     return parser_retrieve_sequences
 
@@ -251,11 +240,11 @@ def add_paralog_retriever_parser(subparsers):
                                           help='Text file containing list of HybPiper output directories, '
                                                'one per line.')
     group_1 = parser_paralog_retriever.add_mutually_exclusive_group(required=True)
-    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna',
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
                          help='FASTA file containing DNA target sequences for each gene. Used to extract unique gene '
                               'names for paralog recovery. If there are multiple targets for a gene, the id must be '
                               'of the form: >Taxon-geneName')
-    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa', default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. Used to extract '
                               'unique gene names for paralog recovery. If there are multiple targets for a gene, '
                               'the id must be of the form: >Taxon-geneName')
@@ -310,9 +299,6 @@ def add_paralog_retriever_parser(subparsers):
                                           help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                                           default='300')
 
-    # Set defaults for subparser <parser_paralog_retriever>:
-    parser_paralog_retriever.set_defaults(targetfile_dna=False, targetfile_aa=False)
-
     return parser_paralog_retriever
 
 
@@ -356,4 +342,57 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               default='300')
 
     return parser_gene_recovery_heatmap
+
+
+def add_check_dependencies_parser(subparsers):
+    """
+    Parser for check_dependencies
+
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
+    """
+
+    parser_check_dependencies = subparsers.add_parser('check_dependencies',
+                                                      help='Run a check for all pipeline dependencies and exit')
+
+    # Set defaults for subparser <check_dependencies>:
+    parser_check_dependencies.set_defaults(logger=None)
+
+    return parser_check_dependencies
+
+
+def add_check_targetfile_parser(subparsers):
+    """
+    Parser for check_targetfile
+
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
+    """
+
+    parser_check_target_file = subparsers.add_parser('check_targetfile',
+                                                     help='Check the target file for correct formatting and sequences '
+                                                          'with low-complexity regions, then exit')
+    group_1 = parser_check_target_file.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
+                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa', default=False,
+                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
+                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+    parser_check_target_file.add_argument('--sliding_window_size',
+                                          type=int,
+                                          default=None,
+                                          help='Number of characters (single-letter DNA or amino-acid codes) to '
+                                               'include in the sliding window for low-complexity check')
+    parser_check_target_file.add_argument('--complexity_minimum_threshold',
+                                          type=float,
+                                          default=None,
+                                          help='Minimum threshold value. Beneath this value, the sequence in the '
+                                               'sliding window is flagged as low-complexity, and the corresponding '
+                                               'target file sequence is reported as having low-complexity regions ')
+
+    # Set defaults for subparser <check_target_file>:
+    parser_check_target_file.set_defaults(logger=None)
+
+    return parser_check_target_file
 

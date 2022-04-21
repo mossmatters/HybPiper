@@ -173,6 +173,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
             if ID1 in read_hit_dict:
                 for target in read_hit_dict[ID1]:
                     write_single_seqs(target, ID1, Seq1)
+
         # Write a file containing the total number of unpaired reads in the input file, to be parsed by
         # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
         with open(f'total_input_reads_unpaired.txt', 'w') as unpaired_reads_number:

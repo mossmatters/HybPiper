@@ -208,12 +208,13 @@ def standalone():
     group_1.add_argument('--targetfile_aa', '-t_aa', dest='targetfile_aa',
                          help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
                               'targets for a gene, the id must be of the form: >Taxon-geneName')
-    parser.add_argument('--sample_names',
-                        help='Directory containing Hybpiper output OR a file containing HybPiper output names, '
-                             'one per line',
-                        default=None)
-    parser.add_argument('--single_sample_name',
-                        help='A single sample name to recover sequences for', default=None)
+    group_2 = parser.add_mutually_exclusive_group(required=True)
+    group_2.add_argument('--sample_names',
+                         help='Directory containing Hybpiper output OR a file containing HybPiper output names, '
+                              'one per line',
+                         default=None)
+    group_2.add_argument('--single_sample_name',
+                         help='A single sample name to recover sequences for', default=None)
     parser.add_argument('sequence_type',
                         help='Type of sequence to extract',
                         choices=['dna', 'aa', 'intron', 'supercontig'])
@@ -226,8 +227,9 @@ def standalone():
                         dest='skip_chimeric',
                         help='Do not recover sequences for putative chimeric genes',
                         default=False)
-    parser.add_argument('--stats_file', help='Stats file produced by "hybpiper stats", required for selective '
-                                             'filtering of retrieved sequences ')
+    parser.add_argument('--stats_file',
+                        help='Stats file produced by "hybpiper stats", required for selective filtering of retrieved '
+                             'sequences ')
 
     parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
@@ -247,12 +249,6 @@ def main(args):
         targetfile = args.targetfile_dna
     elif args.targetfile_aa:
         targetfile = args.targetfile_aa
-
-    # Check some command line parameters:
-    if not args.sample_names and not args.single_sample_name:
-        sys.exit(f'Please supply either the --sample_names or --single_sample_name flag and corresponding arguments!')
-    if args.sample_names and args.single_sample_name:
-        sys.exit(f'Please supply either the --sample_names or --single_sample_name flag and corresponding arguments!')
 
     # Set sequence directory name and file names:
     if args.sequence_type == 'dna':
