@@ -1262,6 +1262,7 @@ def exonerate_multiprocessing(genes,
                             print(future.result())
                             try:
                                 gene_name, prot_length, run_time = future.result()
+                                logger.info(f'completion time for {gene_name} is: {run_time}')
                                 if prot_length:  # i.e. if exonerate actually produced a sequence
                                     times.append(run_time)
                             except TimeoutError:
@@ -1283,6 +1284,7 @@ def exonerate_multiprocessing(genes,
                     if future.done():
                         try:
                             gene_name, prot_length, run_time = future.result()
+                            logger.info(f'completion time for {gene_name} is: {run_time}')
                             times.append(run_time)
                         except CancelledError:  # shouldn't raise as cancelled jobs are in jobs_assessed list
                             raise
