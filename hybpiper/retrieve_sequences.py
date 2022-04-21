@@ -333,16 +333,17 @@ def main(args):
 
     operators = ['>', '<']
 
+    if args.stats_file and not args.filter_by:
+        sys.exit(f'{"[ERROR]:":10} A stats file has been provided but no filtering options have been specified via '
+                 f'the parameter "--filter_by". Either provide filtering criteria or omit the "stats_file" parameter!')
+
     columns_to_filter = [item[0] for item in args.filter_by]
     operators_to_filter = [item[1] for item in args.filter_by]
     thresholds_to_filter = [item[2] for item in args.filter_by]
-
     if not all(column in columns for column in columns_to_filter):
         sys.exit(f'Only columns from the following list are allowed: {columns}')
-
     if not all(operator in operators for operator in operators_to_filter):
         sys.exit(f'Only operators from the following list are allowed: {operators}')
-
     for threshold in thresholds_to_filter:
         try:
             threshold_is_float = float(threshold)
