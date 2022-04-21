@@ -451,7 +451,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
 
     # Check target file for low-complexity sequences:
     logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
-    low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file)
+    low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
     if low_complexity_sequences:
         fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
                                f'sequences with low-complexity regions. The sequence names have been written to the '
@@ -1866,11 +1866,6 @@ def parse_arguments():
                          action='version',
                          version='%(prog)s 2.0rc build 5',
                          help='Print the HybPiper version number.')
-    # group_1.add_argument('--check_dependencies',
-    #                      dest='check_dependencies',
-    #                      action='store_true',
-    #                      default=False,
-    #                      help='Run a check for all pipeline dependencies and exit')
 
     # Add subparsers:
     subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')

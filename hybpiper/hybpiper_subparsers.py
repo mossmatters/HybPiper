@@ -370,8 +370,8 @@ def add_check_targetfile_parser(subparsers):
     """
 
     parser_check_target_file = subparsers.add_parser('check_targetfile',
-                                                     help='Check the target file for correct formatting and sequences '
-                                                          'with low-complexity regions, then exit')
+                                                     help='Check the target file for sequences with low-complexity '
+                                                          'regions, then exit')
     group_1 = parser_check_target_file.add_mutually_exclusive_group(required=True)
     group_1.add_argument('--targetfile_dna', '-t_dna', dest='targetfile_dna', default=False,
                          help='FASTA file containing DNA target sequences for each gene. If there are multiple '
