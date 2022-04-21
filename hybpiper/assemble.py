@@ -449,43 +449,43 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
 
-    # Check target file for low-complexity sequences:
-    logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
-    low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
-    if low_complexity_sequences:
-        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-                               f'sequences with low-complexity regions. The sequence names have been written to the '
-                               f'log file and are printed below. These sequences can cause problems when running '
-                               f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
-                               subsequent_indent=" " * 11)
-
-        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-                               f'contains other representative sequences for the corresponding genes, and restart the '
-                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
-
-        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
-                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
-                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
-
-        logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-        logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
-
-        for sequence in low_complexity_sequences:
-            logger.info(f'{" " * 10} {sequence}')
-
-        if allow_low_complexity_targetfile_sequences:
-            fill = textwrap.fill(
-                f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
-                f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
-                f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
-                f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
-                f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
-                f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
-                break_on_hyphens=False)
-
-            logger.info(f'\n{fill}')
-        else:
-            sys.exit(1)
+    # # Check target file for low-complexity sequences:
+    # logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
+    # low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
+    # if low_complexity_sequences:
+    #     fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+    #                            f'sequences with low-complexity regions. The sequence names have been written to the '
+    #                            f'log file and are printed below. These sequences can cause problems when running '
+    #                            f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
+    #                            subsequent_indent=" " * 11)
+    #
+    #     fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
+    #                            f'contains other representative sequences for the corresponding genes, and restart the '
+    #                            f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+    #
+    #     fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+    #                            f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+    #                            width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
+    #
+    #     logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
+    #     logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
+    #
+    #     for sequence in low_complexity_sequences:
+    #         logger.info(f'{" " * 10} {sequence}')
+    #
+    #     if allow_low_complexity_targetfile_sequences:
+    #         fill = textwrap.fill(
+    #             f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
+    #             f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
+    #             f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
+    #             f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
+    #             f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
+    #             f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
+    #             break_on_hyphens=False)
+    #
+    #         logger.info(f'\n{fill}')
+    #     else:
+    #         sys.exit(1)
 
     return targetfile
 
@@ -583,7 +583,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
         bwa_commands.append(f'{basename}.bam')
     full_command = ' '.join(bwa_commands)
     fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                                    break_long_words=False, break_on_forward_slash=False)
+                                    break_long_words=False, break_on_forward_slash=True)
     logger.info(f'{fill}')
 
     try:
