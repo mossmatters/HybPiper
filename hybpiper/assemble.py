@@ -1010,7 +1010,6 @@ def exonerate(gene_name,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
-    # :param dict shared_dict: a multiprocessing.managers.DictProxy dictionary shared by the multiprocessing pool
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -1027,9 +1026,6 @@ def exonerate(gene_name,
     worker_stats = (gene_name, multiprocessing.current_process().pid, multiprocessing.Process().name, start)
     if verbose_logging:
         logger.debug(f'worker_stats for {gene_name} are: {worker_stats}')
-    # print(f'worker_stats for {gene_name} are: {worker_stats}')
-    # if gene_name not in shared_dict:
-    #     shared_dict[gene_name] = worker_stats
 
     # Create directories for output files based on the prefix name, or assemblyfile name:
     prefix = exonerate_hits.create_output_directories(f'{gene_name}/{basename}', f'{gene_name}/'
@@ -1215,7 +1211,6 @@ def exonerate_multiprocessing(genes,
         manager = Manager()
         lock = manager.Lock()
         counter = manager.Value('i', 0)
-        # shared_dict = manager.dict()
         kwargs_for_schedule = {"thresh": thresh,
                                "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
                                "depth_multiplier": depth_multiplier,
@@ -1233,7 +1228,6 @@ def exonerate_multiprocessing(genes,
                                "intronerate": intronerate,
                                "no_padding_supercontigs": no_padding_supercontigs,
                                "keep_intermediate_files": keep_intermediate_files,
-                               # "shared_dict": shared_dict,
                                "verbose_logging": verbose_logging}
 
         for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1248,6 +1242,7 @@ def exonerate_multiprocessing(genes,
         for future in as_completed(futures_list):
             try:
                 gene_name, prot_length, run_time = future.result()
+                logger.info(f'\nexonerate run time for gene {gene_name} was: {run_time} ')
                 if gene_name:  # i.e. log the Exonerate run regardless of success
                     gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
                     gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log

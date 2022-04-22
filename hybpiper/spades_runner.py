@@ -47,7 +47,7 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
     if kvals:
         kvals = ','.join(kvals)
 
-    parallel_cmd_list = ['time', 'parallel', '--eta']
+    parallel_cmd_list = ['time', 'parallel', '--joblog', 'gnu_parallel_log.txt', '--eta']
     if cpu:
         parallel_cmd_list.append(f'-j {cpu}')
     if timeout:
