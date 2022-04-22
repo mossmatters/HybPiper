@@ -438,41 +438,41 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
 
     # Check target file for low-complexity sequences:
     # logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
-    low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
-    if low_complexity_sequences:
-        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-                               f'sequences with low-complexity regions. The sequence names have been written to the '
-                               f'log file and are printed below. These sequences can cause problems when running '
-                               f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
-                               subsequent_indent=" " * 11)
-
-        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-                               f'contains other representative sequences for the corresponding genes, and restart the '
-                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
-
-        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
-                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
-                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
-
-        logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-        logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
-
-        for sequence in low_complexity_sequences:
-            logger.info(f'{" " * 10} {sequence}')
-
-        if allow_low_complexity_targetfile_sequences:
-            fill = textwrap.fill(
-                f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
-                f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
-                f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
-                f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
-                f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
-                f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
-                break_on_hyphens=False)
-
-            logger.info(f'\n{fill}')
-        else:
-            sys.exit(1)
+    # low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
+    # if low_complexity_sequences:
+    #     fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+    #                            f'sequences with low-complexity regions. The sequence names have been written to the '
+    #                            f'log file and are printed below. These sequences can cause problems when running '
+    #                            f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
+    #                            subsequent_indent=" " * 11)
+    #
+    #     fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
+    #                            f'contains other representative sequences for the corresponding genes, and restart the '
+    #                            f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+    #
+    #     fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+    #                            f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+    #                            width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
+    #
+    #     logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
+    #     logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
+    #
+    #     for sequence in low_complexity_sequences:
+    #         logger.info(f'{" " * 10} {sequence}')
+    #
+    #     if allow_low_complexity_targetfile_sequences:
+    #         fill = textwrap.fill(
+    #             f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
+    #             f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
+    #             f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
+    #             f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
+    #             f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
+    #             f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
+    #             break_on_hyphens=False)
+    #
+    #         logger.info(f'\n{fill}')
+    #     else:
+    #         sys.exit(1)
 
     return targetfile
 
@@ -1111,7 +1111,8 @@ def exonerate(gene_name,
     if not exonerate_text_output or not exonerate_result or not exonerate_result.stitched_contig_seqrecord:
         end = time.time()
         proc_run_time = end - start
-        return gene_name, None, proc_run_time  # return gene_name to that exonerate_hits.py log can be re-logged to main log file
+        # return gene_name to that exonerate_hits.py log can be re-logged to main log file:
+        return gene_name, None, proc_run_time
 
     end = time.time()
     proc_run_time = end - start
@@ -1167,7 +1168,7 @@ def exonerate_multiprocessing(genes,
                               intronerate=False,
                               no_padding_supercontigs=False,
                               keep_intermediate_files=False,
-                              timeout=None):
+                              exonerate_contigs_timeout=None):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -1189,11 +1190,11 @@ def exonerate_multiprocessing(genes,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
-    :param int timeout: number of second for pebble.ProcessPool pool.schedule timeout
+    :param int exonerate_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
     :return:
     """
 
-    logger.debug(f'timeout is: {timeout}')
+    logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
 
     logger.info(f'{"[INFO]:":10} Running exonerate_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
@@ -1203,10 +1204,9 @@ def exonerate_multiprocessing(genes,
         pool_threads = multiprocessing.cpu_count()
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
-    times = []  # list for pebble.ProcessPool process completion times
-    future_results_dict = defaultdict()
-
     with pebble.ProcessPool(max_workers=pool_threads) as pool:
+        genes_cancelled_due_to_timeout = []
+        future_results_dict = defaultdict()
         manager = Manager()
         lock = manager.Lock()
         counter = manager.Value('i', 0)
@@ -1232,84 +1232,11 @@ def exonerate_multiprocessing(genes,
 
         for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
             exonerate_job = pool.schedule(exonerate, args=[gene_name, basename],  kwargs=kwargs_for_schedule,
-                                          timeout=None)
+                                          timeout=exonerate_contigs_timeout)
             # exonerate_job.add_done_callback(done_callback)
             future_results_dict[exonerate_job] = gene_name
 
         futures_list = [future for future in future_results_dict.keys()]
-
-        # Wait until at least three genes have been processed successfully and capture the run times for each process:
-        if timeout:
-            jobs_assessed = []
-            while len(times) < 3:
-                for future in futures_list:
-                    if future not in jobs_assessed:
-                        if future.done():
-                            print(future)
-                            print(future.result())
-                            try:
-                                gene_name, prot_length, run_time = future.result()
-                                logger.info(f'completion time for {gene_name} is: {run_time}')
-                                if prot_length:  # i.e. if exonerate actually produced a sequence
-                                    times.append(run_time)
-                            except TimeoutError:
-                                logger.info(
-                                    f'Process timeout - exonerate() took more than {timeout} seconds to complete and '
-                                    f'was cancelled')
-                            except:
-                                raise
-                            jobs_assessed.append(future)
-                logger.info(f'Sleeping for 5 secs while waiting for median...')
-                time.sleep(5)
-            logger.info(f'times is: {times}')
-
-            # Iterate over remaining jobs every 5 seconds, calculating median run time and cancelling if > timeout %:
-            jobs_to_check = [future for future in futures_list if future not in jobs_assessed]
-            jobs_cancelled_due_to_timeout = []
-            while jobs_to_check:
-                for future in jobs_to_check:
-                    if future.done():
-                        try:
-                            gene_name, prot_length, run_time = future.result()
-                            logger.info(f'completion time for {gene_name} is: {run_time}')
-                            times.append(run_time)
-                        except CancelledError:  # shouldn't raise as cancelled jobs are in jobs_assessed list
-                            raise
-                        jobs_assessed.append(future)
-                    else:
-                        if future.running():
-                            try:
-                                gene = future_results_dict[future]
-                                start_time = shared_dict[gene][3]
-                                parent_pid = shared_dict[gene][1]
-                                print(f'parent_pid is: {parent_pid}')
-                                current_time = time.time()
-                                running_time = current_time - start_time
-                                print(f'running_time for {gene} is: {running_time}')
-                                median_time = statistics.median(times)
-                                median_time_adjusted_for_timeout = (timeout / 100) * median_time
-                                print(f'median_time_adjusted_for_timeout is: {median_time_adjusted_for_timeout}')
-                                if running_time > median_time_adjusted_for_timeout:
-                                    print(f'CANCELLING future: {future} for gene {gene} as running time '
-                                          f'{running_time} is greater than {timeout}% of median {median_time}')
-                                    cancelled = future.cancel()
-                                    print(f'cancelled is {cancelled}')
-                                    try:
-                                        parent = psutil.Process(parent_pid)
-                                        for child in parent.children(recursive=True):
-                                            print(f'Child for parent {parent} is {child}')
-                                            child.kill()
-                                    except psutil.NoSuchProcess:
-                                        print(f'Can not find PID for {gene}, {parent_pid}')
-                                    jobs_cancelled_due_to_timeout.append(gene_name)
-                                    jobs_assessed.append(future)
-                            except KeyError:  # As it can take a few moments for the worker to write to the shared_dict
-                                pass
-                jobs_to_check = [future for future in futures_list if future not in jobs_assessed]
-                print(f'Sleeping for 5 secs...')
-                time.sleep(5)
-
-            print(f'jobs_cancelled_due_to_timeout is; {jobs_cancelled_due_to_timeout}')
 
         # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
         for future in as_completed(futures_list):
@@ -1325,16 +1252,16 @@ def exonerate_multiprocessing(genes,
                             logger.debug(line.strip())  # log contents to main logger
                     if not keep_intermediate_files:
                         os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
-            # except:  # FIXME make this more specific
-            except TimeoutError:
-                logger.info(f'Process timeout - exonerate() took more than <timeout> seconds to complete and was '
-                            f'cancelled')
+            except TimeoutError as err:
+                logger.info(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
+                            f' {err.args[1]} seconds to complete and was cancelled')
+                genes_cancelled_due_to_timeout.append(future_results_dict[future])
             except CancelledError:
-                logger.debug(f'CancelledError raised for future {future}')
+                logger.info(f'CancelledError raised for gene {future_results_dict[future]}')
             except:
                 raise
 
-        wait(futures_list, return_when="ALL_COMPLETED")
+        wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
         # Write the 'gene_name', 'prot_length' strings returned by each process to file:
         with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
@@ -1343,13 +1270,29 @@ def exonerate_multiprocessing(genes,
                     gene_name, prot_length, run_time = future.result()
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
-                except TimeoutError:
-                    logger.info(f'Process timeout')
+                except TimeoutError as err:
+                    logger.info(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
+                                f' {err.args[1]} seconds to complete and was cancelled')
                 except CancelledError:
-                    logger.debug(f'CancelledError raised for future {future}')
-                except ValueError:
-                    logger.info(f'result is {future.result()}')
+                    logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
+                except:
                     raise
+
+        if genes_cancelled_due_to_timeout:
+            fill = textwrap.fill(f'The exonerate_contigs step of the pipeline was cancelled for the following genes, '
+                                 f'to to exceeding the timeout limit of {exonerate_contigs_timeout} seconds\n:',
+                                 width=90, subsequent_indent=" " * 11)
+            logger.info(fill)
+            for gene in genes_cancelled_due_to_timeout:
+                logger.info(f'{" " * 11} {gene}')
+
+            fill = textwrap.fill(f'This is most likely caused by many low-complexity reads mapping to the '
+                                 f'corresponding gene sequences in the target file, resulting in SPAdes assembly many '
+                                 f'(i.e. hundreds) repetitive and low-complexity contigs. Subsequently, '
+                                 f'Exonerate searches of these many low-complexity contigs can take a long time. We '
+                                 f'strongly recommend removing such low-complexity sequences from your target file. '
+                                 f'The command "hybpiper check_targetfile" can assist in identifying these sequences.')
+            logger.info(fill)
 
 
 def assemble(args):
@@ -1675,7 +1618,7 @@ def assemble(args):
                               intronerate=args.intronerate,
                               no_padding_supercontigs=args.no_padding_supercontigs,
                               keep_intermediate_files=args.keep_intermediate_files,
-                              timeout=args.timeout)
+                              exonerate_contigs_timeout=args.exonerate_contigs_timeout)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
