@@ -1253,11 +1253,11 @@ def exonerate_multiprocessing(genes,
                     if not keep_intermediate_files:
                         os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
             except TimeoutError as err:
-                logger.info(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
-                            f' {err.args[1]} seconds to complete and was cancelled')
+                logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
+                             f' {err.args[1]} seconds to complete and was cancelled')
                 genes_cancelled_due_to_timeout.append(future_results_dict[future])
             except CancelledError:
-                logger.info(f'CancelledError raised for gene {future_results_dict[future]}')
+                logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
             except:
                 raise
 
@@ -1271,24 +1271,24 @@ def exonerate_multiprocessing(genes,
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
                 except TimeoutError as err:
-                    logger.info(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
-                                f' {err.args[1]} seconds to complete and was cancelled')
+                    logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more '
+                                 f'than {err.args[1]} seconds to complete and was cancelled')
                 except CancelledError:
                     logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
                 except:
                     raise
 
         if genes_cancelled_due_to_timeout:
-            fill = textwrap.fill(f'The exonerate_contigs step of the pipeline was cancelled for the following genes, '
-                                 f'to to exceeding the timeout limit of {exonerate_contigs_timeout} seconds\n:',
-                                 width=90, subsequent_indent=" " * 11)
+            fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
+                                 f'following genes, to to exceeding the timeout limit of {exonerate_contigs_timeout} '
+                                 f'seconds\n:', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
             for gene in genes_cancelled_due_to_timeout:
-                logger.info(f'{" " * 11} {gene}')
+                logger.info(f'{" " * 11}{gene}')
 
-            fill = textwrap.fill(f'This is most likely caused by many low-complexity reads mapping to the '
-                                 f'corresponding gene sequences in the target file, resulting in SPAdes assembly many '
-                                 f'(i.e. hundreds) repetitive and low-complexity contigs. Subsequently, '
+            fill = textwrap.fill(f'{"[INFO]:":10} This is most likely caused by many low-complexity reads mapping to '
+                                 f'the corresponding gene sequences in the target file, resulting in SPAdes assembly '
+                                 f'many (i.e. hundreds) repetitive and low-complexity contigs. Subsequently, '
                                  f'Exonerate searches of these many low-complexity contigs can take a long time. We '
                                  f'strongly recommend removing such low-complexity sequences from your target file. '
                                  f'The command "hybpiper check_targetfile" can assist in identifying these sequences.')

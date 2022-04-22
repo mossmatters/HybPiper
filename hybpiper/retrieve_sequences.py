@@ -87,7 +87,6 @@ def get_samples_to_recover(filter_by, stats_df, target_genes):
             threshold = round(float(threshold) * total_number_of_genes)
             logger.info(f'{"[INFO]:":10} Threshold for {column} is {operator} {threshold}')
 
-
         if operator == '>':
             stats_df = stats_df.loc[(stats_df[column] > threshold)]
         elif operator == '<':
@@ -118,7 +117,6 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     # Read in the stats file, if present:
     if stats_file:
         stats_df = pandas.read_csv(stats_file, delimiter='\t')
-        # print(stats_df)
         samples_to_recover = get_samples_to_recover(filter_by, stats_df, target_genes)
         if not samples_to_recover:
             sys.exit(f'{"[ERROR]:":10} Your current filtering options will remove all samples! Please provide '
@@ -349,8 +347,6 @@ def main(args):
             threshold_is_float = float(threshold)
         except ValueError:
             sys.exit(f'Please provide only integers or floats as threshold values. You have provided: {threshold}')
-
-    # print(args.filter_by)
 
     # Set target file name:
     if args.targetfile_dna:
