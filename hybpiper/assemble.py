@@ -60,16 +60,12 @@ from collections import defaultdict
 import re
 import textwrap
 import datetime
-from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
 import pkg_resources
 import collections
 import time
-import statistics
-import psutil
-
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
