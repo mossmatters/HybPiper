@@ -1291,7 +1291,8 @@ def exonerate_multiprocessing(genes,
                                  f'many (i.e. hundreds) repetitive and low-complexity contigs. Subsequently, '
                                  f'Exonerate searches of these many low-complexity contigs can take a long time. We '
                                  f'strongly recommend removing such low-complexity sequences from your target file. '
-                                 f'The command "hybpiper check_targetfile" can assist in identifying these sequences.')
+                                 f'The command "hybpiper check_targetfile" can assist in identifying these '
+                                 f'sequences.', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
 
 
