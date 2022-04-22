@@ -208,6 +208,12 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  dest='no_padding_supercontigs',
                                  default=False)
+    parser_assemble.add_argument('--verbose_logging',
+                                 help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
+                                      'files by an order of magnitude.',
+                                 action='store_true',
+                                 dest='verbose_logging',
+                                 default=False)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(blast=True)

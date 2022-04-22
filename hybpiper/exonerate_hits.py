@@ -104,8 +104,12 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
         return None
 
 
-def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_supercontigs=False,
-                keep_intermediate_files=False):
+def intronerate(exonerate_object,
+                spades_contig_dict,
+                logger=None,
+                no_padding_supercontigs=False,
+                keep_intermediate_files=False,
+                verbose_logging=False):
     """
     Attempts to identify introns within supercontigs, and writes fasta files containing 1) supercontig sequences
     containing exons AND introns, with 10 'N' characters inserted at any location SPAdes contigs have been
@@ -116,6 +120,7 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
     :param logging.Logger logger: a logger object
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from supercontig
+    :param bool verbose_logging: if True, log additional information to file
     :return NoneType: no explicit return value
     """
 
@@ -133,9 +138,11 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
     trimmed_hits_dict = exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict
     sample_name = os.path.split(exonerate_object.prefix)[-1]
-    logger.debug(f'sample_name: {sample_name}')
+    if verbose_logging:
+        logger.debug(f'sample_name: {sample_name}')
     gene_name = os.path.split(exonerate_object.prefix)[-2]
-    logger.debug(f'gene_name: {gene_name}')
+    if verbose_logging:
+        logger.debug(f'gene_name: {gene_name}')
     spades_contigs_for_intronerate_supercontig = []
 
     # Check whether there's more than one Exonerate hit for any given SPAdes contig:
@@ -148,8 +155,9 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
 
     count = Counter(all_exonerate_hit_contig_names_in_order)
     contigs_with_more_than_one_exonerate_hit = [key for key, value in count.items() if value >= 2]
-    logger.debug(count)
-    logger.debug(f'SPAdes contigs that have more than one Exonerate hit: {contigs_with_more_than_one_exonerate_hit}')
+    if verbose_logging:
+        logger.debug(count)
+        logger.debug(f'SPAdes contigs that have more than one Exonerate hit: {contigs_with_more_than_one_exonerate_hit}')
 
     # If there is more than one Exonerate hit for a given SPAdes contig, check that the hits are consecutive with
     # respect to the protein query, and that they all occur on the same strand; this is _expected_ to be the case,
@@ -453,10 +461,23 @@ def intronerate(exonerate_object, spades_contig_dict, logger=None, no_padding_su
                 f'{intronerate_sequence_directory}')
 
 
-def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, paralog_warning_min_length_percentage,
-                                            thresh, logger, prefix, discordant_cutoff, edit_distance, bbmap_subfilter,
-                                            bbmap_memory, bbmap_threads, interleaved_fasta_file, no_stitched_contig,
-                                            spades_assembly_dict, depth_multiplier, keep_intermediate_files):
+def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
+                                            query_file,
+                                            paralog_warning_min_length_percentage,
+                                            thresh,
+                                            logger,
+                                            prefix,
+                                            discordant_cutoff,
+                                            edit_distance,
+                                            bbmap_subfilter,
+                                            bbmap_memory,
+                                            bbmap_threads,
+                                            interleaved_fasta_file,
+                                            no_stitched_contig,
+                                            spades_assembly_dict,
+                                            depth_multiplier,
+                                            keep_intermediate_files,
+                                            verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
     => Generates paralog warning and fasta files.
@@ -480,12 +501,13 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
+    :param bool verbose_logging: if True, log additional information to file
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
-    # Note that the BioPython SearchIO module still has some bugs when Exonerate returns an alignment with directly
-    #  abutting introns, or an alignment that ends on an intron. Will submit bug-fixes, but in the meantime catch any
-    #  errors and move on:
+    # Note that the BioPython SearchIO module still has some bugs when Exonerate version 2.2 returns an alignment with
+    #  directly abutting introns, or an alignment that ends on an intron. This Exonerate bug does not seem to occur
+    #  in Exonerate version 2.4.
 
     try:
         exonerate_hits_from_alignment = list(SearchIO.parse(exonerate_text_output, 'exonerate-text'))
@@ -510,9 +532,11 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output, query_file, p
                                  no_stitched_contig=no_stitched_contig,
                                  spades_assembly_dict=spades_assembly_dict,
                                  depth_multiplier=depth_multiplier,
-                                 keep_intermediate_files=keep_intermediate_files)
+                                 keep_intermediate_files=keep_intermediate_files,
+                                 verbose_logging=verbose_logging)
 
-    logger.debug(exonerate_result)
+    if verbose_logging:
+        logger.debug(exonerate_result)
 
     if not exonerate_result.hits_filtered_by_pct_similarity_dict:  # i.e. no hits left after filtering via pct ID
         return None
@@ -553,7 +577,8 @@ class Exonerate(object):
                  no_stitched_contig=False,
                  spades_assembly_dict=None,
                  depth_multiplier=10,
-                 keep_intermediate_files=False):
+                 keep_intermediate_files=False,
+                 verbose_logging=False):
         """
         Initialises class attributes.
 
@@ -573,6 +598,7 @@ class Exonerate(object):
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
         :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
+        :param bool verbose_logging: if True, log additional information to file
         """
 
         if len(searchio_object) != 1:  # This should always be 1 for a single Exonerate query
@@ -595,6 +621,7 @@ class Exonerate(object):
         self.spades_assembly_dict = spades_assembly_dict
         self.depth_multiplier = depth_multiplier
         self.keep_intermediate_files = keep_intermediate_files
+        self.verbose_logging = verbose_logging
         self.hits_filtered_by_pct_similarity_dict = self._parse_searchio_object()
         self.hits_subsumed_hits_removed_dict = self._remove_subsumed_hits()
         self.hits_subsumed_hits_removed_overlaps_trimmed_dict = self._trim_overlapping_hits()
@@ -920,7 +947,8 @@ class Exonerate(object):
                         continue
 
                     if to_remove in seqs_removed:
-                        self.logger.debug(f'to_remove {to_remove} is already in seqs_removed: {seqs_removed}')
+                        if self.verbose_logging:
+                            self.logger.debug(f'to_remove {to_remove} is already in seqs_removed: {seqs_removed}')
                         continue
                     seqs_removed.append(to_remove)
 
@@ -929,20 +957,25 @@ class Exonerate(object):
                 try:
                     del exonerate_hits_filtered_no_subsumed[to_remove]
                 except KeyError:
-                    self.logger.debug(f'hit {to_remove} already removed from dict')
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit {to_remove} already removed from dict')
+                    pass
 
         # Select a single sequence from each range in hits_with_identical_range_and_similarity_dict:
         if len(hits_with_identical_range_and_similarity_dict) != 0:
             self.logger.debug(f'Gene has hits with identical query ranges and similarities; selecting one hit for '
                               f'each range')
-            self.logger.debug(f'Dictionary hits_with_identical_range_and_similarity_dict is:'
-                              f' {hits_with_identical_range_and_similarity_dict}')
+            if self.verbose_logging:
+                self.logger.debug(f'Dictionary hits_with_identical_range_and_similarity_dict is:'
+                                  f' {hits_with_identical_range_and_similarity_dict}')
             for query_range, hits in hits_with_identical_range_and_similarity_dict.items():
                 to_remove = list(hits)[0]  # arbitrarily remove first hit if range and similarity are the same
                 try:
                     del exonerate_hits_filtered_no_subsumed[to_remove]
                 except KeyError:
-                    self.logger.debug(f'hit {to_remove} already removed from dict')
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit {to_remove} already removed from dict')
+                    pass
 
         return exonerate_hits_filtered_no_subsumed
 
@@ -1081,7 +1114,8 @@ class Exonerate(object):
 
         cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only stitched contig sequence
         for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
-            self.logger.debug(f'hit is: {hit}')
+            if self.verbose_logging:
+                self.logger.debug(f'hit is: {hit}')
             spades_name = hit.split(',')[0]
             raw_spades_contig_length = len(self.spades_assembly_dict[spades_name])
             hit_exonerate_sequence_length = len(hit_dict_values['hit_sequence'].seq)
@@ -1089,27 +1123,33 @@ class Exonerate(object):
             hit_inter_ranges = hit_dict_values['hit_inter_ranges']
 
             if len(hit_inter_ranges) == 0:  # i.e. no introns
-                self.logger.debug(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
+                if self.verbose_logging:
+                    self.logger.debug(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
                 hit_ranges_dict[hit].append('no introns')
                 cumulative_hit_length += hit_exonerate_sequence_length
             else:
                 if hit_dict_values['hit_strand'] == -1:  # Convert ranges so that they apply to the revcomp contig
-                    self.logger.debug(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
                     hit_inter_ranges = self.convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
-                    self.logger.debug(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
-                    self.logger.debug(f'hit_range_all before conversion is: {hit_range_all}')
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
+                        self.logger.debug(f'hit_range_all before conversion is: {hit_range_all}')
                     hit_range_all = self.convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
-                    self.logger.debug(f'hit_range_all after conversion is: {hit_range_all}')
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_range_all after conversion is: {hit_range_all}')
                 else:
-                    self.logger.debug(f'hit_inter_ranges is: {hit_inter_ranges}')
-                    self.logger.debug(f'hit_range_all is: {hit_range_all}')
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_inter_ranges is: {hit_inter_ranges}')
+                        self.logger.debug(f'hit_range_all is: {hit_range_all}')
 
                 # Adjust range coordinates so that they start at zero (i.e. first nucleotide position of the Exonerate
                 # fasta sequence for this hit:
                 hit_start_coordinate = hit_range_all[0][0]
                 hit_range_all_start_at_zero = [(item[0] - hit_start_coordinate, item[1] - hit_start_coordinate)
                                                for item in hit_range_all]
-                self.logger.debug(f'hit_range_all_start_at_zero is: {hit_range_all_start_at_zero}')
+                if self.verbose_logging:
+                    self.logger.debug(f'hit_range_all_start_at_zero is: {hit_range_all_start_at_zero}')
 
                 # Adjust range coordinates to remove intron lengths:
                 cumulative_intron_length = 0
@@ -1128,7 +1168,8 @@ class Exonerate(object):
                                        item in hit_ranges_dict[hit]]
                 hit_ranges_dict[hit] = hit_ranges_adjusted  # replace with adjusted values
 
-        self.logger.debug(f'hit_ranges_dict is: {hit_ranges_dict}')
+        if self.verbose_logging:
+            self.logger.debug(f'hit_ranges_dict is: {hit_ranges_dict}')
 
         return hit_ranges_dict
 
@@ -1339,7 +1380,8 @@ class Exonerate(object):
         :return bool: True is a chimera warning is produced and written to file.
         """
 
-        self.logger.debug(f'self.stitched_contig_hit_ranges is: {self.stitched_contig_hit_ranges}')
+        if self.verbose_logging:
+            self.logger.debug(f'self.stitched_contig_hit_ranges is: {self.stitched_contig_hit_ranges}')
 
         if not self.hits_filtered_by_pct_similarity_dict:
             return None
@@ -1399,8 +1441,9 @@ class Exonerate(object):
                 contig_range_tuple = (hit, contig_start_coordinate, contig_end_coordinate)
                 individual_contig_ranges_in_stitched_contig.append(contig_range_tuple)
 
-        self.logger.debug(f'individual_contig_ranges_in_stitched_contig is:'
-                          f' {individual_contig_ranges_in_stitched_contig}')
+        if self.verbose_logging:
+            self.logger.debug(f'individual_contig_ranges_in_stitched_contig is:'
+                              f' {individual_contig_ranges_in_stitched_contig}')
 
         # Check that the max range value corresponds to the length of the stitched contig sequence:
         assert individual_contig_ranges_in_stitched_contig[-1][-1] == len(self.stitched_contig_seqrecord)
@@ -1428,8 +1471,9 @@ class Exonerate(object):
                 discordant_read_list.append(forward)
                 discordant_read_list.append(reverse)
 
-        self.logger.debug(f'There are {int(len(discordant_read_list) / 2)} discordant read pairs prior to range '
-                          f'filtering')
+        if self.verbose_logging:
+            self.logger.debug(f'There are {int(len(discordant_read_list) / 2)} discordant read pairs prior to range '
+                              f'filtering')
 
         # Filter discordant read pairs to remove any that 1) don't have each read mapping to different Exonerate hit
         # contigs; 2) don't fall entirely withing exon sequences (i.e. they overlap exon-intron boundaries which
@@ -1456,13 +1500,17 @@ class Exonerate(object):
                     reverse_enclosing_contig_name = range_tuple[0]
                     reverse_enclosing_contig_name_spades_only = range_tuple[0].split(',')[0]
                     reverse_enclosing_contig_range = range_tuple
-            self.logger.debug(f'forward_enclosing_contig_range is: {forward_enclosing_contig_range}')
-            self.logger.debug(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
+
+            if self.verbose_logging:
+                self.logger.debug(f'forward_enclosing_contig_range is: {forward_enclosing_contig_range}')
+                self.logger.debug(f'reverse_enclosing_contig_range is: {reverse_enclosing_contig_range}')
 
             # Make sure each read is assigned to a contig range, or skip if it overlaps contig join:
             if not forward_enclosing_contig_range or not reverse_enclosing_contig_range:
-                self.logger.debug(f'One or both read pairs do not map within the range of a single contig (i.e. they '
-                                  f'overlap a coordinate where two contigs have been concatenated). Skipping read pair')
+                if self.verbose_logging:
+                    self.logger.debug(f'One or both read pairs do not map within the range of a single contig (i.e. '
+                                      f'they overlap a coordinate where two contigs have been concatenated). Skipping '
+                                      f'read pair')
                 continue
 
             forward_contig_exon_ranges = self.stitched_contig_hit_ranges[forward_enclosing_contig_name]
@@ -1473,10 +1521,12 @@ class Exonerate(object):
 
             # Check if the SPAdes only name each contig are the same:
             if forward_enclosing_contig_name_spades_only == reverse_enclosing_contig_name_spades_only:
-                self.logger.debug(f'Both reads occur in the same SPAdes contig. Skipping read pair!')
+                if self.verbose_logging:
+                    self.logger.debug(f'Both reads occur in the same SPAdes contig. Skipping read pair!')
                 continue
             else:  # If contig is not the same, check that reads don't overlap exon-intron boundaries within each contig
-                self.logger.debug(f'Reads occur in different contigs. Check for exon-intron overlaps...')
+                if self.verbose_logging:
+                    self.logger.debug(f'Reads occur in different contigs. Check for exon-intron overlaps...')
                 forward_occurs_in_exons_only = False
                 reverse_occurs_in_exons_only = False
                 for range_tuple in forward_contig_exon_ranges:
@@ -1499,8 +1549,9 @@ class Exonerate(object):
                     discordant_read_list_pass_filtering.append(forward)
                     discordant_read_list_pass_filtering.append(reverse)
                 else:
-                    self.logger.debug(f'One or both read pairs overlap with exon-intron boundaries - skipping read '
-                                      f'pair')
+                    if self.verbose_logging:
+                        self.logger.debug(f'One or both read pairs overlap with exon-intron boundaries - skipping read '
+                                          f'pair')
 
             # If there are discordant read pairs passing filtering, write them to a SAM file, and write to log:
             if discordant_read_list_pass_filtering:
@@ -1652,7 +1703,7 @@ def set_stitched_contig_chimera_test(no_stitched_contig_bool, prefix):
 
     if not no_stitched_contig_bool:
         gene_folder = os.path.split(prefix)[0]
-        interleaved_reads = f'{gene_folder}/{gene_folder}_interleaved.fasta'
+        interleaved_reads = f'{gene_folder}/{gene_folder}_interleaved.fasta'  # FIXME same for single end?
 
         try:
             with open(interleaved_reads):
@@ -1778,6 +1829,12 @@ def standalone():
                              'debugging. Default action is to delete them, which greatly reduces the total file '
                              'number).',
                         action='store_true', dest='keep_intermediate_files', default=False)
+    parser.add_argument('--verbose_logging',
+                        help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
+                             'files by an order of magnitude.',
+                        action='store_true',
+                        dest='verbose_logging',
+                        default=False)
 
     args = parser.parse_args()
 
@@ -1836,7 +1893,8 @@ def main(args):
                                                                no_stitched_contig=args.no_stitched_contig,
                                                                spades_assembly_dict=spades_assembly_dict,
                                                                depth_multiplier=args.depth_multiplier,
-                                                               keep_intermediate_files=args.keep_intermediate_files)
+                                                               keep_intermediate_files=args.keep_intermediate_files,
+                                                               verbose_logging=args.verbose_logging)
     if not exonerate_result.stitched_contig_seqrecord:
         return
 

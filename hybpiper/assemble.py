@@ -987,7 +987,8 @@ def exonerate(gene_name,
               intronerate=False,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
-              shared_dict=None):
+              # shared_dict=None,
+              verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
@@ -1009,7 +1010,8 @@ def exonerate(gene_name,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
-    :param dict shared_dict: a multiprocessing.managers.DictProxy dictionary shared by the multoprocessing pool
+    # :param dict shared_dict: a multiprocessing.managers.DictProxy dictionary shared by the multiprocessing pool
+    :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
 
@@ -1023,10 +1025,11 @@ def exonerate(gene_name,
     # Write gene name, start time, PID etc. to a dictionary shared by the multiprocessing pool:
     start = time.time()
     worker_stats = (gene_name, multiprocessing.current_process().pid, multiprocessing.Process().name, start)
-    logger.debug(f'worker_stats for {gene_name} are: {worker_stats}')
+    if verbose_logging:
+        logger.debug(f'worker_stats for {gene_name} are: {worker_stats}')
     # print(f'worker_stats for {gene_name} are: {worker_stats}')
-    if gene_name not in shared_dict:
-        shared_dict[gene_name] = worker_stats
+    # if gene_name not in shared_dict:
+    #     shared_dict[gene_name] = worker_stats
 
     # Create directories for output files based on the prefix name, or assemblyfile name:
     prefix = exonerate_hits.create_output_directories(f'{gene_name}/{basename}', f'{gene_name}/'
@@ -1048,8 +1051,9 @@ def exonerate(gene_name,
             f'{gene_name}/{gene_name}_target.fasta',
             prefix)
 
-        logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
-        logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
+        if verbose_logging:
+            logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
+            logger.debug(f'best_protein_ref_dict is: {best_protein_ref_dict}')
 
     except FileNotFoundError as e:
         logger.error(f"\n{'[ERROR!]:':10} Couldn't find an expected file for either the SPAdes assembly or the protein "
@@ -1085,17 +1089,20 @@ def exonerate(gene_name,
             no_stitched_contig=no_stitched_contig,
             spades_assembly_dict=spades_assembly_dict,
             depth_multiplier=depth_multiplier,
-            keep_intermediate_files=keep_intermediate_files)
+            keep_intermediate_files=keep_intermediate_files,
+            verbose_logging=verbose_logging)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
-            logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} is:'
-                         f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
+            if verbose_logging:
+                logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} '
+                             f'is: {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
             logger.debug(f'Running intronerate')
             exonerate_hits.intronerate(exonerate_result,
                                        spades_assembly_dict,
                                        logger=logger,
                                        no_padding_supercontigs=no_padding_supercontigs,
-                                       keep_intermediate_files=keep_intermediate_files)
+                                       keep_intermediate_files=keep_intermediate_files,
+                                       verbose_logging=verbose_logging)
     else:
         exonerate_result = False
 
@@ -1164,7 +1171,8 @@ def exonerate_multiprocessing(genes,
                               intronerate=False,
                               no_padding_supercontigs=False,
                               keep_intermediate_files=False,
-                              exonerate_contigs_timeout=None):
+                              exonerate_contigs_timeout=None,
+                              verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
 
@@ -1187,6 +1195,7 @@ def exonerate_multiprocessing(genes,
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
     :param int exonerate_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
+    :param bool verbose_logging: if True, log additional information to file
     :return:
     """
 
@@ -1206,7 +1215,7 @@ def exonerate_multiprocessing(genes,
         manager = Manager()
         lock = manager.Lock()
         counter = manager.Value('i', 0)
-        shared_dict = manager.dict()
+        # shared_dict = manager.dict()
         kwargs_for_schedule = {"thresh": thresh,
                                "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
                                "depth_multiplier": depth_multiplier,
@@ -1224,7 +1233,8 @@ def exonerate_multiprocessing(genes,
                                "intronerate": intronerate,
                                "no_padding_supercontigs": no_padding_supercontigs,
                                "keep_intermediate_files": keep_intermediate_files,
-                               "shared_dict": shared_dict}
+                               # "shared_dict": shared_dict,
+                               "verbose_logging": verbose_logging}
 
         for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
             exonerate_job = pool.schedule(exonerate, args=[gene_name, basename],  kwargs=kwargs_for_schedule,
@@ -1615,7 +1625,8 @@ def assemble(args):
                               intronerate=args.intronerate,
                               no_padding_supercontigs=args.no_padding_supercontigs,
                               keep_intermediate_files=args.keep_intermediate_files,
-                              exonerate_contigs_timeout=args.exonerate_contigs_timeout)
+                              exonerate_contigs_timeout=args.exonerate_contigs_timeout,
+                              verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
