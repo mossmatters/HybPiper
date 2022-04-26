@@ -243,6 +243,8 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
     :return:
     """
 
+    log_or_print(f'{"[INFO]:":10} Checking target file FASTA header formatting...', logger=logger)
+
     gene_lists = defaultdict(list)
     with open(targetfile, 'r') as target_file_handle:
         seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
@@ -308,7 +310,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
     if translate_target_file:
         for seq in seqs:
             gene_name = seq.name.split('-')[-1]
-            sequence, needed_padding = distribute_targets.pad_seq(seq)
+            sequence, needed_padding = utils.pad_seq(seq)
             translated_seq = sequence.seq.translate()
             if translate_target_file:
                 record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
@@ -382,13 +384,13 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
     :return: None, str: NoneType or path to the translated targetfile
     """
 
-    # Check target file fasta header formatting:
-    logger.info(f'{"[INFO]:":10} Checking target file FASTA header formatting...')
+    # # Check target file fasta header formatting:
+    # logger.info(f'{"[INFO]:":10} Checking target file FASTA header formatting...')
 
     target_file_path, target_file_name = os.path.split(targetfile)
     file_name, ext = os.path.splitext(target_file_name)
 
-    # Check targetfile header and duplicate gene names:
+    # Check target file header and duplicate gene names:
     check_target_file_headers_and_duplicate_names(targetfile, logger=logger)
 
     # Detect whether the target file is DNA or amino-acid:
@@ -1384,11 +1386,23 @@ def assemble(args):
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return the path to translated file:
-    targetfile = check_targetfile(targetfile,
-                                  targetfile_type,
-                                  args.bwa,
-                                  args.allow_low_complexity_targetfile_sequences,
-                                  logger=logger)
+    if args.skip_targetfile_check:
+        if args.bwa and targetfile_type == 'protein':
+            sys.exit(
+                f'{"[ERROR]:":10} You have specified that your target file contains protein sequences but provided '
+                f'the flag --bwa. You need a nucleotide target file to use BWA for read mapping!')
+        elif not args.bwa and targetfile_type == 'DNA':
+            fill = textwrap.fill(f'{"[WARNING]:":10} You have specified that your target file contains DNA sequences, '
+                                 f'but BLASTx or DIAMOND has been selected for read mapping. Translating the target '
+                                 f'file...', width=90, subsequent_indent=' ' * 11)
+            logger.info(f'{fill}')
+            targetfile = utils.translate_target_file(targetfile, logger=logger)
+    else:
+        targetfile = check_targetfile(targetfile,
+                                      targetfile_type,
+                                      args.bwa,
+                                      args.allow_low_complexity_targetfile_sequences,
+                                      logger=logger)
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
@@ -1728,7 +1742,8 @@ def check_dependencies_main(args):
 
 def check_targetfile_main(args):
     """
-    # Calls the function check_targetfile() from module assemble
+    Performs much the same targetfiel checks as check_targetfile() from module assemble.py. Does not translate a DNA
+    file; low-complexity checks are performed on the target file as provided.
 
     :param args: argparse namespace with subparser options for function check_targetfile()
     :return: None: no return value specified; default is None
@@ -1745,7 +1760,7 @@ def check_targetfile_main(args):
         translate_target_file = False
 
     # Check targetfile header and duplicate gene names:
-    check_target_file_headers_and_duplicate_names(targetfile, logger=None)
+    check_target_file_headers_and_duplicate_names(targetfile, logger=args.logger)
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
     check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_target_file=translate_target_file,

@@ -83,6 +83,12 @@ def add_assemble_parser(subparsers):
                                  help='Allow the pipeline to run even if target file sequences with low complexity '
                                       'regions have been detected. We recommend using the parameter "--timeout" in '
                                       'these cases.')
+    parser_assemble.add_argument('--skip_targetfile_check',
+                                 dest='skip_targetfile_check',
+                                 action='store_true',
+                                 default=False,
+                                 help='Skip the target file check. Useful if you have already run "hybpiper '
+                                      'check_targetfile"')
     parser_assemble.add_argument('--start_from',
                                  choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
                                  help='Start the pipeline from the given step. Note that this relies on the presence '

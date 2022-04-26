@@ -23,26 +23,10 @@ import subprocess
 from Bio import SeqIO
 from Bio.Seq import Seq
 import logging
+from hybpiper import utils
 
 # Create logger:
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
-
-
-def pad_seq(sequence):
-    """
-    Pads a sequence Seq object to a multiple of 3 with 'N'.
-
-    :param Bio.SeqRecord.SeqRecord sequence: sequence to pad
-    :return: Bio.SeqRecord.SeqRecord sequence padded with Ns if required, bool True if sequence needed padding
-    """
-
-    remainder = len(sequence.seq) % 3
-    if remainder == 0:
-        return sequence, False
-    else:
-        # logger.info(f'{"[WARN!]:":10} The targetfile nucleotide sequence {sequence.id} is not a multiple of 3!')
-        sequence.seq = sequence.seq + Seq('N' * (3 - remainder))
-        return sequence, True
 
 
 def mkdir_p(path):
@@ -197,7 +181,7 @@ def distribute_targets(targetfile, delim, besthits, translate=False, target=None
         # Get the 'basename' of the target sequence
         gene_id = sequence.id.split(delim)[-1]
         if translate:
-            seq, needed_padding = pad_seq(sequence)
+            seq, needed_padding = utils.pad_seq(sequence)
             sequence.seq = seq.seq.translate()
 
         mkdir_p(gene_id)  # Make a directory for the gene

@@ -10,7 +10,8 @@ import os
 import collections
 import scipy
 import textwrap
-from Bio import SeqIO
+from Bio import SeqIO, SeqRecord
+from Bio.Seq import Seq
 
 
 def log_or_print(string, logger=None, logger_level='info'):
@@ -234,3 +235,56 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
                 break
 
     return low_entropy_seqs
+
+
+def pad_seq(sequence):
+    """
+    Pads a sequence Seq object to a multiple of 3 with 'N'.
+
+    :param Bio.SeqRecord.SeqRecord sequence: sequence to pad
+    :return: Bio.SeqRecord.SeqRecord sequence padded with Ns if required, bool True if sequence needed padding
+    """
+
+    remainder = len(sequence.seq) % 3
+    if remainder == 0:
+        return sequence, False
+    else:
+        # logger.info(f'{"[WARN!]:":10} The targetfile nucleotide sequence {sequence.id} is not a multiple of 3!')
+        sequence.seq = sequence.seq + Seq('N' * (3 - remainder))
+        return sequence, True
+
+
+def translate_target_file(targetfile, logger=None):
+    """
+    Translates a DNA target file. Used when the --skip_targetfile_check flag is supplied to "hybpiper assemble";
+    usually the target file gets translated (and written to file is necessary) by the target file check.
+
+    :param str targetfile: path to the DNA target file
+    :param logging.Logger logger: a logger object
+    :return str targetfile: path to the translated protein target file
+    """
+
+    translated_seqs_to_write = []
+    with open(targetfile, 'r') as target_file_handle:
+        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
+        for seq in seqs:
+            gene_name = seq.name.split('-')[-1]
+            sequence, needed_padding = pad_seq(seq)
+            translated_seq = sequence.seq.translate()
+            record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
+            translated_seqs_to_write.append(record)
+
+    target_file_path, target_file_name = os.path.split(targetfile)
+    file_name, ext = os.path.splitext(target_file_name)
+    translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
+    fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                              f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
+                              break_long_words=False, break_on_forward_slash=True)
+    logger.info(f'{fill}')
+
+    with open(f'{translated_target_file}', 'w') as translated_handle:
+        SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+    targetfile = translated_target_file
+
+    return targetfile
+
