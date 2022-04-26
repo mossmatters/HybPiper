@@ -1750,6 +1750,7 @@ def check_targetfile_main(args):
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
     check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_target_file=translate_target_file,
                                                         logger=None)
+    low_complexity_sequences = None
 
     if targetfile_type == 'DNA':
         fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing DNA '
@@ -1788,10 +1789,10 @@ def check_targetfile_main(args):
                                subsequent_indent=" " * 11)
 
         fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-                               f'contains other representative sequences for the corresponding genes, and restart the '
-                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+                               f'contains other representative sequences for the corresponding genes.', width=90,
+                               initial_indent=" " * 11, subsequent_indent=" " * 14)
 
-        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+        fill_3 = textwrap.fill(f'2) Start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
                                f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
                                width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
 
