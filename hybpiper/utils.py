@@ -7,7 +7,10 @@ This module contains some general functions and classes.
 import re
 from textwrap import TextWrapper
 import os
-
+import collections
+import scipy
+import textwrap
+from Bio import SeqIO
 
 def log_or_print(string, logger=None, logger_level='info'):
     """
@@ -162,3 +165,71 @@ def py_which(executable_name, mode=os.F_OK | os.X_OK, path=None):
                 return name
 
     return None
+
+
+def shannon_entropy(fasta_seq):
+    """
+    Calculate Shannon entropy for a given string.
+
+    :param fasta_seq: a string of characters (e.g. DNA or amino-acid sequence).
+    :return: shannon entropy value (float) for the given string.
+    """
+
+    characters = collections.Counter([tmp_character for tmp_character in fasta_seq])
+    # e.g. Counter({'A': 4, 'T': 4, 'G': 1,'C': 1})
+    dist = [x / sum(characters.values()) for x in characters.values()]  # e.g. [0.4, 0.4, 0.1, 0.1]
+
+    # use scipy to calculate entropy
+    entropy_value = scipy.stats.entropy(dist, base=2)
+    return entropy_value
+
+
+def low_complexity_check(targetfile, targetfile_type, translate_target_file, window_size=None, entropy_value=None,
+                         logger=None):
+    """
+    For each sequence in a fasta file, recover the sequence string of a sliding window and calculate the Shannon
+    entropy value for it. If it is below a threshold, flag the entire sequence as low entropy and add it to a set.
+    Entropy will be calculated from protein sequences if a nucleotide target file has been translated for BLASTx or
+    DIAMOND. Returns the set of sequence names.
+
+    :param str targetfile: path to the targetfile
+    :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
+    :param bool translate_target_file: True is a nucleotide target file has been translated for BLASTx orDIAMOND
+    :param int or None window_size: number of characters to include in the sliding window
+    :param float or None entropy_value: entropy threshold within sliding window
+    :param logging.Logger logger: a logger object
+    :return set low_entropy_seqs: a set of sequences that contain low entropy substrings
+    """
+
+    if targetfile_type == 'DNA' and not translate_target_file:
+        entropy_value = entropy_value if entropy_value else 1.5
+        window_size = window_size if window_size else 100
+    elif targetfile_type == 'protein' or targetfile_type == 'DNA' and translate_target_file:
+        entropy_value = entropy_value if entropy_value else 3.0
+        window_size = window_size if window_size else 50
+
+    fill_1 = textwrap.fill(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...',
+                           width=90, subsequent_indent=" " * 11)
+    fill_2 = textwrap.fill(f'{"[INFO]:":10} Type of sequences: {targetfile_type}', width=90,
+                           subsequent_indent=" " * 11)
+    fill_3 = textwrap.fill(f'{"[INFO]:":10} Sliding window size: {window_size}', width=90,
+                           subsequent_indent=" " * 11)
+    fill_4 = textwrap.fill(f'{"[INFO]:":10} Minimum complexity threshold: {entropy_value}', width=90,
+                           subsequent_indent=" " * 11)
+
+    log_or_print(fill_1, logger=logger)
+    log_or_print(fill_2, logger=logger)
+    log_or_print(fill_3, logger=logger)
+    log_or_print(fill_4, logger=logger)
+
+    low_entropy_seqs = set()
+    for seq in SeqIO.parse(targetfile, "fasta"):
+        for i in range(0, len(seq.seq) - (window_size - 1)):
+            window_seq = str(seq.seq[i:i + window_size])
+            window_shannon_entropy = shannon_entropy(window_seq)
+            # print(window_seq, window_shannon_entropy)
+            if window_shannon_entropy <= entropy_value:
+                low_entropy_seqs.add(seq.name)
+                break
+
+    return low_entropy_seqs

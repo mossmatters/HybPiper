@@ -16,6 +16,8 @@ followed by a subcommand to run different parts of the pipeline. The available s
     retrieve_sequences  Retrieve sequences generated from multiple runs of HybPiper
     recovery_heatmap    Create a gene recovery heatmap for the HybPiper run
     paralog_retriever   Retrieve paralog sequences for a given gene, for all samples
+    check_dependencies  Run a check for all pipeline dependencies and exit
+    check_targetfile    Check the target file for sequences with low-complexity regions, then exit
 
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
@@ -230,72 +232,72 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
-def shannon_entropy(fasta_seq):
-    """
-    Calculate Shannon entropy for a given string.
-
-    :param fasta_seq: a string of characters (e.g. DNA or amino-acid sequence).
-    :return: shannon entropy value (float) for the given string.
-    """
-
-    characters = collections.Counter([tmp_character for tmp_character in fasta_seq])
-    # e.g. Counter({'A': 4, 'T': 4, 'G': 1,'C': 1})
-    dist = [x / sum(characters.values()) for x in characters.values()]  # e.g. [0.4, 0.4, 0.1, 0.1]
-
-    # use scipy to calculate entropy
-    entropy_value = scipy.stats.entropy(dist, base=2)
-    return entropy_value
-
-
-def low_complexity_check(targetfile, targetfile_type, translate_target_file, window_size=None, entropy_value=None,
-                         logger=None):
-    """
-    For each sequence in a fasta file, recover the sequence string of a sliding window and calculate the Shannon
-    entropy value for it. If it is below a threshold, flag the entire sequence as low entropy and add it to a set.
-    Entropy will be calculated from protein sequences if a nucleotide target file has been translated for BLASTx or
-    DIAMOND. Returns the set of sequence names.
-
-    :param str targetfile: path to the targetfile
-    :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
-    :param bool translate_target_file: True is a nucleotide target file has been translated for BLASTx orDIAMOND
-    :param int or None window_size: number of characters to include in the sliding window
-    :param float or None entropy_value: entropy threshold within sliding window
-    :param logging.Logger logger: a logger object
-    :return set low_entropy_seqs: a set of sequences that contain low entropy substrings
-    """
-
-    if targetfile_type == 'DNA' and not translate_target_file:
-        entropy_value = entropy_value if entropy_value else 1.5
-        window_size = window_size if window_size else 100
-    elif targetfile_type == 'protein' or targetfile_type == 'DNA' and translate_target_file:
-        entropy_value = entropy_value if entropy_value else 3.0
-        window_size = window_size if window_size else 50
-
-    fill_1 = textwrap.fill(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...',
-                           width=90, subsequent_indent=" " * 11)
-    fill_2 = textwrap.fill(f'{"[INFO]:":10} Type of sequences: {targetfile_type}', width=90,
-                           subsequent_indent=" " * 11)
-    fill_3 = textwrap.fill(f'{"[INFO]:":10} Sliding window size: {window_size}', width=90,
-                           subsequent_indent=" " * 11)
-    fill_4 = textwrap.fill(f'{"[INFO]:":10} Minimum complexity threshold: {entropy_value}', width=90,
-                           subsequent_indent=" " * 11)
-
-    log_or_print(fill_1, logger=logger)
-    log_or_print(fill_2, logger=logger)
-    log_or_print(fill_3, logger=logger)
-    log_or_print(fill_4, logger=logger)
-
-    low_entropy_seqs = set()
-    for seq in SeqIO.parse(targetfile, "fasta"):
-        for i in range(0, len(seq.seq) - (window_size - 1)):
-            window_seq = str(seq.seq[i:i + window_size])
-            window_shannon_entropy = shannon_entropy(window_seq)
-            # print(window_seq, window_shannon_entropy)
-            if window_shannon_entropy <= entropy_value:
-                low_entropy_seqs.add(seq.name)
-                break
-
-    return low_entropy_seqs
+# def shannon_entropy(fasta_seq):
+#     """
+#     Calculate Shannon entropy for a given string.
+#
+#     :param fasta_seq: a string of characters (e.g. DNA or amino-acid sequence).
+#     :return: shannon entropy value (float) for the given string.
+#     """
+#
+#     characters = collections.Counter([tmp_character for tmp_character in fasta_seq])
+#     # e.g. Counter({'A': 4, 'T': 4, 'G': 1,'C': 1})
+#     dist = [x / sum(characters.values()) for x in characters.values()]  # e.g. [0.4, 0.4, 0.1, 0.1]
+#
+#     # use scipy to calculate entropy
+#     entropy_value = scipy.stats.entropy(dist, base=2)
+#     return entropy_value
+#
+#
+# def low_complexity_check(targetfile, targetfile_type, translate_target_file, window_size=None, entropy_value=None,
+#                          logger=None):
+#     """
+#     For each sequence in a fasta file, recover the sequence string of a sliding window and calculate the Shannon
+#     entropy value for it. If it is below a threshold, flag the entire sequence as low entropy and add it to a set.
+#     Entropy will be calculated from protein sequences if a nucleotide target file has been translated for BLASTx or
+#     DIAMOND. Returns the set of sequence names.
+#
+#     :param str targetfile: path to the targetfile
+#     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
+#     :param bool translate_target_file: True is a nucleotide target file has been translated for BLASTx orDIAMOND
+#     :param int or None window_size: number of characters to include in the sliding window
+#     :param float or None entropy_value: entropy threshold within sliding window
+#     :param logging.Logger logger: a logger object
+#     :return set low_entropy_seqs: a set of sequences that contain low entropy substrings
+#     """
+#
+#     if targetfile_type == 'DNA' and not translate_target_file:
+#         entropy_value = entropy_value if entropy_value else 1.5
+#         window_size = window_size if window_size else 100
+#     elif targetfile_type == 'protein' or targetfile_type == 'DNA' and translate_target_file:
+#         entropy_value = entropy_value if entropy_value else 3.0
+#         window_size = window_size if window_size else 50
+#
+#     fill_1 = textwrap.fill(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...',
+#                            width=90, subsequent_indent=" " * 11)
+#     fill_2 = textwrap.fill(f'{"[INFO]:":10} Type of sequences: {targetfile_type}', width=90,
+#                            subsequent_indent=" " * 11)
+#     fill_3 = textwrap.fill(f'{"[INFO]:":10} Sliding window size: {window_size}', width=90,
+#                            subsequent_indent=" " * 11)
+#     fill_4 = textwrap.fill(f'{"[INFO]:":10} Minimum complexity threshold: {entropy_value}', width=90,
+#                            subsequent_indent=" " * 11)
+#
+#     log_or_print(fill_1, logger=logger)
+#     log_or_print(fill_2, logger=logger)
+#     log_or_print(fill_3, logger=logger)
+#     log_or_print(fill_4, logger=logger)
+#
+#     low_entropy_seqs = set()
+#     for seq in SeqIO.parse(targetfile, "fasta"):
+#         for i in range(0, len(seq.seq) - (window_size - 1)):
+#             window_seq = str(seq.seq[i:i + window_size])
+#             window_shannon_entropy = shannon_entropy(window_seq)
+#             # print(window_seq, window_shannon_entropy)
+#             if window_shannon_entropy <= entropy_value:
+#                 low_entropy_seqs.add(seq.name)
+#                 break
+#
+#     return low_entropy_seqs
 
 
 def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexity_targetfile_sequences, logger=None):
@@ -433,42 +435,43 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
 
     # Check target file for low-complexity sequences:
-    # logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
-    # low_complexity_sequences = low_complexity_check(targetfile, targetfile_type, translate_target_file, logger=logger)
-    # if low_complexity_sequences:
-    #     fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-    #                            f'sequences with low-complexity regions. The sequence names have been written to the '
-    #                            f'log file and are printed below. These sequences can cause problems when running '
-    #                            f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
-    #                            subsequent_indent=" " * 11)
-    #
-    #     fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-    #                            f'contains other representative sequences for the corresponding genes, and restart the '
-    #                            f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
-    #
-    #     fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
-    #                            f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
-    #                            width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
-    #
-    #     logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-    #     logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
-    #
-    #     for sequence in low_complexity_sequences:
-    #         logger.info(f'{" " * 10} {sequence}')
-    #
-    #     if allow_low_complexity_targetfile_sequences:
-    #         fill = textwrap.fill(
-    #             f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
-    #             f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
-    #             f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
-    #             f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
-    #             f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
-    #             f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
-    #             break_on_hyphens=False)
-    #
-    #         logger.info(f'\n{fill}')
-    #     else:
-    #         sys.exit(1)
+    logger.info(f'{"[INFO]:":10} Checking the target file for sequences with low-complexity regions...')
+    low_complexity_sequences = utils.low_complexity_check(targetfile, targetfile_type, translate_target_file,
+                                                          logger=logger)
+    if low_complexity_sequences:
+        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+                               f'sequences with low-complexity regions. The sequence names have been written to the '
+                               f'log file and are printed below. These sequences can cause problems when running '
+                               f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
+                               subsequent_indent=" " * 11)
+
+        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
+                               f'contains other representative sequences for the corresponding genes, and restart the '
+                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
+
+        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
+                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
+
+        logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
+        logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
+
+        for sequence in low_complexity_sequences:
+            logger.info(f'{" " * 10} {sequence}')
+
+        if allow_low_complexity_targetfile_sequences:
+            fill = textwrap.fill(
+                f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
+                f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
+                f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
+                f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
+                f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
+                f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
+                break_on_hyphens=False)
+
+            logger.info(f'\n{fill}')
+        else:
+            sys.exit(1)
 
     return targetfile
 
@@ -939,23 +942,23 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     return spades_genelist
 
 
-def done_callback(future_returned):
-    """
-    Callback function for ProcessPoolExecutor futures; gets called when a future is cancelled or 'done'.
-
-    :param concurrent.futures._base.Future future_returned: future object returned by ProcessPoolExecutor
-    :return: None if future cancelled or error, future_returned.result() as result if successful
-    """
-
-    try:
-        result = future_returned.result()  # blocks until results are ready
-    except TimeoutError as error:
-        print("Function took longer than %d seconds" % error.args[1])
-    except CancelledError as error:
-        print(f'Function raised CancelledError: {error}')
-    except Exception as error:
-        print(f'Function raised {error}')
-        print(f'error.traceback is: {error.traceback}')  # traceback of the function
+# def done_callback(future_returned):
+#     """
+#     Callback function for ProcessPoolExecutor futures; gets called when a future is cancelled or 'done'.
+#
+#     :param concurrent.futures._base.Future future_returned: future object returned by ProcessPoolExecutor
+#     :return: None if future cancelled or error, future_returned.result() as result if successful
+#     """
+#
+#     try:
+#         result = future_returned.result()  # blocks until results are ready
+#     except TimeoutError as error:
+#         print("Function took longer than %d seconds" % error.args[1])
+#     except CancelledError as error:
+#         print(f'Function raised CancelledError: {error}')
+#     except Exception as error:
+#         print(f'Function raised {error}')
+#         print(f'error.traceback is: {error.traceback}')  # traceback of the function
 
     # if future_returned.cancelled():
     #     print(f'{future_returned}: cancelled')
@@ -987,7 +990,6 @@ def exonerate(gene_name,
               intronerate=False,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
-              # shared_dict=None,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -1259,6 +1261,9 @@ def exonerate_multiprocessing(genes,
                 genes_cancelled_due_to_timeout.append(future_results_dict[future])
             except CancelledError:
                 logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
+            except Exception as error:
+                print(f'Function raised {error}')
+                print(f'error.traceback is: {error.traceback}')  # traceback of the function
             except:
                 raise
 
@@ -1276,12 +1281,15 @@ def exonerate_multiprocessing(genes,
                                  f'than {err.args[1]} seconds to complete and was cancelled')
                 except CancelledError:
                     logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
+                except Exception as error:
+                    print(f'Function raised {error}')
+                    print(f'error.traceback is: {error.traceback}')  # traceback of the function
                 except:
                     raise
 
         if genes_cancelled_due_to_timeout:
             fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
-                                 f'following genes, to to exceeding the timeout limit of {exonerate_contigs_timeout} '
+                                 f'following genes, due to exceeding the timeout limit of {exonerate_contigs_timeout} '
                                  f'seconds\n:', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
             for gene in genes_cancelled_due_to_timeout:
