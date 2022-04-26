@@ -12,6 +12,7 @@ import scipy
 import textwrap
 from Bio import SeqIO
 
+
 def log_or_print(string, logger=None, logger_level='info'):
     """
     If a logger is provided, print to string using logger. If not, use print()
@@ -204,7 +205,7 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
     if targetfile_type == 'DNA' and not translate_target_file:
         entropy_value = entropy_value if entropy_value else 1.5
         window_size = window_size if window_size else 100
-    elif targetfile_type == 'protein' or targetfile_type == 'DNA' and translate_target_file:
+    elif targetfile_type == 'protein' or (targetfile_type == 'DNA' and translate_target_file):
         entropy_value = entropy_value if entropy_value else 3.0
         window_size = window_size if window_size else 50
 
