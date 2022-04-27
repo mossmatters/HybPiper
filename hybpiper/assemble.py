@@ -177,61 +177,6 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     return logger_object
 
 
-def check_exonerate_version():
-    """
-    Returns the Exonerate version e.g. 2.4.0
-
-    :return str version: the Exonerate version number
-    """
-
-    exonerate_help = subprocess.run(['exonerate', '-h'], capture_output=True)
-    version = re.search(r'\bexonerate version [0-9][.][0-9].[0-9]\b', str(exonerate_help)).group(0)
-    version_number = version.split()[-1]
-    return version_number
-
-
-def check_dependencies(logger=None):
-    """
-    Checks for the presence of executables and Python packages. Returns a boolean.
-
-    :param logging.Logger logger: a logger object
-    return: bool everything_is_awesome: True if all dependencies are found and are executable, else False
-    """
-
-    executables = ['blastx',
-                   'exonerate',
-                   'parallel',
-                   'makeblastdb',
-                   'spades.py',
-                   'bwa',
-                   'samtools',
-                   'bbmap.sh',
-                   'bbmerge.sh',
-                   'diamond']
-
-    log_or_print(f'{"[INFO]:":10} Checking for external dependencies:\n', logger=logger)
-
-    everything_is_awesome = True
-    for exe in executables:
-        exe_loc = utils.py_which(exe)
-        if exe_loc:
-            log_or_print(f'{exe:20} found at {exe_loc}', logger=logger)
-            if exe == 'exonerate':
-                version = check_exonerate_version()
-                if version not in ['2.4.0']:
-                    everything_is_awesome = False
-
-                    log_or_print(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update '
-                                 f'your Exonerate version!\n', logger=logger)
-        else:
-            log_or_print(f'{exe:20} not found in your $PATH!', logger=logger)
-            everything_is_awesome = False
-
-    log_or_print('', logger=logger)
-
-    return everything_is_awesome
-
-
 def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
@@ -1326,7 +1271,7 @@ def assemble(args):
     ####################################################################################################################
     # Check dependencies
     ####################################################################################################################
-    if check_dependencies(logger=logger):
+    if utils.check_dependencies(logger=logger):
         logger.info(f'{"[INFO]:":10} Everything looks good!')
     else:
         logger.error(f'{"[ERROR]:":10} One or more dependencies not found!')
@@ -1737,7 +1682,7 @@ def check_dependencies_main(args):
     :return: None: no return value specified; default is None
     """
 
-    check_dependencies(logger=args.logger)
+    utils.check_dependencies(logger=args.logger)
 
 
 def check_targetfile_main(args):
