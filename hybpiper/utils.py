@@ -255,39 +255,6 @@ def pad_seq(sequence):
         return sequence, True
 
 
-def translate_target_file(targetfile, logger=None):
-    """
-    Translates a DNA target file. Used when the --skip_targetfile_check flag is supplied to "hybpiper assemble";
-    usually the target file gets translated (and written to file is necessary) by the target file check.
-
-    :param str targetfile: path to the DNA target file
-    :param logging.Logger logger: a logger object
-    :return str targetfile: path to the translated protein target file
-    """
-
-    translated_seqs_to_write = []
-    with open(targetfile, 'r') as target_file_handle:
-        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
-        for seq in seqs:
-            sequence, needed_padding = pad_seq(seq)
-            translated_seq = sequence.seq.translate()
-            record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
-            translated_seqs_to_write.append(record)
-
-    target_file_path, target_file_name = os.path.split(targetfile)
-    file_name, ext = os.path.splitext(target_file_name)
-    translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
-    fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                              f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
-                              break_long_words=False, break_on_forward_slash=True)
-    logger.info(f'{fill}')
-
-    with open(f'{translated_target_file}', 'w') as translated_handle:
-        SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-
-    return translated_target_file
-
-
 def check_exonerate_version():
     """
     Returns the Exonerate version e.g. 2.4.0

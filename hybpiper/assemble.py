@@ -312,7 +312,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
     return translated_seqs_to_write
 
 
-def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexity_targetfile_sequences, logger=None):
+def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     - Checks for duplicate gene names in the targetfile.
@@ -324,7 +324,6 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
-    :param bool allow_low_complexity_targetfile_sequences: if True, allow HybPiper to continue running
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
@@ -367,47 +366,6 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, allow_low_complexit
             with open(f'{translated_target_file}', 'w') as translated_handle:
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
-
-    # Check target file for low-complexity sequences:
-    low_complexity_sequences = utils.low_complexity_check(targetfile, targetfile_type, translate_target_file,
-                                                          logger=logger)
-    if low_complexity_sequences:
-        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-                               f'sequences with low-complexity regions. The sequence names have been written to the '
-                               f'log file and are printed below. These sequences can cause problems when running '
-                               f'HybPiper, see wiki <link>. We recommend one of the following approaches:', width=90,
-                               subsequent_indent=" " * 11)
-
-        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-                               f'contains other representative sequences for the corresponding genes, and restart the '
-                               f'run.', width=90, initial_indent=" " * 11, subsequent_indent=" " * 14)
-
-        fill_3 = textwrap.fill(f'2) Re-start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
-                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
-                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
-
-        logger.info(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-        logger.info(f'\n{" " * 10} Sequences with low complexity regions are:\n')
-
-        for sequence in low_complexity_sequences:
-            logger.info(f'{" " * 10} {sequence}')
-
-        if allow_low_complexity_targetfile_sequences:
-            fill = textwrap.fill(
-                f'{"[WARNING]:":10} The flag "--allow_low_complexity_targetfile_sequences" has been supplied. '
-                f'HybPiper will continue running with low-complexity target file sequences. This can result in many '
-                f'low-complexity sample reads mapping to such target file sequences, causing very long SPAdes '
-                f'assembly times and very large log files (i.e. gigabytes). We STRONGLY recommend using the '
-                f'"--timeout" parameter (e.g. "--timeout 200") in these cases, which will cancel SPAdes assemblies '
-                f'for genes that are taking a comparatively long time.', width=90, subsequent_indent=" " * 11,
-                break_on_hyphens=False)
-
-            logger.info(f'\n{fill}')
-        else:
-            sys.exit(1)
-
-    else:
-        logger.info(f'{"[INFO]:":10} No sequences with low-complexity regions found.')
 
     return targetfile
 
@@ -1331,23 +1289,11 @@ def assemble(args):
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return the path to translated file:
-    if args.skip_targetfile_check:
-        if args.bwa and targetfile_type == 'protein':
-            sys.exit(
-                f'{"[ERROR]:":10} You have specified that your target file contains protein sequences but provided '
-                f'the flag --bwa. You need a nucleotide target file to use BWA for read mapping!')
-        elif not args.bwa and targetfile_type == 'DNA':
-            fill = textwrap.fill(f'{"[WARNING]:":10} You have specified that your target file contains DNA sequences, '
-                                 f'but BLASTx or DIAMOND has been selected for read mapping. Translating the target '
-                                 f'file...', width=90, subsequent_indent=' ' * 11)
-            logger.info(f'{fill}')
-            targetfile = utils.translate_target_file(targetfile, logger=logger)
-    else:
-        targetfile = check_targetfile(targetfile,
-                                      targetfile_type,
-                                      args.bwa,
-                                      args.allow_low_complexity_targetfile_sequences,
-                                      logger=logger)
+
+    targetfile = check_targetfile(targetfile,
+                                  targetfile_type,
+                                  args.bwa,
+                                  logger=logger)
 
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
@@ -1515,27 +1461,27 @@ def assemble(args):
 
         if len(readfiles) == 1:
             spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                     paired=False, timeout=args.timeout, logger=logger,
+                                     paired=False, timeout=args.timeout_assemble, logger=logger,
                                      keep_folder=args.keep_intermediate_files, single_cell_mode=args.spades_single_cell)
         elif len(readfiles) == 2:
             if args.merged and not unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, logger=logger,
+                                         timeout=args.timeout_assemble, merged=True, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
             elif args.merged and unpaired_readfile:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, merged=True, unpaired=True, logger=logger,
+                                         timeout=args.timeout_assemble, merged=True, unpaired=True, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
             elif unpaired_readfile and not args.merged:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, unpaired=True, logger=logger,
+                                         timeout=args.timeout_assemble, unpaired=True, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
             else:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout, logger=logger, keep_folder=args.keep_intermediate_files,
+                                         timeout=args.timeout_assemble, logger=logger, keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
 
         else:
@@ -1559,6 +1505,7 @@ def assemble(args):
     if len(genes) == 0:
         logger.error(f'{"[ERROR]:":10} No genes recovered for {basename}!')
         return 1
+
     exonerate_multiprocessing(genes,
                               basename,
                               thresh=args.thresh,
@@ -1576,7 +1523,7 @@ def assemble(args):
                               intronerate=args.intronerate,
                               no_padding_supercontigs=args.no_padding_supercontigs,
                               keep_intermediate_files=args.keep_intermediate_files,
-                              exonerate_contigs_timeout=args.exonerate_contigs_timeout,
+                              exonerate_contigs_timeout=args.timeout_exonerate_contigs,
                               verbose_logging=args.verbose_logging)
 
     ####################################################################################################################

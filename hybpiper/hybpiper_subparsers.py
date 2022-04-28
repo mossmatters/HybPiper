@@ -76,19 +76,6 @@ def add_assemble_parser(subparsers):
                                           'ultra-sensitive'],
                                  help='Use the provided sensitivity for DIAMOND searches.',
                                  default=False)
-    parser_assemble.add_argument('--allow_low_complexity_targetfile_sequences',
-                                 dest='allow_low_complexity_targetfile_sequences',
-                                 action='store_true',
-                                 default=False,
-                                 help='Allow the pipeline to run even if target file sequences with low complexity '
-                                      'regions have been detected. We recommend using the parameter "--timeout" in '
-                                      'these cases.')
-    parser_assemble.add_argument('--skip_targetfile_check',
-                                 dest='skip_targetfile_check',
-                                 action='store_true',
-                                 default=False,
-                                 help='Skip the target file check. Useful if you have already run "hybpiper '
-                                      'check_targetfile"')
     parser_assemble.add_argument('--start_from',
                                  choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
                                  help='Start the pipeline from the given step. Note that this relies on the presence '
@@ -139,11 +126,11 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--prefix',
                                  help='Directory name for pipeline output, default is to use the FASTQ file name.',
                                  default=None)
-    parser_assemble.add_argument('--timeout',
+    parser_assemble.add_argument('--timeout_assemble',
                                  help='Kill long-running processes if they take longer than X percent of average.',
                                  default=0,
                                  type=int)
-    parser_assemble.add_argument('--exonerate_contigs_timeout',
+    parser_assemble.add_argument('--timeout_exonerate_contigs',
                                  help='Kill long-running processes if they take longer than X seconds. Default is %('
                                       'default)s',
                                  default=120,
