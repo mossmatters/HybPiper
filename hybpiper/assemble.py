@@ -1222,7 +1222,6 @@ def assemble(args):
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return the path to translated file:
-
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,
@@ -1661,7 +1660,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0rc build 5',
+                         version='%(prog)s 2.0rc build 6',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
