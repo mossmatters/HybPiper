@@ -292,7 +292,8 @@ def add_retrieve_sequences_parser(subparsers):
                                            default=False)
     parser_retrieve_sequences.add_argument('--stats_file',
                                            help='Stats file produced by "hybpiper stats", required for selective '
-                                                'filtering of retrieved sequences')
+                                                'filtering of retrieved sequences',
+                                           default=None)
     parser_retrieve_sequences.add_argument('--filter_by', action='append', nargs=3,
                                            help='Provide three space-separated arguments: 1) column of the stats_file '
                                                 'to filter by, 2) greater or less than symbol (> or <), '
