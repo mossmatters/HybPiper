@@ -10,9 +10,12 @@ import os
 import collections
 import scipy
 import textwrap
-from Bio import SeqIO, SeqRecord
+from Bio import SeqIO
 from Bio.Seq import Seq
 import subprocess
+import datetime
+import logging
+import sys
 
 
 def log_or_print(string, logger=None, logger_level='info'):
@@ -309,3 +312,61 @@ def check_dependencies(logger=None):
 
     return everything_is_awesome
 
+
+def make_basename(readfiles, prefix=None):
+    """
+    Unless prefix is set, generate a directory based on the readfiles name, using everything up to the first
+    underscore. If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
+
+    :param list readfiles: one or more read files used as input to the pipeline
+    :param str prefix: directory name for sample pipeline output
+    :return str parent directory, directory name
+    """
+
+    if prefix:
+        if not os.path.exists(prefix):
+            os.makedirs(prefix)
+        prefixparendir, prefix = os.path.split(prefix)
+        if not prefix:
+            # if prefix has a trailing /, prefixparendir will have the / stripped and prefix will be empty,
+            # so try again
+            prefix = os.path.split(prefixparendir)[1]
+        return prefixparendir, prefix
+
+    # --prefix is not set on cmd line;  Write output to subdir in "."
+    basename = os.path.split(readfiles[0])[1].split('_')[0]
+    if not os.path.exists(basename):
+        os.makedirs(basename)
+    return '.', basename
+
+
+def worker_configurer(gene_name):
+    """
+    Configures logging to file and screen for the worker processes
+
+    :param str gene_name: name of the gene being processing by the worker process
+    :return: None
+    """
+
+    # Get date and time string for log filename:
+    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+
+    # Log to file:
+    file_handler = logging.FileHandler(f'{gene_name}/{gene_name}_{date_and_time}.log', mode='w')
+    file_handler.setLevel(logging.DEBUG)
+    file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
+                                    'message)s')
+    file_handler.setFormatter(file_format)
+
+    # Log to Terminal (stdout):
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(logging.INFO)
+    console_format = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_format)
+
+    # Setup logger:
+    logger_object = logging.getLogger(gene_name)
+
+    # Add handlers to the logger
+    logger_object.addHandler(console_handler)
+    logger_object.addHandler(file_handler)

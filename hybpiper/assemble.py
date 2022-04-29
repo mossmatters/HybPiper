@@ -328,9 +328,6 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     :return: None, str: NoneType or path to the translated targetfile
     """
 
-    # # Check target file fasta header formatting:
-    # logger.info(f'{"[INFO]:":10} Checking target file FASTA header formatting...')
-
     target_file_path, target_file_name = os.path.split(targetfile)
     file_name, ext = os.path.splitext(target_file_name)
 
@@ -368,33 +365,6 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
             targetfile = translated_target_file  # i.e. use translated file for entropy and return value
 
     return targetfile
-
-
-def make_basename(readfiles, prefix=None):
-    """
-    Unless prefix is set, generate a directory based on the readfiles name, using everything up to the first
-    underscore. If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
-
-    :param list readfiles: one or more read files used as input to the pipeline
-    :param str prefix: directory name for sample pipeline output
-    :return str parent directory, directory name
-    """
-
-    if prefix:
-        if not os.path.exists(prefix):
-            os.makedirs(prefix)
-        prefixparendir, prefix = os.path.split(prefix)
-        if not prefix:
-            # if prefix has a trailing /, prefixparendir will have the / stripped and prefix will be empty,
-            # so try again
-            prefix = os.path.split(prefixparendir)[1]
-        return prefixparendir, prefix
-
-    # --prefix is not set on cmd line;  Write output to subdir in "."
-    basename = os.path.split(readfiles[0])[1].split('_')[0]
-    if not os.path.exists(basename):
-        os.makedirs(basename)
-    return '.', basename
 
 
 def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
@@ -836,36 +806,6 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     return spades_genelist
 
 
-# def done_callback(future_returned):
-#     """
-#     Callback function for ProcessPoolExecutor futures; gets called when a future is cancelled or 'done'.
-#
-#     :param concurrent.futures._base.Future future_returned: future object returned by ProcessPoolExecutor
-#     :return: None if future cancelled or error, future_returned.result() as result if successful
-#     """
-#
-#     try:
-#         result = future_returned.result()  # blocks until results are ready
-#     except TimeoutError as error:
-#         print("Function took longer than %d seconds" % error.args[1])
-#     except CancelledError as error:
-#         print(f'Function raised CancelledError: {error}')
-#     except Exception as error:
-#         print(f'Function raised {error}')
-#         print(f'error.traceback is: {error.traceback}')  # traceback of the function
-
-    # if future_returned.cancelled():
-    #     print(f'{future_returned}: cancelled')
-    #     return future_returned.result()
-    # elif future_returned.done():
-    #     error = future_returned.exception()  # returns None if no error raised
-    #     if error:
-    #         print(f'{future_returned}: error returned: {error}')
-    #         return future_returned.result()
-    #     else:
-    #         return future_returned.result()
-
-
 def exonerate(gene_name,
               basename,
               thresh=55,
@@ -1015,36 +955,36 @@ def exonerate(gene_name,
     return gene_name, len(exonerate_result.stitched_contig_seqrecord), proc_run_time
 
 
-def worker_configurer(gene_name):
-    """
-    Configures logging to file and screen for the worker processes
-
-    :param str gene_name: name of the gene being processing by the worker process
-    :return: None
-    """
-
-    # Get date and time string for log filename:
-    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
-
-    # Log to file:
-    file_handler = logging.FileHandler(f'{gene_name}/{gene_name}_{date_and_time}.log', mode='w')
-    file_handler.setLevel(logging.DEBUG)
-    file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
-                                    'message)s')
-    file_handler.setFormatter(file_format)
-
-    # Log to Terminal (stdout):
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setLevel(logging.INFO)
-    console_format = logging.Formatter('%(message)s')
-    console_handler.setFormatter(console_format)
-
-    # Setup logger:
-    logger_object = logging.getLogger(gene_name)
-
-    # Add handlers to the logger
-    logger_object.addHandler(console_handler)
-    logger_object.addHandler(file_handler)
+# def worker_configurer(gene_name):
+#     """
+#     Configures logging to file and screen for the worker processes
+#
+#     :param str gene_name: name of the gene being processing by the worker process
+#     :return: None
+#     """
+#
+#     # Get date and time string for log filename:
+#     date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+#
+#     # Log to file:
+#     file_handler = logging.FileHandler(f'{gene_name}/{gene_name}_{date_and_time}.log', mode='w')
+#     file_handler.setLevel(logging.DEBUG)
+#     file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
+#                                     'message)s')
+#     file_handler.setFormatter(file_format)
+#
+#     # Log to Terminal (stdout):
+#     console_handler = logging.StreamHandler(sys.stderr)
+#     console_handler.setLevel(logging.INFO)
+#     console_format = logging.Formatter('%(message)s')
+#     console_handler.setFormatter(console_format)
+#
+#     # Setup logger:
+#     logger_object = logging.getLogger(gene_name)
+#
+#     # Add handlers to the logger
+#     logger_object.addHandler(console_handler)
+#     logger_object.addHandler(file_handler)
 
 
 def exonerate_multiprocessing(genes,
@@ -1103,6 +1043,7 @@ def exonerate_multiprocessing(genes,
 
     with pebble.ProcessPool(max_workers=pool_threads) as pool:
         genes_cancelled_due_to_timeout = []
+        genes_cancelled_due_to_errors = []
         future_results_dict = defaultdict()
         manager = Manager()
         lock = manager.Lock()
@@ -1117,7 +1058,7 @@ def exonerate_multiprocessing(genes,
                                "chimeric_stitched_contig_edit_distance": chimeric_stitched_contig_edit_distance,
                                "chimeric_stitched_contig_discordant_reads_cutoff":
                                    chimeric_stitched_contig_discordant_reads_cutoff,
-                               "worker_configurer_func": worker_configurer,
+                               "worker_configurer_func": utils.worker_configurer,
                                "counter": counter,
                                "lock": lock,
                                "genes_to_process": genes_to_process,
@@ -1129,57 +1070,49 @@ def exonerate_multiprocessing(genes,
         for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
             exonerate_job = pool.schedule(exonerate, args=[gene_name, basename],  kwargs=kwargs_for_schedule,
                                           timeout=exonerate_contigs_timeout)
-            # exonerate_job.add_done_callback(done_callback)
             future_results_dict[exonerate_job] = gene_name
 
         futures_list = [future for future in future_results_dict.keys()]
 
         # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
-        for future in as_completed(futures_list):
-            try:
-                gene_name, prot_length, run_time = future.result()
-                logger.info(f'\nexonerate run time for gene {gene_name} was: {run_time} ')
-                if gene_name:  # i.e. log the Exonerate run regardless of success
-                    gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
-                    gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
-                    gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
-                    with open(gene_log_file_to_cat) as gene_log_handle:
-                        lines = gene_log_handle.readlines()
-                        for line in lines:
-                            logger.debug(line.strip())  # log contents to main logger
-                    if not keep_intermediate_files:
-                        os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
-            except TimeoutError as err:
-                logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
-                             f' {err.args[1]} seconds to complete and was cancelled')
-                genes_cancelled_due_to_timeout.append(future_results_dict[future])
-            except CancelledError:
-                logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
-            except Exception as error:
-                print(f'Function raised {error}')
-                print(f'error.traceback is: {error.traceback}')  # traceback of the function
-            except:
-                raise
-
-        wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
-
-        # Write the 'gene_name', 'prot_length' strings returned by each process to file:
         with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-            for future in futures_list:
+            for future in as_completed(futures_list):
                 try:
                     gene_name, prot_length, run_time = future.result()
+                    if gene_name:  # i.e. log the Exonerate run regardless of success
+                        gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+                        gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+                        gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+                        with open(gene_log_file_to_cat) as gene_log_handle:
+                            lines = gene_log_handle.readlines()
+                            for line in lines:
+                                logger.debug(line.strip())  # log contents to main logger
+                        if not keep_intermediate_files:
+                            os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
+
+                    # Write the 'gene_name', 'prot_length' strings returned by each process to file:
                     if gene_name and prot_length:
                         genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+
                 except TimeoutError as err:
-                    logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more '
-                                 f'than {err.args[1]} seconds to complete and was cancelled')
+                    logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
+                                 f' {err.args[1]} seconds to complete and was cancelled')
+                    genes_cancelled_due_to_timeout.append(future_results_dict[future])
                 except CancelledError:
                     logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
                 except Exception as error:
-                    print(f'Function raised {error}')
+                    genes_cancelled_due_to_errors.append(future_results_dict[future])
+                    print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
                     print(f'error.traceback is: {error.traceback}')  # traceback of the function
-                except:
-                    raise
+
+        wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
+
+        if genes_cancelled_due_to_errors:
+            fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline failed for the '
+                                 f'following genes:\n', width=90, subsequent_indent=" " * 11)
+            logger.info(fill)
+            for gene in genes_cancelled_due_to_errors:
+                logger.info(f'{" " * 11}{gene}')
 
         if genes_cancelled_due_to_timeout:
             fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
@@ -1211,7 +1144,7 @@ def assemble(args):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
     # Generate a directory for the sample:
-    basedir, basename = make_basename(args.readfiles, prefix=args.prefix)
+    basedir, basename = utils.make_basename(args.readfiles, prefix=args.prefix)
 
     # Create logger:
     if args.prefix:
