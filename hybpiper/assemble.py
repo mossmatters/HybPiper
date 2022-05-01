@@ -1171,31 +1171,37 @@ def assemble(args):
     ####################################################################################################################
     # Check read and target files
     ####################################################################################################################
-    # Set target file type and path:
+    # Set target file type and path, and check it exists and isn't empty::
     if args.targetfile_dna:
-        targetfile = args.targetfile_dna
+        targetfile = os.path.abspath(args.targetfile_dna)
         targetfile_type = 'DNA'
     elif args.targetfile_aa:
-        targetfile = args.targetfile_aa
+        targetfile = os.path.abspath(args.targetfile_aa)
         targetfile_type = 'protein'
 
-    logger.debug(f'The target file {targetfile} has been provided, containing {targetfile_type} sequences')
+    if os.path.isfile(targetfile) and not os.path.getsize(targetfile) == 0:
+        logger.debug(f'Input target file {os.path.basename(targetfile)} exists and is not empty, proceeding...')
+    else:
+        sys.exit(f'Input target file {os.path.basename(targetfile)} does not exist or is empty!')
 
-    # Check that the target-file and input read files exist and aren't empty:
+    logger.debug(f'The target file {os.path.basename(targetfile)} has been provided, containing {targetfile_type} '
+                 f'sequences')
+
+    # Check that the input read files exist and aren't empty:
     for read_file in readfiles:
         if os.path.isfile(read_file) and not os.path.getsize(read_file) == 0:
             logger.debug(f'Input read file {read_file} exists and is not empty, proceeding...')
         else:
             sys.exit(f'Input read file {read_file} does not exist or is empty!')
     if args.unpaired:
-        if os.path.isfile(args.unpaired) and not os.path.getsize(args.unpaired) == 0:
-            logger.debug(f'Input read file {args.unpaired} exists and is not empty, proceeding...')
+        unpaired_readfile = os.path.abspath(args.unpaired)
+        if os.path.isfile(unpaired_readfile) and not os.path.getsize(unpaired_readfile) == 0:
+            logger.debug(f'Input read file {os.path.basename(unpaired_readfile)} exists and is not empty, '
+                         f'proceeding...')
         else:
-            sys.exit(f'Input read file {args.unpaired} does not exist or is empty!')
-    if os.path.isfile(targetfile) and not os.path.getsize(targetfile) == 0:
-        logger.debug(f'Input target file {targetfile} exists and is not empty, proceeding...')
+            sys.exit(f'Input read file {os.path.basename(unpaired_readfile)} does not exist or is empty!')
     else:
-        sys.exit(f'Input target file {targetfile} does not exist or is empty!')
+        unpaired_readfile = False
 
     # If only a single readfile is supplied, set --merged to False regardless of user input:
     if len(readfiles) == 1 and args.merged:
@@ -1211,32 +1217,12 @@ def assemble(args):
                  f'parameter ({os.path.basename(args.unpaired)}). Please concatenate these two files and provide the '
                  f'single file as input using the -r/--readfiles parameter')
 
-    ####################################################################################################################
-    # Check/assign the target file and read files
-    ####################################################################################################################
-    if targetfile:
-        targetfile = os.path.abspath(targetfile)
-    else:
-        print(__doc__)
-        return
-
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return the path to translated file:
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,
                                   logger=logger)
-
-    if args.unpaired:
-        unpaired_readfile = os.path.abspath(args.unpaired)
-    else:
-        unpaired_readfile = False
-    if len(args.readfiles) < 1:
-        logger.error(f'{"[ERROR]:":10}  Please specify readfiles with -r')
-        return
-    if not targetfile:
-        logger.error(f'{"[ERROR]:":10}  Please specify a FASTA file containing target sequences.')
-        return
 
     ####################################################################################################################
     # Check manually provided targets if provided via the parameter --target
