@@ -1617,8 +1617,8 @@ def check_targetfile_main(args):
                                f'contains other representative sequences for the corresponding genes.', width=90,
                                initial_indent=" " * 11, subsequent_indent=" " * 14)
 
-        fill_3 = textwrap.fill(f'2) Start the run using the flag "--allow_low_complexity_targetfile_sequences" and '
-                               f'the parameter "--timeout" (e.g. "--timeout 200"). See wiki <link> for details.',
+        fill_3 = textwrap.fill(f'2) Start the run using the parameter "--timeout_assemble" (e.g. "--timeout_assemble '
+                               f'200"). See wiki <link> for details.',
                                width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
 
         print(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
