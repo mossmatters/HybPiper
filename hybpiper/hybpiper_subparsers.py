@@ -298,7 +298,7 @@ def add_retrieve_sequences_parser(subparsers):
     parser_retrieve_sequences.add_argument('--filter_by',
                                            action='append',
                                            nargs=3,
-                                           metavar=['test', 'this', 'one'],
+                                           metavar=('column', 'comparison symbol', 'threshold'),
                                            help='Provide three space-separated arguments: 1) column of the stats_file '
                                                 'to filter by, 2) greater or less than symbol (> or <), '
                                                 '3) a threshold - either an integer (raw number of genes) or float ('
