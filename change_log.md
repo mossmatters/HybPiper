@@ -40,7 +40,7 @@ This update involves a substantial refactor of the HybPiper pipeline, with chang
 - When running Intronerate (via flag `-run_intronerate` with command `hybpiper assemble`, a block of 10 'N' characters is inserted into supercontigs at locations where different SPAdes contigs have been concatenated. This behaviour can be turned off via the flag `--no_padding_supercontigs`.
 - In cases where HybPiper recovers sequence for multiple non-contiguous segments of a gene, the gaps between the  segments will be padded with a number of 'N' characters. The number of Ns corresponds to the number of amino acids in 'best' protein reference for that gene that do not have corresponding SPAdes contig hits, multiplied by 3 to convert to nucleotides.
 - The command `hybpiper stats` now writes pipeline run statistics directly to file, rather than to standard out.
-- The command `hybpiper paralog_retriever` now writes a table of of gene-vs-sample with a matrix of paralog counts, and produces a heatmap image file from this table. A text report file is also produced, listing gene and sample names that contain paralogs in above a given threshold percentage. 
+- The command `hybpiper paralog_retriever` now writes a table of gene-vs-sample with a matrix of paralog counts, and produces a heatmap image file from this table. A text report file is also produced, listing gene and sample names that contain paralogs in above a given threshold percentage. 
   
   
 ***New options/flags***:
