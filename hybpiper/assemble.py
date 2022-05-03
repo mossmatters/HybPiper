@@ -1552,8 +1552,8 @@ def check_dependencies_main(args):
 
 def check_targetfile_main(args):
     """
-    Performs much the same targetfiel checks as check_targetfile() from module assemble.py. Does not translate a DNA
-    file; low-complexity checks are performed on the target file as provided.
+    Performs targetfile checks. Does not translate a DNA file; low-complexity checks are performed on the target file
+    as provided.
 
     :param args: argparse namespace with subparser options for function check_targetfile()
     :return: None: no return value specified; default is None
