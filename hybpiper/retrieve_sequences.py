@@ -78,14 +78,14 @@ def get_samples_to_recover(filter_by, stats_df, target_genes):
         column, operator, threshold = filter_criterion
         try:
             threshold = int(threshold)
-            logger.info(f'{"[INFO]:":10} Threshold for {column} is {operator} {threshold}')
+            logger.info(f'{"[INFO]:":10} Threshold for {column} is: {operator} than {threshold}')
         except ValueError:
             fill = textwrap.fill(f'{"[INFO]:":10} Threshold {threshold} for {column} is a float: calculating as '
                                  'percentage of total number of genes in targetfile. Note that this threshold will be '
                                  'rounded down, if necessary.', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
             threshold = round(float(threshold) * total_number_of_genes)
-            logger.info(f'{"[INFO]:":10} Threshold for {column} is {operator} {threshold}')
+            logger.info(f'{"[INFO]:":10} Threshold for {column} is: {operator} than {threshold}')
 
         if operator == 'greater':
             stats_df = stats_df.loc[(stats_df[column] > threshold)]
