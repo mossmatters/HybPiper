@@ -62,7 +62,7 @@ def get_samples_to_recover(filter_by, stats_df, target_genes):
     Recovers a list of sample names that pass the filtering options requested. Returns the list
 
     :param str stats_df: pandas dataframe from the stats file
-    :param list filter_by: a list of stats columns, >/< operators, and thresholds for filtering
+    :param list filter_by: a list of stats columns, 'greater'/'smaller' operators, and thresholds for filtering
     :param list target_genes: a list of unique target gene names in the targetfile
     :return list sample_to_retain: a list of sample names to retain after filtering
     """
@@ -87,9 +87,9 @@ def get_samples_to_recover(filter_by, stats_df, target_genes):
             threshold = round(float(threshold) * total_number_of_genes)
             logger.info(f'{"[INFO]:":10} Threshold for {column} is {operator} {threshold}')
 
-        if operator == '>':
+        if operator == 'greater':
             stats_df = stats_df.loc[(stats_df[column] > threshold)]
-        elif operator == '<':
+        elif operator == 'smaller':
             stats_df = stats_df.loc[(stats_df[column] < threshold)]
 
     samples_to_retain = stats_df['Name'].tolist()
@@ -110,7 +110,7 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
     :param None or str fasta_dir: directory name for output files, default is current directory
     :param bool skip_chimeric: if True, skip putative chimeric genes
     :param str stats_file: path to the stats file if provided
-    :param list filter_by: a list of stats columns, >/< operators, and thresholds for filtering
+    :param list filter_by: a list of stats columns, 'greater'/'smaller' operators, and thresholds for filtering
     :return None:
     """
 
@@ -300,8 +300,8 @@ def standalone():
                              'sequences')
     parser.add_argument('--filter_by', action='append', nargs=3,
                         help='Provide three space-separated arguments: 1) column of the stats_file to filter by, '
-                             '2) greater or less than symbol (> or <), 3) a threshold - either an integer (raw number '
-                             'of genes) or float (percentage of genes in analysis).',
+                             '2) "greater" or "smaller", 3) a threshold - either an integer (raw number of genes) or '
+                             'float (percentage of genes in analysis).',
                         default=None)
 
     args = parser.parse_args()
@@ -330,7 +330,7 @@ def main(args):
                'GenesWithSupercontigSkipped',
                'GenesWithChimeraWarning']
 
-    operators = ['>', '<']
+    operators = ['greater', 'smaller']
 
     if args.stats_file and not args.filter_by:
         sys.exit(f'{"[ERROR]:":10} A stats file has been provided but no filtering options have been specified via '
