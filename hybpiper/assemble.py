@@ -1109,8 +1109,6 @@ def assemble(args):
     :param argparse.Namespace args: argparse namespace with subparser options for function assemble()
     :return None: no return value specified; default is None
     """
-    import tracemalloc
-    tracemalloc.start()
 
     # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
@@ -1189,20 +1187,12 @@ def assemble(args):
                  f'parameter ({os.path.basename(args.unpaired)}). Please concatenate these two files and provide the '
                  f'single file as input using the -r/--readfiles parameter')
 
-    current, peak = tracemalloc.get_traced_memory()
-    print(f'current tracemalloc1 is: {current / 10 ** 6} MB')
-    print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
-
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return the path to translated file:
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,
                                   logger=logger)
-
-    current, peak = tracemalloc.get_traced_memory()
-    print(f'current tracemalloc2 is: {current / 10 ** 6} MB')
-    print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
 
     ####################################################################################################################
     # Check manually provided targets if provided via the parameter --target
@@ -1281,10 +1271,6 @@ def assemble(args):
         else:
             sys.exit(f'Can not determine whether BWA or BLASTx option is supplied, exiting...')
 
-    current, peak = tracemalloc.get_traced_memory()
-    print(f'current tracemalloc3 is: {current / 10 ** 6} MB')
-    print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
-
     ####################################################################################################################
     # Distribute reads to gene directories from either BLASTx or BWA mapping
     ####################################################################################################################
@@ -1323,10 +1309,6 @@ def assemble(args):
     if len(genes) == 0:
         logger.error('ERROR: No genes with reads, exiting!')
         return
-
-    current, peak = tracemalloc.get_traced_memory()
-    print(f'current tracemalloc4 is: {current / 10 ** 6} MB')
-    print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
 
     ####################################################################################################################
     # Assemble reads using SPAdes
@@ -1398,10 +1380,6 @@ def assemble(args):
             logger.error('ERROR: No genes had assembled contigs! Exiting!')
             return
 
-        current, peak = tracemalloc.get_traced_memory()
-        print(f'current tracemalloc5 is: {current / 10 ** 6} MB')
-        print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
-
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs, and intronerate() if flag --run_intronerate is supplied:
     ####################################################################################################################
@@ -1436,10 +1414,6 @@ def assemble(args):
                               keep_intermediate_files=args.keep_intermediate_files,
                               exonerate_contigs_timeout=args.timeout_exonerate_contigs,
                               verbose_logging=args.verbose_logging)
-
-    current, peak = tracemalloc.get_traced_memory()
-    print(f'current tracemalloc6 is: {current / 10 ** 6} MB')
-    print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
@@ -1490,10 +1464,6 @@ def assemble(args):
                 f' {paralog_warnings_short_true} genes!')
 
     logger.info(f'\nFinished running "hybpiper assemble" for sample {basename}!\n')
-
-    current, peak = tracemalloc.get_traced_memory()
-    print(f'current tracemalloc is7: {current / 10 ** 6} MB')
-    print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
 
 
 def hybpiper_stats_main(args):
