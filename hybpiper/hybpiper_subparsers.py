@@ -170,7 +170,7 @@ def add_assemble_parser(subparsers):
                                  type=int,
                                  help='Ban alignments with more than this many substitutions. Default is %(default)s.')
     parser_assemble.add_argument('--bbmap_threads',
-                                 default=2,
+                                 default=1,
                                  type=int,
                                  help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
                                       'Default is %(default)s.')
