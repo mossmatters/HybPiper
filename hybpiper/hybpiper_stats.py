@@ -160,11 +160,11 @@ def enrich_efficiency_blastx(blastxfilename, sample_name):
             total_input_reads = total_input_reads + int(unpaired_number.read().rstrip())
 
     try:
-        pctMapped = mappedReads / total_input_reads
+        pctMapped = 100 * mappedReads / total_input_reads
     except ZeroDivisionError:
         pctMapped = 0.0
 
-    return str(total_input_reads), str(mappedReads), "{0:.3f}".format(pctMapped)
+    return str(total_input_reads), str(mappedReads), "{0:.1f}".format(pctMapped)
 
 
 def enrich_efficiency_bwa(bamfilename):
@@ -196,11 +196,11 @@ def enrich_efficiency_bwa(bamfilename):
             if re.search(r'\bprimary mapped\b', line):
                 mappedReads += float(line.split()[0])
     try:
-        pctMapped = mappedReads / numReads
+        pctMapped = 100 * mappedReads / numReads
     except ZeroDivisionError:
         pctMapped = 0.0
 
-    return str(int(numReads)), str(int(mappedReads)), "{0:.3f}".format(pctMapped)
+    return str(int(numReads)), str(int(mappedReads)), "{0:.1f}".format(pctMapped)
 
 
 def recovery_efficiency(name):
