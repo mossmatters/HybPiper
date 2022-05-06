@@ -116,7 +116,6 @@ if biopython_version[0:2] < [1, 80]:
              f'Please update your Biopython for the Python installation used to run HybPiper!')
 
 # Import HybPiper modules:
-from hybpiper import distribute_reads_to_targets_bwa
 from hybpiper import distribute_reads_to_targets
 from hybpiper import distribute_targets
 from hybpiper import spades_runner
@@ -609,7 +608,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
 
 
 def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None,
-                      merged=False, logger=None):
+                      merged=False, hi_mem=False, logger=None):
     """
     When using blastx, distribute sample reads to their corresponding target file hits.
 
@@ -621,12 +620,13 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
+    :param bool hi_mem: If True, reads to distribute will be saved in a dictionary and written once; used more RAM
     :param logging.Logger logger: a logger object
     :return: None
     """
 
     # Distribute reads to gene directories:
-    read_hit_dict = distribute_reads_to_targets.read_sorting(blastx_outputfile)
+    read_hit_dict = distribute_reads_to_targets.read_sorting_blastx(blastx_outputfile)
 
     if len(readfiles) == 2:
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
@@ -639,16 +639,16 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     else:
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
-    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict, merged=merged,
-                                                     single_end=single_end)
+    distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
+                                                 hi_mem=hi_mem)
 
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
-        read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting(up_blastx_outputfile)
+        read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting_blastx(up_blastx_outputfile)
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile)
+                                                     unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
@@ -671,7 +671,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
 
 
 def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None, merged=False,
-                   logger=None):
+                   hi_mem=False, logger=None):
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
 
@@ -686,12 +686,14 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
+    :param bool hi_mem: If True, reads to distribute will be saved in a dictionary and written once; used more RAM
     :param logging.Logger logger: a logger object
     :return: None
     """
 
     # Distribute reads to gene directories:
-    read_hit_dict = distribute_reads_to_targets_bwa.read_sorting(bamfile)
+
+    read_hit_dict = distribute_reads_to_targets.read_sorting_bwa(bamfile)
 
     if len(readfiles) == 2:
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
@@ -704,16 +706,16 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     else:
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
-    distribute_reads_to_targets_bwa.distribute_reads(readfiles, read_hit_dict, merged=merged,
-                                                     single_end=single_end)
+    distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
+                                                 hi_mem=hi_mem)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
-        read_hit_dict_unpaired = distribute_reads_to_targets_bwa.read_sorting(up_bamfile)
+        read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting_bwa(up_bamfile)
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
-        distribute_reads_to_targets_bwa.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                         unpaired_readfile=unpaired_readfile)
+        distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
+                                                         unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:  # i.e. a target name or file of name is specified manually
@@ -953,38 +955,6 @@ def exonerate(gene_name,
     proc_run_time = end - start
 
     return gene_name, len(exonerate_result.stitched_contig_seqrecord), proc_run_time
-
-
-# def worker_configurer(gene_name):
-#     """
-#     Configures logging to file and screen for the worker processes
-#
-#     :param str gene_name: name of the gene being processing by the worker process
-#     :return: None
-#     """
-#
-#     # Get date and time string for log filename:
-#     date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
-#
-#     # Log to file:
-#     file_handler = logging.FileHandler(f'{gene_name}/{gene_name}_{date_and_time}.log', mode='w')
-#     file_handler.setLevel(logging.DEBUG)
-#     file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
-#                                     'message)s')
-#     file_handler.setFormatter(file_format)
-#
-#     # Log to Terminal (stdout):
-#     console_handler = logging.StreamHandler(sys.stderr)
-#     console_handler.setLevel(logging.INFO)
-#     console_format = logging.Formatter('%(message)s')
-#     console_handler.setFormatter(console_format)
-#
-#     # Setup logger:
-#     logger_object = logging.getLogger(gene_name)
-#
-#     # Add handlers to the logger
-#     logger_object.addHandler(console_handler)
-#     logger_object.addHandler(file_handler)
 
 
 def exonerate_multiprocessing(genes,
@@ -1321,16 +1291,23 @@ def assemble(args):
         pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
         for fasta in pre_existing_fastas:
             os.remove(fasta)
+
+        # import tracemalloc
+        # tracemalloc.start()
         if args.bwa:
             distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
-                           merged=args.merged, logger=logger)
+                           merged=args.merged, hi_mem=args.distribute_hi_mem, logger=logger)
         else:  # distribute BLASTx results
             distribute_blastx(blastx_outputfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
-                              merged=args.merged, logger=logger)
+                              merged=args.merged, hi_mem=args.distribute_hi_mem, logger=logger)
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(f'current tracemalloc is: {current / 10 ** 6} MB')
+        # print(f'peak tracemalloc is: {peak / 10 ** 6} MB')
+        # tracemalloc.stop()
 
     # Note that HybPiper expects either paired-end readfiles (parameter --readfiles) and an optional file of unpaired
     #  reads (parameter --unpaired), or a single file of unpaired reads (parameter --readfiles). For each scenario,
-    #  the unpaired readfiles are written to a *_unpaired.fasta file.
+    #  the unpaired readfile is written to an *_unpaired.fasta file.
     if len(readfiles) == 2:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_interleaved.fasta'))]
     else:
@@ -1339,6 +1316,7 @@ def assemble(args):
         logger.error('ERROR: No genes with reads, exiting!')
         return
 
+    return
     ####################################################################################################################
     # Assemble reads using SPAdes
     ####################################################################################################################
@@ -1646,7 +1624,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0rc build 6',
+                         version='%(prog)s 2.0rc build 7',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
@@ -1695,5 +1673,13 @@ def main():
 #######################################################################################################################
 if __name__ == '__main__':
     main()
+    # import pstats
+    # import cProfile
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+    # main()
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats('cumtime')
+    # stats.print_stats()
 
 ################################################## END OF SCRIPT #######################################################

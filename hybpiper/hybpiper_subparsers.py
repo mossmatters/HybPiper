@@ -87,6 +87,11 @@ def add_assemble_parser(subparsers):
                                  type=int,
                                  default=0,
                                  help='Limit the number of CPUs. Default is to use all cores available.')
+    parser_assemble.add_argument('--distribute_hi_mem',
+                                 action='store_true',
+                                 default=False,
+                                 help='Distributing and writing reads to individual gene directories will be 40-50% '
+                                      'faster, but can use orders of magnitude more memory/RAM (see wiki)')
     parser_assemble.add_argument('--evalue',
                                  type=float,
                                  default=1e-4,
