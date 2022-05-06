@@ -34,7 +34,7 @@ def log_or_print(string, logger=None, logger_level='info'):
         elif logger_level == 'debug':
             logger.debug(string)
         elif logger_level == 'error':
-            logger.debug(string)
+            logger.error(string)
     else:
         print(string)
 
