@@ -161,7 +161,7 @@ def add_assemble_parser(subparsers):
                                       'used.',
                                  default=False)
     parser_assemble.add_argument('--bbmap_memory',
-                                 default=250,
+                                 default=1000,
                                  type=int,
                                  help='MB memory (RAM) to use for bbmap.sh with exonerate_hits.py. Default is %('
                                       'default)s.')
