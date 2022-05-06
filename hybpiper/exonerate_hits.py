@@ -494,7 +494,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param int discordant_cutoff: number of discordant read pairs for a stitched contig to be flagged as chimeric
     :param int edit_distance: edit distance threshold for identifying discordant read pairs
     :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
-    :param int bbmap_memory: GB of RAM to use for bbmap.sh
+    :param int bbmap_memory: MB of RAM to use for bbmap.sh
     :param int bbmap_threads: number of threads to use for bbmap.sh
     :param None, str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
     :param bool no_stitched_contig: if True, return the longest Exonerate hit only
@@ -591,7 +591,7 @@ class Exonerate(object):
         :param int discordant_cutoff: number of discordant read pairs for a stitched contig to be flagged as chimeric
         :param int edit_distance: edit distance threshold for identifying discordant read pairs
         :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
-        :param int bbmap_memory: GB of RAM to use for bbmap.sh
+        :param int bbmap_memory: MB of RAM to use for bbmap.sh
         :param int bbmap_threads: number of threads to use for bbmap.sh
         :param str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
         :param bool no_stitched_contig: if True, return the longest Exonerate hit only
@@ -1396,7 +1396,7 @@ class Exonerate(object):
 
         # Map interleaved R1 and R2 reads against the stitched_contig sequence:
         bbmap_command = f'bbmap.sh ' \
-                        f'-Xmx{self.chimera_bbmap_memory}g ' \
+                        f'-Xmx{self.chimera_bbmap_memory}m ' \
                         f'-t={self.chimera_bbmap_threads} ' \
                         f'ref={self.prefix}/chimera_test_stitched_contig.fasta ' \
                         f'in={self.interleaved_fasta_file} ' \
@@ -1799,7 +1799,7 @@ def standalone():
     parser.add_argument("--no_stitched_contig",
                         help="Do not create any stitched contigs. The longest single Exonerate hit will be used",
                         action="store_true", dest='no_stitched_contig', default=False)
-    parser.add_argument("--bbmap_memory", help="memory (RAM ) to use for bbmap.sh", default=1, type=int)
+    parser.add_argument("--bbmap_memory", help="MB memory (RAM) to use for bbmap.sh", default=250, type=int)
     parser.add_argument("--bbmap_threads", help="threads to use for bbmap.sh", default=2, type=int)
     parser.add_argument("--bbmap_subfilter", default=7, type=int,
                         help="Ban bbmap.sh alignments with more than this many substitutions. Default is %(default)s")
