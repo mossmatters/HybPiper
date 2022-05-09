@@ -835,7 +835,7 @@ def exonerate(gene_name,
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
-    :param dict pid_dict: XXX
+    :param multiprocessing.managers.DictProxy pid_dict: dict shared by processes for capturing parent PIDs
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
