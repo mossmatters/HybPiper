@@ -102,6 +102,10 @@ try:
     import scipy
 except ImportError:
     unsuccessful_imports.append('scipy')
+try:
+    import psutil
+except ImportError:
+    unsuccessful_imports.append('psutil')
 
 if unsuccessful_imports:
     package_list = '\n'.join(unsuccessful_imports)
@@ -810,6 +814,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
 def exonerate(gene_name,
               basename,
+              pid_dict,
               thresh=55,
               paralog_warning_min_length_percentage=0.75,
               depth_multiplier=10,
@@ -830,6 +835,7 @@ def exonerate(gene_name,
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
+    :param dict pid_dict: XXX
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
@@ -851,6 +857,9 @@ def exonerate(gene_name,
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
+
+    # get parent PID and add to shared dictionary:
+    pid_dict[gene_name] = os.getpid()
 
     logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
     if logger.hasHandlers():
@@ -1011,69 +1020,71 @@ def exonerate_multiprocessing(genes,
         pool_threads = multiprocessing.cpu_count()
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
-    with pebble.ProcessPool(max_workers=pool_threads) as pool:
-        genes_cancelled_due_to_timeout = []
-        genes_cancelled_due_to_errors = []
-        future_results_dict = defaultdict()
-        manager = Manager()
-        lock = manager.Lock()
-        counter = manager.Value('i', 0)
-        kwargs_for_schedule = {"thresh": thresh,
-                               "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
-                               "depth_multiplier": depth_multiplier,
-                               "no_stitched_contig": no_stitched_contig,
-                               "bbmap_memory": bbmap_memory,
-                               "bbmap_subfilter": bbmap_subfilter,
-                               "bbmap_threads": bbmap_threads,
-                               "chimeric_stitched_contig_edit_distance": chimeric_stitched_contig_edit_distance,
-                               "chimeric_stitched_contig_discordant_reads_cutoff":
-                                   chimeric_stitched_contig_discordant_reads_cutoff,
-                               "worker_configurer_func": utils.worker_configurer,
-                               "counter": counter,
-                               "lock": lock,
-                               "genes_to_process": genes_to_process,
-                               "intronerate": intronerate,
-                               "no_padding_supercontigs": no_padding_supercontigs,
-                               "keep_intermediate_files": keep_intermediate_files,
-                               "verbose_logging": verbose_logging}
+    try:
+        with pebble.ProcessPool(max_workers=pool_threads) as pool:
+            genes_cancelled_due_to_timeout = []
+            genes_cancelled_due_to_errors = []
+            future_results_dict = defaultdict()
+            manager = Manager()
+            lock = manager.Lock()
+            pid_dict = manager.dict()
+            counter = manager.Value('i', 0)
+            kwargs_for_schedule = {"thresh": thresh,
+                                   "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
+                                   "depth_multiplier": depth_multiplier,
+                                   "no_stitched_contig": no_stitched_contig,
+                                   "bbmap_memory": bbmap_memory,
+                                   "bbmap_subfilter": bbmap_subfilter,
+                                   "bbmap_threads": bbmap_threads,
+                                   "chimeric_stitched_contig_edit_distance": chimeric_stitched_contig_edit_distance,
+                                   "chimeric_stitched_contig_discordant_reads_cutoff":
+                                       chimeric_stitched_contig_discordant_reads_cutoff,
+                                   "worker_configurer_func": utils.worker_configurer,
+                                   "counter": counter,
+                                   "lock": lock,
+                                   "genes_to_process": genes_to_process,
+                                   "intronerate": intronerate,
+                                   "no_padding_supercontigs": no_padding_supercontigs,
+                                   "keep_intermediate_files": keep_intermediate_files,
+                                   "verbose_logging": verbose_logging}
 
-        for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
-            exonerate_job = pool.schedule(exonerate, args=[gene_name, basename],  kwargs=kwargs_for_schedule,
-                                          timeout=exonerate_contigs_timeout)
-            future_results_dict[exonerate_job] = gene_name
+            for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
+                exonerate_job = pool.schedule(exonerate, args=[gene_name, basename, pid_dict],
+                                              kwargs=kwargs_for_schedule, timeout=exonerate_contigs_timeout)
+                future_results_dict[exonerate_job] = gene_name
 
-        futures_list = [future for future in future_results_dict.keys()]
+            futures_list = [future for future in future_results_dict.keys()]
 
-        # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
-        with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-            for future in as_completed(futures_list):
-                try:
-                    gene_name, prot_length, run_time = future.result()
-                    if gene_name:  # i.e. log the Exonerate run regardless of success
-                        gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
-                        gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
-                        gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
-                        with open(gene_log_file_to_cat) as gene_log_handle:
-                            lines = gene_log_handle.readlines()
-                            for line in lines:
-                                logger.debug(line.strip())  # log contents to main logger
-                        if not keep_intermediate_files:
-                            os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
+            # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
+            with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
+                for future in as_completed(futures_list):
+                    try:
+                        gene_name, prot_length, run_time = future.result()
+                        if gene_name:  # i.e. log the Exonerate run regardless of success
+                            gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+                            gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+                            gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+                            with open(gene_log_file_to_cat) as gene_log_handle:
+                                lines = gene_log_handle.readlines()
+                                for line in lines:
+                                    logger.debug(line.strip())  # log contents to main logger
+                            if not keep_intermediate_files:
+                                os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
 
-                    # Write the 'gene_name', 'prot_length' strings returned by each process to file:
-                    if gene_name and prot_length:
-                        genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+                        # Write the 'gene_name', 'prot_length' strings returned by each process to file:
+                        if gene_name and prot_length:
+                            genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
 
-                except TimeoutError as err:
-                    logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
-                                 f' {err.args[1]} seconds to complete and was cancelled')
-                    genes_cancelled_due_to_timeout.append(future_results_dict[future])
-                except CancelledError:
-                    logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
-                except Exception as error:
-                    genes_cancelled_due_to_errors.append(future_results_dict[future])
-                    print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
-                    print(f'error.traceback is: {error.traceback}')  # traceback of the function
+                    except TimeoutError as err:
+                        logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
+                                     f' {err.args[1]} seconds to complete and was cancelled')
+                        genes_cancelled_due_to_timeout.append(future_results_dict[future])
+                    except CancelledError:
+                        logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
+                    except Exception as error:
+                        genes_cancelled_due_to_errors.append(future_results_dict[future])
+                        print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
+                        print(f'error.traceback is: {error.traceback}')  # traceback of the function
 
         wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
@@ -1100,6 +1111,24 @@ def exonerate_multiprocessing(genes,
                                  f'The command "hybpiper check_targetfile" can assist in identifying these '
                                  f'sequences.', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
+
+    except KeyboardInterrupt:
+        for future in futures_list:
+            if not future.running():
+                future.cancel()
+        for gene, pid in pid_dict.items():
+            try:
+                parent = psutil.Process(pid)
+                for child in parent.children(recursive=True):
+                    logger.debug(f'Child for gene {gene}, parent {parent} is {child}')
+                    child.kill()
+            except psutil.NoSuchProcess:
+                pass
+                logger.debug(f'Can not find PID for {gene}, {pid}')
+            except:
+                raise
+
+        sys.exit(1)
 
 
 def assemble(args):
