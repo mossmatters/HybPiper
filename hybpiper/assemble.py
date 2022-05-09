@@ -1123,10 +1123,7 @@ def exonerate_multiprocessing(genes,
                     logger.debug(f'Child for gene {gene}, parent {parent} is {child}')
                     child.kill()
             except psutil.NoSuchProcess:
-                pass
                 logger.debug(f'Can not find PID for {gene}, {pid}')
-            except:
-                raise
 
         sys.exit(1)
 
