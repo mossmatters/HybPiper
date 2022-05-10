@@ -66,8 +66,8 @@ import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
 import pkg_resources
-import collections
 import time
+import signal
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
@@ -814,7 +814,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
 def exonerate(gene_name,
               basename,
-              pid_dict,
+              pid_list,
               thresh=55,
               paralog_warning_min_length_percentage=0.75,
               depth_multiplier=10,
@@ -835,7 +835,7 @@ def exonerate(gene_name,
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
     :param str basename: directory name for sample
-    :param multiprocessing.managers.DictProxy pid_dict: dict shared by processes for capturing parent PIDs
+    :param multiprocessing.managers.ListProxy pid_list: list shared by processes for capturing parent PIDs
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
@@ -858,8 +858,8 @@ def exonerate(gene_name,
     :return: str gene_name, str prot_length OR None, None
     """
 
-    # get parent PID and add to shared dictionary:
-    pid_dict[gene_name] = os.getpid()
+    # get parent PID and add to shared list:
+    pid_list.append(os.getpid())
 
     logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
     if logger.hasHandlers():
@@ -1027,7 +1027,7 @@ def exonerate_multiprocessing(genes,
             future_results_dict = defaultdict()
             manager = Manager()
             lock = manager.Lock()
-            pid_dict = manager.dict()
+            pid_list = manager.list()
             counter = manager.Value('i', 0)
             kwargs_for_schedule = {"thresh": thresh,
                                    "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
@@ -1049,7 +1049,7 @@ def exonerate_multiprocessing(genes,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
-                exonerate_job = pool.schedule(exonerate, args=[gene_name, basename, pid_dict],
+                exonerate_job = pool.schedule(exonerate, args=[gene_name, basename, pid_list],
                                               kwargs=kwargs_for_schedule, timeout=exonerate_contigs_timeout)
                 future_results_dict[exonerate_job] = gene_name
 
@@ -1113,18 +1113,25 @@ def exonerate_multiprocessing(genes,
             logger.info(fill)
 
     except KeyboardInterrupt:
-        for future in futures_list:
-            if not future.running():
-                future.cancel()
-        for gene, pid in pid_dict.items():
-            try:
-                parent = psutil.Process(pid)
-                for child in parent.children(recursive=True):
-                    logger.debug(f'Child for gene {gene}, parent {parent} is {child}')
-                    child.kill()
-            except psutil.NoSuchProcess:
-                logger.debug(f'Can not find PID for {gene}, {pid}')
-
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ignore additional SIGINT while HybPiper cleans up
+        pid_set = set(pid_list)
+        parent_list = []
+        for process_pid in pid_set:
+            parent = psutil.Process(process_pid)
+            parent_list.append(parent)
+        logger.info(f'Exiting HybPiper due to user interrupt, please wait a moment...')
+        while True:
+            count = 0
+            child_list = [parent.children(recursive=True) for parent in parent_list]
+            for children_list in child_list:
+                for child in children_list:
+                    count += 1
+                    try:
+                        child.kill()
+                    except psutil.NoSuchProcess:
+                        pass
+            if count == 0:
+                break
         sys.exit(1)
 
 
