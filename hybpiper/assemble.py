@@ -1119,7 +1119,7 @@ def exonerate_multiprocessing(genes,
         for process_pid in pid_set:
             parent = psutil.Process(process_pid)
             parent_list.append(parent)
-        logger.info(f'\nExiting HybPiper due to user interrupt, please wait a moment...\n')
+        logger.info(f'\n\nExiting HybPiper due to user interrupt, please wait a moment...\n')
         while True:
             count = 0
             child_list = [parent.children(recursive=True) for parent in parent_list]
