@@ -416,8 +416,8 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                                    "stats' command)")
     parser_gene_recovery_heatmap.add_argument('--heatmap_filename',
                                               help='Filename for the output heatmap, saved by default as a *.png file. '
-                                                   'Defaults to "heatmap"',
-                                              default='heatmap')
+                                                   'Defaults to "recovery_heatmap"',
+                                              default='recovery_heatmap')
     parser_gene_recovery_heatmap.add_argument('--figure_length',
                                               type=int,
                                               help='Length dimension (in inches) for the output heatmap file. '

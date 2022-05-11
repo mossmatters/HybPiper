@@ -132,8 +132,8 @@ def standalone():
                         help="Filename for the seq_lengths file (output by the 'hybpiper stats' command)")
     parser.add_argument('--heatmap_filename',
                         help='Filename for the output heatmap, saved by default as a *.png file. Defaults to '
-                             '"heatmap"',
-                        default='heatmap')
+                             '"recovery_heatmap"',
+                        default='recovery_heatmap')
     parser.add_argument('--figure_length', type=int,
                         help='Length dimension (in inches) for the output heatmap file. Default is '
                              'automatically calculated based on the number of genes', default=None)
