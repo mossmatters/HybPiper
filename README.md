@@ -118,110 +118,13 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**2.40release candidate** *March, 2022*
+**2.0 release candidate** *May, 2022*
 
 This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, 
-additional functionality, and additional output. Changes include:
+additional functionality, and additional output. For a full list of changes, see the file `changelog.md`. Changes 
+include:
 
-- **NEW DEPENDENCY**: DIAMOND
-- **NEW DEPENDENCY**: BBtools
-- **NEW DEPENDENCY**: BioPython 1.80 (contains required bug fixes in the SearchIO Exonerate parser modules).
-
-
-- The`reads_first.py` module now imports other pipeline modules rather than calling them as external scripts.
-- The `exonerate_hits.py` module has been substantially re-written to use the BioPython SearchIO Exonerate text parser, 
-  as this allows much more data recovered from Exonerate search results. 
-- The `intronerate.py` module has been removed; this functionality has been moved to `exonerate_hits.py`.
-- The `paralog_investigator.py` module has been removed; this functionality has been moved to `exonerate_hits.py`.
-- The program DIAMOND can be used in place on BLASTX when mapping reads to target/bait sequences.
-- The `reads_first.py` module now accepts read files in compressed gzip format (`*.gz`).
-- Logging when running `reads_first.py` has been unified and extended to provide additional debugging information. A 
-  single log file is written per-sample in the sample directory e.g. `EG30_reads_first_2021-12-02-10_45_56.log`. 
-- Checks for all dependencies are now run by default when `reads_first.py` is run.
-- The `reads_first.py` module now checks that the provided target/bait file is formatted correctly and can be 
-  translated as expected (in the case of a nucleotide target/bait file). Any issues are printed to screen and logged to 
-  file.
-- All Exonerate searches are now performed with the option `--refine full`; in the case of failure, a fallback run 
-  without this parameter is performed.
-- In some situations HybPiper creates a gene sequence by joining together Exonerate hits from different SPAdes contigs.
-  In some scenarios this can result in hit from different paralogs being joined together. HybPiper now performs a rough 
-  test (W.I.P) to search for such 'chimeric' sequences, and provides warnings in the file 
-  `{sample_name}_genes_derived_from_putative_chimera_supercontigs` within each sample folder. Note that this chimera 
-  test is only performed in cases where a supercontig has been created from multiple contigs, and paired-end reads are 
-  provided.
-- By default, the SPAdes assembly folder is now deleted for each gene after contigs have been recovered. The user no 
-  longer needs to run `cleanup.py` after each run, and this script has been removed. Deleting the SPAdes directory 
-  dramatically reduces the total number of files produced by a completed run of HybPiper, which can be very useful when 
-  running it on and HPC with file number limits. To retain the SPAdes directory (i.e. for debugging purposes), the flag 
-  `--keep_spades_folder` can be used.
-- When using BLAST or DIAMOND, the hybpiper_stats module now calculates the enrichment efficiency; previously this was 
-  only calculated when using BWA.
-- When running Intronerate, a block of 10 'N' characters is inserted into supercontigs where different SPAdes contigs 
-  have been concatenated. This behaviour can be turned off via the flag `--no_padding_supercontigs`.
-- In cases where HybPiper recovers sequence for multiple non-contiguous segments of a gene, the gaps between the 
-  segments will be padded with a number of 'N' characters. The number of Ns corresponds to the number of amino acids 
-  in 'best' protein reference for that gene that do not have corresponding SPAdes contig hits, multiplied by 3 to 
-  convert to nucleotides.
-
-
-- The following **new options/flags** have been added:
-    - The flag `--diamond` has been added to `reads_first.py`. When provided, DIAMOND (with default sensitivity `fast`) 
-      will be used to map reads against the bait/target file, rather than the default BLASTX.
-    - The parameter `--diamond_sensitivity` has been added to `reads_first.py`. DIAMOND will be run with the provided 
-      sensitivity (options are `mid-sensitive`, `sensitive`, `more-sensitive`, `very-sensitive`, `ultra-sensitive`).
-    - The flag `--run_intronerate` has been added to `reads_first.py`. When used, Intronerate will be run for genes 
-      that have more than one exon.
-    - The flag `--merged` has been added to `reads_first.py`. When used, R1 and R2 reads will be merged using 
-      BBmerge.sh, where possible. Both merged and remaining unmerged reads will be used for SPAdes assembly.
-    - The flag `--nosupercontigs` has been added to `reads_first.py`. When used, gene sequences will comprise the 
-      longest Exonerate hit from a single SPAdes contig; no contig/hit stitching will be attempted.
-    - The parameter `--paralog_min_length_percentage` has been added to `reads_first.py`. Corresponds to the minimum 
-      percentage length for a SPADes contig Exonerate hit (vs the reference query sequence length) for it to be flagged
-      and recovered as a paralog. Previously this parameter was hardcoded to 0.75. This parameter also both types of 
-      paralog warnings (by length, and by depth).
-    - The parameter `--bbmap_subfilter` has been added to `reads_first.py`. Ban BBmap alignments with more than this 
-      many substitutions when searching for chimeric supercontigs. Default is 7.
-    - The parameter `--chimeric_supercontig_edit_distance` has been added to `reads_first.py`. Minimum number of 
-      differences between one read of a read pair vs a supercontig reference for a read pair to be flagged as 
-      discordant. Default is 5.
-    - The parameter `--chimeric_supercontig_discordant_reads_cutoff` has been added to `reads_first.py`. Minimum number 
-      of discordant reads pairs required to flag a supercontig as a potential chimera of contigs from multiple paralogs.
-      Default is 5. 
-    - The parameter `--bbmap_threads` has been added to `reads_first.py`. The number of threads to use for BBmap when 
-      searching for chimeric supercontigs. Default is 2. 
-    - The parameter `--bbmap_memory` has been added to `reads_first.py`. The amount of memory (RAM) in GB to use for 
-      BBmap when searching for chimeric supercontigs. Default is 1.
-    - The parameter `--keep_spades_folder` has been added to `reads_first.py`. If used, the SPAdes assembly folder for
-      each gene will not be deleted. Note that previous versions of HybPiper retained the SPAdes assembly folders by 
-      default; they could previously be removed after a reads_first.py using the cleanup.py script.  
-
-
-- The following options/flags have been **changed or removed**:
-    - The parameter `--length_pct` has been removed from `reads_first.py` and `exonerate_hits.py`and is no longer used 
-      in internal code.
-    - The parameter `--thresh` (percent identity threshold for retaining Exonerate hits) for `reads_first.py` now 
-      defaults to 55 (previously 65).
-    - The flag `--check-depend` has been removed from `reads_first.py`. Dependency checking is now performed every time 
-      the `reads_first.py` script is run.
-
-- The following output files have been **changed or removed**:
-     - paralog warning file: EG30_genes_with_long_paralog_warnings.txt.  XXX
-
-
-- The following output files/folder have been **added**:
-  - The script `paralog_retreiver.py` now write paralogs to two folders - one with all sequences, and the other without 
-  putative chimeric sequences.
-  - The file containing parlog warnings (produced when multiple long contigs are present for a gene) has been renamed 
-  from `genes_with_paralog_warnings.txt` to `<sample_name_genes_with_long_paralog_warnings.txt`. 
-  - In addition to the standard paralog warning produced when multiple long contigs are present for a gene, the 
-  `reads_first.py` module now provides a paralog warning when multiple short contigs are present which together cover 
-  reference sequence for a given gene at a depth >=2, across a given percentage length (default 75%) of the reference. 
-  These warning are written to each sample directory to the file 
-  `<sample_name>_genes_with_paralog_warnings_by_contig_depth.csv`
-
-    
-- Change to Intronerate supercontig file name.
-- Update hybpiper_stats.py so that %length is calculated correctly when using a protein bait/target file.
+**TODO: provide high-level changes only.**
 
     
 **1.3.2** *February, 2020*

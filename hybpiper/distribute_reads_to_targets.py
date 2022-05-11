@@ -230,15 +230,15 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
     filename, file_extension = os.path.splitext(readfiles[0])
     if file_extension == '.gz':
         logger.debug(f'Distributing reads from gzipped file {os.path.basename(readfiles[0])}')
-        iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
-        for read in iterator1:
+        for line in gzip.open(readfiles[0], 'rt'):
             num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hybpiper_stats.py
+        num_reads_in_readfile = int(num_reads_in_readfile / 4)
         iterator1 = FastqGeneralIterator(gzip.open(readfiles[0], 'rt'))
 
     else:
-        iterator1 = FastqGeneralIterator(open(readfiles[0]))
-        for read in iterator1:
+        for line in open(readfiles[0]):
             num_reads_in_readfile += 1  # Get total # reads for progressbar and to write file for hybpiper_stats.py
+        num_reads_in_readfile = int(num_reads_in_readfile / 4)
         iterator1 = FastqGeneralIterator(open(readfiles[0]))
 
     if len(readfiles) == 1 and single_end:

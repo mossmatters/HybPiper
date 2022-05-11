@@ -275,7 +275,7 @@ def check_dependencies(logger=None):
     """
     Checks for the presence of executables and Python packages. Returns a boolean.
 
-    :param logging.Logger logger: a logger object
+    :param None, logging.Logger logger: a logger object
     return: bool everything_is_awesome: True if all dependencies are found and are executable, else False
     """
 

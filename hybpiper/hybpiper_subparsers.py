@@ -8,6 +8,8 @@ import textwrap
 import logging
 import sys
 
+from hybpiper import utils
+
 
 # Create logger:
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')

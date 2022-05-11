@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.0 release candidate (March 2022)
+HybPiper Version 2.0 release candidate (May 2022)
 
 ########################################################################################################################
 ############################################## NOTES ON VERSION 2.0 ####################################################
@@ -22,21 +22,21 @@ followed by a subcommand to run different parts of the pipeline. The available s
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
 ==> NOTE <==
-The command/script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
+The script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
     python /<path_to>/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
 ...this is now replaced by the command:
 
-    hybpiper assemble -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
+    hybpiper assemble -t_dna test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
 
 ==> NOTE <==
 The recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
 is now incorporated in to the 'hybpiper assemble' command. It can be enabled using the flag
 '--run_intronerate', e.g.:
 
-    hybpiper assemble -t test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
+    hybpiper assemble -t_dna test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
 
 ==> NOTE <==
 The command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
@@ -231,7 +231,7 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
         fill = textwrap.fill(f'{gene_list}')
         log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger)
         log_or_print(f'\nPlease remove duplicate genes before running HybPiper!', logger=logger, logger_level='error')
-        sys.exit(1)  # duplicate genes in targetfile should be removed!
+        sys.exit(1)  # duplicate genes in target file should be removed!
 
     # Report the number of unique genes represented in the target file:
     log_or_print(f'{"[INFO]:":10} The target file contains at least one sequence for {len(gene_lists)} '
@@ -365,7 +365,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
 
             with open(f'{translated_target_file}', 'w') as translated_handle:
                 SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-            targetfile = translated_target_file  # i.e. use translated file for entropy and return value
+            targetfile = translated_target_file  # i.e. use translated file for return value
 
     return targetfile
 
@@ -515,7 +515,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         logger.error(f'Cannot find target file at: {targetfile}')
         return None
 
-    # Remove previous blast results if they exist (because we will be appending)
+    # Remove previous blast results if they exist (because we will be appending to the *.blastx output file)
     if os.path.isfile(f'{basename}.blastx'):
         os.remove(f'{basename}.blastx')
 
@@ -858,7 +858,7 @@ def exonerate(gene_name,
     :return: str gene_name, str prot_length OR None, None
     """
 
-    # get parent PID and add to shared list:
+    # get parent PID and add to shared list; this is used to kill child processes on user interrupt:
     pid_list.append(os.getpid())
 
     logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
@@ -1543,9 +1543,9 @@ def gene_recovery_heatmap_main(args):
     gene_recovery_heatmap.main(args)
 
 
-def check_dependencies_main(args):
+def check_dependencies(args):
     """
-    # Calls the function check_dependencies() from module assemble
+    # Calls the function check_dependencies() from module utils
 
     :param args: argparse namespace with subparser options for function check_dependencies()
     :return: None: no return value specified; default is None
@@ -1554,7 +1554,7 @@ def check_dependencies_main(args):
     utils.check_dependencies(logger=args.logger)
 
 
-def check_targetfile_main(args):
+def check_targetfile_standalone(args):
     """
     Performs targetfile checks. Does not translate a DNA file; low-complexity checks are performed on the target file
     as provided.
@@ -1669,8 +1669,8 @@ def parse_arguments():
     parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
     parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
-    parser_check_dependencies.set_defaults(func=check_dependencies_main)
-    parser_check_targetfile.set_defaults(func=check_targetfile_main)
+    parser_check_dependencies.set_defaults(func=check_dependencies)
+    parser_check_targetfile.set_defaults(func=check_targetfile_standalone)
 
     # Parse and return all arguments:
     arguments = parser.parse_args()
