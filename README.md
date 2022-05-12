@@ -9,7 +9,7 @@ Current version: 2.0.0 (May 2022)
 
 **HybPiper version 1.x** by Matt Johnson and Norm Wickett, Chicago Botanic Garden
 
-If you would like to use HybPiper version 1.3, please download the `Final HybPiper 1.3 Version` [release](https://github.com/mossmatters/HybPiper/releases/tag/v1.3.1_final). The legacy wiki for version 1.3 can be found [here](xxx). 
+If you would like to use HybPiper version 1.3, please download the `Final HybPiper 1.3 Version` [release](https://github.com/mossmatters/HybPiper/releases/tag/v1.3.1_final). The legacy wiki for version 1.3 can be found [here](https://github.com/mossmatters/HybPiper/wiki/HybPiper-Legacy-Wiki). 
 
 **HybPiper version 2.0** by Matt Johnson (Texas Tech University) and Chris Jackson (Royal Botanic Gardens Victoria, Melbourne)
 
@@ -56,7 +56,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 ---
 # Setup
 
-We strongly recommend installing HybPiper using [conda]() with a new environment. This will install HybPiper, all required Python packages, and all required external programs. If you have conda installed and the channels `bioconda` and `conda-forge` have already been added, this can be done using the command:
+We strongly recommend installing HybPiper using [conda](https://docs.conda.io/en/latest/miniconda.html) with a new environment. This will install HybPiper, all required Python packages, and all required external programs. If you have conda installed and the channels `bioconda` and `conda-forge` have already been added, this can be done using the command:
 
 ```
 conda create -n hybpiper -c chrisjackson-pellicle hybpiper
@@ -72,9 +72,8 @@ For full installation instructions, please see our wiki page:
 
 [https://github.com/mossmatters/HybPiper/wiki/Installation](https://github.com/mossmatters/HybPiper/wiki/Installation)
 
-***FixMe:*** _Update the `run_tests.sh` script. Perhaps rename it to `run_test_dataset.sh`, as otherwise it suggests it's running e.g. unit tests?_
 
-Once all dependencies are installed, execute the `run_tests.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
+Once all dependencies are installed, you can execute the `run_hybpiper_test_dataset.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
 
 
 ----
@@ -117,7 +116,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 **2.0 release candidate** *March, 2022*
 
-This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, additional functionality, and additional output. Changes include:
+This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, additional functionality, and additional output. For a full list of changes see the [changelog](https://github.com/mossmatters/HybPiper/blob/master/change_log.md). Changes include:
 
 ***New dependencies***: 
 
@@ -129,6 +128,8 @@ This update involves a substantial refactor of the HybPiper pipeline, with chang
 - pandas (Python library)
 - DIAMOND
 - BBtools (BBmap.sh, BBmerge.sh)
+
+#ToDo add topline changes
 
     
 **1.3.2** *February, 2020*
