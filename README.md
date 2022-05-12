@@ -62,7 +62,7 @@ We strongly recommend installing HybPiper using [conda](https://docs.conda.io/en
 conda create -n hybpiper -c chrisjackson-pellicle hybpiper
 ```
 
-..followed by:
+...followed by:
 
 ```
 conda activate hybpiper
@@ -114,22 +114,23 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**2.0 release candidate** *March, 2022*
+**2.0 release candidate** *May, 2022*
 
-This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, additional functionality, and additional output. For a full list of changes see the [changelog](https://github.com/mossmatters/HybPiper/blob/master/change_log.md). Changes include:
+This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, additional functionality, and additional output. For a full list of changes see the [changelog](https://github.com/mossmatters/HybPiper/blob/master/change_log.md).
 
 ***New dependencies***: 
 
-- Python 3.6 or later
-- seaborn (Python library)
-- matplotlib (Python library)
-- progressbar2 (Python library)
-- BioPython 1.80 (Python library).
-- pandas (Python library)
+- Python 3.6 or later, along with the Python libraries:
+   - seaborn
+   - matplotlib
+   - pebble
+   - progressbar2
+   - scipy
+   - pandas
+   - BioPython 1.80
+   - psutil
 - DIAMOND
 - BBtools (BBmap.sh, BBmerge.sh)
-
-#ToDo add topline changes
 
     
 **1.3.2** *February, 2020*
