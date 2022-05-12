@@ -73,7 +73,7 @@ For full installation instructions, please see our wiki page:
 [https://github.com/mossmatters/HybPiper/wiki/Installation](https://github.com/mossmatters/HybPiper/wiki/Installation)
 
 
-Once all dependencies are installed, you can execute the `run_hybpiper_test_dataset.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
+Once all dependencies are installed you can download a test dataset [here](https://github.com/mossmatters/HybPiper/raw/master/test_dataset.tar.gz), extract the `\*.tar.gz` file, and execute the `run_hybpiper_test_dataset.sh` script from the `test_dataset` directory for a demonstration of HybPiper.
 
 
 ----
