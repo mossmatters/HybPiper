@@ -1,5 +1,3 @@
-###### tags: `hybpiper_wiki`
-
 # HybPiper
 
 Current version: 2.0.0 (May 2022)
@@ -10,6 +8,8 @@ Current version: 2.0.0 (May 2022)
 [Read our article in Applications in Plant Sciences (Open Access)](http://www.bioone.org/doi/full/10.3732/apps.1600016)
 
 **HybPiper version 1.x** by Matt Johnson and Norm Wickett, Chicago Botanic Garden
+
+If you would like to use HybPiper version 1.3, please download the `Final HybPiper 1.3 Version` [release](https://github.com/mossmatters/HybPiper/releases/tag/v1.3.1_final). The legacy wiki for version 1.3 can be found [here](xxx). 
 
 **HybPiper version 2.0** by Matt Johnson (Texas Tech University) and Chris Jackson (Royal Botanic Gardens Victoria, Melbourne)
 
