@@ -45,7 +45,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
     * [biopython](http://biopython.org/wiki/Main_Page) 1.80 or later
     * [psutil](https://github.com/giampaolo/psutil). The conda install can be found [here](https://anaconda.org/conda-forge/psutil). 
 * [Exonerate](http://www.ebi.ac.uk/~guy/exonerate/) 2.40 or later
-* [BLAST 2.9.0](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) 
+* [BLAST 2.9.0](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) 
 * [DIAMOND](https://github.com/bbuchfink/diamond/wiki). The conda install can be found [here](https://anaconda.org/bioconda/diamond).
 * [BWA](http://bio-bwa.sourceforge.net/)
 * [BBtools](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/). The conda install can be found [here](https://anaconda.org/bioconda/bbmap).
