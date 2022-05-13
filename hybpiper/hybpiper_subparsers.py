@@ -93,8 +93,7 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  default=False,
                                  help='Distributing and writing reads to individual gene directories will be 40-50 '
-                                      'percent faster, but can use orders of magnitude more memory/RAM with large '
-                                      'input files (see wiki)')
+                                      'percent faster, but can use more memory/RAM with large input files (see wiki)')
     parser_assemble.add_argument('--evalue',
                                  type=float,
                                  default=1e-4,

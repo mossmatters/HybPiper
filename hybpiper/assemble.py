@@ -44,7 +44,9 @@ the command 'hybpiper stats'. The sequence length details that were previously p
 the file 'seq_lengths.tsv', by default. Similarly, the stats details that were previously written to screen by
 'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv', by default.
 
-For full details of all commands and changes, please reads the Wiki page at **LINK** and the changelog at **LINK**.
+For full details of all commands and changes, please read the Wiki page at
+https://github.com/mossmatters/HybPiper/wiki and the change log at
+https://github.com/mossmatters/HybPiper/blob/master/change_log.md.
 
 ########################################################################################################################
 
@@ -1613,8 +1615,9 @@ def check_targetfile_standalone(args):
     if low_complexity_sequences:
         fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
                                f'sequences with low-complexity regions. The sequence names are printed below. These '
-                               f'sequences can cause problems when running HybPiper, see wiki <link>. We recommend '
-                               f'one of the following approaches:', width=90,
+                               f'sequences can cause problems when running HybPiper, '
+                               f'see https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
+                               f'-and-recommendations. We recommend one of the following approaches:', width=90,
                                subsequent_indent=" " * 11)
 
         fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
@@ -1622,7 +1625,9 @@ def check_targetfile_standalone(args):
                                initial_indent=" " * 11, subsequent_indent=" " * 14)
 
         fill_3 = textwrap.fill(f'2) Start the run using the parameter "--timeout_assemble" (e.g. "--timeout_assemble '
-                               f'200"). See wiki <link> for details.',
+                               f'200"). See '
+                               f'https://github.com/mossmatters/HybPiper/wiki/Full-pipeline-parameters#10-hybpiper'
+                               f'-assemble for details.',
                                width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
 
         print(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
