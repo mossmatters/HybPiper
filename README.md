@@ -14,8 +14,7 @@ If you would like to use HybPiper version 1.3, please download the `Final HybPip
 **HybPiper version 2.0** by Matt Johnson (Texas Tech University) and Chris Jackson (Royal Botanic Gardens Victoria, Melbourne)
 
 
-
-![](examples/hybpiper_logo.png)
+![hybpiper_logo](https://user-images.githubusercontent.com/55370301/168408947-e99a39e6-0d95-419a-8419-61b97315d863.png)
 
 (logo by Elliot Gardner)
 
