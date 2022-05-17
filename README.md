@@ -14,8 +14,7 @@ If you would like to use HybPiper version 1.3, please download the `Final HybPip
 **HybPiper version 2.0** by Matt Johnson (Texas Tech University) and Chris Jackson (Royal Botanic Gardens Victoria, Melbourne)
 
 
-
-![](examples/hybpiper_logo.png)
+![hybpiper_logo](https://user-images.githubusercontent.com/55370301/168408947-e99a39e6-0d95-419a-8419-61b97315d863.png)
 
 (logo by Elliot Gardner)
 
@@ -42,7 +41,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
     * [progressbar2](https://github.com/WoLpH/python-progressbar). The conda install can be found [here](https://anaconda.org/conda-forge/progressbar2).
     * [scipy](https://scipy.org/download/). The conda install can be found [here](https://anaconda.org/anaconda/scipy).
     * [pandas](https://pandas.pydata.org/docs/getting_started/install.html)
-    * [biopython](http://biopython.org/wiki/Main_Page) 1.80 or later
+    * [biopython](http://biopython.org/wiki/Main_Page) 1.80 or later, see [note](#NOTE).
     * [psutil](https://github.com/giampaolo/psutil). The conda install can be found [here](https://anaconda.org/conda-forge/psutil). 
 * [Exonerate](http://www.ebi.ac.uk/~guy/exonerate/) 2.40 or later
 * [BLAST](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/)  2.9.0 
@@ -52,6 +51,11 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 * [SPAdes](http://bioinf.spbau.ru/en/spades) 3.15.0
 * [GNU Parallel](http://www.gnu.org/software/parallel/)
 * [samtools](http://www.htslib.org/) 1.14
+
+#### NOTE: 
+Biopython 1.80 has not been released yet, but you can install an in-progress version by cloning the repository from https://github.com/biopython/biopython and following the instructions under the heading 'Installation from Source' [here](https://biopython.org/wiki/Download).
+
+Biopython 1.80 is required as it contains bug fixes for the SearchIO module that HybPiper 2.0 uses to parse output from Exonerate. Note that version 1.80 is bundled with the conda installation of HybPiper.
 
 ---
 # Setup
