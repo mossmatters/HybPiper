@@ -641,7 +641,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting_blastx(up_blastx_outputfile)
-        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
                                                      unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
@@ -708,10 +708,10 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting_bwa(up_bamfile)
-        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict)} reads from the unpaired read file will be '
+        logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                         unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
+                                                     unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:  # i.e. a target name or file of name is specified manually
