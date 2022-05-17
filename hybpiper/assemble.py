@@ -376,7 +376,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     """
     Conduct a BWA search of input reads against the targetfile.
 
-    :param list readfiles: one or more read files used as input to the pipeline
+    :param str/list readfiles: list one or more read files used as input to the pipeline, or path to unpaired read file
     :param str targetfile: path to targetfile (i.e. the target file)
     :param str basename: directory name for sample
     :param int cpu: number of threads/cpus to use for BWA mapping
@@ -1145,8 +1145,12 @@ def assemble(args):
     :return None: no return value specified; default is None
     """
 
-    # Get a list of read files from args.readfiles (doesn't include any readfile passed in via --unpaired flag):
+    # Get a list of read files from args.readfiles (doesn't include any read file passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
+
+    if len(readfiles) > 2:
+        sys.exit(f'{"[ERROR]:":10} Please provide a maximum of two read files (R1 and R2) to the -r / '
+                 f'--readfiles parameter')
 
     # Generate a directory for the sample:
     basedir, basename = utils.make_basename(args.readfiles, prefix=args.prefix)
@@ -1405,7 +1409,8 @@ def assemble(args):
                                          single_cell_mode=args.spades_single_cell)
             else:
                 spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
-                                         timeout=args.timeout_assemble, logger=logger, keep_folder=args.keep_intermediate_files,
+                                         timeout=args.timeout_assemble, logger=logger,
+                                         keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
 
         else:
