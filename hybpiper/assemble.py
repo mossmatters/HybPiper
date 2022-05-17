@@ -420,10 +420,6 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
         logger.error(f'ERROR: Cannot find target file at: {targetfile}')
         return None
 
-    if not cpu:
-        import multiprocessing
-        cpu = multiprocessing.cpu_count()  # i.e. use all cpus. Reduce by 1?
-
     if isinstance(readfiles, list) and len(readfiles) < 3:
         bwa_fastq = ' '.join(readfiles)
     elif isinstance(readfiles, str):
@@ -540,12 +536,9 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         else:
             blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
                              f' {max_target_seqs}'
-        if cpu:
-            full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
-                           f"'{blastx_command}' >> {basename}_unpaired.blastx"
-        else:
-            full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
-                           f" {basename}_unpaired.blastx"
+
+        full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
+                       f" {basename}_unpaired.blastx"
 
         fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
                                         break_long_words=False, break_on_forward_slash=True)
@@ -586,12 +579,9 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             else:
                 blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
                                  f' {max_target_seqs}'
-            if cpu:
-                full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
-                               f"'{blastx_command}' >> {basename}.blastx"
-            else:
-                full_command = f"time {pipe_cmd} | parallel -k --block 200K --recstart '>' --pipe " \
-                               f"'{blastx_command}' >> {basename}.blastx"
+
+            full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
+                           f"'{blastx_command}' >> {basename}.blastx"
 
             fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
                                             break_long_words=False, break_on_forward_slash=True)
@@ -993,7 +983,7 @@ def exonerate_multiprocessing(genes,
     :param str basename: directory name for sample
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
-    :param int pool_threads: number of threads/cpus to use for the ProcessPoolExecutor pool
+    :param int pool_threads: number of threads/cpus to use for the pebble.ProcessPool pool
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
     :param bool no_stitched_contig: if True, don't create stitched contig and just use longest Exonerate hit
     :param int bbmap_memory: MB memory (RAM ) to use for bbmap.sh
@@ -1017,9 +1007,6 @@ def exonerate_multiprocessing(genes,
     logger.info(f'{"[INFO]:":10} Running exonerate_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
 
-    if not pool_threads:
-        import multiprocessing
-        pool_threads = multiprocessing.cpu_count()
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
     try:
@@ -1166,6 +1153,14 @@ def assemble(args):
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
+    # Get number of cpus/threads for pipeline:
+    if args.cpu:
+        cpu = args.cpu
+        logger.info(f'{"[INFO]:":10} Using {cpu} cpus/threads.')
+    else:
+        cpu = multiprocessing.cpu_count()  # i.e. use all cpus.
+        logger.info(f'{"[INFO]:":10} Number of cpus/threads not specified, using all available ({cpu}).')
+
     logger.debug(f'args.start_from is: {args.start_from}')
 
     ####################################################################################################################
@@ -1175,7 +1170,6 @@ def assemble(args):
         logger.info(f'{"[INFO]:":10} Everything looks good!')
     else:
         logger.error(f'{"[ERROR]:":10} One or more dependencies not found!')
-        return
 
     ####################################################################################################################
     # Check read and target files
@@ -1284,9 +1278,9 @@ def assemble(args):
         if args.bwa:  # map reads to nucleotide targets with BWA
             if args.unpaired:
                 # Note that unpaired_readfile is a single path to the file:
-                bwa(unpaired_readfile, targetfile, basename, cpu=args.cpu, unpaired=True, logger=logger)
+                bwa(unpaired_readfile, targetfile, basename, cpu=cpu, unpaired=True, logger=logger)
             # Note that readfiles is a list of one (single-end) or two (paired-end) paths to read files:
-            bamfile = bwa(readfiles, targetfile, basename, cpu=args.cpu, logger=logger)
+            bamfile = bwa(readfiles, targetfile, basename, cpu=cpu, logger=logger)
             if not bamfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
                              f'hybpiper_assemble.log file for sample {basename}!')
@@ -1295,11 +1289,11 @@ def assemble(args):
 
         elif args.blast:  # map reads to protein targets with BLASTx
             if args.unpaired:
-                blastx(unpaired_readfile, targetfile, args.evalue, basename, cpu=args.cpu,
+                blastx(unpaired_readfile, targetfile, args.evalue, basename, cpu=cpu,
                        max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
                        diamond_sensitivity=args.diamond_sensitivity)
 
-            blastx_outputfile = blastx(readfiles, targetfile, args.evalue, basename, cpu=args.cpu,
+            blastx_outputfile = blastx(readfiles, targetfile, args.evalue, basename, cpu=cpu,
                                        max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
                                        diamond_sensitivity=args.diamond_sensitivity)
 
@@ -1388,27 +1382,27 @@ def assemble(args):
                     sys.exit('There was an issue when merging reads. Check read files!')
 
         if len(readfiles) == 1:
-            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
                                      paired=False, timeout=args.timeout_assemble, logger=logger,
                                      keep_folder=args.keep_intermediate_files, single_cell_mode=args.spades_single_cell)
         elif len(readfiles) == 2:
             if args.merged and not unpaired_readfile:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
                                          timeout=args.timeout_assemble, merged=True, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
             elif args.merged and unpaired_readfile:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
                                          timeout=args.timeout_assemble, merged=True, unpaired=True, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
             elif unpaired_readfile and not args.merged:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
                                          timeout=args.timeout_assemble, unpaired=True, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
             else:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
                                          timeout=args.timeout_assemble, logger=logger,
                                          keep_folder=args.keep_intermediate_files,
                                          single_cell_mode=args.spades_single_cell)
@@ -1447,7 +1441,7 @@ def assemble(args):
                               chimeric_stitched_contig_discordant_reads_cutoff=
                               args.chimeric_stitched_contig_discordant_reads_cutoff,
                               bbmap_threads=args.bbmap_threads,
-                              pool_threads=args.cpu,
+                              pool_threads=cpu,
                               logger=logger,
                               intronerate=args.intronerate,
                               no_padding_supercontigs=args.no_padding_supercontigs,

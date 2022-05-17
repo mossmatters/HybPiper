@@ -47,15 +47,14 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
     if kvals:
         kvals = ','.join(kvals)
 
-    parallel_cmd_list = ['time', 'parallel', '--joblog', 'gnu_parallel_log.txt', '--eta']
-    if cpu:
-        parallel_cmd_list.append(f'-j {cpu}')
+    parallel_cmd_list = ['time', 'parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
+
     if timeout:
         parallel_cmd_list.append(f'--timeout {timeout}%')
 
     spades_cmd_list = [f'spades.py --only-assembler {single_cell_mode_string} --threads 1 --cov-cutoff',
                        str(cov_cutoff)]
-    # spades_cmd_list = ["spades.py --only-assembler --sc --threads 1 --cov-cutoff", str(cov_cutoff)]  # CJJ added --sc
+
     if kvals:
         spades_cmd_list.append(f'-k {kvals}')
     if unpaired:
@@ -153,8 +152,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
             logger.debug(f'spades_cmd with merged stdout is: {exc.stdout}')
             # logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
             logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
-                        f'low '
-                        f'coverage.')
+                        f'low coverage.')
 
         fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_without_merged}', width=90, subsequent_indent=' ' * 11,
                              break_long_words=False, break_on_hyphens=False)
@@ -267,10 +265,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
                 f'be re-run')
 
     redo_cmds_file.close()
-    if cpu:
-        redo_spades_cmd = f'parallel -j {cpu} --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
-    else:
-        redo_spades_cmd = 'parallel --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
+    redo_spades_cmd = f'parallel -j {cpu} --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
     fill = textwrap.fill(f'{"[CMD]:":10} {redo_spades_cmd}', width=90, subsequent_indent=' ' * 11,
                          break_long_words=False, break_on_hyphens=False)
@@ -347,9 +342,18 @@ def main():
     else:
         is_paired = True
 
+    # Get number of cpus/threads for pipeline:
+    if args.cpu:
+        cpu = args.cpu
+        logger.info(f'{"[INFO]:":10} Using {cpu} cpus/threads.')
+    else:
+        import multiprocessing
+        cpu = multiprocessing.cpu_count()  # i.e. use all cpus.
+        logger.info(f'{"[INFO]:":10} Number of cpus/threads not specified, using all available ({cpu}).')
+
     if os.path.isfile('failed_spades.txt') and args.redos_only:  # Only gets used (optional) when running standalone
         # script
-        spades_failed = rerun_spades('failed_spades.txt', cpu=args.cpu)
+        spades_failed = rerun_spades('failed_spades.txt', cpu=cpu)
     else:
         if args.unpaired:  # Create empty unpaired file if it doesn't exist
             for gene in open(args.genelist):
@@ -358,7 +362,7 @@ def main():
                     if not os.path.isfile(f'{gene}/{gene}_unpaired.fasta'):
                         open(f'{gene}/{gene}_unpaired.fasta', 'a').close()
 
-        spades_failed = spades_initial(args.genelist, cov_cutoff=args.cov_cutoff, cpu=args.cpu, kvals=args.kvals,
+        spades_failed = spades_initial(args.genelist, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
                                        paired=is_paired, timeout=args.timeout, unpaired=args.unpaired,
                                        merged=args.merged)
 
@@ -366,7 +370,7 @@ def main():
             with open('failed_spades.txt', 'w') as failed_spadefile:
                 failed_spadefile.write('\n'.join(spades_failed))
 
-            spades_duds = rerun_spades('failed_spades.txt', cov_cutoff=args.cov_cutoff, cpu=args.cpu)
+            spades_duds = rerun_spades('failed_spades.txt', cov_cutoff=args.cov_cutoff, cpu=cpu)
             if len(spades_duds) == 0:
                 sys.stderr.write('All redos completed successfully!\n')
             else:
