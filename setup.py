@@ -4,7 +4,7 @@ import setuptools
 
 hybpiper_scripts = ['hybpiper']
 hybpiper_description = 'Recovery of target gene sequences from bait-capture data'
-hybpiper_url = 'https://github.com/chrisjackson-pellicle/HybPiper.git'
+hybpiper_url = 'https://github.com/mossmatters/HybPiper'
 hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.assemble:main']}
 
 setuptools.setup(name='hybpiper',
