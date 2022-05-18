@@ -1421,6 +1421,9 @@ class Exonerate(object):
             self.logger.debug(f'bbmap_command FAILED. Output is: {exc}')
             self.logger.debug(f'bbmap_command stdout is: {exc.stdout}')
             self.logger.debug(f'bbmap_command stderr is: {exc.stderr}')
+            print(f'bbmap_command FAILED. Output is: {exc}')
+            print(f'bbmap_command stdout is: {exc.stdout}')
+            print(f'bbmap_command stderr is: {exc.stderr}')
 
         # Get a list of individual contig ranges within the stitched_contig (dna_seqrecord_to_write):
         hits_processed = []

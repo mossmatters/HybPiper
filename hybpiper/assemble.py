@@ -744,8 +744,8 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     :param bool paired: True if len(readfiles) == 2
     :param list kvals: values of k for SPAdes assemblies
     :param int timeout: value for GNU parallel --timeout percentage
-    :param bool unpaired: True is an unpaired readfile has been provided for the sample
-    :param bool merged: True if parameter --merged is used
+    :param bool unpaired: True is an unpaired readfile has been provided for the sample, else False
+    :param bool merged: True if parameter --merged is used, else False
     :param logging.Logger logger: a logger object
     :param bool keep_folder: if True, don't delete the SPAdes assembly folder after contig recovery
     :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
@@ -761,14 +761,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
         os.remove('spades_redo.log')
 
     logger.debug(f'args.merged is: {merged}')
-    logger.debug(f'args.unpaired is:  {unpaired}')
-
-    if unpaired:  # Create an empty unpaired file if it doesn't exist
-        for gene in open('spades_genelist.txt'):
-            gene = gene.rstrip()
-            if os.path.isfile(f'{gene}/{gene}_interleaved.fasta'):
-                if not os.path.isfile(f'{gene}/{gene}_unpaired.fasta'):
-                    open(f'{gene}/{gene}_unpaired.fasta', 'a').close()
+    logger.debug(f'args.unpaired is: {unpaired}')
 
     spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
                                                  kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
@@ -1065,8 +1058,8 @@ def exonerate_multiprocessing(genes,
                             genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
 
                     except TimeoutError as err:
-                        logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took more than'
-                                     f' {err.args[1]} seconds to complete and was cancelled')
+                        logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took '
+                                     f'more than {err.args[1]} seconds to complete and was cancelled')
                         genes_cancelled_due_to_timeout.append(future_results_dict[future])
                     except CancelledError:
                         logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
@@ -1370,7 +1363,7 @@ def assemble(args):
                                   f'outu={unmerged_out}'
                 try:
                     result = subprocess.run(bbmerge_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                            universal_newlines=True)
+                                            universal_newlines=True, check=True)
                     logger.debug(f'bbmerge check_returncode() is: {result.check_returncode()}')
                     logger.debug(f'bbmerge paired stdout is: {result.stdout}')
                     logger.debug(f'bbmerge paired stderr is: {result.stderr}')
@@ -1382,30 +1375,28 @@ def assemble(args):
                     sys.exit('There was an issue when merging reads. Check read files!')
 
         if len(readfiles) == 1:
-            spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
-                                     paired=False, timeout=args.timeout_assemble, logger=logger,
-                                     keep_folder=args.keep_intermediate_files, single_cell_mode=args.spades_single_cell)
+            spades_genelist = spades(genes,
+                                     cov_cutoff=args.cov_cutoff,
+                                     cpu=cpu,
+                                     kvals=args.kvals,
+                                     paired=False,
+                                     timeout=args.timeout_assemble,
+                                     logger=logger,
+                                     keep_folder=args.keep_intermediate_files,
+                                     single_cell_mode=args.spades_single_cell)
         elif len(readfiles) == 2:
-            if args.merged and not unpaired_readfile:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
-                                         timeout=args.timeout_assemble, merged=True, logger=logger,
-                                         keep_folder=args.keep_intermediate_files,
-                                         single_cell_mode=args.spades_single_cell)
-            elif args.merged and unpaired_readfile:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
-                                         timeout=args.timeout_assemble, merged=True, unpaired=True, logger=logger,
-                                         keep_folder=args.keep_intermediate_files,
-                                         single_cell_mode=args.spades_single_cell)
-            elif unpaired_readfile and not args.merged:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
-                                         timeout=args.timeout_assemble, unpaired=True, logger=logger,
-                                         keep_folder=args.keep_intermediate_files,
-                                         single_cell_mode=args.spades_single_cell)
-            else:
-                spades_genelist = spades(genes, cov_cutoff=args.cov_cutoff, cpu=cpu, kvals=args.kvals,
-                                         timeout=args.timeout_assemble, logger=logger,
-                                         keep_folder=args.keep_intermediate_files,
-                                         single_cell_mode=args.spades_single_cell)
+            unpaired = True if unpaired_readfile else False
+            spades_genelist = spades(genes,
+                                     cov_cutoff=args.cov_cutoff,
+                                     cpu=cpu,
+                                     kvals=args.kvals,
+                                     paired=True,
+                                     timeout=args.timeout_assemble,
+                                     merged=args.merged,
+                                     unpaired=unpaired,
+                                     logger=logger,
+                                     keep_folder=args.keep_intermediate_files,
+                                     single_cell_mode=args.spades_single_cell)
 
         else:
             logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
@@ -1654,7 +1645,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0rc build 7',
+                         version='%(prog)s 2.0.1rc build 8',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:

@@ -6,6 +6,7 @@ The re-runs are attempted by removing the largest k-mer and re-running spades.
 """
 
 import argparse
+import copy
 import os
 import sys
 import shutil
@@ -20,22 +21,20 @@ from hybpiper import utils
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
 
 
-def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
-                    unpaired=False, merged=False, single_cell_mode=False):
+def make_spades_cmd_file(genelist, cov_cutoff=8, paired=True, kvals=None, unpaired=False, merged=False,
+                         single_cell_mode=False):
     """
-    Generates a command string for running SPAdes via GNU parallel. Returns either a single string, or if merged=True
-    returns two command strings corresponding to genes with merged and without merged sequences
+    Generates a file with gene-specific commands for running SPAdes via GNU parallel. The commands differs depending
+    on options (--unpaired, --merged) and read files present for each gene.
 
-    :param genelist:
+    :param genelist: path to file containing the name of each gene that has reads distributed to its directory
     :param int cov_cutoff: coverage cutoff for SPAdes assembler
-    :param int cpu: number of threads/cpus to use for GNU Parallel
     :param bool paired: True if len(readfiles) == 2
     :param list kvals: values of k for SPAdes assemblies
-    :param int timeout: value for GNU parallel --timeout percentage
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
     :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
-    :return: str spades_cmd_with_merged, spades_cmd_without_merged, OR str spades_cmd
+    :return str spades_initial_commands_file: file name of text file with SPAdes intial commands for each gene
     """
 
     if single_cell_mode:
@@ -47,64 +46,38 @@ def make_spades_cmd(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, t
     if kvals:
         kvals = ','.join(kvals)
 
-    parallel_cmd_list = ['time', 'parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
-
-    if timeout:
-        parallel_cmd_list.append(f'--timeout {timeout}%')
-
     spades_cmd_list = [f'spades.py --only-assembler {single_cell_mode_string} --threads 1 --cov-cutoff',
                        str(cov_cutoff)]
 
     if kvals:
         spades_cmd_list.append(f'-k {kvals}')
-    if unpaired:
-        spades_cmd_list.append('-s {}/{}_unpaired.fasta')
-    if paired and not merged:
-        spades_cmd_list.append('--12 {}/{}_interleaved.fasta')
-    elif not merged:  # i.e. a single file of single-end reads was provided
-        spades_cmd_list.append('-s {}/{}_unpaired.fasta')
-    if merged:
-        spades_cmd_list.append('--merged {}/{}_merged.fastq')
-        spades_cmd_list.append('--12 {}/{}_unmerged.fastq')
 
-    # Write separate gene name files for those that have merged reads and those that don't. Format the SPAdes
-    # command accordingly and run as two separate subprocess commands in spades_initial():
-    if merged:
-        with open(genelist, 'r') as gene_file:
-            contents = gene_file.readlines()
-        genelist_list = [gene.strip() for gene in contents]
+    # Create a file of gene-specific spades commands based on options provided and read files present:
+    with open(genelist, 'r') as genes_for_spades_handle:
+        genes_for_spades = [gene.strip() for gene in genes_for_spades_handle]
 
-        genes_with_merged_reads = [gene for gene in genelist_list if utils.file_exists_and_not_empty(
-            f'{gene}/{gene}_merged.fastq')]
-        with open(f'spades_genelist_with_merged.txt', 'w') as with_merged:
-            for gene in genes_with_merged_reads:
-                with_merged.write(f'{gene}\n')
+    spades_initial_commands_file = 'spades_initial_commands.txt'
+    with open(spades_initial_commands_file, 'w') as initial_spades_handle:
+        for gene in genes_for_spades:
+            base_list = copy.deepcopy(spades_cmd_list)
+            if merged:  # implies paired read files present
+                if utils.file_exists_and_not_empty(f'{gene}/{gene}_merged.fastq'):
+                    base_list.append(f'--merged {gene}/{gene}_merged.fastq')
+                if utils.file_exists_and_not_empty(f'{gene}/{gene}_unmerged.fastq'):
+                    base_list.append(f'--12 {gene}/{gene}_unmerged.fastq')
+            elif paired:
+                if utils.file_exists_and_not_empty(f'{gene}/{gene}_interleaved.fasta'):
+                    base_list.append(f'--12 {gene}/{gene}_interleaved.fasta')
 
-        genes_without_merged_reads = [gene for gene in genelist_list if not utils.file_exists_and_not_empty(
-            f'{gene}/{gene}_merged.fastq')]
-        with open(f'spades_genelist_without_merged.txt', 'w') as without_merged:
-            for gene in genes_without_merged_reads:
-                without_merged.write(f'{gene}\n')
+            if utils.file_exists_and_not_empty(f'{gene}/{gene}_unpaired.fasta'):  # covers both single end or --unpaired
+                base_list.append(f'-s {gene}/{gene}_unpaired.fasta')
 
-        logger.info(f'{"[NOTE]:":10} Genes with merged reads: {len(genes_with_merged_reads)}')
-        logger.info(f'{"[NOTE]:":10} Genes without merged reads: {len(genes_without_merged_reads)}')
+            base_list.append(f'-o {gene}/{gene}_spades')
 
-    if merged:
-        spades_cmd_list_with_merged = spades_cmd_list.copy()
-        spades_cmd_list_with_merged.append('-o {}/{}_spades :::: spades_genelist_with_merged.txt >> spades.log')
-        spades_cmd_list_without_merged = spades_cmd_list.copy()
-        spades_cmd_list_without_merged = [re.sub('--merged {}/{}_merged.fastq', '', item) for item in
-                                          spades_cmd_list_without_merged]  # Hacky - refactor
-        spades_cmd_list_without_merged.append(
-            '-o {}/{}_spades :::: spades_genelist_without_merged.txt >> spades.log')
+            full_command = ' '.join(base_list)
+            initial_spades_handle.write(f'{full_command}\n')
 
-        spades_cmd_with_merged = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list_with_merged)}'
-        spades_cmd_without_merged = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list_without_merged)}'
-        return spades_cmd_with_merged, spades_cmd_without_merged
-    else:
-        spades_cmd_list.append(f'-o {{}}/{{}}_spades :::: {genelist} > spades.log')
-        spades_cmd = f'{" ".join(parallel_cmd_list)} {" ".join(spades_cmd_list)}'
-        return spades_cmd
+    return spades_initial_commands_file
 
 
 def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
@@ -131,72 +104,35 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     genes = [x.rstrip() for x in open(genelist)]
     logger.info(f'{"[NOTE]:":10} Running initial SPAdes assemblies for {len(genes)} genes with reads...')
 
-    if merged:
-        spades_cmd_with_merged, spades_cmd_without_merged = make_spades_cmd(
-            genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired, merged=merged, timeout=timeout,
-            single_cell_mode=single_cell_mode)
-        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_with_merged}', width=90, subsequent_indent=' ' * 11,
-                             break_long_words=False, break_on_hyphens=False)
-        logger.info(f'{fill}')
+    spades_initial_commands_file = make_spades_cmd_file(genelist,
+                                                        cov_cutoff,
+                                                        paired=paired,
+                                                        kvals=kvals,
+                                                        unpaired=unpaired,
+                                                        merged=merged,
+                                                        single_cell_mode=single_cell_mode)
 
-        try:
-            # result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            #                         universal_newlines=True)
-            result = subprocess.run(spades_cmd_with_merged, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
-            logger.debug(f'spades_cmd with merged check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'spades_cmd with merged stdout is: {result.stdout}')
-            # logger.debug(f'spades_cmd with merged stderr is: {result.stderr}')
+    logger.info(f'{"[INFO]:":10} See file "{spades_initial_commands_file}" for a list of SPAdes commands')
 
-        except subprocess.CalledProcessError as exc:
-            logger.debug(f'spades_cmd with merged FAILED. Output is: {exc}')
-            logger.debug(f'spades_cmd with merged stdout is: {exc.stdout}')
-            # logger.debug(f'spades_cmd with merged stderr is: {exc.stderr}')
-            logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
-                        f'low coverage.')
+    parallel_cmd_list = ['time', 'parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
 
-        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd_without_merged}', width=90, subsequent_indent=' ' * 11,
-                             break_long_words=False, break_on_hyphens=False)
-        logger.info(f'{fill}')
-        try:
-            # result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
-            #                         stderr=subprocess.PIPE, universal_newlines=True)
-            result = subprocess.run(spades_cmd_without_merged, shell=True, stdout=subprocess.PIPE,
-                                    universal_newlines=True)
-            logger.debug(f'spades_cmd without merged check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'spades_cmd without merged stdout is: {result.stdout}')
-            # logger.debug(f'spades_cmd without merged stderr is: {result.stderr}')
+    if timeout:
+        parallel_cmd_list.append(f'--timeout {timeout}%')
 
-        except subprocess.CalledProcessError as exc:
-            logger.debug(f'spades_cmd without merged FAILED. Output is: {exc}')
-            logger.debug(f'spades_cmd without merged stdout is: {exc.stdout}')
-            # logger.debug(f'spades_cmd without merged stderr is: {exc.stderr}')
-            logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
-                        f'low '
-                        f'coverage.')
+    parallel_cmd_list.append(f':::: {spades_initial_commands_file} >> spades.log')
 
-    else:
-        spades_cmd = make_spades_cmd(genelist, cov_cutoff, cpu, paired=paired, kvals=kvals, unpaired=unpaired,
-                                     merged=merged, timeout=timeout, single_cell_mode=single_cell_mode)
+    parallel_cmd = ' '.join(parallel_cmd_list)
 
-        fill = textwrap.fill(f'{"[CMD]:":10} {spades_cmd}', width=90, subsequent_indent=' ' * 11,
-                             break_long_words=False, break_on_hyphens=False)
-        logger.info(f'{fill}')
+    try:
+        result = subprocess.run(parallel_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True, check=True)
+        logger.debug(f'spades_cmd check_returncode() is: {result.check_returncode()}')
+        logger.debug(f'spades_cmd stdout is: {result.stdout}')
 
-        try:
-            # result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            #                         universal_newlines=True)
-            result = subprocess.run(spades_cmd, shell=True, stdout=subprocess.PIPE,
-                                    universal_newlines=True)
-            logger.debug(f'spades_cmd check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'spades_cmd stdout is: {result.stdout}')
-            # logger.info(f'spades_cmd stderr is: {result.stderr}')
-
-        except subprocess.CalledProcessError as exc:
-            logger.debug(f'spades_cmd FAILED. Output is: {exc}')
-            logger.debug(f'spades_cmd stdout is: {exc.stdout}')
-            # logger.debug(f'spades_cmd stderr is: {exc.stderr}')
-            logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
-                        f'low coverage.')
+    except subprocess.CalledProcessError as exc:
+        logger.debug(f'spades_cmd FAILED. Output is: {exc}')
+        logger.debug(f'spades_cmd stdout is: {exc.stdout}')
+        logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to '
+                    f'low coverage.')
 
     spades_successful = []
     spades_failed = []
@@ -261,8 +197,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
         redo_cmds_file.write(spades_cmd + "\n")
 
     logger.info(f'{"[WARNING]:":10} In initial assemblies all Kmers failed for {len(spades_duds)} genes; these will '
-                f'not '
-                f'be re-run')
+                f'not be re-run')
 
     redo_cmds_file.close()
     redo_spades_cmd = f'parallel -j {cpu} --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
@@ -272,17 +207,14 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     logger.info(f'{fill}')
 
     try:
-        # result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        #                         universal_newlines=True)
-        result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+        result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True,
+                                check=True)
         logger.debug(f'redo_spades_cmd check_returncode() is: {result.check_returncode()}')
         logger.debug(f'redo_spades_cmd stdout is: {result.stdout}')
-        # logger.debug(f'redo_spades_cmd stderr is: {result.stderr}')
 
     except subprocess.CalledProcessError as exc:
         logger.debug(f'redo_spades_cmd FAILED. Output is: {exc}')
         logger.debug(f'redo_spades_cmd stdout is: {exc.stdout}')
-        # logger.debug(f'redo_spades_cmd stderr is: {exc.stderr}')
         logger.info(f'{"[WARNING]:":10} One or more genes had an error with SPAdes assembly. This may be due to low '
                     f'coverage.')
 
