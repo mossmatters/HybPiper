@@ -1042,7 +1042,7 @@ def exonerate_multiprocessing(genes,
                 for future in as_completed(futures_list):
                     try:
                         gene_name, prot_length, run_time = future.result()
-                        if gene_name:  # i.e. log the Exonerate run regardless of success
+                        if gene_name:  # i.e. log the Exonerate run regardles   s of success
                             gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
                             gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
                             gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log

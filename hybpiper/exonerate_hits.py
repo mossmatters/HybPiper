@@ -31,6 +31,7 @@ import copy
 import itertools
 import shlex
 from hybpiper import utils
+import textwrap
 
 
 def initial_exonerate(proteinfilename, assemblyfilename, prefix):
@@ -1414,16 +1415,17 @@ class Exonerate(object):
             result = subprocess.run(bbmap_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     universal_newlines=True, check=True)
             self.logger.debug(f'bbmap_command check_returncode() is: {result.check_returncode()}')
-            # self.logger.debug(f'bbmap_command stdout is: {result.stdout}')
-            # self.logger.debug(f'bbmap_command stderr is: {result.stderr}')
 
         except subprocess.CalledProcessError as exc:
+            fill = textwrap.fill(f'{"[ERROR]:":10} Running bbmap.sh during the stitched-contig chimera test failed '
+                                 f'for gene {gene_name}. No stitched-contig chimera test will be performed. See the '
+                                 f'*.log file in the sample directory for error details.', width=90,
+                                 subsequent_indent=' ' * 11)
+            self.logger.info(f'\n{fill}')
             self.logger.debug(f'bbmap_command FAILED. Output is: {exc}')
             self.logger.debug(f'bbmap_command stdout is: {exc.stdout}')
             self.logger.debug(f'bbmap_command stderr is: {exc.stderr}')
-            print(f'bbmap_command FAILED. Output is: {exc}')
-            print(f'bbmap_command stdout is: {exc.stdout}')
-            print(f'bbmap_command stderr is: {exc.stderr}')
+            return False
 
         # Get a list of individual contig ranges within the stitched_contig (dna_seqrecord_to_write):
         hits_processed = []
