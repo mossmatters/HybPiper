@@ -187,6 +187,7 @@ def shannon_entropy(fasta_seq):
 
     # use scipy to calculate entropy
     entropy_value = scipy.stats.entropy(dist, base=2)
+
     return entropy_value
 
 
@@ -233,7 +234,6 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
         for i in range(0, len(seq.seq) - (window_size - 1)):
             window_seq = str(seq.seq[i:i + window_size])
             window_shannon_entropy = shannon_entropy(window_seq)
-            # print(window_seq, window_shannon_entropy)
             if window_shannon_entropy <= entropy_value:
                 low_entropy_seqs.add(seq.name)
                 break

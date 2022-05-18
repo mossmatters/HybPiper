@@ -1575,11 +1575,12 @@ def check_targetfile_standalone(args):
 
     if targetfile_type == 'DNA':
         fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing DNA '
-                             f'sequences. These DNA sequences will be checked for low-complexity regions. NOTE: if you '
-                             f'run "hybpiper assemble" without providing the flag "--bwa" the DNA target file will be '
-                             f'translated and the check will be run again on the translated protein sequences; the '
+                             f'sequences. These DNA sequences will be checked for low-complexity regions. NOTE: the '
                              f'sequences flagged as having low-complexity regions can sometimes differ between a DNA '
-                             f'and a corresponding translated protein target file.', width=90,
+                             f'target file and the corresponding translated protein target file. If you translate '
+                             f'your target file to run "hybpiper assemble" with BLASTx/DIAMOND, we recommend '
+                             f're-checking the translated sequences for low-complexity regions.',
+                             width=90,
                              subsequent_indent=" " * 11)
         print(fill)
 
