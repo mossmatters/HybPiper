@@ -49,7 +49,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
         filetype = 'supercontig'
 
     if not os.path.isfile(targetfile):
-        print(f'Baitfile {targetfile} not found!')
+        print(f'Target file {targetfile} not found!')
         sys.exit()
 
     if not os.path.isfile(namelist):
