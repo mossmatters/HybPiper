@@ -4,16 +4,22 @@
 
 This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, additional functionality, and additional output. Changes include:
 
-***New dependencies***: 
 
-- Python 3.6 or later
-- seaborn (Python library)
-- matplotlib (Python library)
-- progressbar2 (Python library)
-- BioPython 1.80 (Python library).
-- pandas (Python library)
-- DIAMOND
-- BBtools (BBmap.sh, BBmerge.sh)
+# New and updated dependencies
+* [Python](https://www.python.org/downloads/) 3.6 or later, along with the Python libraries:
+    * [seaborn](https://seaborn.pydata.org/installing.html)
+    * [matplotlib](https://matplotlib.org/stable/users/getting_started/)
+    * [pebble](https://github.com/noxdafox/pebble). The conda install can be found [here](https://anaconda.org/conda-forge/pebble)
+    * [progressbar2](https://github.com/WoLpH/python-progressbar). The conda install can be found [here](https://anaconda.org/conda-forge/progressbar2).
+    * [scipy](https://scipy.org/download/). The conda install can be found [here](https://anaconda.org/anaconda/scipy).
+    * [pandas](https://pandas.pydata.org/docs/getting_started/install.html)
+    * [biopython](http://biopython.org/wiki/Main_Page) 1.80 or later, see [note](#NOTE).
+    * [psutil](https://github.com/giampaolo/psutil). The conda install can be found [here](https://anaconda.org/conda-forge/psutil). 
+* [Exonerate](http://www.ebi.ac.uk/~guy/exonerate/) 2.40 or later
+* [DIAMOND](https://github.com/bbuchfink/diamond/wiki). The conda install can be found [here](https://anaconda.org/bioconda/diamond).
+* [BBtools](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/). The conda install can be found [here](https://anaconda.org/bioconda/bbmap).
+
+
 
 ***Code refactor***:
 
@@ -28,18 +34,22 @@ This update involves a substantial refactor of the HybPiper pipeline, with chang
 
 ***Additional features/functionality***:
 
-- The program DIAMOND can be used in place on BLASTX when mapping reads to target sequences.
+- HybPiper can now check target files for sequences with problematic low-complexity regions via command `hybpiper check_targetfile`.
+- The `hybpiper assemble` command checks that the provided target file is formatted correctly and can be translated as expected (in the case of a nucleotide target file). Any issues are printed to screen and details are logged to file.
+- The program DIAMOND can be used in place of BLASTX when mapping reads to target sequences.
 - When using BLAST or DIAMOND, the `hybpiper stats` command now calculates the enrichment efficiency; previously this was only calculated when using BWA.
 - The `hybpiper assemble` commands can now accept read files in compressed gzip format (suffix `*.gz`).
-- Logging when running `hybpiper assemble` has been unified and extended to provide additional debugging information. A single log file is written per-sample in the sample directory e.g. `EG30_reads_first_2021-12-02-10_45_56.log`. 
+- Logging when running `hybpiper assemble` has been unified and extended to provide additional debugging information. A single log file is written per-sample in the sample directory e.g. `EG30_hybpiper_assemble_2021-12-02-10_45_56.log`. 
 - Checks for all dependencies are now run by default when `hybpiper assemble` is run.
-- The `hybpiper assemble` command checks that the provided target file is formatted correctly and can be translated as expected (in the case of a nucleotide target file). Any issues are printed to screen and details are logged to file.
+- Gene assemblies can no be performed using the SPAdes MDA (single cell)  mode.
 - All Exonerate searches are now performed with the option `--refine full`; in the case of failure, a fallback run without this parameter is performed.
 - In some situations HybPiper creates a gene sequence by 'stitching' together Exonerate hits from different SPAdes contigs. In some scenarios this can result in hit from different paralogs being joined together. HybPiper now performs a test (work in progress, currently sensitivity is low) to search for such 'chimeric' sequences, and provides warnings in the file `{sample_name}_genes_derived_from_putative_chimera_stitched_contig.csv` within each sample folder. Note that this chimera test is only performed in cases where a stitched contig has been created from multiple contigs, and paired-end reads are provided.
-- By default, the SPAdes assembly folder is now deleted for each gene after contigs have been recovered. The user no longer needs to run `cleanup.py` after each run, and this script has been removed. Deleting the SPAdes directory dramatically reduces the total number of files produced by a completed run of HybPiper, which can be very useful when running it on and HPC with file number limits. To retain the SPAdes directory (i.e. for debugging purposes), the flag `--keep_spades_folder` can be used.
+- By default, the SPAdes assembly folder is now deleted for each gene after contigs have been recovered. The user no longer needs to run `cleanup.py` after each run, and this script has been removed. Deleting the SPAdes directory dramatically reduces the total number of files produced by a completed run of HybPiper, which can be very useful when running it on and HPC with file number limits. To retain the SPAdes directory (i.e. for debugging purposes), the flag `--keep_intermediate_files` can be used.
 - When running Intronerate (via flag `-run_intronerate` with command `hybpiper assemble`, a block of 10 'N' characters is inserted into supercontigs at locations where different SPAdes contigs have been concatenated. This behaviour can be turned off via the flag `--no_padding_supercontigs`.
 - In cases where HybPiper recovers sequence for multiple non-contiguous segments of a gene, the gaps between the  segments will be padded with a number of 'N' characters. The number of Ns corresponds to the number of amino acids in 'best' protein reference for that gene that do not have corresponding SPAdes contig hits, multiplied by 3 to convert to nucleotides.
 - The command `hybpiper stats` now writes pipeline run statistics directly to file, rather than to standard out.
+- The command `hybpiper recover_sequences` now supports sequence recovery from a single sample.
+- The command `hybpiper recover_sequences` now supports filtering of samples based on statistics generated via the `hybpiper stats` command (e.g. number of genes recovered, number of genes with paralogs, etc).
 - The command `hybpiper paralog_retriever` now writes a table of gene-vs-sample with a matrix of paralog counts, and produces a heatmap image file from this table. A text report file is also produced, listing gene and sample names that contain paralogs in above a given threshold percentage. 
   
   
@@ -54,20 +64,26 @@ For subcommand **`hybpiper assemble`**:
 - `--paralog_min_length_percentage`. Corresponds to the minimum percentage length for a SPADes contig Exonerate hit (vs the reference query sequence length) for it to be flagged and recovered as a 'long' paralog. Previously this parameter was hardcoded to 0.75. This parameter effected both types of paralog warnings (by length, and by depth).
 - `--bbmap_subfilter`. Ban BBmap alignments with more than this many substitutions when searching for chimeric stitched contigs. Default is 7.
 - `--bbmap_threads`. The number of threads to use for BBmap when searching for chimeric stitched contigs. Default is 2.
-- `--bbmap_memory`. The amount of memory (RAM) in GB to use for BBmap when searching for chimeric stitched contigs. Default is 1.
+- `--bbmap_memory`. The amount of memory (RAM) in MB to use for BBmap when searching for chimeric stitched contigs. Default is 1000.
 - `--chimeric_stitched_contig_edit_distance`. Minimum number of differences between one read of a read pair vs a stitched contig reference for a read pair to be flagged as discordant. Default is 5. 
 - `--chimeric_stitched_contig_discordant_reads_cutoff`. Minimum number of discordant reads pairs required to flag a stitched contig as a potential chimera of contigs from multiple paralogs. Default is 5.
-- `--keep_spades_folder`. If used, the SPAdes assembly folder for each gene will not be deleted. Note that previous versions of HybPiper retained the SPAdes assembly folders by default; they could previously be removed after running `reads_first.py` using the `cleanup.py` script.  
-- `--keep_exonerate_logs.`. If used, retain the `exonerate_hits.py` module log within each gene folder. Default behaviour is to delete each log after it has been copied to the main log file in the sample directory.
+- `--keep_intermediate_files`. 1) If used, the SPAdes assembly folder for each gene will not be deleted. Note that previous versions of HybPiper retained the SPAdes assembly folders by default; they could previously be removed after running `reads_first.py` using the `cleanup.py` script. 2) If used, retain the `exonerate_hits.py` module log within each gene folder. Default behaviour is to delete each log after it has been copied to the main log file in the sample directory.
+- `--distribute_hi_mem`. When used, distributing and writing reads to individual gene directories will be 40-50 percent faster, but can use more memory/RAM with large input files.
+- `--single_cell_assembly`. Run SPAdes assemblies using MDA (single-cell) mode. 
+- `--verbose_logging`. When used, the pipline logging will be much more verbose (particularly in the Exonerate stage), which can increase log file size dramatically.
+- 
 
 For subcommand **`hybpiper retrieve_sequences`**:
 
 - `--single_sample_name`. Allows the user to specify a single sample name; sequences from this sample only will  be recovered in single `*.fasta` file.
 - `--skip_chimeric_genes`. If used, skip retrieval of any genes/sample for which the stitiched contig was flagged as chimeric (potentially derived from multiple paralogs).
+- `--fasta_dir`. User can specify a directory for output sequences.
+- `--stats_file`. User can supply the stats fil produced by the command `hybpiper stats` for filtering samples (see below).
+- `--filter_by`. User can filter samples based on statistics in the stats file.
 
 For subcommand **`hybpiper stats`**:
 
-- A positional parameter for the `sequence type` has been added, with the options {gene, supercontig}. Note that all length statistics are now provived as number of nucleotides, regardless of whether an amino-acid or nucleotide bait file was used.
+- A positional parameter for the `sequence type` has been added, with the options {gene, supercontig}. Note that all length statistics are now provided as number of nucleotides, regardless of whether an amino-acid or nucleotide bait file was used.
 - `--stats_filename`. The statistics are now written directly to file. This parameter can be used to specify the filename; default is `hybpiper_stats.tsv`.
 
 
@@ -99,24 +115,27 @@ For subcommand **`hybpiper paralog_retriever`**:
 
 ***The following options/flags have been changed or removed***:
 
-- The parameter `--baitfile` or `-b` has been replaced with `--targetfile` or `-t`, to more accurately describe the contents of the file provided. 
+- The parameter `--baitfile` or `-b` has been replaced with `--targetfile_dna/targetfile_aa` or `-t_dna/t-aa`, to more accurately describe the contents of the file provided. 
 - The parameter `--length_pct` has been removed as a parameter to `hybpiper assemble` and is no longer used in internal code.
 - The parameter `--thresh` (percent identity threshold for retaining Exonerate hits) for `hybpiper assemble` now defaults to 55 (previously 65).
-- The flag `--check-depend` has been replaced by `--check_dependencies_only` for command `hybpiper assemble`. Dependency checking is now also performed every time the `hybpiper assemble` command is run.
+- The flag `--check-depend` has been replaced by `hybpiper check_dependencies`. Dependency checking is now also performed every time the `hybpiper assemble` command is run.
+- The flags `--no-blast`, `--no-distribute`, `--no-exonerate`, and `--no-assemble` have been replaced with the parameter `--start_from`. 
+- The parameter `--timeout` has been replaced with `--timeout_assemble` and `--timeout_exonerate_contigs`, providing more fine-grained control over different stages of the assemble pipeline. 
 
 ***The following output files have been changed or removed***:
 
-- XXX
+- ToDo
 
 ***The following output files/folders have been added***:
 
-- The script `paralog_retreiver.py` now write paralogs to two folders - one with all sequences, and the other without putative chimeric sequences.
+- The command `hybpiper paralog_retreiver` now write paralogs to two folders - one with all sequences, and the other without putative chimeric sequences.
+- The command `hybpiper paralog_retreiver` now produces a heatmap showing paralogs detected.
+- The command `hybpiper paralog_retreiver` now produces a report file in *tsv format listing genes with paralogs in above user-provided thresholds.
 - The file containing paralog warnings (produced when multiple long contigs are present for a gene) has been renamed from `genes_with_paralog_warnings.txt` to `<sample_name>_genes_with_long_paralog_warnings.txt`. 
 - In addition to the standard paralog warning produced when multiple long contigs are present for a gene, the `hybpiper assemble` command now provides a paralog warning when multiple short contigs are present which together cover the reference sequence for a given gene at a depth >1, across a given percentage length (default 75%) of the reference. These warning are written to each sample directory to the file `<sample_name>_genes_with_paralog_warnings_by_contig_depth.csv`
 - `chimera_test_diagnostic_reads.sam`.
 - XXX Other intronerate files, if we end up keeping them?
-- XXX Heatmap and extra reports for paralog_retriever
-- XXX retrieve sequences output folders
+- The `hybpiper retrieve_sequences command` can now produce an output folder to contain fasta files.
 
     
 **1.3.2** *February, 2020*
