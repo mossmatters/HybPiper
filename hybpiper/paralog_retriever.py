@@ -14,6 +14,7 @@ import argparse
 from Bio import SeqIO
 import logging
 from collections import defaultdict
+import progressbar
 from hybpiper.gene_recovery_heatmap import get_figure_dimensions
 from hybpiper.retrieve_sequences import get_chimeric_genes_for_sample
 
@@ -44,6 +45,13 @@ logger = logging.getLogger(f'hybpiper.{__name__}')
 # Add handlers to the logger
 logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
+
+
+# Set widget format for progressbar:
+widgets = [' ' * 11,
+           progressbar.Timer(),
+           progressbar.Bar(),
+           progressbar.ETA()]
 
 
 def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_directory_name, gene):
@@ -97,8 +105,9 @@ def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_direct
 
     # Now skip any putative chimeric stitched contig sequences:
     if gene in chimeric_genes_to_skip:
-        logger.info(f'Skipping gene {gene} for sample {sample_directory_name}'
-                    f' - putative chimeric stitched contig sequence!')
+        pass
+        # logger.info(f'Skipping gene {gene} for sample {sample_directory_name}'
+        #             f' - putative chimeric stitched contig sequence!')
     else:
         if os.path.isfile(paralog_fasta_file_path):
             seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
@@ -129,9 +138,9 @@ def write_paralogs_above_threshold_report(gene_with_paralogs_to_sample_list_dict
         if len(sample_name_list) / len(namelist) >= paralogs_list_threshold_percentage:  # Check percentage of samples
             genes_with_paralogs_in_greater_than_threshold_samples.append(gene)
 
-    logger.info(f'There are {len(genes_with_paralogs_in_greater_than_threshold_samples)} genes with paralogs in >= '
-                f'{paralogs_list_threshold_percentage}% of samples. The gene names have been written to the '
-                f'file "{paralogs_above_threshold_report_filename}.txt"')
+    logger.info(f'{"[INFO]:":10} There are {len(genes_with_paralogs_in_greater_than_threshold_samples)} genes with '
+                f'paralogs in >= {paralogs_list_threshold_percentage}% of samples. The gene names have been written '
+                f'to the file "{paralogs_above_threshold_report_filename}.txt"')
 
     # Calculate number of samples with warnings in >= paralogs_list_threshold_percentage genes:
     samples_with_paralogs_in_greater_than_threshold_genes = []
@@ -145,9 +154,9 @@ def write_paralogs_above_threshold_report(gene_with_paralogs_to_sample_list_dict
         if paralogous_genes_count / len(target_genes) >= paralogs_list_threshold_percentage:
             samples_with_paralogs_in_greater_than_threshold_genes.append(sample)
 
-    logger.info(f'There are {len(samples_with_paralogs_in_greater_than_threshold_genes)} samples with paralogs in >= '
-                f'{paralogs_list_threshold_percentage}% of genes. The sample names have been written to the '
-                f'file "{paralogs_above_threshold_report_filename}.txt"')
+    logger.info(f'{"[INFO]:":10} There are {len(samples_with_paralogs_in_greater_than_threshold_genes)} samples with '
+                f'paralogs in >= {paralogs_list_threshold_percentage}% of genes. The sample names have been written '
+                f'to the file "{paralogs_above_threshold_report_filename}.txt"')
 
     # Write the text report file:
     with open(f'{paralogs_above_threshold_report_filename}.txt', 'w') as genes_with_paralogs_handle:
@@ -174,6 +183,7 @@ def create_paralog_heatmap(paralog_report_filename,
                            heatmap_dpi):
 
     """
+    Creates a heatmap showing the number of sequences recovered for each gene, for each sample.
 
     :param paralog_report_filename: filename of the paralog report file *.tsv table
     :param int figure_length: length in inches for heatmap figure
@@ -217,7 +227,7 @@ def create_paralog_heatmap(paralog_report_filename,
     # plt.tight_layout()
 
     # Save heatmap as png file:
-    logger.info(f'Saving heatmap as file "{heatmap_filename}.{heatmap_filetype}" at {heatmap_dpi} DPI')
+    logger.info(f'{"[INFO]:":10} Saving heatmap as file "{heatmap_filename}.{heatmap_filetype}" at {heatmap_dpi} DPI')
     plt.savefig(f'{heatmap_filename}.{heatmap_filetype}', dpi=heatmap_dpi, bbox_inches='tight')
 
 
@@ -300,6 +310,8 @@ def main(args):
     :param argparse.Namespace args:
     """
 
+    logger.info(f'{"[INFO]:":10} Recovering paralog sequences...')
+
     # Set target file name:
     if args.targetfile_dna:
         targetfile = args.targetfile_dna
@@ -307,6 +319,8 @@ def main(args):
         targetfile = args.targetfile_aa
 
     # Make output directories:
+    logger.info(f'{"[INFO]:":10} Creating directory: {args.fasta_dir_all}')
+    logger.info(f'{"[INFO]:":10} Creating directory: {args.fasta_dir_no_chimeras}')
     if not os.path.isdir(args.fasta_dir_all):
         os.mkdir(args.fasta_dir_all)
     if not os.path.isdir(args.fasta_dir_no_chimeras):
@@ -318,12 +332,15 @@ def main(args):
     # Get a list of sample names:
     namelist = [x.rstrip() for x in open(args.namelist)]
 
+    logger.info(f'{"[INFO]:":10} Searching for paralogs for {len(namelist)} samples, {len(target_genes)} genes...')
+
     # Create dictionaries to capture data for reports/heatmap:
     sample_to_gene_paralog_count_dict = defaultdict(dict)
     gene_with_paralogs_to_sample_list_dict = defaultdict(list)
 
     # Iterate over each gene and capture data for all samples:
-    for gene in target_genes:
+    for gene in progressbar.progressbar(target_genes, max_value=len(target_genes), min_poll_interval=30,
+                                        widgets=widgets):
         sequences_to_write_all = []
         sequences_to_write_no_chimeras = []
         for sample in namelist:  # iterate over all samples
@@ -364,6 +381,7 @@ def main(args):
             paralog_report_handle.write(f'{sample}\t{gene_counts}\n')
 
     # Create a heatmap from the *.tsv file:
+    logger.info(f'{"[INFO]:":10} Creating paralog heatmap...')
     create_paralog_heatmap(f'{args.paralog_report_filename}.tsv',
                            args.figure_length,
                            args.figure_height,

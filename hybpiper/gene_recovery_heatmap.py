@@ -73,8 +73,8 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     num_samples = len(df.index)
     num_genes = len(df.columns)
 
-    logger.info(f'Number of samples in input lengths file is: {num_samples}')
-    logger.info(f'Number of genes in input lengths file is: {num_genes}')
+    logger.info(f'{"[INFO]:":10} Number of samples in input lengths file is: {num_samples}')
+    logger.info(f'{"[INFO]:":10} Number of genes in input lengths file is: {num_genes}')
 
     # Set default text label size (in points) unless specified at the command line:
     sample_text_size = sample_text_size if sample_text_size else 10
@@ -112,8 +112,8 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     elif num_genes > 400:
         fig_length = figure_length if figure_length else 120
 
-    logger.info(f'fig_length: {fig_length} inches, figure_height: {figure_height} inches, sample_text_size:'
-                f' {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
+    logger.info(f'{"[INFO]:":10} figure_length: {fig_length} inches, figure_height: {figure_height} inches, '
+                f'sample_text_size: {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
 
     return fig_length, figure_height, sample_text_size, gene_id_text_size
 
@@ -211,7 +211,8 @@ def main(args):
     # plt.tight_layout()
 
     # Save heatmap as png file:
-    logger.info(f'Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at {args.heatmap_dpi} DPI')
+    logger.info(f'{"[INFO]:":10} Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at'
+                f' {args.heatmap_dpi} DPI')
     plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=args.heatmap_dpi, bbox_inches='tight')
 
 
