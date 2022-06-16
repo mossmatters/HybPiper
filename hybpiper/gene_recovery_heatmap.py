@@ -163,7 +163,7 @@ def main(args):
     :param argparse.Namespace args:
     """
 
-    logger.info(f'Running {__name__} with: {args}')
+    # logger.info(f'Running {__name__} with: {args}')
 
     if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
         logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')

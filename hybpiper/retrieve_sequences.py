@@ -257,7 +257,7 @@ def recover_sequences_from_one_sample(seq_dir,
         # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
         except FileNotFoundError:
             pass
-        logger.info(f'Found {numSeqs} sequences for gene {gene}.')
+        logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}.')
 
     with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
         SeqIO.write(sequences_to_write, outfile, 'fasta')
