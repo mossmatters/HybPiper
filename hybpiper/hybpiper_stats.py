@@ -22,6 +22,21 @@ import subprocess
 import re
 from Bio import SeqIO
 from collections import defaultdict
+import logging
+
+
+# Create a custom logger
+
+# Log to Terminal (stderr):
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setLevel(logging.INFO)
+
+# Setup logger:
+logger = logging.getLogger(f'hybpiper.{__name__}')
+
+# Add handlers to the logger
+logger.addHandler(console_handler)
+logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 
 def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_type_to_calculate_stats_for,
@@ -49,11 +64,11 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
         filetype = 'supercontig'
 
     if not os.path.isfile(targetfile):
-        print(f'Target file {targetfile} not found!')
+        logger.error(f'{"[ERROR]:":10} Target file {targetfile} not found!')
         sys.exit()
 
     if not os.path.isfile(namelist):
-        print(f'Name list file {namelist} not found!')
+        logger.error(f'{"[ERROR]:":10} Name list file {namelist} not found!')
         sys.exit()
 
     namelist_parsed = [n.rstrip() for n in open(namelist).readlines()]
@@ -111,7 +126,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
     with open(seq_lengths_report_filename, 'w') as seq_lengths_handle:
         for item in lines_for_report:
             seq_lengths_handle.write(f'{item}\n')
-    print(f'A sequence length table has been written to file: {seq_lengths_filename}.tsv')
+    logger.info(f'{"[INFO]:":10} A sequence length table has been written to file: {seq_lengths_filename}.tsv')
 
     return seq_lengths_report_filename
 
@@ -415,7 +430,7 @@ def main(args):
     with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
         for item in lines_for_stats_report:
             hybpiper_stats_handle.write(f'{item}\n')
-    print(f'A statistics table has been written to file: {args.stats_filename}.tsv')
+    logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
 
 
 if __name__ == "__main__":
