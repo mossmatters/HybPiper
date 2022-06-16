@@ -448,6 +448,10 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
         logger.error(f'BWA mapping FAILED. Output is: {exc}')
         logger.error(f'BWA mapping stdout is: {exc.stdout}')
         logger.error(f'BWA mapping stderr is: {exc.stderr}')
+        if unpaired:
+            os.remove(f'{basename}_unpaired.bam')
+        else:
+            os.remove(f'{basename}.bam')
         return None
 
     return f'{basename}.bam'  # No return for {basename}_unpaired.bam?

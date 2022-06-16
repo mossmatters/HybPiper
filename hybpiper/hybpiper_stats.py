@@ -376,33 +376,24 @@ def main(args):
                         num_genes_paralog_warning_by_depth += 1
         stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
 
-        # Supercontig information:
+        # Stitched contig information:
         stitched_contig_produced = 0
         no_stitched_contig = 0
-        # supercontig_no_trimming = 0
-        # supercontig_with_trimming = 0
         stitched_contig_skipped = 0
         if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
             with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
                 lines = stitched_contig_stats.readlines()
                 for gene_stats in lines:
                     stat = gene_stats.split(',')[2]
-                    # print(stat)
                     if re.search('single Exonerate hit', stat):
                         no_stitched_contig += 1
                     elif re.search('Stitched contig produced', stat):
                         stitched_contig_produced += 1
-                    # elif re.search('NODE', stat):
-                    #     supercontig_with_trimming += 1
-                    # elif re.search('no contig trimming performed', stat):
-                    #     supercontig_no_trimming += 1
                     elif re.search('Stitched contig step skipped', stat):
                         stitched_contig_skipped += 1
-        # supercontigs_total = supercontig_no_trimming + supercontig_with_trimming
         stitched_contigs_produced_total = stitched_contig_produced
         stats_dict[name].append(str(no_stitched_contig))
         stats_dict[name].append(str(stitched_contigs_produced_total))
-        # stats_dict[name].append(str(supercontig_with_trimming))
         stats_dict[name].append(str(stitched_contig_skipped))
 
         chimeric_stitched_contigs = 0
