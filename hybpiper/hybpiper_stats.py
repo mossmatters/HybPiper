@@ -23,6 +23,7 @@ import re
 from Bio import SeqIO
 from collections import defaultdict
 import logging
+from hybpiper import utils
 
 
 # Create a custom logger
@@ -367,8 +368,13 @@ def main(args):
         elif os.path.isfile(blastxfile):
             stats_dict[name] += enrich_efficiency_blastx(blastxfile, name)
         else:
-            logger.error(f'{"[WARNING]:":10} No *.bam or *.blastx file found for {name}. Please check the log file for '
-                         f'this sample!')
+            fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for {name}. No '
+                                            f'statistics will be recovered. Please check the log file for this '
+                                            f'sample!',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
+            logger.warning(f'{fill}')
+            continue
 
         # Recovery Efficiency
         stats_dict[name] += recovery_efficiency(name)
@@ -430,6 +436,8 @@ def main(args):
 
     with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
         for item in lines_for_stats_report:
+            if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
+                continue
             hybpiper_stats_handle.write(f'{item}\n')
     logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
 
