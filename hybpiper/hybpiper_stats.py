@@ -367,7 +367,8 @@ def main(args):
         elif os.path.isfile(blastxfile):
             stats_dict[name] += enrich_efficiency_blastx(blastxfile, name)
         else:
-            sys.stderr.write(f'No .bam or .blastx file found for {name}\n')
+            logger.error(f'{"[WARNING]:":10} No *.bam or *.blastx file found for {name}. Please check the log file for '
+                         f'this sample!')
 
         # Recovery Efficiency
         stats_dict[name] += recovery_efficiency(name)
