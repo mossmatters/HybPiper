@@ -1,5 +1,15 @@
 # Changelog
 
+**2.0.1 release candidate build 8** *24th June, 2022*
+
+- Capture errors relating to malformed input `*.fastq` files during read distribution, and log error to file.
+- When running `hybpiper stats`, if no input read count file can be found, log issue and sample to screen along with instructions, and exit.
+
+
+**2.0.1 release candidate build 8** *16th June, 2022*
+
+- If mapping is performed with BWA and the BWA mapping step fails, remove any `*.bam` file that has been produced.
+
 **2.0 release candidate** *March, 2022*
 
 This update involves a substantial refactor of the HybPiper pipeline, with changes to the internal code, additional functionality, and additional output. Changes include:
