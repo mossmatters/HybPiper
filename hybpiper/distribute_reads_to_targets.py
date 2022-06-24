@@ -22,7 +22,7 @@ import logging
 import gzip
 import progressbar
 from collections import defaultdict
-
+from hybpiper import utils
 
 # Create logger:
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
@@ -243,17 +243,28 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
 
     if len(readfiles) == 1 and single_end:
         logger.info(f'{"[NOTE]:":10} Distributing single-end reads to gene directories')
-        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
-                                                             min_poll_interval=30, widgets=widgets):
-            ID1 = ID1_long.split()[0]
-            if ID1.endswith('\1') or ID1.endswith('\2'):
-                ID1 = ID1[:-2]
-            if ID1 in read_hit_dict:
-                for target in read_hit_dict[ID1]:
-                    if not hi_mem:
-                        write_single_seqs(target, ID1, Seq1)
-                    else:
-                        gene_2_reads_dict[target].append((ID1, Seq1))
+
+        try:
+            for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
+                                                                 min_poll_interval=30, widgets=widgets):
+                ID1 = ID1_long.split()[0]
+                if ID1.endswith('\1') or ID1.endswith('\2'):
+                    ID1 = ID1[:-2]
+                if ID1 in read_hit_dict:
+                    for target in read_hit_dict[ID1]:
+                        if not hi_mem:
+                            write_single_seqs(target, ID1, Seq1)
+                        else:
+                            gene_2_reads_dict[target].append((ID1, Seq1))
+        except ValueError as e:
+            fill = utils.fill_forward_slash(f'')
+            logger.error(fill)
+            fill = utils.fill_forward_slash(f'{"[ERROR]:":10} Malformed FASTQ file! Please check your input FASTQ file '
+                                            f'({readfiles[0]}) and try again. Error is: {e}',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
+            logger.error(f'{fill}')
+            sys.exit()
 
         if hi_mem:
             for target, read_list in gene_2_reads_dict.items():
@@ -266,17 +277,29 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
 
     if len(readfiles) == 1 and unpaired_readfile:
         logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
-        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
-                                                             min_poll_interval=30, widgets=widgets):
-            ID1 = ID1_long.split()[0]
-            if ID1.endswith('\1') or ID1.endswith('\2'):
-                ID1 = ID1[:-2]
-            if ID1 in read_hit_dict:
-                for target in read_hit_dict[ID1]:
-                    if not hi_mem:
-                        write_single_seqs(target, ID1, Seq1)
-                    else:
-                        gene_2_reads_dict[target].append((ID1, Seq1))
+
+        try:
+            for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
+                                                                 min_poll_interval=30, widgets=widgets):
+                ID1 = ID1_long.split()[0]
+                if ID1.endswith('\1') or ID1.endswith('\2'):
+                    ID1 = ID1[:-2]
+                if ID1 in read_hit_dict:
+                    for target in read_hit_dict[ID1]:
+                        if not hi_mem:
+                            write_single_seqs(target, ID1, Seq1)
+                        else:
+                            gene_2_reads_dict[target].append((ID1, Seq1))
+        except ValueError as e:
+            fill = utils.fill_forward_slash(f'')
+            logger.error(fill)
+            fill = utils.fill_forward_slash(f'{"[ERROR]:":10} Malformed FASTQ file! Please check your input FASTQ file '
+                                            f'({readfiles[0]}) and try again. Error is: {e}',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
+            logger.error(f'{fill}')
+            sys.exit()
+
         if hi_mem:
             for target, read_list in gene_2_reads_dict.items():
                 write_single_seqs_once(target, read_list)
@@ -299,28 +322,38 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
         else:
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
-        for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
-                                                             min_poll_interval=30, widgets=widgets):
-            ID2_long, Seq2, Qual2 = next(iterator2)
-            ID1 = ID1_long.split()[0]
-            if ID1.endswith('/1') or ID1.endswith('/2'):
-                ID1 = ID1[:-2]
-            ID2 = ID2_long.split()[0]
-            if ID2.endswith('/1') or ID2.endswith('/2'):
-                ID2 = ID2[:-2]
-            if ID1 in read_hit_dict:
-                for target in read_hit_dict[ID1]:
-                    if not hi_mem:
-                        write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                        # Note that read pairs can get written to multiple targets
-                    else:
-                        gene_2_reads_dict[target].append((ID1, Seq1, Qual1, ID2, Seq2, Qual2))
-            elif ID2 in read_hit_dict:
-                for target in read_hit_dict[ID2]:
-                    if not hi_mem:
-                        write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
-                    else:
-                        gene_2_reads_dict[target].append((ID1, Seq1, Qual1, ID2, Seq2, Qual2))
+        try:
+            for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
+                                                                 min_poll_interval=30, widgets=widgets):
+                ID2_long, Seq2, Qual2 = next(iterator2)
+                ID1 = ID1_long.split()[0]
+                if ID1.endswith('/1') or ID1.endswith('/2'):
+                    ID1 = ID1[:-2]
+                ID2 = ID2_long.split()[0]
+                if ID2.endswith('/1') or ID2.endswith('/2'):
+                    ID2 = ID2[:-2]
+                if ID1 in read_hit_dict:
+                    for target in read_hit_dict[ID1]:
+                        if not hi_mem:
+                            write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                            # Note that read pairs can get written to multiple targets
+                        else:
+                            gene_2_reads_dict[target].append((ID1, Seq1, Qual1, ID2, Seq2, Qual2))
+                elif ID2 in read_hit_dict:
+                    for target in read_hit_dict[ID2]:
+                        if not hi_mem:
+                            write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
+                        else:
+                            gene_2_reads_dict[target].append((ID1, Seq1, Qual1, ID2, Seq2, Qual2))
+        except ValueError as e:
+            fill = utils.fill_forward_slash(f'')
+            logger.error(fill)
+            fill = utils.fill_forward_slash(f'{"[ERROR]:":10} Malformed FASTQ file! Please check your input FASTQ '
+                                            f'files ({readfiles[0]}, {readfiles[1]}) and try again. Error is: {e}',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
+            logger.error(f'{fill}')
+            sys.exit()
 
         if hi_mem:
             for target, read_list in gene_2_reads_dict.items():

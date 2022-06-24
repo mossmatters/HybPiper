@@ -299,7 +299,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
             log_or_print(f'{fill}\n', logger=logger)
             fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
                                  subsequent_indent=' ' * 11, break_on_hyphens=False)
-            log_or_print(f'{fill}\n', logger=logger)
+            log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
 
         if seqs_needed_padding_dict:
             seq_list = [seq.name for gene_name, target_file_sequence_list in seqs_needed_padding_dict.items() for seq
@@ -312,7 +312,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
             log_or_print(f'{fill}\n', logger=logger)
             fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
                                  subsequent_indent=' ' * 11, break_on_hyphens=False)
-            log_or_print(f'{fill}\n', logger=logger)
+            log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
 
     return translated_seqs_to_write
 

@@ -169,11 +169,30 @@ def enrich_efficiency_blastx(blastxfilename, sample_name):
         with open(f'{sample_name}/total_input_reads_single.txt', 'r') as single_number:
             total_input_reads = int(single_number.read().rstrip())
     else:
-        raise ValueError(f'No file containing total input paired or single-end read count found!')
+        fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No file containing total input paired or single-end read '
+                                        f'count found for sample {sample_name}!. Please check the log file for this '
+                                        f'sample. If "hybpiper assemble" can not be run successfully for this '
+                                        f'sample, please remove it from your namelist text file before running '
+                                        f'"hybpiper stats".',
+                                        width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                        break_on_forward_slash=True)
+        logger.warning(f'{fill}')
+        sys.exit()
 
-    if os.path.exists(f'{sample_name}/total_input_reads_unpaired.txt'):
-        with open(f'{sample_name}/total_input_reads_unpaired.txt', 'r') as unpaired_number:
-            total_input_reads = total_input_reads + int(unpaired_number.read().rstrip())
+    if os.path.isfile(blastxfilename.replace(".blastx", "_unpaired.blastx")):
+        if os.path.exists(f'{sample_name}/total_input_reads_unpaired.txt'):
+            with open(f'{sample_name}/total_input_reads_unpaired.txt', 'r') as unpaired_number:
+                total_input_reads = total_input_reads + int(unpaired_number.read().rstrip())
+        else:
+            fill = utils.fill_forward_slash(
+                f'{"[WARNING]:":10} No file containing total input unpaired read count found for sample '
+                f'{sample_name}!. Please check the log file for this sample. If "hybpiper assemble" can not be run '
+                f'successfully for this sample, please remove it from your namelist text file before running '
+                f'"hybpiper stats".',
+                width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                break_on_forward_slash=True)
+            logger.warning(f'{fill}')
+            sys.exit()
 
     try:
         pctMapped = 100 * mappedReads / total_input_reads
