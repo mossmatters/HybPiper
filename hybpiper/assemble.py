@@ -308,7 +308,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
                 f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not multiples of '
                 f'three. If your target file contains only protein-coding sequences, please check these sequences. '
                 f'Sequence names can be found in the sample log file (if running "hybpiper assemble") or printed '
-                f'below (if running "hybpiper check_targetfile")..', width=90, subsequent_indent=' ' * 11)
+                f'below (if running "hybpiper check_targetfile").', width=90, subsequent_indent=' ' * 11)
             log_or_print(f'{fill}\n', logger=logger)
             fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
                                  subsequent_indent=' ' * 11, break_on_hyphens=False)
@@ -1650,7 +1650,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0.1rc build 10',
+                         version='%(prog)s 2.0.1rc build 11',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
