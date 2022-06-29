@@ -46,7 +46,7 @@ def make_spades_cmd_file(genelist, cov_cutoff=8, paired=True, kvals=None, unpair
     if kvals:
         kvals = ','.join(kvals)
 
-    spades_cmd_list = [f'spades.py --only-assembler {single_cell_mode_string} --threads 1 --cov-cutoff',
+    spades_cmd_list = [f'spades.py --memory 1024 --only-assembler {single_cell_mode_string} --threads 1 --cov-cutoff',
                        str(cov_cutoff)]
 
     if kvals:
