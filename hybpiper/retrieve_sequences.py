@@ -130,11 +130,22 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
 
     # Recover sample names from directory names or names in text file provided:
     if os.path.isdir(sample_names):
+        logger.info(f'{"[INFO]:":10} The following parent directory was provided using the parameter --sample_names:'
+                    f' "{sample_names}". HybPiper will search for sample directories within this parent directory')
         sampledir = sample_names
         sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir, x)) and not
                         x.startswith('.')]
     else:
+        logger.info(f'{"[INFO]:":10} The following file of sample names was provided using the parameter '
+                    f'--sample_names: "{sample_names}".')
+
+        if not os.path.isfile(sample_names):
+            sys.exit(f'{"[ERROR]:":10} Can not find either a directory or a file with the name "{sample_names}", '
+                     f'exiting...')
+
         sample_names = [x.rstrip() for x in open(sample_names)]
+
+        # Search within a user-supplied directory for the given sample directories, or the current directory if not:
         if hybpiper_dir:
             sampledir = hybpiper_dir
         else:
@@ -199,6 +210,7 @@ def recover_sequences_from_one_sample(seq_dir,
                                       filename,
                                       target_genes,
                                       single_sample_name,
+                                      hybpiper_dir=None,
                                       fasta_dir=None,
                                       skip_chimeric=False):
     """
@@ -208,13 +220,20 @@ def recover_sequences_from_one_sample(seq_dir,
     :param str filename: file name component used to reconstruct path to file (None, intron or supercontig)
     :param list target_genes: list of unique gene names in the target file
     :param str single_sample_name: directory of a single sample
+    :param None or str hybpiper_dir: if provided, a path to the directory containing HybPiper output
     :param None or str fasta_dir: directory name for output files, default is current directory
     :param bool skip_chimeric: if True, skip putative chimeric genes
     :return None:
     """
 
-    if not os.path.isdir(single_sample_name):
-        sys.exit(f'Can not find a directory for sample {single_sample_name}, exiting...')
+    # Check if the sample directory exists in the current dir or provided hybpiper_dir:
+    if hybpiper_dir:
+        if not os.path.isdir(os.path.join(hybpiper_dir, single_sample_name)):
+            sys.exit(f'Can not find a directory for sample "{single_sample_name}" within the provided directory'
+                     f' "{hybpiper_dir}", exiting...')
+    else:
+        if not os.path.isdir(single_sample_name):
+            sys.exit(f'Can not find a directory for sample "{single_sample_name}" in the current directory, exiting...')
 
     # Create a user-supplied directory if provided, or write to the current directory if not:
     if fasta_dir:
@@ -223,14 +242,21 @@ def recover_sequences_from_one_sample(seq_dir,
             os.mkdir(fasta_dir)
     else:
         fasta_dir = '.'
+
+    # Search within a user-supplied directory for the given sample directory, or the current directory if not:
+    if hybpiper_dir:
+        sampledir = hybpiper_dir
+    else:
+        sampledir = '.'
+
     logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from sample {single_sample_name}...')
     sequences_to_write = []
 
     # Construct names for intron and supercontig output files:
     if seq_dir in ['intron', 'supercontig']:
-        outfilename = f'{filename}.fasta'
+        outfilename = f'{single_sample_name}_{filename}.fasta'
     else:
-        outfilename = f'{seq_dir}.fasta'
+        outfilename = f'{single_sample_name}_{seq_dir}.fasta'
     for gene in target_genes:
         numSeqs = 0
         # Recover a list of putative chimeric genes for the sample, and skip gene if in list:
@@ -244,10 +270,10 @@ def recover_sequences_from_one_sample(seq_dir,
 
         # Get path to the gene/intron/supercontig sequence:
         if seq_dir == 'intron':
-            sample_path = os.path.join(single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
+            sample_path = os.path.join(sampledir, single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
                                        f'{gene}_{filename}.fasta')
         else:
-            sample_path = os.path.join(single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
+            sample_path = os.path.join(sampledir, single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
                                        f'{gene}.{seq_dir}')
         try:
             seq = next(SeqIO.parse(sample_path, 'fasta'))
@@ -346,14 +372,15 @@ def main(args):
         operators_to_filter = [item[1] for item in args.filter_by]
         thresholds_to_filter = [item[2] for item in args.filter_by]
         if not all(column in columns for column in columns_to_filter):
-            sys.exit(f'Only columns from the following list are allowed: {columns}')
+            sys.exit(f'{"[ERROR]:":10} Only columns from the following list are allowed: {columns}')
         if not all(operator in operators for operator in operators_to_filter):
-            sys.exit(f'Only operators from the following list are allowed: {operators}')
+            sys.exit(f'{"[ERROR]:":10} Only operators from the following list are allowed: {operators}')
         for threshold in thresholds_to_filter:
             try:
                 threshold_is_float = float(threshold)
             except ValueError:
-                sys.exit(f'Please provide only integers or floats as threshold values. You have provided: {threshold}')
+                sys.exit(f'{"[ERROR]:":10} Please provide only integers or floats as threshold values. You have '
+                         f'provided: {threshold}')
 
     # Set target file name:
     if args.targetfile_dna:
@@ -376,7 +403,10 @@ def main(args):
         filename = 'supercontig'
 
     # Use gene names parsed from a target file.
-    target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')]))
+    try:
+        target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')]))
+    except FileNotFoundError:
+        sys.exit(f'{"[ERROR]:":10} Can not find target file "{targetfile}"')
 
     # Recover sequences from all samples:
     if args.sample_names:
@@ -394,6 +424,7 @@ def main(args):
                                           filename,
                                           target_genes,
                                           args.single_sample_name,
+                                          args.hybpiper_dir,
                                           args.fasta_dir,
                                           args.skip_chimeric)
 
