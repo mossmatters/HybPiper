@@ -1,5 +1,10 @@
 # Changelog
 
+**2.0.1 release candidate build 11** *29th June, 2022*
+
+- Adding hybpiper_dir search for single sample recovery when running `hybpiper retrieve_sequences`. Adding sample name to recovered fasta file.
+-  Adding `--memory 1024` to `spades.py` command (macOS Monterey compatibility pre SPAdes version 3.15.4)
+
 **2.0.1 release candidate build 8** *24th June, 2022*
 
 - Capture errors relating to malformed input `*.fastq` files during read distribution, and log error to file.
