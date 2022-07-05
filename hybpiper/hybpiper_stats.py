@@ -72,7 +72,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
         logger.error(f'{"[ERROR]:":10} Name list file {namelist} not found!')
         sys.exit()
 
-    namelist_parsed = [n.rstrip() for n in open(namelist).readlines()]
+    namelist_parsed = [n.rstrip() for n in open(namelist).readlines() if n.rstrip()]
 
     # Get the names and lengths for each sequence in the target file:
     gene_names = []
@@ -377,76 +377,77 @@ def main(args):
 
     for line in open(args.namelist):
         name = line.rstrip()
-        stats_dict[name] = []
+        if name:
+            stats_dict[name] = []
 
-        # Enrichment Efficiency
-        bamfile = f'{name}/{name}.bam'
-        blastxfile = f'{name}/{name}.blastx'
-        if os.path.isfile(bamfile):
-            stats_dict[name] += enrich_efficiency_bwa(bamfile)
-        elif os.path.isfile(blastxfile):
-            stats_dict[name] += enrich_efficiency_blastx(blastxfile, name)
-        else:
-            fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for {name}. No '
-                                            f'statistics will be recovered. Please check the log file for this '
-                                            f'sample!',
-                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
-                                            break_on_forward_slash=True)
-            logger.warning(f'{fill}')
-            continue
+            # Enrichment Efficiency
+            bamfile = f'{name}/{name}.bam'
+            blastxfile = f'{name}/{name}.blastx'
+            if os.path.isfile(bamfile):
+                stats_dict[name] += enrich_efficiency_bwa(bamfile)
+            elif os.path.isfile(blastxfile):
+                stats_dict[name] += enrich_efficiency_blastx(blastxfile, name)
+            else:
+                fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for {name}. No '
+                                                f'statistics will be recovered. Please check the log file for this '
+                                                f'sample!',
+                                                width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                                break_on_forward_slash=True)
+                logger.warning(f'{fill}')
+                continue
 
-        # Recovery Efficiency
-        stats_dict[name] += recovery_efficiency(name)
-        stats_dict[name] += seq_length_dict[name]
+            # Recovery Efficiency
+            stats_dict[name] += recovery_efficiency(name)
+            stats_dict[name] += seq_length_dict[name]
 
-        # Paralogs - long
-        if os.path.isfile(f'{name}/{name}_genes_with_long_paralog_warnings.txt'):
-            paralog_warns = file_len(f'{name}/{name}_genes_with_long_paralog_warnings.txt')
-            stats_dict[name].append(str(paralog_warns))
-        else:
-            stats_dict[name].append("0")
+            # Paralogs - long
+            if os.path.isfile(f'{name}/{name}_genes_with_long_paralog_warnings.txt'):
+                paralog_warns = file_len(f'{name}/{name}_genes_with_long_paralog_warnings.txt')
+                stats_dict[name].append(str(paralog_warns))
+            else:
+                stats_dict[name].append("0")
 
-        # Paralogs - by contig depth across query protein
-        num_genes_paralog_warning_by_depth = 0
-        if os.path.isfile(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'):
-            with open(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
-                lines = paralogs_by_depth.readlines()
-                for gene_stats in lines:
-                    stat = gene_stats.split(',')[3].strip()
-                    if stat == 'True':
-                        num_genes_paralog_warning_by_depth += 1
-        stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
+            # Paralogs - by contig depth across query protein
+            num_genes_paralog_warning_by_depth = 0
+            if os.path.isfile(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'):
+                with open(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
+                    lines = paralogs_by_depth.readlines()
+                    for gene_stats in lines:
+                        stat = gene_stats.split(',')[3].strip()
+                        if stat == 'True':
+                            num_genes_paralog_warning_by_depth += 1
+            stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
 
-        # Stitched contig information:
-        stitched_contig_produced = 0
-        no_stitched_contig = 0
-        stitched_contig_skipped = 0
-        if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
-            with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
-                lines = stitched_contig_stats.readlines()
-                for gene_stats in lines:
-                    stat = gene_stats.split(',')[2]
-                    if re.search('single Exonerate hit', stat):
-                        no_stitched_contig += 1
-                    elif re.search('Stitched contig produced', stat):
-                        stitched_contig_produced += 1
-                    elif re.search('Stitched contig step skipped', stat):
-                        stitched_contig_skipped += 1
-        stitched_contigs_produced_total = stitched_contig_produced
-        stats_dict[name].append(str(no_stitched_contig))
-        stats_dict[name].append(str(stitched_contigs_produced_total))
-        stats_dict[name].append(str(stitched_contig_skipped))
+            # Stitched contig information:
+            stitched_contig_produced = 0
+            no_stitched_contig = 0
+            stitched_contig_skipped = 0
+            if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
+                with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
+                    lines = stitched_contig_stats.readlines()
+                    for gene_stats in lines:
+                        stat = gene_stats.split(',')[2]
+                        if re.search('single Exonerate hit', stat):
+                            no_stitched_contig += 1
+                        elif re.search('Stitched contig produced', stat):
+                            stitched_contig_produced += 1
+                        elif re.search('Stitched contig step skipped', stat):
+                            stitched_contig_skipped += 1
+            stitched_contigs_produced_total = stitched_contig_produced
+            stats_dict[name].append(str(no_stitched_contig))
+            stats_dict[name].append(str(stitched_contigs_produced_total))
+            stats_dict[name].append(str(stitched_contig_skipped))
 
-        chimeric_stitched_contigs = 0
-        if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
-            with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as \
-                    chimeric_stitched_contig_stats:
-                lines = chimeric_stitched_contig_stats.readlines()
-                for gene_stats in lines:
-                    stat = gene_stats.split(',')[2]
-                    if re.search(' Chimera WARNING for stitched contig.', stat):
-                        chimeric_stitched_contigs += 1
-        stats_dict[name].append(str(chimeric_stitched_contigs))
+            chimeric_stitched_contigs = 0
+            if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
+                with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as \
+                        chimeric_stitched_contig_stats:
+                    lines = chimeric_stitched_contig_stats.readlines()
+                    for gene_stats in lines:
+                        stat = gene_stats.split(',')[2]
+                        if re.search(' Chimera WARNING for stitched contig.', stat):
+                            chimeric_stitched_contigs += 1
+            stats_dict[name].append(str(chimeric_stitched_contigs))
 
     # SeqLengths
     for name in stats_dict:
