@@ -1,5 +1,10 @@
 # Changelog
 
+**2.0.1 release candidate build 12** *6th July, 2022*
+
+- When running `hybpiper stats`, empty lines in the namelist.txt file are ignored.
+
+
 **2.0.1 release candidate build 11** *29th June, 2022*
 
 - Adding hybpiper_dir search for single sample recovery when running `hybpiper retrieve_sequences`. Adding sample name to recovered fasta file.
