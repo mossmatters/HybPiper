@@ -360,14 +360,24 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
 
         if translate_target_file:
             translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
-            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                            f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
-                                            break_long_words=False, break_on_forward_slash=True)
-            logger.info(f'{fill}')
 
-            with open(f'{translated_target_file}', 'w') as translated_handle:
-                SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-            targetfile = translated_target_file  # i.e. use translated file for return value
+            if utils.file_exists_and_not_empty(translated_target_file):  # i.e. written for previous sample
+                fill = utils.fill_forward_slash(f'{"[INFO]:":10} A file named {translated_target_file} '
+                                                f'already exists; a new translated target file will not be '
+                                                f'written.', width=90, subsequent_indent=' ' * 11,
+                                                break_long_words=False, break_on_forward_slash=True)
+                logger.info(f'{fill}')
+                targetfile = translated_target_file  # i.e. use translated file for return value
+
+            else:
+                fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                                f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
+                                                break_long_words=False, break_on_forward_slash=True)
+                logger.info(f'{fill}')
+
+                with open(f'{translated_target_file}', 'w') as translated_handle:
+                    SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+                targetfile = translated_target_file  # i.e. use translated file for return value
 
     return targetfile
 
