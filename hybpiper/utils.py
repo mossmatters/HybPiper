@@ -402,7 +402,7 @@ def write_fix_targetfile_controlfile(targetfile_type,
         targetfile_control_handle.write(f'NO_TERMINAL_STOP_CODONS\t{no_terminal_stop_codons}\n')
         targetfile_control_handle.write(f'SLIDING_WINDOW_SIZE\t{sliding_window_size}\n')
         targetfile_control_handle.write(f'COMPLEXITY_MINIMUM_THRESHOLD\t{complexity_minimum_threshold}\n')
-        targetfile_control_handle.write(f'ALLOW_GENE_REMOVAL\tFALSE\n')
+        targetfile_control_handle.write(f'ALLOW_GENE_REMOVAL\tFalse\n')
         targetfile_control_handle.write(f'LOW_COMPLEXITY_SEQUENCES\t{low_complexity_sequences_to_remove}\n')
 
     print(f'\n{"[INFO]:":10} The control file required for command "hybpiper fix_targetfile" has been written to\n'

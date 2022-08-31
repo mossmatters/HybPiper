@@ -787,8 +787,8 @@ def inframe_seq_alignments_dna(gene_to_inframe_seq_dictionary, concurrent_alignm
     :return:
     """
 
-    output_folder_unaligned = f'01_gene_fixed_seqs_unaligned'
-    output_folder_aligned = f'02_gene_fixed_seqs_aligned'
+    output_folder_unaligned = f'01_dna_targetfile_gene_translated_seqs_unaligned'
+    output_folder_aligned = f'02_dna_targetfile_gene_translated_seqs_aligned'
     createfolder(output_folder_unaligned)
     createfolder(output_folder_aligned)
 
@@ -824,8 +824,8 @@ def inframe_seq_alignments_aa(gene_to_protein_seq_dictionary, concurrent_alignme
     :return:
     """
 
-    output_folder_unaligned = f'01_gene_protein_seqs_unaligned'
-    output_folder_aligned = f'02_gene_protein_seqs_aligned'
+    output_folder_unaligned = f'01_protein_targetfile_seqs_unaligned'
+    output_folder_aligned = f'02_protein_targetfile_seqs_aligned'
     createfolder(output_folder_unaligned)
     createfolder(output_folder_aligned)
 
