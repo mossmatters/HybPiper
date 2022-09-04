@@ -324,13 +324,13 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
     - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
       three, no unexpected stop codons), and logs a warning if not.
-    - If targetfile is DNA but using_bwa is False, translate the targetfile and return the path
+    - If targetfile is DNA but using_bwa is False, translate the targetfile and return the list of seqs instead
 
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param logging.Logger logger: a logger object
-    :return: None, str: NoneType or path to the translated targetfile
+    :return: str, list: path to targetfile or list of translated seqs
     """
 
     target_file_path, target_file_name = os.path.split(targetfile)
@@ -359,25 +359,27 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
             logger=logger)
 
         if translate_target_file:
-            translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
+            return translated_seqs_to_write
 
-            if utils.file_exists_and_not_empty(translated_target_file):  # i.e. written for previous sample
-                fill = utils.fill_forward_slash(f'{"[INFO]:":10} A file named {translated_target_file} '
-                                                f'already exists; a new translated target file will not be '
-                                                f'written.', width=90, subsequent_indent=' ' * 11,
-                                                break_long_words=False, break_on_forward_slash=True)
-                logger.info(f'{fill}')
-                targetfile = translated_target_file  # i.e. use translated file for return value
-
-            else:
-                fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                                f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
-                                                break_long_words=False, break_on_forward_slash=True)
-                logger.info(f'{fill}')
-
-                with open(f'{translated_target_file}', 'w') as translated_handle:
-                    SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-                targetfile = translated_target_file  # i.e. use translated file for return value
+            # translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
+            #
+            # if utils.file_exists_and_not_empty(translated_target_file):  # i.e. written for previous sample
+            #     fill = utils.fill_forward_slash(f'{"[INFO]:":10} A file named {translated_target_file} '
+            #                                     f'already exists; a new translated target file will not be '
+            #                                     f'written.', width=90, subsequent_indent=' ' * 11,
+            #                                     break_long_words=False, break_on_forward_slash=True)
+            #     logger.info(f'{fill}')
+            #     targetfile = translated_target_file  # i.e. use translated file for return value
+            #
+            # else:
+            #     fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+            #                                     f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
+            #                                     break_long_words=False, break_on_forward_slash=True)
+            #     logger.info(f'{fill}')
+            #
+            #     with open(f'{translated_target_file}', 'w') as translated_handle:
+            #         SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+            #     targetfile = translated_target_file  # i.e. use translated file for return value
 
     return targetfile
 
@@ -497,9 +499,25 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
         else:
             logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
-            if os.path.split(targetfile)[0]:
+
+            if isinstance(targetfile, list):  # i.e. a list of translated seqs to write instead of path
+                translated_target_file_name = 'translated_target_file.fasta'
+                fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                                f' {translated_target_file_name}',
+                                                width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                                break_on_forward_slash=True)
+                logger.info(f'{fill}')
+
+                with open(f'{translated_target_file_name}', 'w') as translated_handle:
+                    SeqIO.write(targetfile, translated_handle, 'fasta')
+
+                targetfile = translated_target_file_name  # i.e. use translated file path
+
+            elif os.path.split(targetfile)[0]:
                 shutil.copy(targetfile, '.')
+
             db_file = os.path.split(targetfile)[1]
+
             if diamond:
                 logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
                 if diamond_sensitivity:
@@ -1228,7 +1246,7 @@ def assemble(args):
                  f'single file as input using the -r/--readfiles parameter')
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
-    # arg.bwa is false, translate and return the path to translated file:
+    # arg.bwa is false, translate and return a list of translated sequences instead of file path:
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,
