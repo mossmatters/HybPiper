@@ -505,10 +505,10 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
     else:
         logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
-        if os.path.isfile(targetfile) and os.path.split(targetfile)[0]:
-            shutil.copy(targetfile, '.')
-
-        elif isinstance(targetfile, list):  # i.e. a list of translated seqs to write instead of path
+        try:
+            if os.path.split(targetfile)[0]:
+                shutil.copy(targetfile, '.')
+        except TypeError:
             fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
                                             f' {translated_target_file_name}',
                                             width=90, subsequent_indent=' ' * 11, break_long_words=False,
