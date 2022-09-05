@@ -655,6 +655,9 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     :return: None
     """
 
+    if isinstance(targetfile, list):
+        targetfile = 'translated_target_file.fasta'
+
     # Distribute reads to gene directories:
     read_hit_dict = distribute_reads_to_targets.read_sorting_blastx(blastx_outputfile)
 
