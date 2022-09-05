@@ -488,62 +488,58 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
     :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs targetfile
     """
 
-    targetfile_basename = os.path.basename(targetfile)
+    translated_target_file_name = 'translated_target_file.fasta'
+    targetfile_basename = os.path.basename(targetfile) if os.path.isfile(targetfile) else translated_target_file_name
 
-    if os.path.isfile(targetfile):
-        if os.path.isfile(f'{targetfile_basename}.psq'):
-            db_file = targetfile_basename
-            logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
-        elif os.path.isfile(f'{targetfile_basename}.diamond'):
-            db_file = targetfile_basename
-            logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
-        else:
-            logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
+    if os.path.isfile(f'{targetfile_basename}.psq'):
+        db_file = targetfile_basename
+        logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
+    elif os.path.isfile(f'{targetfile_basename}.diamond'):
+        db_file = targetfile_basename
+        logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
+    else:
+        logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
+        if os.path.isfile(targetfile) and os.path.split(targetfile)[0]:
+            shutil.copy(targetfile, '.')
 
-            if isinstance(targetfile, list):  # i.e. a list of translated seqs to write instead of path
-                translated_target_file_name = 'translated_target_file.fasta'
-                fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                                f' {translated_target_file_name}',
-                                                width=90, subsequent_indent=' ' * 11, break_long_words=False,
-                                                break_on_forward_slash=True)
-                logger.info(f'{fill}')
+        elif isinstance(targetfile, list):  # i.e. a list of translated seqs to write instead of path
+            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                            f' {translated_target_file_name}',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
+            logger.info(f'{fill}')
 
-                with open(f'{translated_target_file_name}', 'w') as translated_handle:
-                    SeqIO.write(targetfile, translated_handle, 'fasta')
+            with open(f'{translated_target_file_name}', 'w') as translated_handle:
+                SeqIO.write(targetfile, translated_handle, 'fasta')
 
                 targetfile = translated_target_file_name  # i.e. use translated file path
 
-            elif os.path.split(targetfile)[0]:
-                shutil.copy(targetfile, '.')
+        db_file = os.path.split(targetfile)[1]
 
-            db_file = os.path.split(targetfile)[1]
+        if diamond:
+            logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
+            if diamond_sensitivity:
+                logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
+            makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
+        else:
+            makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
 
-            if diamond:
-                logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
-                if diamond_sensitivity:
-                    logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
-                makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
-            else:
-                makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
+        fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
+                             break_long_words=False, break_on_hyphens=False)
+        logger.info(f'{fill}')
 
-            fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
-                                 break_long_words=False, break_on_hyphens=False)
-            logger.info(f'{fill}')
+        try:
+            result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    universal_newlines=True, check=True)
+            logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'makeblastdb stdout is: {result.stdout}')
+            logger.debug(f'makeblastdb stderr is: {result.stderr}')
 
-            try:
-                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True, check=True)
-                logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
-                logger.debug(f'makeblastdb stdout is: {result.stdout}')
-                logger.debug(f'makeblastdb stderr is: {result.stderr}')
-            except subprocess.CalledProcessError as exc:
-                logger.error(f'makeblastdb FAILED. Output is: {exc}')
-                logger.error(f'makeblastdb stdout is: {exc.stdout}')
-                logger.error(f'makeblastdb stderr is: {exc.stderr}')
-                return None
-    else:
-        logger.error(f'Cannot find target file at: {targetfile}')
-        return None
+        except subprocess.CalledProcessError as exc:
+            logger.error(f'makeblastdb FAILED. Output is: {exc}')
+            logger.error(f'makeblastdb stdout is: {exc.stdout}')
+            logger.error(f'makeblastdb stderr is: {exc.stderr}')
+            return None
 
     # Remove previous blast results if they exist (because we will be appending to the *.blastx output file)
     if os.path.isfile(f'{basename}.blastx'):
