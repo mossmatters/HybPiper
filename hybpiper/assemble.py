@@ -489,7 +489,13 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
     """
 
     translated_target_file_name = 'translated_target_file.fasta'
-    targetfile_basename = os.path.basename(targetfile) if os.path.isfile(targetfile) else translated_target_file_name
+
+    try:
+        targetfile_basename = os.path.basename(targetfile)
+    except TypeError:
+        targetfile_basename = translated_target_file_name
+
+    # targetfile_basename = os.path.basename(targetfile) if os.path.isfile(targetfile) else translated_target_file_name
 
     if os.path.isfile(f'{targetfile_basename}.psq'):
         db_file = targetfile_basename
