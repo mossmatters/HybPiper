@@ -17,6 +17,7 @@ from collections import defaultdict
 import progressbar
 from hybpiper.gene_recovery_heatmap import get_figure_dimensions
 from hybpiper.retrieve_sequences import get_chimeric_genes_for_sample
+from hybpiper import utils
 
 try:
     import pandas as pd
@@ -92,16 +93,22 @@ def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_direct
 
     # Recover paralog sequences if present:
     if os.path.isfile(paralog_fasta_file_path):
-        seqs_to_write = [x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')]
-        seqs_to_write_all.extend(seqs_to_write)
-        num_seqs = len(seqs_to_write)
-        has_paralogs = True
+        if os.path.getsize(paralog_fasta_file_path) == 0:
+            logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
+        else:
+            seqs_to_write = [x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')]
+            seqs_to_write_all.extend(seqs_to_write)
+            num_seqs = len(seqs_to_write)
+            has_paralogs = True
 
     # ...or recover nucleotide *.FNA sequence if present:
     elif os.path.isfile(fna_fasta_file_path):
-        seqs_to_write = SeqIO.read(fna_fasta_file_path, 'fasta')
-        seqs_to_write_all.append(seqs_to_write)
-        num_seqs = 1
+        if os.path.getsize(fna_fasta_file_path) == 0:
+            logger.warning(f'{"[WARNING]:":10} File {fna_fasta_file_path} exists, but is empty!\n')
+        else:
+            seqs_to_write = SeqIO.read(fna_fasta_file_path, 'fasta')
+            seqs_to_write_all.append(seqs_to_write)
+            num_seqs = 1
 
     # Now skip any putative chimeric stitched contig sequences:
     if gene in chimeric_genes_to_skip:
@@ -110,9 +117,15 @@ def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_direct
         #             f' - putative chimeric stitched contig sequence!')
     else:
         if os.path.isfile(paralog_fasta_file_path):
-            seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
+            if os.path.getsize(paralog_fasta_file_path) == 0:
+                logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
+            else:
+                seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
         elif os.path.isfile(fna_fasta_file_path):
-            seqs_to_write_no_chimeras.append(SeqIO.read(fna_fasta_file_path, 'fasta'))
+            if os.path.getsize(fna_fasta_file_path) == 0:
+                logger.warning(f'{"[WARNING]:":10} File {fna_fasta_file_path} exists, but is empty!\n')
+            else:
+                seqs_to_write_no_chimeras.append(SeqIO.read(fna_fasta_file_path, 'fasta'))
 
     return num_seqs, has_paralogs, seqs_to_write_all, seqs_to_write_no_chimeras
 

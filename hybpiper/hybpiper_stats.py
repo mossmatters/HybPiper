@@ -110,12 +110,17 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
                 read_file = os.path.join(parentDir, name, unique_names[gene], name, "sequences", filetype,
                                          f'{unique_names[gene]}.{filetype}')
 
-            if os.path.exists(read_file):
-                seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
-                if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
-                    sys.stderr.write(f'****WARNING! Sequence length for {name} is more than 50% longer than'
-                                     f' {unique_names[gene]} reference!\n')
-                name_lengths.append(str(seq_length))
+            if os.path.isfile(read_file):
+                if os.path.getsize(read_file) == 0:
+                    logger.warning(f'{"[WARNING]:":10} File {read_file} exists, but is empty! A length of zero will be '
+                                   f'recorded for this sequence.\n')
+                    name_lengths.append("0")
+                else:
+                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
+                    if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
+                        logger.warning(f'{"[WARNING]:":10} Sequence length for {name} is more than 50% longer than'
+                                       f' {unique_names[gene]} reference!\n')
+                    name_lengths.append(str(seq_length))
             else:
                 name_lengths.append("0")
 
