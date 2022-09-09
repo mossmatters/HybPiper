@@ -489,7 +489,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 shutil.copy(targetfile, '.')
         except TypeError:  # i.e. it's a list of translated seqs not a path
             fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                            f' {translated_target_file_name}',
+                                            f' {os.getcwd()}/{translated_target_file_name}',
                                             width=90, subsequent_indent=' ' * 11, break_long_words=False,
                                             break_on_forward_slash=True)
             logger.info(f'{fill}')
@@ -1089,6 +1089,7 @@ def exonerate_multiprocessing(genes,
         if genes_cancelled_due_to_errors:
             fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline failed for the '
                                  f'following genes:\n', width=90, subsequent_indent=" " * 11)
+            logger.info('')
             logger.info(fill)
             for gene in genes_cancelled_due_to_errors:
                 logger.info(f'{" " * 11}{gene}')
@@ -1097,6 +1098,7 @@ def exonerate_multiprocessing(genes,
             fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
                                  f'following genes, due to exceeding the timeout limit of {exonerate_contigs_timeout} '
                                  f'seconds\n:', width=90, subsequent_indent=" " * 11)
+            logger.info('')
             logger.info(fill)
             for gene in genes_cancelled_due_to_timeout:
                 logger.info(f'{" " * 11}{gene}')
