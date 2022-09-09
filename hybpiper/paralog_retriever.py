@@ -330,7 +330,7 @@ def main(args):
     target_genes = sorted(list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')])))
 
     # Get a list of sample names:
-    namelist = [x.rstrip() for x in open(args.namelist)]
+    namelist = [x.rstrip() for x in open(args.namelist) if x.rstrip()]
 
     logger.info(f'{"[INFO]:":10} Searching for paralogs for {len(namelist)} samples, {len(target_genes)} genes...')
 

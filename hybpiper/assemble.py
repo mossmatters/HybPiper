@@ -70,6 +70,7 @@ from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
 import pkg_resources
 import time
 import signal
+import cProfile
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.6 or higher.'
@@ -1700,8 +1701,18 @@ def main():
     # Parse arguments for the command/subcommand used:
     args = parse_arguments()
 
-    # Run the function associated with the subcommand:
-    args.func(args)
+    # Run the function associated with the subcommand, with or without cProfile:
+    if args.run_profiler:
+        profiler = cProfile.Profile()
+        profiler.enable()
+        args.func(args)
+        profiler.disable()
+        csv = utils.cprofile_to_csv(profiler)
+
+        with open(f'{sys.argv[1]}_cprofile.csv', 'w+') as cprofile_handle:
+            cprofile_handle.write(csv)
+    else:
+        args.func(args)
 
 
 ########################################################################################################################
@@ -1709,13 +1720,5 @@ def main():
 #######################################################################################################################
 if __name__ == '__main__':
     main()
-    # import pstats
-    # import cProfile
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    # main()
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('cumtime')
-    # stats.print_stats()
 
 ################################################## END OF SCRIPT #######################################################

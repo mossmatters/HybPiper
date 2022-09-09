@@ -16,6 +16,9 @@ import subprocess
 import datetime
 import logging
 import sys
+import io
+import pstats
+import cProfile
 
 
 def log_or_print(string, logger=None, logger_level='info'):
@@ -370,3 +373,24 @@ def worker_configurer(gene_name):
     # Add handlers to the logger
     logger_object.addHandler(console_handler)
     logger_object.addHandler(file_handler)
+
+
+def cprofile_to_csv(profile_binary_file):
+    """
+    Takes a cProfile.Profile object, converts it to human-readable format, and returns the data in *.csv format for
+    writing to file.
+
+    From: https://gist.github.com/ralfstx/a173a7e4c37afa105a66f371a09aa83e
+
+    :param cProfile.Profile profile_binary_file: a cProfile.Profile object
+    :return str: human-readable data from the cProfile run, in *.csv format
+    """
+
+    out_stream = io.StringIO()
+    pstats.Stats(profile_binary_file, stream=out_stream).sort_stats('cumtime').print_stats()
+    result = out_stream.getvalue()
+    result = 'ncalls' + result.split('ncalls')[-1]  # chop off header lines
+    lines = [','.join(line.rstrip().split(None, 5)) for line in result.split('\n')]
+
+    return '\n'.join(lines)
+

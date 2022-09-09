@@ -215,6 +215,11 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  dest='verbose_logging',
                                  default=False)
+    parser_assemble.add_argument('--run_profiler',
+                                 help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
+                                 action='store_true',
+                                 dest='run_profiler',
+                                 default=False)
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(blast=True)
@@ -253,6 +258,11 @@ def add_stats_parser(subparsers):
     parser_stats.add_argument("--stats_filename",
                               help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
                               default='hybpiper_stats')
+    parser_stats.add_argument('--run_profiler',
+                              help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
+                              action='store_true',
+                              dest='run_profiler',
+                              default=False)
 
     return parser_stats
 
@@ -311,6 +321,12 @@ def add_retrieve_sequences_parser(subparsers):
                                                 'integer (raw number of genes) or float (percentage of genes in '
                                                 'analysis). This parameter can be supplied more than once to filter '
                                                 'by multiple criteria.')
+    parser_retrieve_sequences.add_argument('--run_profiler',
+                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                                'of results',
+                                           action='store_true',
+                                           dest='run_profiler',
+                                           default=False)
 
     return parser_retrieve_sequences
 
@@ -396,6 +412,12 @@ def add_paralog_retriever_parser(subparsers):
                                           type=int,
                                           help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                                           default='300')
+    parser_paralog_retriever.add_argument('--run_profiler',
+                                          help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                               'of results',
+                                          action='store_true',
+                                          dest='run_profiler',
+                                          default=False)
 
     return parser_paralog_retriever
 
@@ -449,6 +471,12 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               type=int,
                                               help='Dot per inch (DPI) for the output heatmap image. Default is 300',
                                               default='300')
+    parser_gene_recovery_heatmap.add_argument('--run_profiler',
+                                              help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                                   'of results',
+                                              action='store_true',
+                                              dest='run_profiler',
+                                              default=False)
 
     return parser_gene_recovery_heatmap
 
@@ -503,6 +531,12 @@ def add_check_targetfile_parser(subparsers):
                                           help='Minimum threshold value. Beneath this value, the sequence in the '
                                                'sliding window is flagged as low-complexity, and the corresponding '
                                                'target file sequence is reported as having low-complexity regions ')
+    parser_check_target_file.add_argument('--run_profiler',
+                                          help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                               'of results',
+                                          action='store_true',
+                                          dest='run_profiler',
+                                          default=False)
 
     # Set defaults for subparser <check_target_file>:
     parser_check_target_file.set_defaults(logger=None)
