@@ -1662,7 +1662,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0.1rc build 12',
+                         version='%(prog)s 2.0.1rc build 13',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
