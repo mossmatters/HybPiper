@@ -325,13 +325,13 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
     - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
     - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
       three, no unexpected stop codons), and logs a warning if not.
-    - If targetfile is DNA but using_bwa is False, translate the targetfile and return the path
+    - If targetfile is DNA but using_bwa is False, translate the targetfile and return the list of seqs instead
 
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param logging.Logger logger: a logger object
-    :return: None, str: NoneType or path to the translated targetfile
+    :return: str, list: path to targetfile or list of translated seqs
     """
 
     target_file_path, target_file_name = os.path.split(targetfile)
@@ -360,25 +360,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
             logger=logger)
 
         if translate_target_file:
-            translated_target_file = f'{target_file_path}/{file_name}_translated{ext}'
-
-            if utils.file_exists_and_not_empty(translated_target_file):  # i.e. written for previous sample
-                fill = utils.fill_forward_slash(f'{"[INFO]:":10} A file named {translated_target_file} '
-                                                f'already exists; a new translated target file will not be '
-                                                f'written.', width=90, subsequent_indent=' ' * 11,
-                                                break_long_words=False, break_on_forward_slash=True)
-                logger.info(f'{fill}')
-                targetfile = translated_target_file  # i.e. use translated file for return value
-
-            else:
-                fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                                f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
-                                                break_long_words=False, break_on_forward_slash=True)
-                logger.info(f'{fill}')
-
-                with open(f'{translated_target_file}', 'w') as translated_handle:
-                    SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-                targetfile = translated_target_file  # i.e. use translated file for return value
+            return translated_seqs_to_write
 
     return targetfile
 
@@ -487,46 +469,62 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
     :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs targetfile
     """
 
-    targetfile_basename = os.path.basename(targetfile)
+    translated_target_file_name = 'translated_target_file.fasta'
 
-    if os.path.isfile(targetfile):
-        if os.path.isfile(f'{targetfile_basename}.psq'):
-            db_file = targetfile_basename
-            logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
-        elif os.path.isfile(f'{targetfile_basename}.diamond'):
-            db_file = targetfile_basename
-            logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
-        else:
-            logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
+    try:
+        targetfile_basename = os.path.basename(targetfile)
+    except TypeError:  # i.e. it's a list of translated seqs not a path
+        targetfile_basename = translated_target_file_name
+
+    if os.path.isfile(f'{targetfile_basename}.psq'):
+        db_file = targetfile_basename
+        logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
+    elif os.path.isfile(f'{targetfile_basename}.diamond'):
+        db_file = targetfile_basename
+        logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
+    else:
+        logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
+        try:
             if os.path.split(targetfile)[0]:
                 shutil.copy(targetfile, '.')
-            db_file = os.path.split(targetfile)[1]
-            if diamond:
-                logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
-                if diamond_sensitivity:
-                    logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
-                makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
-            else:
-                makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-
-            fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
-                                 break_long_words=False, break_on_hyphens=False)
+        except TypeError:  # i.e. it's a list of translated seqs not a path
+            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                            f' {translated_target_file_name}',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
             logger.info(f'{fill}')
 
-            try:
-                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True, check=True)
-                logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
-                logger.debug(f'makeblastdb stdout is: {result.stdout}')
-                logger.debug(f'makeblastdb stderr is: {result.stderr}')
-            except subprocess.CalledProcessError as exc:
-                logger.error(f'makeblastdb FAILED. Output is: {exc}')
-                logger.error(f'makeblastdb stdout is: {exc.stdout}')
-                logger.error(f'makeblastdb stderr is: {exc.stderr}')
-                return None
-    else:
-        logger.error(f'Cannot find target file at: {targetfile}')
-        return None
+            with open(f'{translated_target_file_name}', 'w') as translated_handle:
+                SeqIO.write(targetfile, translated_handle, 'fasta')
+
+                targetfile = translated_target_file_name  # i.e. use translated file path
+
+        db_file = os.path.split(targetfile)[1]
+
+        if diamond:
+            logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
+            if diamond_sensitivity:
+                logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
+            makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
+        else:
+            makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
+
+        fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
+                             break_long_words=False, break_on_hyphens=False)
+        logger.info(f'{fill}')
+
+        try:
+            result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    universal_newlines=True, check=True)
+            logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'makeblastdb stdout is: {result.stdout}')
+            logger.debug(f'makeblastdb stderr is: {result.stderr}')
+
+        except subprocess.CalledProcessError as exc:
+            logger.error(f'makeblastdb FAILED. Output is: {exc}')
+            logger.error(f'makeblastdb stdout is: {exc.stdout}')
+            logger.error(f'makeblastdb stderr is: {exc.stderr}')
+            return None
 
     # Remove previous blast results if they exist (because we will be appending to the *.blastx output file)
     if os.path.isfile(f'{basename}.blastx'):
@@ -635,6 +633,9 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     :param logging.Logger logger: a logger object
     :return: None
     """
+
+    if isinstance(targetfile, list):
+        targetfile = 'translated_target_file.fasta'
 
     # Distribute reads to gene directories:
     read_hit_dict = distribute_reads_to_targets.read_sorting_blastx(blastx_outputfile)
@@ -1229,7 +1230,7 @@ def assemble(args):
                  f'single file as input using the -r/--readfiles parameter')
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
-    # arg.bwa is false, translate and return the path to translated file:
+    # arg.bwa is false, translate and return a list of translated sequences instead of file path:
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,

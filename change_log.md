@@ -1,5 +1,10 @@
 # Changelog
 
+**2.0.1 release candidate build 13** *9th September, 2022*
+
+- Added a --run_profiler option, which run the given subcommabnd with cProfile and saves the data to a *.csv file
+- 
+
 **2.0.1 release candidate build 12** *6th July, 2022*
 
 - When running `hybpiper stats`, empty lines in the namelist.txt file are ignored.
