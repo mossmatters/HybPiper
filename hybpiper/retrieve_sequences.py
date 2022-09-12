@@ -195,14 +195,15 @@ def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_n
                 else:
                     sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir,
                                                f'{gene}.{seq_dir}')
-                try:
-                    seq = next(SeqIO.parse(sample_path, 'fasta'))
-                    # print(seq)
-                    SeqIO.write(seq, outfile, 'fasta')
-                    numSeqs += 1
-                # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
-                except FileNotFoundError:
-                    pass
+
+                if os.path.isfile(sample_path):
+                    if os.path.getsize(sample_path) == 0:
+                        logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
+                    else:
+                        seq = next(SeqIO.parse(sample_path, 'fasta'))
+                        SeqIO.write(seq, outfile, 'fasta')
+                        numSeqs += 1
+
         logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}')
 
 
@@ -275,14 +276,16 @@ def recover_sequences_from_one_sample(seq_dir,
         else:
             sample_path = os.path.join(sampledir, single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
                                        f'{gene}.{seq_dir}')
-        try:
-            seq = next(SeqIO.parse(sample_path, 'fasta'))
-            seq.id = f'{seq.id}-{gene}'
-            sequences_to_write.append(seq)
-            numSeqs += 1
-        # except FileNotFoundError or StopIteration:  # BioPython 1.80 returns StopIteration error?
-        except FileNotFoundError:
-            pass
+
+        if os.path.isfile(sample_path):
+            if os.path.getsize(sample_path) == 0:
+                logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
+            else:
+                seq = next(SeqIO.parse(sample_path, 'fasta'))
+                seq.id = f'{seq.id}-{gene}'
+                sequences_to_write.append(seq)
+                numSeqs += 1
+
         logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}.')
 
     with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
