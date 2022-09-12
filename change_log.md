@@ -4,7 +4,7 @@
 
 - Added a `--run_profiler` option to all subcommands; when used, the given subcommand is run with cProfile and the data is saved to a *.csv file.
 - If a DNA target file is provided but the flag `--bwa` is omitted, a translated target file is now written directly to the sample directory (rather than the same directory as the input DNA file) with the generic name `translated_target_file.fasta`. This prevents file overwrite/access issues when processing multiple samples concurrently (e.g. using Nextflow).
-- Added a check for sequence fasta files that exist but are empty to `stats` and `paralog_retriever`; a warning is printed if such a file is found.
+- Added a check for sequence fasta files that exist but are empty to `stats`, `paralog_retriever` and `retrieve_sequences`; a warning is printed if such a file is found.
 
 **2.0.1 release candidate build 12** *6th July, 2022*
 
