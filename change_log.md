@@ -1,5 +1,10 @@
 # Changelog
 
+**2.0.2** *14th November, 2022*
+
+- Added the `--run_profiler` to the `check_dependencies` subcommand (bugfix). 
+- Moved to correct semantic versioning; removed the 'release candidate build x' string from version description, and bumped to version 2.0.2.
+
 **2.0.1 release candidate build 13** *12th September, 2022*
 
 - Added a `--run_profiler` option to all subcommands; when used, the given subcommand is run with cProfile and the data is saved to a *.csv file.
