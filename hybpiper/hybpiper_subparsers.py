@@ -492,6 +492,13 @@ def add_check_dependencies_parser(subparsers):
     parser_check_dependencies = subparsers.add_parser('check_dependencies',
                                                       help='Run a check for all pipeline dependencies and exit')
 
+    parser_check_dependencies.add_argument('--run_profiler',
+                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                                'of results',
+                                           action='store_true',
+                                           dest='run_profiler',
+                                           default=False)
+
     # Set defaults for subparser <check_dependencies>:
     parser_check_dependencies.set_defaults(logger=None)
 
