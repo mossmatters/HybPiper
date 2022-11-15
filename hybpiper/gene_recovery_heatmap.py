@@ -81,10 +81,10 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     gene_id_text_size = gene_text_size if gene_text_size else 10
 
     # Set figure height dimensions for a given number of samples:
-    figure_height = figure_height if figure_height else num_samples/4
+    figure_height = figure_height if figure_height else num_samples / 3
 
     # Set figure length dimensions for a given number of genes (i.e. number of unique genes in target file):
-    fig_length = figure_length if figure_length else num_genes/4
+    fig_length = figure_length if figure_length else num_genes / 3
 
     logger.info(f'{"[INFO]:":10} figure_length: {fig_length} inches, figure_height: {figure_height} inches, '
                 f'sample_text_size: {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
@@ -108,20 +108,29 @@ def standalone():
                         help='Filename for the output heatmap, saved by default as a *.png file. Defaults to '
                              '"recovery_heatmap"',
                         default='recovery_heatmap')
-    parser.add_argument('--figure_length', type=int,
+    parser.add_argument('--figure_length',
+                        type=int,
                         help='Length dimension (in inches) for the output heatmap file. Default is '
-                             'automatically calculated based on the number of genes', default=None)
-    parser.add_argument('--figure_height', type=int,
+                             'automatically calculated based on the number of genes',
+                        default=None)
+    parser.add_argument('--figure_height',
+                        type=int,
                         help='Height dimension (in inches) for the output heatmap file. Default is '
-                             'automatically calculated based on the number of samples', default=None)
-    parser.add_argument('--sample_text_size', type=int,
+                             'automatically calculated based on the number of samples',
+                        default=None)
+    parser.add_argument('--sample_text_size',
+                        type=int,
                         help='Size (in points) for the sample text labels in the output heatmap file. Default is '
-                             'automatically calculated based on the number of samples', default=None)
-    parser.add_argument('--gene_text_size', type=int,
+                             'automatically calculated based on the number of samples',
+                        default=None)
+    parser.add_argument('--gene_text_size',
+                        type=int,
                         help='Size (in points) for the gene text labels in the output heatmap file. Default is '
-                             'automatically calculated based on the number of genes', default=None)
+                             'automatically calculated based on the number of genes',
+                        default=None)
     parser.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
-                        help='File type to save the output heatmap image as. Default is png', default='png')
+                        help='File type to save the output heatmap image as. Default is png',
+                        default='png')
     parser.add_argument('--heatmap_dpi', type=int,
                         help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                         default='300')
