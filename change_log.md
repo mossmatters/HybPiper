@@ -1,5 +1,10 @@
 # Changelog
 
+**2.0.3** *16th November, 2022*
+
+- The calculation for automatically determining the default heatmap dimensions has been changed, to prevent label trimming when using large numbers of samples and genes (pull request from LPDagallier).
+- The default DPI of the heatmap `*.png` file has been reduced from 300 to 150.
+
 **2.0.2** *14th November, 2022*
 
 - Added the `--run_profiler` to the `check_dependencies` subcommand (bugfix). 

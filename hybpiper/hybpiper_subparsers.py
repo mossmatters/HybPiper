@@ -436,47 +436,48 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               help="Filename for the seq_lengths file (output of the 'hybpiper "
                                                    "stats' command)")
     parser_gene_recovery_heatmap.add_argument('--heatmap_filename',
+                                              default='recovery_heatmap',
                                               help='Filename for the output heatmap, saved by default as a *.png file. '
-                                                   'Defaults to "recovery_heatmap"',
-                                              default='recovery_heatmap')
+                                                   'Defaults to "recovery_heatmap"')
     parser_gene_recovery_heatmap.add_argument('--figure_length',
                                               type=int,
+                                              default=None,
                                               help='Length dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
-                                                   'genes',
-                                              default=None)
+                                                   'genes')
     parser_gene_recovery_heatmap.add_argument('--figure_height',
                                               type=int,
+                                              default=None,
                                               help='Height dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
-                                                   'samples',
-                                              default=None)
+                                                   'samples')
     parser_gene_recovery_heatmap.add_argument('--sample_text_size',
                                               type=int,
+                                              default=None,
                                               help='Size (in points) for the sample text labels in the output heatmap '
                                                    'file. Default is automatically calculated based on the '
-                                                   'number of samples',
-                                              default=None)
+                                                   'number of samples')
     parser_gene_recovery_heatmap.add_argument('--gene_text_size',
                                               type=int,
+                                              default=None,
                                               help='Size (in points) for the gene text labels in the output heatmap '
                                                    'file. Default is automatically calculated based on the '
-                                                   'number of genes',
-                                              default=None)
+                                                   'number of genes')
     parser_gene_recovery_heatmap.add_argument('--heatmap_filetype',
                                               choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
-                                              help='File type to save the output heatmap image as. Default is *.png',
-                                              default='png')
+                                              default='png',
+                                              help='File type to save the output heatmap image as. Default is *.png')
     parser_gene_recovery_heatmap.add_argument('--heatmap_dpi',
                                               type=int,
-                                              help='Dot per inch (DPI) for the output heatmap image. Default is 300',
-                                              default='300')
+                                              default=150,
+                                              help='Dot per inch (DPI) for the output heatmap image. Default is '
+                                                   '%(default)d')
     parser_gene_recovery_heatmap.add_argument('--run_profiler',
-                                              help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
-                                                   'of results',
                                               action='store_true',
                                               dest='run_profiler',
-                                              default=False)
+                                              default=False,
+                                              help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                                   'of results')
 
     return parser_gene_recovery_heatmap
 

@@ -105,35 +105,36 @@ def standalone():
     parser.add_argument('seq_lengths_file',
                         help="Filename for the seq_lengths file (output by the 'hybpiper stats' command)")
     parser.add_argument('--heatmap_filename',
+                        default='recovery_heatmap',
                         help='Filename for the output heatmap, saved by default as a *.png file. Defaults to '
-                             '"recovery_heatmap"',
-                        default='recovery_heatmap')
+                             '"recovery_heatmap"')
     parser.add_argument('--figure_length',
                         type=int,
+                        default=None,
                         help='Length dimension (in inches) for the output heatmap file. Default is '
-                             'automatically calculated based on the number of genes',
-                        default=None)
+                             'automatically calculated based on the number of genes')
     parser.add_argument('--figure_height',
                         type=int,
+                        default=None,
                         help='Height dimension (in inches) for the output heatmap file. Default is '
-                             'automatically calculated based on the number of samples',
-                        default=None)
+                             'automatically calculated based on the number of samples')
     parser.add_argument('--sample_text_size',
                         type=int,
+                        default=None,
                         help='Size (in points) for the sample text labels in the output heatmap file. Default is '
-                             'automatically calculated based on the number of samples',
-                        default=None)
+                             'automatically calculated based on the number of samples')
     parser.add_argument('--gene_text_size',
                         type=int,
+                        default=None,
                         help='Size (in points) for the gene text labels in the output heatmap file. Default is '
-                             'automatically calculated based on the number of genes',
-                        default=None)
+                             'automatically calculated based on the number of genes')
     parser.add_argument('--heatmap_filetype', choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
                         help='File type to save the output heatmap image as. Default is png',
                         default='png')
-    parser.add_argument('--heatmap_dpi', type=int,
-                        help='Dots per inch (DPI) for the output heatmap image. Default is 300',
-                        default='300')
+    parser.add_argument('--heatmap_dpi',
+                        type=int,
+                        default=150,
+                        help='Dots per inch (DPI) for the output heatmap image. Default is %(default)d')
 
     args = parser.parse_args()
     main(args)

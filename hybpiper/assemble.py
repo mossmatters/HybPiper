@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.0.2 (November 2022)
+HybPiper Version 2.0.3 (November 2022)
 
 ########################################################################################################################
 ############################################## NOTES ON VERSION 2.0.2 ##################################################
@@ -1664,7 +1664,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0.2',
+                         version='%(prog)s 2.0.3',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
