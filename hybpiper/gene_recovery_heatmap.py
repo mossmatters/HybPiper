@@ -81,36 +81,10 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     gene_id_text_size = gene_text_size if gene_text_size else 10
 
     # Set figure height dimensions for a given number of samples:
-    if num_samples <= 10:
-        figure_height = figure_height if figure_height else 4
-    elif 10 < num_samples <= 20:
-        figure_height = figure_height if figure_height else 8
-    elif 20 < num_samples <= 50:
-        figure_height = figure_height if figure_height else 16
-    elif 50 < num_samples <= 100:
-        figure_height = figure_height if figure_height else 16
-    elif 100 < num_samples <= 200:
-        figure_height = figure_height if figure_height else 140
-    elif 200 < num_samples <= 400:
-        figure_height = figure_height if figure_height else 180
-    elif num_samples > 400:
-        figure_height = figure_height if figure_height else 240
+    figure_height = figure_height if figure_height else num_samples/4
 
     # Set figure length dimensions for a given number of genes (i.e. number of unique genes in target file):
-    if num_genes <= 10:
-        fig_length = figure_length if figure_length else 4
-    elif 10 < num_genes <= 20:
-        fig_length = figure_length if figure_length else 6
-    elif 20 < num_genes <= 50:
-        fig_length = figure_length if figure_length else 8
-    elif 50 < num_genes <= 100:
-        fig_length = figure_length if figure_length else 8
-    elif 100 < num_genes <= 200:
-        fig_length = figure_length if figure_length else 70
-    elif 200 < num_genes <= 400:
-        fig_length = figure_length if figure_length else 90
-    elif num_genes > 400:
-        fig_length = figure_length if figure_length else 120
+    fig_length = figure_length if figure_length else num_genes/4
 
     logger.info(f'{"[INFO]:":10} figure_length: {fig_length} inches, figure_height: {figure_height} inches, '
                 f'sample_text_size: {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
