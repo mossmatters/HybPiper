@@ -1649,12 +1649,15 @@ def check_targetfile_standalone(args):
                                f'sequences with low-complexity regions. The sequence names are printed below. These '
                                f'sequences can cause problems when running HybPiper, '
                                f'see https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
-                               f'-and-recommendations. We recommend one of the following approaches:', width=90,
+                               f'-and-recommendations#12-target-files-with-low-complexity-sequences-troubleshooting. '
+                               f'We recommend one of the following approaches:', width=90,
                                subsequent_indent=" " * 11)
 
         fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
                                f'contains other representative sequences for the corresponding genes. This can be '
-                               f'done manually, or via the command "hybpiper fix_targetfile".', width=90,
+                               f'done manually, or via the command "hybpiper fix_targetfile"'
+                               f' (https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
+                               f'-and-recommendations#14-fixing-and-filtering-your-target-file).', width=90,
                                initial_indent=" " * 11, subsequent_indent=" " * 14)
 
         fill_3 = textwrap.fill(f'2) Start the run using the parameter "--timeout_assemble" (e.g. "--timeout_assemble '
