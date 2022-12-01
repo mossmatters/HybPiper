@@ -346,7 +346,7 @@ def intronerate(exonerate_object,
     intronerate_query_stripped = f'{intronerate_processing_directory}/intronerate_query_stripped.fasta'
     with open(intronerate_query, 'r') as query_handle:
         query = SeqIO.read(query_handle, 'fasta')
-        query.seq = query.seq.ungap('X')
+        query.seq = query.seq.replace('X', '')
         with open(intronerate_query_stripped, 'w') as stripped_handle:
             SeqIO.write(query, stripped_handle, 'fasta')
 
@@ -702,7 +702,7 @@ class Exonerate(object):
                 alignment_seq = ''.join(alignment['hit_annotation'])
                 concatenated_hsp_alignment_seqs.append(alignment_seq)
             hit_seq = SeqRecord(id=unique_hit_name, name=unique_hit_name, description=unique_hit_name,
-                                seq=Seq(''.join(concatenated_hsp_alignment_seqs)).ungap(gap='-'))
+                                seq=Seq(''.join(concatenated_hsp_alignment_seqs)).replace('-', ''))
 
             # Populate nested dictionary for hsp:
             filtered_by_similarity_hsps_dict[unique_hit_name]['query_range'] = query_range
