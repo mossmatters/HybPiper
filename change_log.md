@@ -1,6 +1,6 @@
 # Changelog
 
-**2.1.0** *22nd November, 2022*
+**2.1.0** *1st December, 2022*
 
 - The subcommand `hybpiper check_targetfile` now writes a `*.ctl file`; see wiki for details.
 - Added the new subcommand `hybpiper fix_targetfile`; see wiki for details.
