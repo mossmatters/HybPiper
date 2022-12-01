@@ -344,6 +344,11 @@ def main(args):
     :param argparse.Namespace args:
     """
 
+    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
+                         break_on_hyphens=False)
+    logger.info(f'{fill}\n')
+
     # Check some args:
     columns = ['GenesMapped',
                'GenesWithContigs',

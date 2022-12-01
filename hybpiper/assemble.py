@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.0.3 (November 2022)
+HybPiper Version 2.1.0 (November 2022)
 
 ########################################################################################################################
-############################################## NOTES ON VERSION 2.0.2 ##################################################
+############################################## NOTES ON VERSION 2.1.0 ##################################################
 ########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
@@ -17,7 +17,8 @@ followed by a subcommand to run different parts of the pipeline. The available s
     recovery_heatmap    Create a gene recovery heatmap for the HybPiper run
     paralog_retriever   Retrieve paralog sequences for a given gene, for all samples
     check_dependencies  Run a check for all pipeline dependencies and exit
-    check_targetfile    Check the target file for sequences with low-complexity regions, then exit
+    check_targetfile    Check the target file for issues, then exit
+    fix_targetfile      Fix the target file, then exit
 
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
@@ -73,7 +74,7 @@ import signal
 import cProfile
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
-f'HybPiper requires Python 3.6 or higher.'
+f'HybPiper requires Python 3.7 or higher.'
 
 # Import non-standard-library modules:
 unsuccessful_imports = []
@@ -131,6 +132,7 @@ from hybpiper import hybpiper_stats
 from hybpiper import retrieve_sequences
 from hybpiper import paralog_retriever
 from hybpiper import gene_recovery_heatmap
+from hybpiper import fix_targetfile
 from hybpiper import hybpiper_subparsers
 from hybpiper import utils
 from hybpiper.utils import log_or_print
@@ -241,12 +243,18 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
                  f'unique genes.', logger=logger)
 
 
-def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_target_file=False, logger=None):
+def check_target_file_stop_codons_and_multiple_of_three(targetfile,
+                                                        no_terminal_stop_codons=False,
+                                                        translate_target_file=False,
+                                                        logger=None):
     """
+    Takes a nucleotide target file and checks for unexpected stop codons when seqs are translated in the first
+    forward frame. Also checks whether a seq is a multiple of three (i.e. whole codons only).
 
-    :param targetfile:
-    :param translate_target_file:
-    :param logger:
+    :param str targetfile: path to the targetfile
+    :param bool no_terminal_stop_codons: if True, do not allow a single stop codon at C-terminal end of protein
+    :param bool translate_target_file: if True, nucleotide targetfile will be translated
+    :param logging.Logger logger: a logger object
     :return:
     """
 
@@ -256,7 +264,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
     translated_seqs_to_write = []
     seqs_needed_padding_dict = defaultdict(list)
     seqs_with_stop_codons_dict = defaultdict(list)
-    seqs_with_stop_codon_last_five_amino_acids_dict = defaultdict(list)
+    seqs_with_terminal_stop_codon_dict = defaultdict(list)
 
     if translate_target_file:
         for seq in seqs:
@@ -271,18 +279,23 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
             if needed_padding:
                 seqs_needed_padding_dict[gene_name].append(seq)
 
-            if num_stop_codons == 1 and re.search('[*]', str(translated_seq)[-5:]):
-                seqs_with_stop_codon_last_five_amino_acids_dict[gene_name].append(seq)
+            if num_stop_codons == 0 or \
+                    (num_stop_codons == 1 and
+                     re.search('[*]', str(translated_seq)[-1]) and not
+                     no_terminal_stop_codons):
+                seqs_with_terminal_stop_codon_dict[gene_name].append(seq)
+
             elif num_stop_codons >= 1:
                 seqs_with_stop_codons_dict[gene_name].append(seq)
 
-        if seqs_with_stop_codon_last_five_amino_acids_dict:
+        if seqs_with_terminal_stop_codon_dict:
             seq_list = [seq.name for gene_name, target_file_sequence_list in
-                        seqs_with_stop_codon_last_five_amino_acids_dict.items() for seq in target_file_sequence_list]
+                        seqs_with_terminal_stop_codon_dict.items() for seq in target_file_sequence_list]
             fill = textwrap.fill(
-                f'{"[INFO]:":10} There are {len(seq_list)} sequences in your target file that contain a single stop '
-                f'codon in the last five amino-acids of the C-terminal end. These are: ', width=90,
-                subsequent_indent=' ' * 11)
+                f'{"[INFO]:":10} There are {len(seq_list)} sequences in your target file that contain a single '
+                f'terminal stop codon. Sequence names can be found in the sample log file (if running "hybpiper '
+                f'assemble") or printed below (if running "hybpiper check_targetfile"). ',
+                width=90, subsequent_indent=' ' * 11)
             log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
             fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
                                  subsequent_indent=' ' * 11, break_on_hyphens=False)
@@ -294,8 +307,9 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
             fill = textwrap.fill(
                 f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that contain unexpected '
                 f'stop codons when translated in the first forwards frame. If your target file contains only '
-                f'protein-coding sequences, please check these sequences. Sequence names can be found in the sample '
-                f'log file (if running "hybpiper assemble") or printed below (if running "hybpiper check_targetfile").',
+                f'protein-coding sequences, please check these sequences, and/or run "hybpiper fix_targetfile". '
+                f'Sequence names can be found in the sample log file (if running "hybpiper assemble") or printed '
+                f'below (if running "hybpiper check_targetfile").',
                 width=90, subsequent_indent=' ' * 11)
             log_or_print(f'{fill}\n', logger=logger)
             fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
@@ -307,35 +321,36 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_ta
                         in target_file_sequence_list]
             fill = textwrap.fill(
                 f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not multiples of '
-                f'three. If your target file contains only protein-coding sequences, please check these sequences. '
-                f'Sequence names can be found in the sample log file (if running "hybpiper assemble") or printed '
-                f'below (if running "hybpiper check_targetfile").', width=90, subsequent_indent=' ' * 11)
+                f'three. If your target file contains only protein-coding sequences, please check these sequences, '
+                f'and/or run "hybpiper fix_targetfile". Sequence names can be found in the sample log file (if '
+                f'running "hybpiper assemble") or printed below (if running "hybpiper check_targetfile").',
+                width=90, subsequent_indent=' ' * 11)
             log_or_print(f'{fill}\n', logger=logger)
             fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
                                  subsequent_indent=' ' * 11, break_on_hyphens=False)
             log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
 
-    return translated_seqs_to_write
+    return translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict
 
 
-def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
+def check_targetfile(targetfile, targetfile_type, using_bwa, basedir, basename, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     - Checks for duplicate gene names in the targetfile.
     - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
     - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
       three, no unexpected stop codons), and logs a warning if not.
-    - If targetfile is DNA but using_bwa is False, translate the targetfile and return the list of seqs instead
+    - If targetfile is DNA but using_bwa is False, translate the targetfile, write it to the sample directory with
+    name 'translated_target_file.fasta', and return the path
 
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
+    :param str basedir: path to the sample prefix base directory (if provided as part of --prefix string)
+    :param str basename: name of the sample directory
     :param logging.Logger logger: a logger object
-    :return: str, list: path to targetfile or list of translated seqs
+    :return: None, str: NoneType or path to the translated targetfile
     """
-
-    target_file_path, target_file_name = os.path.split(targetfile)
-    file_name, ext = os.path.splitext(target_file_name)
 
     # Check target file header and duplicate gene names:
     check_target_file_headers_and_duplicate_names(targetfile, logger=logger)
@@ -354,13 +369,23 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, logger=None):
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
     if using_bwa or translate_target_file:  # i.e. it's not a protein file
-        translated_seqs_to_write = check_target_file_stop_codons_and_multiple_of_three(
-            targetfile,
-            translate_target_file=True,  # Set manually
-            logger=logger)
+        translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict = \
+            check_target_file_stop_codons_and_multiple_of_three(targetfile,
+                                                                translate_target_file=True,  # Set manually
+                                                                logger=logger)
 
         if translate_target_file:
-            return translated_seqs_to_write
+            sample_directory_path = os.path.join(basedir, basename)
+            translated_target_file = f'{sample_directory_path}/translated_target_file.fasta'
+            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                            f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
+                                            break_long_words=False, break_on_forward_slash=True)
+            logger.info(f'{fill}')
+
+            with open(f'{translated_target_file}', 'w') as translated_handle:
+                SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+
+            targetfile = 'translated_target_file.fasta'  # i.e. use translated file name for return value
 
     return targetfile
 
@@ -420,7 +445,7 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
     else:
         raise ValueError(f'Can not determine whether {readfiles} is single-end, paired-end or unpaired!')
 
-    bwa_commands = ['time bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
+    bwa_commands = ['bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
     if unpaired:
         bwa_commands.append(f'{basename}_unpaired.bam')
     else:
@@ -469,62 +494,50 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
     :return: None, or path to *.blastx output file from DIAMOND/BLASTx searches of sample reads vs targetfile
     """
 
-    translated_target_file_name = 'translated_target_file.fasta'
-
-    try:
+    if os.path.isfile('translated_target_file.fasta'):  # i.e. a nucleotide target file was provided but not --bwa
+        targetfile_basename = 'translated_target_file.fasta'
+    else:  # i.e. a protein target file was provided
         targetfile_basename = os.path.basename(targetfile)
-    except TypeError:  # i.e. it's a list of translated seqs not a path
-        targetfile_basename = translated_target_file_name
 
-    if os.path.isfile(f'{targetfile_basename}.psq'):
-        db_file = targetfile_basename
-        logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
-    elif os.path.isfile(f'{targetfile_basename}.diamond'):
-        db_file = targetfile_basename
-        logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
-    else:
-        logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
-        try:
+    if os.path.isfile(targetfile):
+        if os.path.isfile(f'{targetfile_basename}.psq'):
+            db_file = targetfile_basename
+            logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
+        elif os.path.isfile(f'{targetfile_basename}.diamond'):
+            db_file = targetfile_basename
+            logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
+        else:
+            logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
             if os.path.split(targetfile)[0]:
                 shutil.copy(targetfile, '.')
-        except TypeError:  # i.e. it's a list of translated seqs not a path
-            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                            f' {os.getcwd()}/{translated_target_file_name}',
-                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
-                                            break_on_forward_slash=True)
+            db_file = os.path.split(targetfile)[1]
+            if diamond:
+                logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
+                if diamond_sensitivity:
+                    logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
+                makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
+            else:
+                makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
+
+            fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
+                                 break_long_words=False, break_on_hyphens=False)
             logger.info(f'{fill}')
 
-            with open(f'{translated_target_file_name}', 'w') as translated_handle:
-                SeqIO.write(targetfile, translated_handle, 'fasta')
+            try:
+                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        universal_newlines=True, check=True)
+                logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
+                logger.debug(f'makeblastdb stdout is: {result.stdout}')
+                logger.debug(f'makeblastdb stderr is: {result.stderr}')
 
-                targetfile = translated_target_file_name  # i.e. use translated file path
-
-        db_file = os.path.split(targetfile)[1]
-
-        if diamond:
-            logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
-            if diamond_sensitivity:
-                logger.info(f'{"[INFO]:":10} Using DIAMOND sensitivity "{diamond_sensitivity}"')
-            makeblastdb_cmd = f'diamond makedb --in {db_file} --db {db_file}'
-        else:
-            makeblastdb_cmd = f'makeblastdb -dbtype prot -in {db_file}'
-
-        fill = textwrap.fill(f'{"[CMD]:":10} {makeblastdb_cmd}', width=90, subsequent_indent=' ' * 11,
-                             break_long_words=False, break_on_hyphens=False)
-        logger.info(f'{fill}')
-
-        try:
-            result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True, check=True)
-            logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
-            logger.debug(f'makeblastdb stdout is: {result.stdout}')
-            logger.debug(f'makeblastdb stderr is: {result.stderr}')
-
-        except subprocess.CalledProcessError as exc:
-            logger.error(f'makeblastdb FAILED. Output is: {exc}')
-            logger.error(f'makeblastdb stdout is: {exc.stdout}')
-            logger.error(f'makeblastdb stderr is: {exc.stderr}')
-            return None
+            except subprocess.CalledProcessError as exc:
+                logger.error(f'makeblastdb FAILED. Output is: {exc}')
+                logger.error(f'makeblastdb stdout is: {exc.stdout}')
+                logger.error(f'makeblastdb stderr is: {exc.stderr}')
+                return None
+    else:
+        logger.error(f'Cannot find target file at: {targetfile}')
+        return None
 
     # Remove previous blast results if they exist (because we will be appending to the *.blastx output file)
     if os.path.isfile(f'{basename}.blastx'):
@@ -550,7 +563,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
                              f' {max_target_seqs}'
 
-        full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
+        full_command = f"{pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
                        f" {basename}_unpaired.blastx"
 
         fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
@@ -593,7 +606,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
                                  f' {max_target_seqs}'
 
-            full_command = f"time {pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
+            full_command = f"{pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
                            f"'{blastx_command}' >> {basename}.blastx"
 
             fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
@@ -617,7 +630,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
 
 
 def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None,
-                      merged=False, hi_mem=False, logger=None):
+                      merged=False, low_mem=False, logger=None):
     """
     When using blastx, distribute sample reads to their corresponding target file hits.
 
@@ -629,13 +642,10 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
-    :param bool hi_mem: If True, reads to distribute will be saved in a dictionary and written once; used more RAM
+    :param bool low_mem: If False, reads to distribute will be saved in a dictionary and written once; uses more RAM
     :param logging.Logger logger: a logger object
     :return: None
     """
-
-    if isinstance(targetfile, list):
-        targetfile = 'translated_target_file.fasta'
 
     # Distribute reads to gene directories:
     read_hit_dict = distribute_reads_to_targets.read_sorting_blastx(blastx_outputfile)
@@ -652,7 +662,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
-                                                 hi_mem=hi_mem)
+                                                 low_mem=low_mem)
 
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
@@ -660,7 +670,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
+                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
@@ -683,7 +693,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
 
 
 def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None, merged=False,
-                   hi_mem=False, logger=None):
+                   low_mem=False, logger=None):
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
 
@@ -698,7 +708,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
-    :param bool hi_mem: If True, reads to distribute will be saved in a dictionary and written once; used more RAM
+    :param bool low_mem: If False, reads to distribute will be saved in a dictionary and written once; uses more RAM
     :param logging.Logger logger: a logger object
     :return: None
     """
@@ -719,7 +729,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
-                                                 hi_mem=hi_mem)
+                                                 low_mem=low_mem)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
@@ -727,7 +737,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile, hi_mem=hi_mem)
+                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:  # i.e. a target name or file of name is specified manually
@@ -1163,6 +1173,7 @@ def assemble(args):
     fill = textwrap.fill(' '.join(sys.argv), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
+    logger.debug(args)
 
     # Get number of cpus/threads for pipeline:
     if args.cpu:
@@ -1185,7 +1196,7 @@ def assemble(args):
     ####################################################################################################################
     # Check read and target files
     ####################################################################################################################
-    # Set target file type and path, and check it exists and isn't empty::
+    # Set target file type and path, and check it exists and isn't empty:
     if args.targetfile_dna:
         targetfile = os.path.abspath(args.targetfile_dna)
         targetfile_type = 'DNA'
@@ -1236,6 +1247,8 @@ def assemble(args):
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,
+                                  basedir,
+                                  basename,
                                   logger=logger)
 
     ####################################################################################################################
@@ -1338,10 +1351,10 @@ def assemble(args):
 
         if args.bwa:
             distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
-                           merged=args.merged, hi_mem=args.distribute_hi_mem, logger=logger)
+                           merged=args.merged, low_mem=args.distribute_low_mem, logger=logger)
         else:  # distribute BLASTx results
             distribute_blastx(blastx_outputfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
-                              merged=args.merged, hi_mem=args.distribute_hi_mem, logger=logger)
+                              merged=args.merged, low_mem=args.distribute_low_mem, logger=logger)
 
     # Note that HybPiper expects either paired-end readfiles (parameter --readfiles) and an optional file of unpaired
     #  reads (parameter --unpaired), or a single file of unpaired reads (parameter --readfiles). For each scenario,
@@ -1569,9 +1582,14 @@ def check_targetfile_standalone(args):
     Performs targetfile checks. Does not translate a DNA file; low-complexity checks are performed on the target file
     as provided.
 
-    :param args: argparse namespace with subparser options for function check_targetfile()
+    :param args: argparse namespace with subparser options for function check_targetfile_standalone()
     :return: None: no return value specified; default is None
     """
+
+    print(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
+                         break_on_hyphens=False)
+    print(f'{fill}\n')
 
     # Set target file type and path:
     if args.targetfile_dna:
@@ -1587,8 +1605,11 @@ def check_targetfile_standalone(args):
     check_target_file_headers_and_duplicate_names(targetfile, logger=args.logger)
 
     # Check that seqs in target file can be translated from the first codon position in the forwards frame:
-    check_target_file_stop_codons_and_multiple_of_three(targetfile, translate_target_file=translate_target_file,
-                                                        logger=None)
+    translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict = \
+        check_target_file_stop_codons_and_multiple_of_three(targetfile,
+                                                            no_terminal_stop_codons=args.no_terminal_stop_codons,
+                                                            translate_target_file=translate_target_file,
+                                                            logger=None)
     low_complexity_sequences = None
 
     if targetfile_type == 'DNA':
@@ -1602,24 +1623,26 @@ def check_targetfile_standalone(args):
                              subsequent_indent=" " * 11)
         print(fill)
 
-        low_complexity_sequences = utils.low_complexity_check(targetfile,
-                                                              targetfile_type,
-                                                              translate_target_file=False,
-                                                              window_size=args.sliding_window_size,
-                                                              entropy_value=args.complexity_minimum_threshold,
-                                                              logger=args.logger)
+        low_complexity_sequences, window_size, entropy_value = \
+            utils.low_complexity_check(targetfile,
+                                       targetfile_type,
+                                       translate_target_file=False,
+                                       window_size=args.sliding_window_size,
+                                       entropy_value=args.complexity_minimum_threshold,
+                                       logger=args.logger)
     elif targetfile_type == 'protein':
         fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing protein '
                              f'sequences. These protein sequences will be checked for low-complexity regions', width=90,
                              subsequent_indent=" " * 11)
         print(fill)
 
-        low_complexity_sequences = utils.low_complexity_check(targetfile,
-                                                              targetfile_type,
-                                                              translate_target_file=False,
-                                                              window_size=args.sliding_window_size,
-                                                              entropy_value=args.complexity_minimum_threshold,
-                                                              logger=args.logger)
+        low_complexity_sequences, window_size, entropy_value = \
+            utils.low_complexity_check(targetfile,
+                                       targetfile_type,
+                                       translate_target_file=False,
+                                       window_size=args.sliding_window_size,
+                                       entropy_value=args.complexity_minimum_threshold,
+                                       logger=args.logger)
 
     if low_complexity_sequences:
         fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
@@ -1630,7 +1653,8 @@ def check_targetfile_standalone(args):
                                subsequent_indent=" " * 11)
 
         fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-                               f'contains other representative sequences for the corresponding genes.', width=90,
+                               f'contains other representative sequences for the corresponding genes. This can be '
+                               f'done manually, or via the command "hybpiper fix_targetfile".', width=90,
                                initial_indent=" " * 11, subsequent_indent=" " * 14)
 
         fill_3 = textwrap.fill(f'2) Start the run using the parameter "--timeout_assemble" (e.g. "--timeout_assemble '
@@ -1648,6 +1672,27 @@ def check_targetfile_standalone(args):
     else:
         print(f'{"[INFO]:":10} No sequences with low-complexity regions found.')
 
+    # Write a control file with current settings and any low-complexity sequence names; used as input to `hybpiper
+    # fix_targetfile`:
+    utils.write_fix_targetfile_controlfile(targetfile_type,
+                                           translate_target_file,
+                                           args.no_terminal_stop_codons,
+                                           low_complexity_sequences,
+                                           window_size,
+                                           entropy_value)
+
+
+def fix_targetfile_standalone(args):
+    """
+    Calls the function main() from module fix_targetfile
+
+    :param args: argparse namespace with subparser options for function fix_targetfile_standalone()
+    :return: None: no return value specified; default is None
+    :return: None: no return value specified; default is None
+    """
+
+    fix_targetfile.main(args)
+
 
 def parse_arguments():
     """
@@ -1664,7 +1709,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.0.3',
+                         version='%(prog)s 2.1.0',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
@@ -1676,6 +1721,7 @@ def parse_arguments():
     parser_gene_recovery_heatmap = hybpiper_subparsers.add_gene_recovery_heatmap_parser(subparsers)
     parser_check_dependencies = hybpiper_subparsers.add_check_dependencies_parser(subparsers)
     parser_check_targetfile = hybpiper_subparsers.add_check_targetfile_parser(subparsers)
+    parser_fix_targetfile = hybpiper_subparsers.add_fix_targetfile_parser(subparsers)
 
     # Set functions for subparsers:
     parser_assemble.set_defaults(func=assemble)
@@ -1685,6 +1731,7 @@ def parse_arguments():
     parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
     parser_check_dependencies.set_defaults(func=check_dependencies)
     parser_check_targetfile.set_defaults(func=check_targetfile_standalone)
+    parser_fix_targetfile.set_defaults(func=fix_targetfile_standalone)
 
     # Parse and return all arguments:
     arguments = parser.parse_args()

@@ -14,6 +14,7 @@ import sys
 import argparse
 import os
 import logging
+import textwrap
 
 # Import non-standard-library modules:
 
@@ -86,7 +87,7 @@ def get_figure_dimensions(df, figure_length, figure_height, sample_text_size, ge
     # Set figure length dimensions for a given number of genes (i.e. number of unique genes in target file):
     fig_length = figure_length if figure_length else num_genes / 3
 
-    logger.info(f'{"[INFO]:":10} figure_length: {fig_length} inches, figure_height: {figure_height} inches, '
+    logger.info(f'{"[INFO]:":10} figure_length: {fig_length:.2f} inches, figure_height: {figure_height:.2f} inches, '
                 f'sample_text_size: {sample_text_size} points, gene_id_text_size: {gene_id_text_size} points')
 
     return fig_length, figure_height, sample_text_size, gene_id_text_size
@@ -147,7 +148,10 @@ def main(args):
     :param argparse.Namespace args:
     """
 
-    # logger.info(f'Running {__name__} with: {args}')
+    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
+                         break_on_hyphens=False)
+    logger.info(f'{fill}\n')
 
     if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
         logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')

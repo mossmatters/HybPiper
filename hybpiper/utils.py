@@ -19,6 +19,8 @@ import sys
 import io
 import pstats
 import cProfile
+import argparse
+import progressbar
 
 
 def log_or_print(string, logger=None, logger_level='info'):
@@ -208,8 +210,15 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
     :param int or None window_size: number of characters to include in the sliding window
     :param float or None entropy_value: entropy threshold within sliding window
     :param logging.Logger logger: a logger object
-    :return set low_entropy_seqs: a set of sequences that contain low entropy substrings
+    :return set low_entropy_seqs, int window_size, float entropy_value: a set of sequences that contain low entropy
+    substrings, an integer corresponding to sliding window size, a float corresponding to the entropy value threshold
     """
+
+    # Set widget format for progressbar:
+    widgets = [' ' * 11,
+               progressbar.Timer(),
+               progressbar.Bar(),
+               progressbar.ETA()]
 
     if targetfile_type == 'DNA' and not translate_target_file:
         entropy_value = entropy_value if entropy_value else 1.5
@@ -232,16 +241,23 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
     log_or_print(fill_3, logger=logger)
     log_or_print(fill_4, logger=logger)
 
+    total_seqs = [seq for seq in SeqIO.parse(targetfile, "fasta")]
+    # for seq in SeqIO.parse(targetfile, "fasta"):
+    #     total_number_of_seqs += 1
+
     low_entropy_seqs = set()
-    for seq in SeqIO.parse(targetfile, "fasta"):
-        for i in range(0, len(seq.seq) - (window_size - 1)):
-            window_seq = str(seq.seq[i:i + window_size])
+    for sequence in progressbar.progressbar(total_seqs, max_value=len(total_seqs), min_poll_interval=30,
+                                            widgets=widgets):
+
+    # for seq in SeqIO.parse(targetfile, "fasta"):
+        for i in range(0, len(sequence.seq) - (window_size - 1)):
+            window_seq = str(sequence.seq[i:i + window_size])
             window_shannon_entropy = shannon_entropy(window_seq)
             if window_shannon_entropy <= entropy_value:
-                low_entropy_seqs.add(seq.name)
+                low_entropy_seqs.add(sequence.name)
                 break
 
-    return low_entropy_seqs
+    return low_entropy_seqs, window_size, entropy_value
 
 
 def pad_seq(sequence):
@@ -291,7 +307,8 @@ def check_dependencies(logger=None):
                    'samtools',
                    'bbmap.sh',
                    'bbmerge.sh',
-                   'diamond']
+                   'diamond',
+                   'mafft']
 
     log_or_print(f'{"[INFO]:":10} Checking for external dependencies:\n', logger=logger)
 
@@ -379,9 +396,7 @@ def cprofile_to_csv(profile_binary_file):
     """
     Takes a cProfile.Profile object, converts it to human-readable format, and returns the data in *.csv format for
     writing to file.
-
     From: https://gist.github.com/ralfstx/a173a7e4c37afa105a66f371a09aa83e
-
     :param cProfile.Profile profile_binary_file: a cProfile.Profile object
     :return str: human-readable data from the cProfile run, in *.csv format
     """
@@ -394,3 +409,67 @@ def cprofile_to_csv(profile_binary_file):
 
     return '\n'.join(lines)
 
+
+def write_fix_targetfile_controlfile(targetfile_type,
+                                     translate_target_file,
+                                     no_terminal_stop_codons,
+                                     low_complexity_sequences,
+                                     sliding_window_size,
+                                     complexity_minimum_threshold):
+    """
+    Write a control file with settings and seqs to remove, as output from the command `hybpiper check_targetfile`.
+
+    :param str targetfile_type:
+    :param bool translate_target_file:
+    :param bool no_terminal_stop_codons:
+    :param lists / None low_complexity_sequences:
+    :param int sliding_window_size:
+    :param float complexity_minimum_threshold:
+    """
+
+    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+
+    low_complexity_sequences_to_remove = '\t'.join(low_complexity_sequences) if low_complexity_sequences else None
+
+    with open(f'fix_targetfile_{date_and_time}.ctl', 'w') as targetfile_control_handle:
+        targetfile_control_handle.write(f'TARGETFILE_TYPE\t{targetfile_type}\n')
+        targetfile_control_handle.write(f'TRANSLATE_TARGET_FILE\t{translate_target_file}\n')
+        targetfile_control_handle.write(f'NO_TERMINAL_STOP_CODONS\t{no_terminal_stop_codons}\n')
+        targetfile_control_handle.write(f'SLIDING_WINDOW_SIZE\t{sliding_window_size}\n')
+        targetfile_control_handle.write(f'COMPLEXITY_MINIMUM_THRESHOLD\t{complexity_minimum_threshold}\n')
+        targetfile_control_handle.write(f'ALLOW_GENE_REMOVAL\tFalse\n')
+        targetfile_control_handle.write(f'LOW_COMPLEXITY_SEQUENCES\t{low_complexity_sequences_to_remove}\n')
+
+    print(f'\n{"[INFO]:":10} The control file required for command "hybpiper fix_targetfile" has been written to\n'
+          f'           "fix_targetfile_{date_and_time}.ctl".')
+
+
+def restricted_float(input_float):
+    """
+    Checks that a provided value is a float within the range 0.0 to 1.0
+
+    From: https://stackoverflow.com/questions/12116685/\
+    how-can-i-require-my-python-scripts-argument-to-be-a-float-in
+    -a-range-using-arg
+    """
+
+    try:
+        input_float = float(input_float)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'{input_float} not a floating-point literal')
+
+    if input_float < 0.0 or input_float > 1.0:
+        raise argparse.ArgumentTypeError(f'{input_float} not in range [0.0, 1.0]')
+
+    return input_float
+
+
+def createfolder(directory):
+    """
+    Attempts to create a directory named after the name provided, and provides an error message on failure
+    """
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print(f'Error: Creating directory: {directory}')

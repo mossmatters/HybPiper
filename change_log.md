@@ -1,5 +1,14 @@
 # Changelog
 
+**2.1.0** *22nd November, 2022*
+
+- The subcommand `hybpiper check_targetfile` now writes a `*.ctl file`; see wiki for details.
+- Added the new subcommand `hybpiper fix_targetfile`; see wiki for details.
+- New dependency: MAFFT. Used for optional alignments when running `hybpiper fix_targetfile`; see wiki for details.
+- The flag `---distribute_high_mem` has been changed to `--distribute_low_mem` for subcommand `hybpiper assemble`.  Default is off, i.e., reads are now distributed using the faster, more memory intensive approach.
+- The `time` command has been removed from all BWA and BLAST command strings (see https://github.com/mossmatters/HybPiper/issues/89).
+- Update minimum Python version from 3.6 to 3.7, to match minimum requirements for Biopython 1.80 release.
+
 **2.0.3** *16th November, 2022*
 
 - The calculation for automatically determining the default heatmap dimensions has been changed, to prevent label trimming when using large numbers of samples and genes (pull request from LPDagallier).
@@ -7,7 +16,7 @@
 
 **2.0.2** *14th November, 2022*
 
-- Added the `--run_profiler` to the `check_dependencies` subcommand (bugfix). 
+- Added the `--run_profiler` flag to the `check_dependencies` subcommand (bugfix). 
 - Moved to correct semantic versioning; removed the 'release candidate build x' string from version description, and bumped to version 2.0.2.
 
 **2.0.1 release candidate build 13** *12th September, 2022*

@@ -1,6 +1,6 @@
 # HybPiper
 
-Current version: 2.0.3 (November 2022)
+Current version: 2.1.0 (December 2022)
 
 [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
 
@@ -34,7 +34,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 
 ---
 # Dependencies
-* [Python](https://www.python.org/downloads/) 3.6 or later, along with the Python libraries:
+* [Python](https://www.python.org/downloads/) 3.7 or later, along with the Python libraries:
     * [seaborn](https://seaborn.pydata.org/installing.html)
     * [matplotlib](https://matplotlib.org/stable/users/getting_started/)
     * [pebble](https://github.com/noxdafox/pebble). The conda install can be found [here](https://anaconda.org/conda-forge/pebble)
@@ -51,11 +51,15 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 * [SPAdes](http://bioinf.spbau.ru/en/spades) 3.15.0
 * [GNU Parallel](http://www.gnu.org/software/parallel/)
 * [samtools](http://www.htslib.org/) 1.14
+* [MAFFT](https://mafft.cbrc.jp/alignment/software/). ***New requirement for HybPiper version 2.1.0***
 
 #### NOTE: 
-Biopython 1.80 has not been released yet, but you can install an in-progress version by cloning the repository from https://github.com/biopython/biopython and following the instructions under the heading 'Installation from Source' [here](https://biopython.org/wiki/Download).
 
-Biopython 1.80 is required as it contains bug fixes for the SearchIO module that HybPiper 2.0 uses to parse output from Exonerate. Note that version 1.80 is bundled with the conda installation of HybPiper.
+Biopython 1.80 is required as it contains bug fixes for the SearchIO module that HybPiper 2.0 uses to parse output from Exonerate.
+
+**Update 01/12/2022:** Biopython 1.80 has now been released, and is available as a conda install [here](https://anaconda.org/conda-forge/biopython).
+
+Prior to this release, HybPiper users needed to install an in-progress version by cloning the repository from https://github.com/biopython/biopython and following the instructions under the heading 'Installation from Source' [here](https://biopython.org/wiki/Download). Alternatively, the HybPiper conda package for all versions prior to 2.1.0 includes pre-release Biopython version 1.80.dev0; note that this **causes problems** if the user then installs Biopython 1.79 via conda in the HybPiper conda environment. The HybPiper conda package for version 2.1.0 now uses the conda Biopython 1.80 release package. 
 
 ---
 # Setup
@@ -117,6 +121,15 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 -----
 # Changelog
+
+**2.1.0** *November, 2022*
+
+Added the new subcommand `fix_targetfile`. Assists with filtering target file sequences based on length and sequence complexity, and in ensuring sequences are in the correct reading frame (the latter for nucleotide target files only). For a full list of changes see the [changelog](https://github.com/mossmatters/HybPiper/blob/master/change_log.md).
+
+***New dependencies***:
+
+- MAFFT
+
 
 **2.0 release candidate** *May, 2022*
 

@@ -203,7 +203,7 @@ def write_single_seqs_once(target, read_list):
             outfile.write(f'>{ID1}\n{Seq1}\n')
 
 
-def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=None, single_end=False, hi_mem=False):
+def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=None, single_end=False, low_mem=False):
     """
 
     :param list readfiles: a list of one or more readfiles
@@ -211,18 +211,18 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
     :param bool merged: boolean passed to function write_paired_seqs()
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param bool single_end: True if a single file was provided as input to -r, False if not
-    :param bool hi_mem: If True, reads to distribute will be saved in a dictionary and written once; used more RAM
+    :param bool low_mem: If False, reads to distribute will be saved in a dictionary and written once; uses more RAM
     :return:
     """
 
     if merged:
         logger.info(f'{"[NOTE]:":10} Writing fastq files for merging with BBmerge.sh')
 
-    if hi_mem:
-        logger.info(f'{"[NOTE]:":10} Read distribution running in hi-mem mode; note that this can use much more '
-                    f'memory/RAM!')
+    if low_mem:
+        logger.info(f'{"[NOTE]:":10} Read distribution running in low-mem mode; note that this can use less '
+                    f'memory/RAM, but is slower!')
 
-    gene_2_reads_dict = defaultdict(list)  # created regardless of hi_mem mode
+    gene_2_reads_dict = defaultdict(list)  # created regardless of low_mem mode
 
     num_reads_in_readfile = 0
 
@@ -252,7 +252,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
                     ID1 = ID1[:-2]
                 if ID1 in read_hit_dict:
                     for target in read_hit_dict[ID1]:
-                        if not hi_mem:
+                        if low_mem:
                             write_single_seqs(target, ID1, Seq1)
                         else:
                             gene_2_reads_dict[target].append((ID1, Seq1))
@@ -266,7 +266,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
             logger.error(f'{fill}')
             sys.exit()
 
-        if hi_mem:
+        if not low_mem:
             for target, read_list in gene_2_reads_dict.items():
                 write_single_seqs_once(target, read_list)
 
@@ -286,7 +286,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
                     ID1 = ID1[:-2]
                 if ID1 in read_hit_dict:
                     for target in read_hit_dict[ID1]:
-                        if not hi_mem:
+                        if low_mem:
                             write_single_seqs(target, ID1, Seq1)
                         else:
                             gene_2_reads_dict[target].append((ID1, Seq1))
@@ -300,7 +300,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
             logger.error(f'{fill}')
             sys.exit()
 
-        if hi_mem:
+        if not low_mem:
             for target, read_list in gene_2_reads_dict.items():
                 write_single_seqs_once(target, read_list)
 
@@ -334,14 +334,14 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
                     ID2 = ID2[:-2]
                 if ID1 in read_hit_dict:
                     for target in read_hit_dict[ID1]:
-                        if not hi_mem:
+                        if low_mem:
                             write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
                             # Note that read pairs can get written to multiple targets
                         else:
                             gene_2_reads_dict[target].append((ID1, Seq1, Qual1, ID2, Seq2, Qual2))
                 elif ID2 in read_hit_dict:
                     for target in read_hit_dict[ID2]:
-                        if not hi_mem:
+                        if low_mem:
                             write_paired_seqs(target, ID1, Seq1, Qual1, ID2, Seq2, Qual2, merged=merged)
                         else:
                             gene_2_reads_dict[target].append((ID1, Seq1, Qual1, ID2, Seq2, Qual2))
@@ -355,7 +355,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
             logger.error(f'{fill}')
             sys.exit()
 
-        if hi_mem:
+        if not low_mem:
             for target, read_list in gene_2_reads_dict.items():
                 write_paired_seqs_once(target, read_list, merged=merged)
 

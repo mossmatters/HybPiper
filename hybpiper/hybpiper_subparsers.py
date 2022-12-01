@@ -54,13 +54,13 @@ def add_assemble_parser(subparsers):
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
                          default=False,
-                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing DNA target sequences for each gene. The fasta headers must '
+                              'follow the naming convention: >TaxonID-geneName')
     group_1.add_argument('--targetfile_aa', '-t_aa',
                          dest='targetfile_aa',
                          default=False,
-                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
+                              'must follow the naming convention: >TaxonID-geneName')
     group_2 = parser_assemble.add_mutually_exclusive_group()
     group_2.add_argument('--bwa',
                          dest='bwa',
@@ -89,11 +89,11 @@ def add_assemble_parser(subparsers):
                                  type=int,
                                  default=0,
                                  help='Limit the number of CPUs. Default is to use all cores available.')
-    parser_assemble.add_argument('--distribute_hi_mem',
+    parser_assemble.add_argument('--distribute_low_mem',
                                  action='store_true',
                                  default=False,
                                  help='Distributing and writing reads to individual gene directories will be 40-50 '
-                                      'percent faster, but can use more memory/RAM with large input files (see wiki)')
+                                      'percent slower, but can use less memory/RAM with large input files (see wiki)')
     parser_assemble.add_argument('--evalue',
                                  type=float,
                                  default=1e-4,
@@ -210,8 +210,8 @@ def add_assemble_parser(subparsers):
                                  dest='no_padding_supercontigs',
                                  default=False)
     parser_assemble.add_argument('--verbose_logging',
-                                 help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
-                                      'files by an order of magnitude.',
+                                 help='If supplied, enable verbose logging. NOTE: this can increase the size of the '
+                                      'log files by an order of magnitude.',
                                  action='store_true',
                                  dest='verbose_logging',
                                  default=False)
@@ -240,13 +240,13 @@ def add_stats_parser(subparsers):
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
                          default=False,
-                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing DNA target sequences for each gene. The fasta headers must '
+                              'follow the naming convention: >TaxonID-geneName')
     group_1.add_argument('--targetfile_aa', '-t_aa',
                          dest='targetfile_aa',
                          default=False,
-                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
+                              'must follow the naming convention: >TaxonID-geneName')
     parser_stats.add_argument("sequence_type",
                               help="Sequence type (gene or supercontig) to recover lengths for",
                               choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
@@ -282,13 +282,13 @@ def add_retrieve_sequences_parser(subparsers):
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
                          default=False,
-                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing DNA target sequences for each gene. The fasta headers must '
+                              'follow the naming convention: >TaxonID-geneName')
     group_1.add_argument('--targetfile_aa', '-t_aa',
                          dest='targetfile_aa',
                          default=False,
-                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
+                              'must follow the naming convention: >TaxonID-geneName')
     parser_retrieve_sequences.add_argument('--sample_names',
                                            help='Directory containing Hybpiper output OR a file containing HybPiper '
                                                 'output names, one per line',
@@ -349,14 +349,14 @@ def add_paralog_retriever_parser(subparsers):
                          dest='targetfile_dna',
                          default=False,
                          help='FASTA file containing DNA target sequences for each gene. Used to extract unique gene '
-                              'names for paralog recovery. If there are multiple targets for a gene, the id must be '
-                              'of the form: >Taxon-geneName')
+                              'names for paralog recovery. The fasta headers must follow the naming convention: '
+                              '>TaxonID-geneName')
     group_1.add_argument('--targetfile_aa', '-t_aa',
                          dest='targetfile_aa',
                          default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. Used to extract '
-                              'unique gene names for paralog recovery. If there are multiple targets for a gene, '
-                              'the id must be of the form: >Taxon-geneName')
+                              'unique gene names for paralog recovery. The fasta headers must follow the naming '
+                              'convention: >TaxonID-geneName')
     parser_paralog_retriever.add_argument('--fasta_dir_all',
                                           help='Specify directory for output FASTA files (ALL). Default is '
                                                '"paralogs_all".',
@@ -411,7 +411,7 @@ def add_paralog_retriever_parser(subparsers):
     parser_paralog_retriever.add_argument('--heatmap_dpi',
                                           type=int,
                                           help='Dots per inch (DPI) for the output heatmap image. Default is 300',
-                                          default='300')
+                                          default='150')
     parser_paralog_retriever.add_argument('--run_profiler',
                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
                                                'of results',
@@ -515,30 +515,34 @@ def add_check_targetfile_parser(subparsers):
     """
 
     parser_check_target_file = subparsers.add_parser('check_targetfile',
-                                                     help='Check the target file for sequences with low-complexity '
-                                                          'regions, then exit')
+                                                     help='Check the target file for issues, then exit')
     group_1 = parser_check_target_file.add_mutually_exclusive_group(required=True)
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
                          default=False,
-                         help='FASTA file containing DNA target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing DNA target sequences for each gene. The fasta headers must '
+                              'follow the naming convention: >TaxonID-geneName')
     group_1.add_argument('--targetfile_aa', '-t_aa',
                          dest='targetfile_aa',
                          default=False,
-                         help='FASTA file containing amino-acid target sequences for each gene. If there are multiple '
-                              'targets for a gene, the id must be of the form: >Taxon-geneName')
+                         help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
+                              'must follow the naming convention: >TaxonID-geneName')
+    parser_check_target_file.add_argument('--no_terminal_stop_codons', action='store_true', default=False,
+                                          help='When testing for open reading frames, do not allow a translated frame '
+                                               'to have a single stop codon at the C-terminus of the translated '
+                                               'protein sequence. Default is False.')
     parser_check_target_file.add_argument('--sliding_window_size',
                                           type=int,
                                           default=None,
                                           help='Number of characters (single-letter DNA or amino-acid codes) to '
-                                               'include in the sliding window for low-complexity check')
+                                               'include in the sliding window when checking for sequences with '
+                                               'low-complexity-regions.')
     parser_check_target_file.add_argument('--complexity_minimum_threshold',
                                           type=float,
                                           default=None,
                                           help='Minimum threshold value. Beneath this value, the sequence in the '
-                                               'sliding window is flagged as low-complexity, and the corresponding '
-                                               'target file sequence is reported as having low-complexity regions ')
+                                               'sliding window is flagged as low complexity, and the corresponding '
+                                               'target file sequence is reported as having low-complexity regions.')
     parser_check_target_file.add_argument('--run_profiler',
                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
                                                'of results',
@@ -551,3 +555,110 @@ def add_check_targetfile_parser(subparsers):
 
     return parser_check_target_file
 
+
+def add_fix_targetfile_parser(subparsers):
+    """
+    Parser for fix_targetfile
+
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
+    """
+
+    parser_fix_target_file = subparsers.add_parser('fix_targetfile',
+                                                   help='Fix and filter the target file, then exit')
+    group_1 = parser_fix_target_file.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--targetfile_dna', '-t_dna',
+                         dest='targetfile_dna',
+                         default=False,
+                         help='FASTA file containing DNA target sequences for each gene. The fasta headers must '
+                              'follow the naming convention: >TaxonID-geneName')
+    group_1.add_argument('--targetfile_aa', '-t_aa',
+                         dest='targetfile_aa',
+                         default=False,
+                         help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
+                              'must follow the naming convention: >TaxonID-geneName')
+    parser_fix_target_file.add_argument('control_file',
+                                        help='The *.ctl file, as output by the command "hybpiper check_targetfile".')
+    parser_fix_target_file.add_argument('--no_terminal_stop_codons',
+                                        action='store_true',
+                                        default=False,
+                                        help='When testing for open reading frames, do not allow a translated frame '
+                                             'to have a single stop codon at the C-terminus of the translated '
+                                             'protein sequence. Default is False. If supplied, this parameter will '
+                                             'override the setting in the *.ctl file.')
+    parser_fix_target_file.add_argument('--allow_gene_removal',
+                                        action='store_true',
+                                        default=False,
+                                        help='Allow frame-correction and filtering steps to remove all representative '
+                                             'sequences for a given gene. Default is False; HybPiper will exit with an '
+                                             'information message instead. If supplied, this parameter will '
+                                             'override the setting in the *.ctl file.')
+    parser_fix_target_file.add_argument('--reference_protein_file',
+                                        default=None,
+                                        help='If a given DNA sequence can be translated in more than one forward frame '
+                                             'without stop codons, choose the translation that best matches the '
+                                             'corresponding reference protein provided in this fasta file. The fasta '
+                                             'headers must follow the naming convention: >TaxonID-geneName')
+    parser_fix_target_file.add_argument('--maximum_distance',
+                                        default=0.5,
+                                        type=utils.restricted_float,
+                                        metavar='FLOAT',
+                                        help='When comparing candidate DNA translation frames to a reference protein, '
+                                             'the maximum distance allowed between the translated frame and the '
+                                             'reference sequence for any candidate translation frame to be selected. '
+                                             'Useful to filter out sequences with frameshifts that do NOT introduce '
+                                             'stop codons. 0.0 means identical sequences, 1.0 means completely '
+                                             'different sequences. Default is 0.5')
+    parser_fix_target_file.add_argument('--filter_by_length_percentage',
+                                        default=0.0,
+                                        type=utils.restricted_float,
+                                        metavar='FLOAT',
+                                        help='If more than one representative sequence is present for a given gene, '
+                                             'filter out sequences shorter than this percentage of the longest gene '
+                                             'sequence length. Default is 0.0 (all sequences retained).')
+    parser_fix_target_file.add_argument('--keep_low_complexity_sequences',
+                                        action='store_true',
+                                        default=False,
+                                        help='Keep sequences that contain regions of low complexity, as identified by '
+                                             'the command "hybpiper check_targetfile". Default is to remove these '
+                                             'sequences.')
+    parser_fix_target_file.add_argument('--alignments',
+                                        action='store_true',
+                                        default=False,
+                                        help='Create per-gene alignments from the final fixed/filtered target file '
+                                             'sequences. Note that DNA sequences will be translated prior to '
+                                             'alignment.')
+    parser_fix_target_file.add_argument('--concurrent_alignments',
+                                        default=1,
+                                        type=int,
+                                        metavar='INTEGER',
+                                        help='Number of alignments to run concurrently. Default is 1.')
+    parser_fix_target_file.add_argument('--threads_per_concurrent_alignment',
+                                        default=1,
+                                        type=int,
+                                        metavar='INTEGER',
+                                        help='Number of threads to run each concurrent alignment with. Default is 1.')
+    parser_fix_target_file.add_argument('--write_all_fasta_files',
+                                        default=False,
+                                        action='store_true',
+                                        help='If provided, *.fasta files will be written for sequences removed from '
+                                             'the fixed/filtered target file, according to filtering categories '
+                                             '(length threshold, low-complexity regions, etc.). By default, '
+                                             'these files will not be written.')
+    parser_fix_target_file.add_argument('--verbose_logging',
+                                        help='If supplied, enable verbose logging. NOTE: this will increase the size '
+                                             'of the log files.',
+                                        action='store_true',
+                                        dest='verbose_logging',
+                                        default=False)
+    parser_fix_target_file.add_argument('--run_profiler',
+                                        help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                             'of results',
+                                        action='store_true',
+                                        dest='run_profiler',
+                                        default=False)
+
+    # Set defaults for subparser <check_target_file>:
+    parser_fix_target_file.set_defaults(logger=None)
+
+    return parser_fix_target_file
