@@ -34,7 +34,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 
 ---
 # Dependencies
-* [Python](https://www.python.org/downloads/) 3.7 or later, along with the Python libraries:
+* [Python](https://www.python.org/downloads/) 3.7 or later (see [note](#NOTE)), along with the Python libraries:
     * [seaborn](https://seaborn.pydata.org/installing.html)
     * [matplotlib](https://matplotlib.org/stable/users/getting_started/)
     * [pebble](https://github.com/noxdafox/pebble). The conda install can be found [here](https://anaconda.org/conda-forge/pebble)
@@ -55,11 +55,17 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 
 #### NOTE: 
 
+***Biopython***
+
 Biopython 1.80 is required as it contains bug fixes for the SearchIO module that HybPiper 2.0 uses to parse output from Exonerate.
 
 **Update 01/12/2022:** Biopython 1.80 has now been released, and is available as a conda install [here](https://anaconda.org/conda-forge/biopython).
 
 Prior to this release, HybPiper users needed to install an in-progress version by cloning the repository from https://github.com/biopython/biopython and following the instructions under the heading 'Installation from Source' [here](https://biopython.org/wiki/Download). Alternatively, the HybPiper conda package for all versions prior to 2.1.0 includes pre-release Biopython version 1.80.dev0; note that this **causes problems** if the user then installs Biopython 1.79 via conda in the HybPiper conda environment. The HybPiper conda package for version 2.1.0 now uses the conda Biopython 1.80 release package. 
+
+***Python and SPAdes***
+
+The SPAdes assembler prior to version 3.15.4 is incompatible with Python 3.10 and 3.11, see [here](https://github.com/ablab/spades/issues/873). The highest SPAdes version [available](https://anaconda.org/bioconda/spades) as a macOS conda package is 3.15.2. This means that the macOS conda package for HybPiper is restricted to Python version 3.9 at the highest. This restriction will be removed once SPAdes >= 3.15.4 is released as a macOS conda package.  
 
 ---
 # Setup
