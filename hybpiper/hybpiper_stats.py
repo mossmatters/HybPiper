@@ -118,7 +118,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
                                    f'recorded for this sequence.\n')
                     name_lengths.append("0")
                 else:
-                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.ungap(gap='N'))
+                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.replace('N', ''))
                     if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
                         logger.warning(f'{"[WARNING]:":10} Sequence length for {name} is more than 50% longer than'
                                        f' {unique_names[gene]} reference!\n')
