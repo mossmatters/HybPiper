@@ -122,7 +122,7 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 -----
 # Changelog
 
-**2.1.0** *November, 2022*
+**2.1.0** *December, 2022*
 
 Added the new subcommand `fix_targetfile`. Assists with filtering target file sequences based on length and sequence complexity, and in ensuring sequences are in the correct reading frame (the latter for nucleotide target files only). For a full list of changes see the [changelog](https://github.com/mossmatters/HybPiper/blob/master/change_log.md).
 
