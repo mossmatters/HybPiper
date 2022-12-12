@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.1.0 (December 2022)
+HybPiper Version 2.1.1 (December 2022)
 
 ########################################################################################################################
-############################################## NOTES ON VERSION 2.1.0 ##################################################
+############################################## NOTES ON VERSION 2.1.1 ##################################################
 ########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
@@ -503,7 +503,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         if os.path.isfile(f'{targetfile_basename}.psq'):
             db_file = targetfile_basename
             logger.debug(f'Using existing BLAST database. db_file is: {db_file}')
-        elif os.path.isfile(f'{targetfile_basename}.diamond'):
+        elif os.path.isfile(f'{targetfile_basename}.dmnd'):
             db_file = targetfile_basename
             logger.debug(f'Using existing DIAMOND BLAST database. db_file is: {db_file}')
         else:
@@ -547,24 +547,28 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         read_file = readfiles
         # Check if read file is gzipped:
         filename, file_extension = os.path.splitext(read_file)
-        if file_extension == '.gz':
+        if file_extension == '.gz' and not diamond:
             logger.debug(f'Processing gzipped file {os.path.basename(read_file)}')
             pipe_cmd = f"gunzip -c {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} " \
                        f"}}'"
-        else:
+        elif not diamond:
             pipe_cmd = f"cat {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
+
         if diamond and diamond_sensitivity:
-            blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 --max-target-seqs' \
-                             f' {max_target_seqs} --{diamond_sensitivity}'
+            blastx_command = f'diamond blastx --threads {cpu} --db {db_file} --query {read_file} --evalue {evalue} ' \
+                             f'--outfmt 6 --max-target-seqs {max_target_seqs} --{diamond_sensitivity}'
         elif diamond:
-            blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 --max-target-seqs' \
-                             f' {max_target_seqs}'
+            blastx_command = f'diamond blastx --threads {cpu} --db {db_file} --query {read_file} --evalue {evalue} ' \
+                             f'--outfmt 6 --max-target-seqs {max_target_seqs}'
         else:
             blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
                              f' {max_target_seqs}'
 
-        full_command = f"{pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe '{blastx_command}' >>" \
-                       f" {basename}_unpaired.blastx"
+        if not diamond:
+            full_command = f"{pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe '{blastx_command}' " \
+                           f">> {basename}_unpaired.blastx"
+        else:
+            full_command = f"{blastx_command} >> {basename}_unpaired.blastx"
 
         fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
                                         break_long_words=False, break_on_forward_slash=True)
@@ -589,7 +593,7 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         for read_file in readfiles:
             # Check if read file is gzipped:
             filename, file_extension = os.path.splitext(read_file)
-            if file_extension == '.gz':
+            if file_extension == '.gz' and not diamond:
                 logger.debug(f'Processing gzipped file {os.path.basename(read_file)}')
                 pipe_cmd = f"gunzip -c {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; " \
                            f"}} }}'"
@@ -597,17 +601,20 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
                 pipe_cmd = f"cat {read_file} | awk '{{if(NR % 4 == 1 || NR % 4 == 2) {{sub(/@/, \">\"); print; }} }}'"
 
             if diamond and diamond_sensitivity:
-                blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 ' \
-                                 f'--max-target-seqs {max_target_seqs} --{diamond_sensitivity}'
+                blastx_command = f'diamond blastx --threads {cpu} --db {db_file} --query {read_file} --evalue' \
+                                 f' {evalue} --outfmt 6 --max-target-seqs {max_target_seqs} --{diamond_sensitivity}'
             elif diamond:
-                blastx_command = f'diamond blastx --db {db_file} --query - --evalue {evalue} --outfmt 6 ' \
-                                 f'--max-target-seqs {max_target_seqs}'
+                blastx_command = f'diamond blastx --threads {cpu} --db {db_file} --query {read_file} --evalue' \
+                                 f' {evalue} --outfmt 6 --max-target-seqs {max_target_seqs}'
             else:
                 blastx_command = f'blastx -db {db_file} -query - -evalue {evalue} -outfmt 6 -max_target_seqs' \
                                  f' {max_target_seqs}'
 
-            full_command = f"{pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
-                           f"'{blastx_command}' >> {basename}.blastx"
+            if not diamond:
+                full_command = f"{pipe_cmd} | parallel -j {cpu} -k --block 200K --recstart '>' --pipe " \
+                               f"'{blastx_command}' >> {basename}.blastx"
+            else:
+                full_command = f"{blastx_command} >> {basename}.blastx"
 
             fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
                                             break_long_words=False, break_on_forward_slash=True)
@@ -1712,7 +1719,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.1.0',
+                         version='%(prog)s 2.1.1',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:

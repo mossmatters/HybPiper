@@ -1,5 +1,10 @@
 # Changelog
 
+**2.1.1** *12th December, 2022*
+
+- When mapping reads with DIAMOND via `hybpiper assemble --diamond`, remove the `gunzip` step and on-the-fly fastq to fasta conversion (as DIAMOND supports both `*.fastq` and `*.gz` input). Further, pass the value of the `hybpiper assemble` parameter `--cpu`  directly to the `--threads` parameter of the `diamond blastx` command; do not run `diamond` via GNU parallel. See issue #104. 
+
+
 **2.1.0** *1st December, 2022*
 
 - The subcommand `hybpiper check_targetfile` now writes a `*.ctl file`; see wiki for details.
