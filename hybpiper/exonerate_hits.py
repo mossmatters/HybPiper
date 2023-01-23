@@ -1310,6 +1310,9 @@ class Exonerate(object):
         :return bool
         """
 
+        if not self.stitched_contig_seqrecord:
+            return False  # no stops because no sequence created...
+
         amino_acid_seq = self.stitched_contig_seqrecord.seq.translate()
         num_stop_codons = amino_acid_seq.count('*')
 
@@ -2112,6 +2115,11 @@ def standalone():
                              'debugging. Default action is to delete them, which greatly reduces the total file '
                              'number).',
                         action='store_true', dest='keep_intermediate_files', default=False)
+    parser.add_argument('--exonerate_hit_sliding_window_size',
+                        help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
+                             'hits. Default is %(default)s.',
+                        default=3,
+                        type=int)
     parser.add_argument('--verbose_logging',
                         help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
                              'files by an order of magnitude.',
@@ -2159,25 +2167,28 @@ def main(args):
                                               args.assemblyfile,
                                               prefix)
 
-    exonerate_result = parse_exonerate_and_get_stitched_contig(exonerate_text_output,
-                                                               query_file=args.proteinfile,
-                                                               paralog_warning_min_length_percentage=
-                                                               args.paralog_warning_min_length_percentage,
-                                                               thresh=args.thresh,
-                                                               logger=logger,
-                                                               prefix=prefix,
-                                                               discordant_cutoff=
-                                                               args.chimeric_stitched_contig_discordant_reads_cutoff,
-                                                               edit_distance=args.chimeric_stitched_contig_edit_distance,
-                                                               bbmap_subfilter=args.bbmap_subfilter,
-                                                               bbmap_memory=args.bbmap_memory,
-                                                               bbmap_threads=args.bbmap_threads,
-                                                               interleaved_fasta_file=path_to_interleaved_fasta,
-                                                               no_stitched_contig=args.no_stitched_contig,
-                                                               spades_assembly_dict=spades_assembly_dict,
-                                                               depth_multiplier=args.depth_multiplier,
-                                                               keep_intermediate_files=args.keep_intermediate_files,
-                                                               verbose_logging=args.verbose_logging)
+    exonerate_result = parse_exonerate_and_get_stitched_contig(
+        exonerate_text_output,
+        query_file=args.proteinfile,
+        paralog_warning_min_length_percentage=
+        args.paralog_warning_min_length_percentage,
+        thresh=args.thresh,
+        logger=logger,
+        prefix=prefix,
+        discordant_cutoff=
+        args.chimeric_stitched_contig_discordant_reads_cutoff,
+        edit_distance=args.chimeric_stitched_contig_edit_distance,
+        bbmap_subfilter=args.bbmap_subfilter,
+        bbmap_memory=args.bbmap_memory,
+        bbmap_threads=args.bbmap_threads,
+        interleaved_fasta_file=path_to_interleaved_fasta,
+        no_stitched_contig=args.no_stitched_contig,
+        spades_assembly_dict=spades_assembly_dict,
+        depth_multiplier=args.depth_multiplier,
+        keep_intermediate_files=args.keep_intermediate_files,
+        exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
+        verbose_logging=args.verbose_logging)
+
     if not exonerate_result.stitched_contig_seqrecord:
         return
 

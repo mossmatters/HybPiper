@@ -980,7 +980,7 @@ def exonerate(gene_name,
         end = time.time()
         proc_run_time = end - start
         # return gene_name to that exonerate_hits.py log can be re-logged to main log file:
-        return gene_name, None, proc_run_time
+        return gene_name, None, proc_run_time, False
 
     end = time.time()
     proc_run_time = end - start
@@ -1115,7 +1115,7 @@ def exonerate_multiprocessing(genes,
                         except Exception as error:
                             genes_cancelled_due_to_errors.append(future_results_dict[future])
                             print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
-                            print(f'error.traceback is: {error.traceback}')  # traceback of the function
+                            # print(f'error.traceback is: {error.traceback}')  # traceback of the function
 
         wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
