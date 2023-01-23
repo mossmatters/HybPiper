@@ -736,25 +736,29 @@ class Exonerate(object):
             # Calculate indices of where a sliding-window similarity value crosses the similarity threshold:
             data = np.array(window_similarity_percentages)
             data_adjusted = np.where(data <= self.similarity_threshold, 0, 1)  # 0 or 1 if above or below/equal
-            print(f'Using self.similarity_threshold: {self.similarity_threshold}')
+
             # Below: prepend=1 means that the start value (before first sliding window value) corresponds to good
             # quality sequence. So, if the first sliding window value is good, a value of 0 (no change) will be
             # returned, and no upward crossing will be detected:
             five_prime_threshold_crossings = np.diff(data_adjusted >= 1, prepend=1)
             three_prime_threshold_crossings = np.diff(data_adjusted[::-1] >= 1, prepend=1)  # reverse list)
+
             # Below: every second item starting at second value, from first index (0) in each element:
             five_prime_upward_crossings = np.argwhere(five_prime_threshold_crossings)[1::2, 0]
-            # Below: every second item starting at first value, from first index (0) in each element
+            # Below: every second item starting at first value, from first index (0) in each element:
             five_prime_downward_crossings = np.argwhere(five_prime_threshold_crossings)[::2, 0]
-            print(f'five_prime_upward_crossings: {five_prime_upward_crossings}')
-            print(f'five_prime_downward_crossings: {five_prime_downward_crossings}')
             three_prime_upward_crossings = np.argwhere(three_prime_threshold_crossings)[1::2, 0]
-            # i.e. every second item starting at first value, from first index (0) in each element
             three_prime_downward_crossings = np.argwhere(three_prime_threshold_crossings)[::2, 0]
-            print(f'three_prime_upward_crossings: {three_prime_upward_crossings}')
-            print(f'three_prime_downward_crossings: {three_prime_downward_crossings}')
+
+            if self.verbose_logging:
+                self.logger.debug(f'five_prime_upward_crossings: {five_prime_upward_crossings}')
+                self.logger.debug(f'five_prime_downward_crossings: {five_prime_downward_crossings}')
+                self.logger.debug(f'three_prime_upward_crossings: {three_prime_upward_crossings}')
+                self.logger.debug(f'three_prime_downward_crossings: {three_prime_downward_crossings}')
 
             # Adjust crossings to correspond to nucleotide positions rather than sliding window amino-acid positions:
+
+            # Five prime:
             five_prime_upward_crossings_nucleotides = \
                 [0 if not upward_crossing else (upward_crossing * 3) for upward_crossing in
                  five_prime_upward_crossings]
@@ -763,9 +767,7 @@ class Exonerate(object):
                 [0 if not downward_crossing else (downward_crossing * 3) for downward_crossing in
                  five_prime_downward_crossings]
 
-            print(f'five_prime_upward_crossings_nucleotides: {five_prime_upward_crossings_nucleotides}')
-            print(f'five_prime_downward_crossings_nucleotides: {five_prime_downward_crossings_nucleotides}')
-
+            # Three prime:
             three_prime_upward_crossings_nucleotides = \
                 [0 if not upward_crossing else (upward_crossing * 3) for upward_crossing in
                  three_prime_upward_crossings]
@@ -774,17 +776,23 @@ class Exonerate(object):
                 [0 if not downward_crossing else (downward_crossing * 3) for  downward_crossing in
                  three_prime_downward_crossings]
 
-            print(f'three_prime_upward_crossings_nucleotides: {three_prime_upward_crossings_nucleotides}')
-            print(f'three_prime_downward_crossings_nucleotides: {three_prime_downward_crossings_nucleotides}')
+            if self.verbose_logging:
+                self.logger.debug(f'five_prime_upward_crossings_nucleotides: '
+                                  f'{five_prime_upward_crossings_nucleotides}')
+                self.logger.debug(f'five_prime_downward_crossings_nucleotides:'
+                                  f' {five_prime_downward_crossings_nucleotides}')
+                self.logger.debug(f'three_prime_upward_crossings_nucleotides: '
+                                  f'{three_prime_upward_crossings_nucleotides}')
+                self.logger.debug(f'three_prime_downward_crossings_nucleotides: '
+                                  f'{three_prime_downward_crossings_nucleotides}')
 
-            # Get the first upwards and downwards crossings:
+            # Recover the first upwards and downwards crossing:
 
             # Five prime:
             try:
                 five_prime_first_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[0]
             except IndexError:
                 five_prime_first_upward_crossing_nucleotides = 'no_crossing'
-
             try:
                 five_prime_first_downward_crossing_nucleotides = five_prime_downward_crossings_nucleotides[0]
             except IndexError:
@@ -795,68 +803,75 @@ class Exonerate(object):
                 three_prime_first_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[0]
             except IndexError:
                 three_prime_first_upward_crossing_nucleotides = 'no_crossing'
-
             try:
                 three_prime_first_downward_crossing_nucleotides = three_prime_downward_crossings_nucleotides[0]
             except IndexError:
                 three_prime_first_downward_crossing_nucleotides = 'no_crossing'
 
             # Get slice indices, if any:
-            five_prime_slice = 0  # i.e. default is no slice
-            three_prime_slice = 0  # i.e. default is no slice
+            five_prime_slice = 0  # i.e. default is the first position in the sequence
+            three_prime_slice = 0  # i.e. default is the first (converted from last) position in the sequence
 
             # Check if trimming is required:
 
             # Five-prime check:
             if five_prime_first_downward_crossing_nucleotides == 'no_crossing':  # no sliding window beneath the
                 # self.similarity_threshold value
-                print(f'five_prime_first_downward_crossing_nucleotides is '
-                      f'{five_prime_first_downward_crossing_nucleotides}: no trimming required for prefix '
-                      f'{self.prefix} hsp {hsp.hit_id}')
+                if self.verbose_logging:
+                    self.logger.debug(f'five_prime_first_downward_crossing_nucleotides is'
+                                      f' {five_prime_first_downward_crossing_nucleotides}: no trimming required for '
+                                      f'prefix {self.prefix} hsp {hsp.hit_id}')
+
             elif five_prime_first_downward_crossing_nucleotides != 0:  # i.e. hit starts above threshold
-                print(f'five_prime_first_downward_crossing_nucleotides is '
-                      f'{five_prime_first_downward_crossing_nucleotides}; hit starts above threshold, so no 5-prime '
-                      f'trimming required for prefix {self.prefix} hsp {hsp.hit_id}')
+                if self.verbose_logging:
+                    self.logger.debug(f'five_prime_first_downward_crossing_nucleotides is'
+                                      f' {five_prime_first_downward_crossing_nucleotides}; hit starts above '
+                                      f'threshold, so no 5-prime trimming required for prefix {self.prefix} hsp '
+                                      f'{hsp.hit_id}')
             else:
                 five_prime_slice = five_prime_first_upward_crossing_nucleotides
-                print(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {five_prime_slice}')
+                if self.verbose_logging:
+                    self.logger.debug(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is '
+                                      f'{five_prime_slice}')
 
             # Three-prime check:
-            if five_prime_first_downward_crossing_nucleotides == 'no_crossing':
-                print(f'three_prime_first_downward_crossing_nucleotides is '
-                      f'{three_prime_first_downward_crossing_nucleotides}: no trimming required for prefix '
-                      f'{self.prefix} hsp {hsp.hit_id}')
+            if three_prime_first_downward_crossing_nucleotides == 'no_crossing':
+                if self.verbose_logging:
+                    self.logger.debug(f'three_prime_first_downward_crossing_nucleotides is '
+                                       f'{three_prime_first_downward_crossing_nucleotides}: no trimming required for '
+                                       f'prefix {self.prefix} hsp {hsp.hit_id}')
 
             elif three_prime_first_downward_crossing_nucleotides != 0:  # i.e. hit starts above threshold
-                # print(f'No 3-prime trimming required for hsp {hsp.hit_id}')
-                print(f'three_prime_first_downward_crossing_nucleotides is '
-                      f'{three_prime_first_downward_crossing_nucleotides}; hit starts above threshold, so no 3-prime '
-                      f'trimming required for prefix {self.prefix} hsp {hsp.hit_id}')
+                    if self.verbose_logging:
+                        self.logger.debug(f'three_prime_first_downward_crossing_nucleotides is'
+                                          f' {three_prime_first_downward_crossing_nucleotides}; hit starts above '
+                                          f'threshold, so no 3-prime trimming required for prefix {self.prefix} hsp '
+                                          f'{hsp.hit_id}')
             else:
                 three_prime_slice = three_prime_first_upward_crossing_nucleotides
-                print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
+                if self.verbose_logging:
+                    self.logger.debug(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is '
+                                      f'{three_prime_slice}')
 
             # Adjust ends of slices to start with the first codon with similarity '|||':
-            print(all_window_similarity_triplets)
-            if five_prime_slice:  # i.e., it's not zero
+            if five_prime_slice:  # i.e., five_prime_slice is not zero
                 window_similarity_five_prime_slice = all_window_similarity_triplets[round(five_prime_slice / 3)]
-                print(f'window_similarity_five_prime_slice: {window_similarity_five_prime_slice}')
+                # print(f'window_similarity_five_prime_slice: {window_similarity_five_prime_slice}')
                 for triplet in window_similarity_five_prime_slice:
                     if triplet != '|||':
                         five_prime_slice = five_prime_slice + 3
                         break
-                print(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {five_prime_slice}')
+                # print(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {five_prime_slice}')
 
             if three_prime_slice:  # i.e., it's not zero
-                print(f'THREE PRIME SLICE')
                 window_similarity_three_prime_slice = \
                     all_window_similarity_triplets[::-1][round(three_prime_slice / 3)][::-1]
-                print(f'window_similarity_three_prime_slice: {window_similarity_three_prime_slice}')
+                # print(f'window_similarity_three_prime_slice: {window_similarity_three_prime_slice}')
                 for triplet in window_similarity_three_prime_slice:
                     if triplet != '|||':
                         three_prime_slice = three_prime_slice + 3
                         break
-                print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
+                # print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
 
             # Re-calculate the hit similarity based in the sliced sequence:
             concatenated_fragment_similarities_slice = \
@@ -904,9 +919,9 @@ class Exonerate(object):
             else:
                 seq_sliced = seq[five_prime_slice: len(seq) - three_prime_slice]
 
-            if seq != seq_sliced:
-                print(f'Original seq is:\n{seq}')
-                print(f'Trimmed seq is:\n{seq_sliced}')
+            # if seq != seq_sliced:
+            #     print(f'Original seq is:\n{seq}')
+            #     print(f'Trimmed seq is:\n{seq_sliced}')
 
             hit_seq = SeqRecord(id=unique_hit_name, name=unique_hit_name, description=unique_hit_name, seq=seq_sliced)
 
@@ -1299,12 +1314,12 @@ class Exonerate(object):
         num_stop_codons = amino_acid_seq.count('*')
 
         if num_stop_codons == 0 or (num_stop_codons == 1 and re.search('[*]', str(amino_acid_seq)[-1])):
-            print(f'No stop codons in amino_acid_seq for {self.prefix}')
-            self.logger.debug(f'No non-terminal stop codons in seqrecord for {self.prefix}')
+            if self.verbose_logging:
+                self.logger.debug(f'No non-terminal stop codons in seqrecord for {self.prefix}')
             return False
         else:
-            print(f'amino_acid_seq {amino_acid_seq} contains stop codons for prefix {self.prefix}!')
-            self.logger.debug(f'seqrecord for {self.prefix} contains non-terminal stop codons!')
+            if self.verbose_logging:
+                self.logger.debug(f'seqrecord for {self.prefix} contains non-terminal stop codons!')
             return True
 
     @staticmethod
