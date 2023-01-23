@@ -695,33 +695,26 @@ class Exonerate(object):
 
         for filtered_hsp in sorted(filtered_hsps, key=lambda x: x[0].query_start):  # sort hsps by query start location
 
-            # Trim ends of filtered-for-similarity hsps if they fall beneath self.similarity_threshold:
-
-            # Check if there is more than one fragment in the hsp. If so, recover and concatenate the similarity
-            # annotations and hit (nucleotide codon) annotations:
+            # Trim ends of filtered-for-similarity hsps if they fall beneath self.similarity_threshold. First, check if
+            # there is more than one fragment in the hsp. If so, recover and concatenate the similarity annotations
+            # and hit (nucleotide codon) annotations:
             hsp = filtered_hsp[0]
             fragment_similarity_triplets = [fragment['similarity'] for fragment in hsp.aln_annotation_all]
-            # print(f'fragment_similarity_triplets:\n{fragment_similarity_triplets}')
             fragment_codons = [fragment['hit_annotation'] for fragment in hsp.aln_annotation_all]
-            # print(f'fragment_codons:\n{fragment_codons}')
-            # print(f'There is {len(fragment_similarity_triplets)} fragment(s) in hsp {hsp.hit_id}')
             concatenated_fragment_similarities = [similarity_triplet for similarity_triplets_list in
                                                   fragment_similarity_triplets for similarity_triplet in
                                                   similarity_triplets_list]
-            # print(f'concatenated_fragment_similarities:\n{concatenated_fragment_similarities}')
             concatenated_fragment_codons = [codon for codon_list in fragment_codons for codon in codon_list]
-            # print(f'concatenated_fragment_codons:\n{concatenated_fragment_codons}')
 
             # Calculate similarity values within a sliding window:
             window_size = self.sliding_window_size
             window_similarity_percentages = []
-
             all_window_similarity_triplets = []
             all_window_codons = []
+
             for i in range(0, len(concatenated_fragment_similarities) - (window_size - 1)):
                 window_similarity_triplets = concatenated_fragment_similarities[i:i + window_size]
                 window_codons = concatenated_fragment_codons[i:i + window_size]
-                # print(f'window_similarity_triplets is: {window_similarity_triplets}')
                 all_window_similarity_triplets.append(window_similarity_triplets)
                 all_window_codons.append(window_codons)
                 window_identical_codon_count = 0
@@ -731,50 +724,27 @@ class Exonerate(object):
                     window_all_codons_count += 1
                     if triplet == '|||':
                         window_identical_codon_count += 1
-                # print(window_similarity_codon_count)
-                # print(window_all_codons_count)
+
                 try:
                     window_similarity = \
                         f'{window_identical_codon_count / window_all_codons_count * 100:.2f}'
                 except ZeroDivisionError:
                     window_similarity = float(0.0)
-                # print(f'similarity within window is: {window_similarity}')
 
                 window_similarity_percentages.append(float(window_similarity))
-            # print(f'all_window_similarity_triplets:\n{all_window_similarity_triplets}')
-            # print(f'all_window_codons:\n{all_window_codons}')
-            # print(f'window_similarity_percentages:\n{window_similarity_percentages}')
 
-            # Calculate indices of crossing thresholds:
+            # Calculate indices of where a sliding-window similarity value crosses the similarity threshold:
             data = np.array(window_similarity_percentages)
             data_adjusted = np.where(data <= self.similarity_threshold, 0, 1)  # 0 or 1 if above or below/equal
             print(f'Using self.similarity_threshold: {self.similarity_threshold}')
-            # print(f'data is:\n{data}')
-            # print(f'np.info(data): {np.info(data)}')
-            # print(f'data[::-1] is:\n{data[::-1]}')
-            # print(f'len(data) is: {len(data)}')
-            # print(f'data_adjusted is:\n{data_adjusted}')
-            # prepend=1 means that the start value (before first sliding window value) corresponds to good quality
-            # sequence. So, if the first sliding window value is good, a value of 0 (no change) will be returned,
-            # and no upward crossing will be detected:
+            # Below: prepend=1 means that the start value (before first sliding window value) corresponds to good
+            # quality sequence. So, if the first sliding window value is good, a value of 0 (no change) will be
+            # returned, and no upward crossing will be detected:
             five_prime_threshold_crossings = np.diff(data_adjusted >= 1, prepend=1)
             three_prime_threshold_crossings = np.diff(data_adjusted[::-1] >= 1, prepend=1)  # reverse list)
-            # print(f'five_prime_threshold_crossings:\n{five_prime_threshold_crossings}')
-            # print(f'three_prime_threshold_crossings:\n{three_prime_threshold_crossings}')
-            # import matplotlib.pyplot as plt
-            # plt.plot(data, marker='o')
-            # plt.plot(threshold_crossings, marker='o')
-            # plt.legend(("Data", "Threshold Crossings"))
-            # plt.show()
-            # print(f'len(five_prime_threshold_crossings): {len(five_prime_threshold_crossings)}')
-            # print(f'np.argwhere(five_prime_threshold_crossings) : {np.argwhere(five_prime_threshold_crossings)}')
-            # print(f'len(three_prime_threshold_crossings): {len(three_prime_threshold_crossings)}')
-            # print(f'np.argwhere(three_prime_threshold_crossings) : {np.argwhere(three_prime_threshold_crossings)}')
-            # print(f'np.argwhere(threshold_crossings)[:, 0] : {np.argwhere(threshold_crossings)[:, 0]}')
-
-            # i.e. every second item starting at second value, from first index (0) in each element
+            # Below: every second item starting at second value, from first index (0) in each element:
             five_prime_upward_crossings = np.argwhere(five_prime_threshold_crossings)[1::2, 0]
-            # i.e. every second item starting at first value, from first index (0) in each element
+            # Below: every second item starting at first value, from first index (0) in each element
             five_prime_downward_crossings = np.argwhere(five_prime_threshold_crossings)[::2, 0]
             print(f'five_prime_upward_crossings: {five_prime_upward_crossings}')
             print(f'five_prime_downward_crossings: {five_prime_downward_crossings}')
@@ -784,7 +754,7 @@ class Exonerate(object):
             print(f'three_prime_upward_crossings: {three_prime_upward_crossings}')
             print(f'three_prime_downward_crossings: {three_prime_downward_crossings}')
 
-            # Adjust crossing to correspond to nucleotide positions rather than sliding window positions:
+            # Adjust crossings to correspond to nucleotide positions rather than sliding window amino-acid positions:
             five_prime_upward_crossings_nucleotides = \
                 [0 if not upward_crossing else (upward_crossing * 3) for upward_crossing in
                  five_prime_upward_crossings]
@@ -807,46 +777,35 @@ class Exonerate(object):
             print(f'three_prime_upward_crossings_nucleotides: {three_prime_upward_crossings_nucleotides}')
             print(f'three_prime_downward_crossings_nucleotides: {three_prime_downward_crossings_nucleotides}')
 
+            # Get the first upwards and downwards crossings:
+
+            # Five prime:
             try:
                 five_prime_first_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[0]
             except IndexError:
                 five_prime_first_upward_crossing_nucleotides = 'no_crossing'
-            # five_prime_last_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[-1]
+
             try:
                 five_prime_first_downward_crossing_nucleotides = five_prime_downward_crossings_nucleotides[0]
             except IndexError:
                 five_prime_first_downward_crossing_nucleotides = 'no_crossing'
 
-            # five_prime_first_downward_crossing_nucleotides = \
-            #     five_prime_downward_crossings_nucleotides[0] if \
-            #         len(five_prime_downward_crossings_nucleotides) != 0 else None
-            # five_prime_last_downward_crossing_nucleotides = \
-                # five_prime_downward_crossings_nucleotides[-1] if \
-                #     len(five_prime_downward_crossings_nucleotides) != 0 else None
-
+            # Three prime:
             try:
                 three_prime_first_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[0]
             except IndexError:
                 three_prime_first_upward_crossing_nucleotides = 'no_crossing'
-            # three_prime_last_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[-1]
-            # three_prime_first_downward_crossing_nucleotides = \
-            #     three_prime_downward_crossings_nucleotides[0] if len(
-            #         three_prime_downward_crossings_nucleotides) != 0 else None
+
             try:
                 three_prime_first_downward_crossing_nucleotides = three_prime_downward_crossings_nucleotides[0]
             except IndexError:
                 three_prime_first_downward_crossing_nucleotides = 'no_crossing'
-            # three_prime_last_downward_crossing_nucleotides = \
-            #     three_prime_downward_crossings_nucleotides[-1] if len(
-            #         three_prime_downward_crossings_nucleotides) != 0 else 0
 
             # Get slice indices, if any:
             five_prime_slice = 0  # i.e. default is no slice
             three_prime_slice = 0  # i.e. default is no slice
 
             # Check if trimming is required:
-            # if len(five_prime_downward_crossings) == 0:  # no sliding window beneath the self.similarity_threshold value
-            #     print(f'No trimming required for hsp {hsp.hit_id}
 
             # Five-prime check:
             if five_prime_first_downward_crossing_nucleotides == 'no_crossing':  # no sliding window beneath the
@@ -867,9 +826,7 @@ class Exonerate(object):
                 print(f'three_prime_first_downward_crossing_nucleotides is '
                       f'{three_prime_first_downward_crossing_nucleotides}: no trimming required for prefix '
                       f'{self.prefix} hsp {hsp.hit_id}')
-            # if len(three_prime_downward_crossings) == 0:  # i.e. no sliding window falls beneath the
-            #     # self.similarity_threshold value
-            #     print(f'No trimming required for hsp {hsp.hit_id}')
+
             elif three_prime_first_downward_crossing_nucleotides != 0:  # i.e. hit starts above threshold
                 # print(f'No 3-prime trimming required for hsp {hsp.hit_id}')
                 print(f'three_prime_first_downward_crossing_nucleotides is '
@@ -878,52 +835,33 @@ class Exonerate(object):
             else:
                 three_prime_slice = three_prime_first_upward_crossing_nucleotides
                 print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
-                # three_prime_slice_adjusted = len(concatenated_fragment_similarities) - three_prime_slice
-                # print(f'3-prime adjusted trimming for hsp {hsp.hit_id} is {three_prime_slice_adjusted}')
 
-            # ToDo: adjust ends of slices to get any codons with similarity |||
+            # ToDo: adjust ends of slices to get any codons with similarity '|||'
 
             # Re-calculate the hit similarity based in the sliced sequence:
             concatenated_fragment_similarities_slice = \
                 concatenated_fragment_similarities[int(five_prime_slice / 3):
                                                    len(concatenated_fragment_similarities) - three_prime_slice]
-            # print(concatenated_fragment_similarities)
-            # print(f'concatenated_fragment_similarities_slice:\n{concatenated_fragment_similarities_slice}')
             similarity_count_total = 0
             similarity_count = 0
+
             for triplet in concatenated_fragment_similarities_slice:
                 if triplet == '|||':
                     similarity_count += 1
                 similarity_count_total += 1
             hit_similarity = f'{similarity_count / similarity_count_total * 100:.2f}'
-            print(f'Original similarity is: {filtered_hsp[1]}')
-            print(f'Adjusted similarity is: {hit_similarity}')
-
-            # if len(fragment_similarity_triplets) > 1:  # i.e. hsp has more than one fragment
-            #     fragment_count = 0
-            #     for fragment in fragment_similarity_triplets:
-            #         fragment_count += 1
-            #         fragment_length_nucleotides = len(fragment) * 3
-            #         print(f'fragment {fragment_count} is {fragment_length_nucleotides} nucleotides long')
 
             # Extract values from hsp object and adjust as necessary for trim slices:
             spades_contig_depth = float(filtered_hsp[0].hit_id.split('_')[-1])  # dependant on SPAdes header output!
             query_range_original = filtered_hsp[0].query_range
-            print(f'query_range_original: {query_range_original}')
             query_range = (round(query_range_original[0] + (five_prime_slice / 3)),
                            round((query_range_original[1] - (three_prime_slice / 3))))
-            print(f'post trim query_range: {query_range}')
             query_range_all = filtered_hsp[0].query_range_all
-            print(query_range_all)
             hit_range_original = filtered_hsp[0].hit_range
-            print(f'hit_range_original: {hit_range_original}')
             hit_range = (round(hit_range_original[0] + five_prime_slice),
                          round((hit_range_original[1] - three_prime_slice)))
-            print(f'post trim hit_range: {hit_range}')
             hit_range_all = filtered_hsp[0].hit_range_all
-            print(hit_range_all)
             hit_inter_ranges = filtered_hsp[0].hit_inter_ranges
-            # hit_similarity = filtered_hsp[1]
             hsp_hit_strand_all = filtered_hsp[0].hit_strand_all
             assert len(set(hsp_hit_strand_all)) == 1  # Check that all HSP fragments are on the same strand
             hsp_hit_strand = next(iter(set(hsp_hit_strand_all)))
@@ -939,12 +877,16 @@ class Exonerate(object):
                 concatenated_hsp_alignment_seqs.append(alignment_seq)
 
             seq = Seq(''.join(concatenated_hsp_alignment_seqs)).replace('-', '')
-            print(f'Original seq is:\n{seq}')
+
+            # Trim/slice the seq if required:
             if not three_prime_slice:
                 seq_sliced = seq[five_prime_slice:]
             else:
                 seq_sliced = seq[five_prime_slice: len(seq) - three_prime_slice]
-            print(f'Trimmed seq is:\n{seq_sliced}')
+
+            if seq != seq_sliced:
+                print(f'Original seq is:\n{seq}')
+                print(f'Trimmed seq is:\n{seq_sliced}')
 
             hit_seq = SeqRecord(id=unique_hit_name, name=unique_hit_name, description=unique_hit_name, seq=seq_sliced)
 
