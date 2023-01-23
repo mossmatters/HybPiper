@@ -836,7 +836,27 @@ class Exonerate(object):
                 three_prime_slice = three_prime_first_upward_crossing_nucleotides
                 print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
 
-            # ToDo: adjust ends of slices to get any codons with similarity '|||'
+            # Adjust ends of slices to start with the first codon with similarity '|||':
+            print(all_window_similarity_triplets)
+            if five_prime_slice:  # i.e., it's not zero
+                window_similarity_five_prime_slice = all_window_similarity_triplets[round(five_prime_slice / 3)]
+                print(f'window_similarity_five_prime_slice: {window_similarity_five_prime_slice}')
+                for triplet in window_similarity_five_prime_slice:
+                    if triplet != '|||':
+                        five_prime_slice = five_prime_slice + 3
+                        break
+                print(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {five_prime_slice}')
+
+            if three_prime_slice:  # i.e., it's not zero
+                print(f'THREE PRIME SLICE')
+                window_similarity_three_prime_slice = \
+                    all_window_similarity_triplets[::-1][round(three_prime_slice / 3)][::-1]
+                print(f'window_similarity_three_prime_slice: {window_similarity_three_prime_slice}')
+                for triplet in window_similarity_three_prime_slice:
+                    if triplet != '|||':
+                        three_prime_slice = three_prime_slice + 3
+                        break
+                print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
 
             # Re-calculate the hit similarity based in the sliced sequence:
             concatenated_fragment_similarities_slice = \
@@ -1276,15 +1296,16 @@ class Exonerate(object):
         """
 
         amino_acid_seq = self.stitched_contig_seqrecord.seq.translate()
+        num_stop_codons = amino_acid_seq.count('*')
 
-        if re.search('[*]', str(amino_acid_seq)) and not re.search('[*]', str(amino_acid_seq)[-1]):
-            print(f'amino_acid_seq {amino_acid_seq} contains stop codons for prefix {self.prefix}!')
-            self.logger.debug(f'seqrecord for  {self.prefix} contains non-terminal stop codons!')
-            return True
-        else:
-            print(f'No stop codons in amino_acid_seq')
+        if num_stop_codons == 0 or (num_stop_codons == 1 and re.search('[*]', str(amino_acid_seq)[-1])):
+            print(f'No stop codons in amino_acid_seq for {self.prefix}')
             self.logger.debug(f'No non-terminal stop codons in seqrecord for {self.prefix}')
             return False
+        else:
+            print(f'amino_acid_seq {amino_acid_seq} contains stop codons for prefix {self.prefix}!')
+            self.logger.debug(f'seqrecord for {self.prefix} contains non-terminal stop codons!')
+            return True
 
     @staticmethod
     def convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
