@@ -185,6 +185,11 @@ def add_assemble_parser(subparsers):
                                       'a potential chimera of contigs from multiple paralogs',
                                  default=5,
                                  type=int)
+    parser_assemble.add_argument('--exonerate_hit_sliding_window_size',
+                                 help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
+                                      'hits. Default is %(default)s.',
+                                 default=3,
+                                 type=int)
     parser_assemble.add_argument('--merged',
                                  help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true',

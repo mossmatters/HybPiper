@@ -479,6 +479,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             spades_assembly_dict,
                                             depth_multiplier,
                                             keep_intermediate_files,
+                                            exonerate_hit_sliding_window_size,
                                             verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -503,7 +504,10 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
+    :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    of Exonerate hits
     :param bool verbose_logging: if True, log additional information to file
+
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
     """
 
@@ -535,6 +539,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  spades_assembly_dict=spades_assembly_dict,
                                  depth_multiplier=depth_multiplier,
                                  keep_intermediate_files=keep_intermediate_files,
+                                 exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
                                  verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -580,6 +585,7 @@ class Exonerate(object):
                  spades_assembly_dict=None,
                  depth_multiplier=10,
                  keep_intermediate_files=False,
+                 exonerate_hit_sliding_window_size=3,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -600,6 +606,8 @@ class Exonerate(object):
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
         :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
+        :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming
+        termini of Exonerate hits
         :param bool verbose_logging: if True, log additional information to file
         """
 
@@ -610,6 +618,7 @@ class Exonerate(object):
         self.query_id = searchio_object[0].id
         self.query_length = len(SeqIO.read(query_file, 'fasta'))
         self.similarity_threshold = thresh
+        self.sliding_window_size = exonerate_hit_sliding_window_size
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
@@ -630,6 +639,7 @@ class Exonerate(object):
         self.long_paralogs_dict = self._recover_long_paralogs()
         self.paralog_warning_by_contig_depth = self._paralog_warning_by_contig_depth()
         self.stitched_contig_seqrecord = self._create_stitched_contig()
+        self.stop_codons_in_seqrecord_bool = self._check_stop_codons_in_seqrecord()
         self.stitched_contig_hit_ranges = self._get_stitched_contig_hit_ranges()
         # only generate a no_stitched_contig_seqrecord (and write report) if no_stitched_contig is True:
         if self.no_stitched_contig:
@@ -650,6 +660,7 @@ class Exonerate(object):
         Parses the object returned by BioPython SearchIO.parse.
         => Calculates query-vs-hit similarity scores for each hit, and filters hit based on a given threshold
         => Sorts similarity-filtered hsps by start position in the protein query
+        => Applies a sliding window similarity filter to 5' and 3' hit termini, and trims if below similarity threshold
         => Populates a dict of dicts for each hit, with hitname: {key:value hit data}
 
         :return collections.defaultdict filtered_by_similarity_hsps_dict: dict of dicts for each hit
@@ -688,22 +699,21 @@ class Exonerate(object):
 
             # Check if there is more than one fragment in the hsp. If so, recover and concatenate the similarity
             # annotations and hit (nucleotide codon) annotations:
-
             hsp = filtered_hsp[0]
             fragment_similarity_triplets = [fragment['similarity'] for fragment in hsp.aln_annotation_all]
-            print(f'fragment_similarity_triplets:\n{fragment_similarity_triplets}')
+            # print(f'fragment_similarity_triplets:\n{fragment_similarity_triplets}')
             fragment_codons = [fragment['hit_annotation'] for fragment in hsp.aln_annotation_all]
-            print(f'fragment_codons:\n{fragment_codons}')
-            print(f'There is {len(fragment_similarity_triplets)} fragment(s) in hsp {hsp.hit_id}')
+            # print(f'fragment_codons:\n{fragment_codons}')
+            # print(f'There is {len(fragment_similarity_triplets)} fragment(s) in hsp {hsp.hit_id}')
             concatenated_fragment_similarities = [similarity_triplet for similarity_triplets_list in
                                                   fragment_similarity_triplets for similarity_triplet in
                                                   similarity_triplets_list]
-            print(f'concatenated_fragment_similarities:\n{concatenated_fragment_similarities}')
+            # print(f'concatenated_fragment_similarities:\n{concatenated_fragment_similarities}')
             concatenated_fragment_codons = [codon for codon_list in fragment_codons for codon in codon_list]
-            print(f'concatenated_fragment_codons:\n{concatenated_fragment_codons}')
+            # print(f'concatenated_fragment_codons:\n{concatenated_fragment_codons}')
 
-            # Calculate sliding window similarity values:
-            window_size = 3
+            # Calculate similarity values within a sliding window:
+            window_size = self.sliding_window_size
             window_similarity_percentages = []
 
             all_window_similarity_triplets = []
@@ -731,35 +741,35 @@ class Exonerate(object):
                 # print(f'similarity within window is: {window_similarity}')
 
                 window_similarity_percentages.append(float(window_similarity))
-            print(f'all_window_similarity_triplets:\n{all_window_similarity_triplets}')
-            print(f'all_window_codons:\n{all_window_codons}')
-            print(f'window_similarity_percentages:\n{window_similarity_percentages}')
+            # print(f'all_window_similarity_triplets:\n{all_window_similarity_triplets}')
+            # print(f'all_window_codons:\n{all_window_codons}')
+            # print(f'window_similarity_percentages:\n{window_similarity_percentages}')
 
             # Calculate indices of crossing thresholds:
             data = np.array(window_similarity_percentages)
             data_adjusted = np.where(data <= self.similarity_threshold, 0, 1)  # 0 or 1 if above or below/equal
             print(f'Using self.similarity_threshold: {self.similarity_threshold}')
-            print(f'data is:\n{data}')
+            # print(f'data is:\n{data}')
             # print(f'np.info(data): {np.info(data)}')
-            print(f'data[::-1] is:\n{data[::-1]}')
-            print(f'len(data) is: {len(data)}')
-            print(f'data_adjusted is:\n{data_adjusted}')
+            # print(f'data[::-1] is:\n{data[::-1]}')
+            # print(f'len(data) is: {len(data)}')
+            # print(f'data_adjusted is:\n{data_adjusted}')
             # prepend=1 means that the start value (before first sliding window value) corresponds to good quality
             # sequence. So, if the first sliding window value is good, a value of 0 (no change) will be returned,
             # and no upward crossing will be detected:
             five_prime_threshold_crossings = np.diff(data_adjusted >= 1, prepend=1)
             three_prime_threshold_crossings = np.diff(data_adjusted[::-1] >= 1, prepend=1)  # reverse list)
-            print(f'five_prime_threshold_crossings:\n{five_prime_threshold_crossings}')
-            print(f'three_prime_threshold_crossings:\n{three_prime_threshold_crossings}')
+            # print(f'five_prime_threshold_crossings:\n{five_prime_threshold_crossings}')
+            # print(f'three_prime_threshold_crossings:\n{three_prime_threshold_crossings}')
             # import matplotlib.pyplot as plt
             # plt.plot(data, marker='o')
             # plt.plot(threshold_crossings, marker='o')
             # plt.legend(("Data", "Threshold Crossings"))
             # plt.show()
-            print(f'len(five_prime_threshold_crossings): {len(five_prime_threshold_crossings)}')
-            print(f'np.argwhere(five_prime_threshold_crossings) : {np.argwhere(five_prime_threshold_crossings)}')
-            print(f'len(three_prime_threshold_crossings): {len(three_prime_threshold_crossings)}')
-            print(f'np.argwhere(three_prime_threshold_crossings) : {np.argwhere(three_prime_threshold_crossings)}')
+            # print(f'len(five_prime_threshold_crossings): {len(five_prime_threshold_crossings)}')
+            # print(f'np.argwhere(five_prime_threshold_crossings) : {np.argwhere(five_prime_threshold_crossings)}')
+            # print(f'len(three_prime_threshold_crossings): {len(three_prime_threshold_crossings)}')
+            # print(f'np.argwhere(three_prime_threshold_crossings) : {np.argwhere(three_prime_threshold_crossings)}')
             # print(f'np.argwhere(threshold_crossings)[:, 0] : {np.argwhere(threshold_crossings)[:, 0]}')
 
             # i.e. every second item starting at second value, from first index (0) in each element
@@ -778,6 +788,7 @@ class Exonerate(object):
             five_prime_upward_crossings_nucleotides = \
                 [0 if not upward_crossing else (upward_crossing * 3) for upward_crossing in
                  five_prime_upward_crossings]
+
             five_prime_downward_crossings_nucleotides = \
                 [0 if not downward_crossing else (downward_crossing * 3) for downward_crossing in
                  five_prime_downward_crossings]
@@ -786,51 +797,87 @@ class Exonerate(object):
             print(f'five_prime_downward_crossings_nucleotides: {five_prime_downward_crossings_nucleotides}')
 
             three_prime_upward_crossings_nucleotides = \
-                [0 if not upward_crossing else ((upward_crossing * 3) - 3) + (window_size * 3) for upward_crossing in
+                [0 if not upward_crossing else (upward_crossing * 3) for upward_crossing in
                  three_prime_upward_crossings]
+
             three_prime_downward_crossings_nucleotides = \
-                [0 if not downward_crossing else ((downward_crossing * 3) - 3) + (window_size * 3) for
-                 downward_crossing in three_prime_downward_crossings]
+                [0 if not downward_crossing else (downward_crossing * 3) for  downward_crossing in
+                 three_prime_downward_crossings]
 
             print(f'three_prime_upward_crossings_nucleotides: {three_prime_upward_crossings_nucleotides}')
             print(f'three_prime_downward_crossings_nucleotides: {three_prime_downward_crossings_nucleotides}')
 
-            five_prime_first_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[0]
-            five_prime_last_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[-1]
-            five_prime_first_downward_crossing_nucleotides = \
-                five_prime_downward_crossings_nucleotides[0] if len(five_prime_downward_crossings_nucleotides) != 0 else 0
-            five_prime_last_downward_crossing_nucleotides = \
-                five_prime_downward_crossings_nucleotides[-1] if len(five_prime_downward_crossings_nucleotides) != 0 else 0
+            try:
+                five_prime_first_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[0]
+            except IndexError:
+                five_prime_first_upward_crossing_nucleotides = 'no_crossing'
+            # five_prime_last_upward_crossing_nucleotides = five_prime_upward_crossings_nucleotides[-1]
+            try:
+                five_prime_first_downward_crossing_nucleotides = five_prime_downward_crossings_nucleotides[0]
+            except IndexError:
+                five_prime_first_downward_crossing_nucleotides = 'no_crossing'
 
-            three_prime_first_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[0]
-            three_prime_last_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[-1]
-            three_prime_first_downward_crossing_nucleotides = \
-                three_prime_downward_crossings_nucleotides[0] if len(
-                    three_prime_downward_crossings_nucleotides) != 0 else 0
-            three_prime_last_downward_crossing_nucleotides = \
-                three_prime_downward_crossings_nucleotides[-1] if len(
-                    three_prime_downward_crossings_nucleotides) != 0 else 0
+            # five_prime_first_downward_crossing_nucleotides = \
+            #     five_prime_downward_crossings_nucleotides[0] if \
+            #         len(five_prime_downward_crossings_nucleotides) != 0 else None
+            # five_prime_last_downward_crossing_nucleotides = \
+                # five_prime_downward_crossings_nucleotides[-1] if \
+                #     len(five_prime_downward_crossings_nucleotides) != 0 else None
+
+            try:
+                three_prime_first_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[0]
+            except IndexError:
+                three_prime_first_upward_crossing_nucleotides = 'no_crossing'
+            # three_prime_last_upward_crossing_nucleotides = three_prime_upward_crossings_nucleotides[-1]
+            # three_prime_first_downward_crossing_nucleotides = \
+            #     three_prime_downward_crossings_nucleotides[0] if len(
+            #         three_prime_downward_crossings_nucleotides) != 0 else None
+            try:
+                three_prime_first_downward_crossing_nucleotides = three_prime_downward_crossings_nucleotides[0]
+            except IndexError:
+                three_prime_first_downward_crossing_nucleotides = 'no_crossing'
+            # three_prime_last_downward_crossing_nucleotides = \
+            #     three_prime_downward_crossings_nucleotides[-1] if len(
+            #         three_prime_downward_crossings_nucleotides) != 0 else 0
 
             # Get slice indices, if any:
             five_prime_slice = 0  # i.e. default is no slice
             three_prime_slice = 0  # i.e. default is no slice
 
-            if len(five_prime_downward_crossings) == 0:  # no sliding window beneath the self.similarity_threshold value
-                print(f'No trimming required for hsp {hsp.hit_id}')
+            # Check if trimming is required:
+            # if len(five_prime_downward_crossings) == 0:  # no sliding window beneath the self.similarity_threshold value
+            #     print(f'No trimming required for hsp {hsp.hit_id}
+
+            # Five-prime check:
+            if five_prime_first_downward_crossing_nucleotides == 'no_crossing':  # no sliding window beneath the
+                # self.similarity_threshold value
+                print(f'five_prime_first_downward_crossing_nucleotides is '
+                      f'{five_prime_first_downward_crossing_nucleotides}: no trimming required for prefix '
+                      f'{self.prefix} hsp {hsp.hit_id}')
             elif five_prime_first_downward_crossing_nucleotides != 0:  # i.e. hit starts above threshold
-                print(f'No 5-prime trimming required for hsp {hsp.hit_id}')
+                print(f'five_prime_first_downward_crossing_nucleotides is '
+                      f'{five_prime_first_downward_crossing_nucleotides}; hit starts above threshold, so no 5-prime '
+                      f'trimming required for prefix {self.prefix} hsp {hsp.hit_id}')
             else:
                 five_prime_slice = five_prime_first_upward_crossing_nucleotides
-                print(f'5-prime trimming for hsp {hsp.hit_id} is {five_prime_slice}')
+                print(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {five_prime_slice}')
 
-            if len(three_prime_downward_crossings) == 0:  # i.e. no sliding window falls beneath the
-                # self.similarity_threshold value
-                print(f'No trimming required for hsp {hsp.hit_id}')
+            # Three-prime check:
+            if five_prime_first_downward_crossing_nucleotides == 'no_crossing':
+                print(f'three_prime_first_downward_crossing_nucleotides is '
+                      f'{three_prime_first_downward_crossing_nucleotides}: no trimming required for prefix '
+                      f'{self.prefix} hsp {hsp.hit_id}')
+            # if len(three_prime_downward_crossings) == 0:  # i.e. no sliding window falls beneath the
+            #     # self.similarity_threshold value
+            #     print(f'No trimming required for hsp {hsp.hit_id}')
             elif three_prime_first_downward_crossing_nucleotides != 0:  # i.e. hit starts above threshold
-                print(f'No 3-prime trimming required for hsp {hsp.hit_id}')
+                # print(f'No 3-prime trimming required for hsp {hsp.hit_id}')
+                print(f'three_prime_first_downward_crossing_nucleotides is '
+                      f'{three_prime_first_downward_crossing_nucleotides}; hit starts above threshold, so no 3-prime '
+                      f'trimming required for prefix {self.prefix} hsp {hsp.hit_id}')
             else:
                 three_prime_slice = three_prime_first_upward_crossing_nucleotides
-                print(f'3-prime trimming for hsp {hsp.hit_id} is {three_prime_slice}')
+                print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
                 # three_prime_slice_adjusted = len(concatenated_fragment_similarities) - three_prime_slice
                 # print(f'3-prime adjusted trimming for hsp {hsp.hit_id} is {three_prime_slice_adjusted}')
 
@@ -840,8 +887,8 @@ class Exonerate(object):
             concatenated_fragment_similarities_slice = \
                 concatenated_fragment_similarities[int(five_prime_slice / 3):
                                                    len(concatenated_fragment_similarities) - three_prime_slice]
-            print(concatenated_fragment_similarities)
-            print(f'concatenated_fragment_similarities_slice:\n{concatenated_fragment_similarities_slice}')
+            # print(concatenated_fragment_similarities)
+            # print(f'concatenated_fragment_similarities_slice:\n{concatenated_fragment_similarities_slice}')
             similarity_count_total = 0
             similarity_count = 0
             for triplet in concatenated_fragment_similarities_slice:
@@ -896,21 +943,23 @@ class Exonerate(object):
             if not three_prime_slice:
                 seq_sliced = seq[five_prime_slice:]
             else:
-                seq_sliced = seq[five_prime_slice:]
+                seq_sliced = seq[five_prime_slice: len(seq) - three_prime_slice]
             print(f'Trimmed seq is:\n{seq_sliced}')
 
             hit_seq = SeqRecord(id=unique_hit_name, name=unique_hit_name, description=unique_hit_name, seq=seq_sliced)
 
             # Populate nested dictionary for hsp:
-            filtered_by_similarity_hsps_dict[unique_hit_name]['original_query_range'] = query_range_original
+            filtered_by_similarity_hsps_dict[unique_hit_name]['query_range_original'] = query_range_original
             filtered_by_similarity_hsps_dict[unique_hit_name]['query_range'] = query_range
             filtered_by_similarity_hsps_dict[unique_hit_name]['query_range_all'] = query_range_all
+            filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_original'] = hit_range_original
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range'] = hit_range
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_all'] = hit_range_all
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_inter_ranges'] = hit_inter_ranges
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_strand'] = hsp_hit_strand
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_sequence'] = hit_seq
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_spades_contig_depth'] = spades_contig_depth
+            filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_original'] = filtered_hsp[1]
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
 
         return filtered_by_similarity_hsps_dict
@@ -1276,6 +1325,25 @@ class Exonerate(object):
 
         return stitched_contig_seqrecord
 
+    def _check_stop_codons_in_seqrecord(self):
+        """
+        Translates the final seqrecord (stitched contig or single hit) and check for stop codons ('*'). If found,
+        return True
+
+        :return bool
+        """
+
+        amino_acid_seq = self.stitched_contig_seqrecord.seq.translate()
+
+        if re.search('[*]', str(amino_acid_seq)) and not re.search('[*]', str(amino_acid_seq)[-1]):
+            print(f'amino_acid_seq {amino_acid_seq} contains stop codons for prefix {self.prefix}!')
+            self.logger.debug(f'seqrecord for  {self.prefix} contains non-terminal stop codons!')
+            return True
+        else:
+            print(f'No stop codons in amino_acid_seq')
+            self.logger.debug(f'No non-terminal stop codons in seqrecord for {self.prefix}')
+            return False
+
     @staticmethod
     def convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
         """
@@ -1411,8 +1479,18 @@ class Exonerate(object):
         sample_name = os.path.split(self.prefix)[-1]
         gene_name = os.path.split(self.prefix)[-2]
 
-        headers = ['query_id', 'query_length', 'hit_id', 'query_range_limits', 'query_hsps_ranges',
-                   'hit_percent_similarity', 'hit_strand', 'hit_range_limits', 'hit_hsps_ranges',
+        headers = ['query_id',
+                   'query_length',
+                   'hit_id',
+                   'query_HSP_range_limits_original',
+                   'query_HSP_range_limits_trimmed',
+                   'query_HSPFragment_ranges',
+                   'hit_percent_similarity_original',
+                   'hit_percent_similarity_trimmed',
+                   'hit_strand',
+                   'hit_HSP_range_limits_original',
+                   'hit_HSP_range_limits_trimmed',
+                   'hit_HSPFragment_ranges',
                    '3-prime_bases_trimmed']
 
         def nested_dict_iterator(nested_dict):
@@ -1438,10 +1516,13 @@ class Exonerate(object):
                                           f"\t{self.query_id}"
                                           f"\t{self.query_length}"
                                           f"\t{str(first_hit_dict_key.split(',')[0])}"
+                                          f"\t{first_hit_dict_value['query_range_original']}"
                                           f"\t{first_hit_dict_value['query_range']}"
                                           f"\t{first_hit_dict_value['query_range_all']}"
+                                          f"\t{first_hit_dict_value['hit_similarity_original']}"
                                           f"\t{first_hit_dict_value['hit_similarity']}"
                                           f"\t{first_hit_dict_value['hit_strand']}"
+                                          f"\t{first_hit_dict_value['hit_range_original']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
                                           f"\tN/A\n"))  # as no trimming performed yet
@@ -1449,10 +1530,13 @@ class Exonerate(object):
                 exonerate_stats_handle.write((f"\t{self.query_id}"
                                               f"\t{self.query_length}"
                                               f"\t{str(key.split(',')[0])}"
+                                              f"\t{value['query_range_original']}"
                                               f"\t{value['query_range']}"
                                               f"\t{value['query_range_all']}"
+                                              f"\t{value['hit_similarity_original']}"
                                               f"\t{value['hit_similarity']}"
                                               f"\t{value['hit_strand']}"
+                                              f"\t{value['hit_range_original']}"
                                               f"\t{value['hit_range']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\tN/A\n"))
@@ -1464,10 +1548,13 @@ class Exonerate(object):
                                           f"\t{self.query_id}"
                                           f"\t{self.query_length}"
                                           f"\t{str(first_hit_dict_key.split(',')[0])}"
+                                          f"\t{first_hit_dict_value['query_range_original']}"
                                           f"\t{first_hit_dict_value['query_range']}"
                                           f"\t{first_hit_dict_value['query_range_all']}"
+                                          f"\t{first_hit_dict_value['hit_similarity_original']}"
                                           f"\t{first_hit_dict_value['hit_similarity']}"
                                           f"\t{first_hit_dict_value['hit_strand']}"
+                                          f"\t{first_hit_dict_value['hit_range_original']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
                                           f"\tN/A\n"))  # as no trimming performed yet
@@ -1475,10 +1562,13 @@ class Exonerate(object):
                 exonerate_stats_handle.write((f"\t{self.query_id}"
                                               f"\t{self.query_length}"
                                               f"\t{str(key.split(',')[0])}"
+                                              f"\t{value['query_range_original']}"
                                               f"\t{value['query_range']}"
                                               f"\t{value['query_range_all']}"
+                                              f"\t{value['hit_similarity_original']}"
                                               f"\t{value['hit_similarity']}"
                                               f"\t{value['hit_strand']}"
+                                              f"\t{value['hit_range_original']}"
                                               f"\t{value['hit_range']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\tN/A\n"))
@@ -1491,10 +1581,13 @@ class Exonerate(object):
                                           f"\t{self.query_id}"
                                           f"\t{self.query_length}"
                                           f"\t{str(first_hit_dict_key.split(',')[0])}"
+                                          f"\t{first_hit_dict_value['query_range_original']}"
                                           f"\t{first_hit_dict_value['query_range']}"
                                           f"\t{first_hit_dict_value['query_range_all']}"
+                                          f"\t{first_hit_dict_value['hit_similarity_original']}"
                                           f"\t{first_hit_dict_value['hit_similarity']}"
                                           f"\t{first_hit_dict_value['hit_strand']}"
+                                          f"\t{first_hit_dict_value['hit_range_original']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
                                           f"\t{trimmed_bases}\n"))
@@ -1503,10 +1596,13 @@ class Exonerate(object):
                 exonerate_stats_handle.write((f"\t{self.query_id}"
                                               f"\t{self.query_length}"
                                               f"\t{str(key.split(',')[0])}"
+                                              f"\t{value['query_range_original']}"
                                               f"\t{value['query_range']}"
                                               f"\t{value['query_range_all']}"
+                                              f"\t{value['hit_similarity_original']}"
                                               f"\t{value['hit_similarity']}"
                                               f"\t{value['hit_strand']}"
+                                              f"\t{value['hit_range_original']}"
                                               f"\t{value['hit_range']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\t{trimmed_bases}\n"))
@@ -1521,10 +1617,13 @@ class Exonerate(object):
                      f"\t{self.query_length}"
                      f"\t{str(first_hit_dict_key.split(',')[0])}"
                      f"\t{first_hit_dict_value['query_range']}"
+                     f"\tN/A\n"
                      f"\t{first_hit_dict_value['query_range_all']}"
                      f"\t{first_hit_dict_value['hit_similarity']}"
+                     f"\tN/A\n"
                      f"\t{first_hit_dict_value['hit_strand']}"
                      f"\t{first_hit_dict_value['hit_range']}"
+                     f"\tN/A\n"
                      f"\t{first_hit_dict_value['hit_range_all']}"
                      f"\tN/A\n"))
                 for key, value in dict_iter:  # Write remaining lines
@@ -1532,10 +1631,13 @@ class Exonerate(object):
                                                   f"\t{self.query_length}"
                                                   f"\t{str(key.split(',')[0])}"
                                                   f"\t{value['query_range']}"
+                                                  f"\tN/A\n"
                                                   f"\t{value['query_range_all']}"
                                                   f"\t{value['hit_similarity']}"
+                                                  f"\tN/A\n"
                                                   f"\t{value['hit_strand']}"
                                                   f"\t{value['hit_range']}"
+                                                  f"\tN/A\n"
                                                   f"\t{value['hit_range_all']}"
                                                   f"\tN/A\n"))
 
