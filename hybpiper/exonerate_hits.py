@@ -1598,13 +1598,13 @@ class Exonerate(object):
                      f"\t{self.query_length}"
                      f"\t{str(first_hit_dict_key.split(',')[0])}"
                      f"\t{first_hit_dict_value['query_range']}"
-                     f"\tN/A\n"
+                     f"\tN/A"
                      f"\t{first_hit_dict_value['query_range_all']}"
                      f"\t{first_hit_dict_value['hit_similarity']}"
-                     f"\tN/A\n"
+                     f"\tN/A"
                      f"\t{first_hit_dict_value['hit_strand']}"
                      f"\t{first_hit_dict_value['hit_range']}"
-                     f"\tN/A\n"
+                     f"\tN/A"
                      f"\t{first_hit_dict_value['hit_range_all']}"
                      f"\tN/A\n"))
                 for key, value in dict_iter:  # Write remaining lines
@@ -1612,13 +1612,13 @@ class Exonerate(object):
                                                   f"\t{self.query_length}"
                                                   f"\t{str(key.split(',')[0])}"
                                                   f"\t{value['query_range']}"
-                                                  f"\tN/A\n"
+                                                  f"\tN/A"
                                                   f"\t{value['query_range_all']}"
                                                   f"\t{value['hit_similarity']}"
-                                                  f"\tN/A\n"
+                                                  f"\tN/A"
                                                   f"\t{value['hit_strand']}"
                                                   f"\t{value['hit_range']}"
-                                                  f"\tN/A\n"
+                                                  f"\tN/A"
                                                   f"\t{value['hit_range_all']}"
                                                   f"\tN/A\n"))
 
