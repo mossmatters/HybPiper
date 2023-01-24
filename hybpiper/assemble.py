@@ -1084,7 +1084,7 @@ def exonerate_multiprocessing(genes,
 
             # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
             with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-                with open('genes_with_non-terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
+                with open(f'{basename}_genes_with_non-terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
                     for future in as_completed(futures_list):
                         try:
                             gene_name, prot_length, run_time, stop_codons_in_seqrecord_bool = future.result()
