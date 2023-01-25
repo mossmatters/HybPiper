@@ -162,8 +162,8 @@ def write_paired_seqs_once(target, read_list, merged=False):
             outfile.write(f'>{ID2}\n{Seq2}\n')
 
             if merged:
-                fastq_outfile.write(f'>{ID1}\n{Seq1}\n+\n{Qual1}\n')
-                fastq_outfile.write(f'>{ID2}\n{Seq2}\n+\n{Qual2}\n')
+                fastq_outfile.write(f'@{ID1}\n{Seq1}\n+\n{Qual1}\n')
+                fastq_outfile.write(f'@{ID2}\n{Seq2}\n+\n{Qual2}\n')
 
     if merged:
         fastq_outfile.close()
