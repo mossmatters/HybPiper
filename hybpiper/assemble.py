@@ -1083,8 +1083,9 @@ def exonerate_multiprocessing(genes,
             futures_list = [future for future in future_results_dict.keys()]
 
             # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
+            genes_with_non_terminal_stop_codons = False
             with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-                with open(f'{basename}_genes_with_non-terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
+                with open(f'{basename}_genes_with_non_terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
                     for future in as_completed(futures_list):
                         try:
                             gene_name, prot_length, run_time, stop_codons_in_seqrecord_bool = future.result()
@@ -1105,6 +1106,7 @@ def exonerate_multiprocessing(genes,
 
                             if stop_codons_in_seqrecord_bool:
                                 genes_with_stops_handle.write(f'{gene_name}\n')
+                                genes_with_non_terminal_stop_codons = True
 
                         except TimeoutError as err:
                             logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took '
@@ -1144,6 +1146,15 @@ def exonerate_multiprocessing(genes,
                                  f'The command "hybpiper check_targetfile" can assist in identifying these '
                                  f'sequences.', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
+
+        if genes_with_non_terminal_stop_codons:
+            fill = textwrap.fill(f'{"[WARNING]:":10} One or more genes contain internal stop codons. See file "'
+                                 f'{basename}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
+                                 f'and visit the wiki at <link> to view troubleshooting recommendations.\n',
+                                 width=90, subsequent_indent=" " * 11)
+
+            logger.warning('')
+            logger.warning(fill)
 
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ignore additional SIGINT while HybPiper cleans up
