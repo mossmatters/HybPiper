@@ -1147,15 +1147,6 @@ def exonerate_multiprocessing(genes,
                                  f'sequences.', width=90, subsequent_indent=" " * 11)
             logger.info(fill)
 
-        if genes_with_non_terminal_stop_codons:
-            fill = textwrap.fill(f'{"[WARNING]:":10} One or more genes contain internal stop codons. See file "'
-                                 f'{basename}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
-                                 f'and visit the wiki at <link> to view troubleshooting recommendations.\n',
-                                 width=90, subsequent_indent=" " * 11)
-
-            logger.warning('')
-            logger.warning(fill)
-
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ignore additional SIGINT while HybPiper cleans up
         pid_set = set(pid_list)
@@ -1510,6 +1501,16 @@ def assemble(args):
     # Collate all stitched contig and putative chimera read reports
     ####################################################################################################################
     logger.info(f'\n{"[INFO]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
+    num_genes_with_stop_codons = len(open(f'{basename}_genes_with_non_terminal_stop_codons.txt').readlines())
+
+    if num_genes_with_stop_codons:
+        fill = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. See '
+                             f'file "{basename}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
+                             f'and visit the wiki at <link> to view troubleshooting recommendations.\n',
+                             width=90, subsequent_indent=" " * 11)
+
+        logger.warning('')
+        logger.warning(fill)
 
     # Stitched contigs:
     collate_stitched_contig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_stitched_contig.csv')]
