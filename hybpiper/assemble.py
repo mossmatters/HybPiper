@@ -669,7 +669,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
-                                                 low_mem=low_mem)
+                                                 low_mem=low_mem, bwa=False)
 
     if unpaired_readfile:
         up_blastx_outputfile = blastx_outputfile.replace('.blastx', '_unpaired.blastx')
@@ -677,7 +677,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem)
+                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem, bwa=False)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
@@ -736,7 +736,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
     distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
-                                                 low_mem=low_mem)
+                                                 low_mem=low_mem, bwa=True)
 
     if unpaired_readfile:
         up_bamfile = bamfile.replace('.bam', '_unpaired.bam')
@@ -744,7 +744,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
         distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem)
+                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem, bwa=True)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:  # i.e. a target name or file of name is specified manually
