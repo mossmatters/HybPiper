@@ -114,7 +114,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
     logger.info(f'{"[INFO]:":10} See file "{spades_initial_commands_file}" for a list of SPAdes commands')
 
-    parallel_cmd_list = ['time', 'parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
+    parallel_cmd_list = ['parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
 
     if timeout:
         parallel_cmd_list.append(f'--timeout {timeout}%')

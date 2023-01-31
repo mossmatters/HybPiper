@@ -849,6 +849,7 @@ def exonerate(gene_name,
               intronerate=False,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
+              exonerate_hit_sliding_window_size=3,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -872,6 +873,8 @@ def exonerate(gene_name,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
+    :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    of Exonerate hits
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -951,6 +954,7 @@ def exonerate(gene_name,
             spades_assembly_dict=spades_assembly_dict,
             depth_multiplier=depth_multiplier,
             keep_intermediate_files=keep_intermediate_files,
+            exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
             verbose_logging=verbose_logging)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
@@ -976,12 +980,15 @@ def exonerate(gene_name,
         end = time.time()
         proc_run_time = end - start
         # return gene_name to that exonerate_hits.py log can be re-logged to main log file:
-        return gene_name, None, proc_run_time
+        return gene_name, None, proc_run_time, False
 
     end = time.time()
     proc_run_time = end - start
 
-    return gene_name, len(exonerate_result.stitched_contig_seqrecord), proc_run_time
+    return gene_name, \
+           len(exonerate_result.stitched_contig_seqrecord), \
+           proc_run_time, \
+           exonerate_result.stop_codons_in_seqrecord_bool
 
 
 def exonerate_multiprocessing(genes,
@@ -1001,6 +1008,7 @@ def exonerate_multiprocessing(genes,
                               no_padding_supercontigs=False,
                               keep_intermediate_files=False,
                               exonerate_contigs_timeout=None,
+                              exonerate_hit_sliding_window_size=3,
                               verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
@@ -1024,11 +1032,14 @@ def exonerate_multiprocessing(genes,
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
     :param int exonerate_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
+    :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    of Exonerate hits
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
 
     logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
+    logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
 
     logger.info(f'{"[INFO]:":10} Running exonerate_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
@@ -1061,6 +1072,7 @@ def exonerate_multiprocessing(genes,
                                    "intronerate": intronerate,
                                    "no_padding_supercontigs": no_padding_supercontigs,
                                    "keep_intermediate_files": keep_intermediate_files,
+                                   "exonerate_hit_sliding_window_size": exonerate_hit_sliding_window_size,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1071,35 +1083,41 @@ def exonerate_multiprocessing(genes,
             futures_list = [future for future in future_results_dict.keys()]
 
             # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
+            genes_with_non_terminal_stop_codons = False
             with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-                for future in as_completed(futures_list):
-                    try:
-                        gene_name, prot_length, run_time = future.result()
-                        if gene_name:  # i.e. log the Exonerate run regardless of success
-                            gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
-                            gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
-                            gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
-                            with open(gene_log_file_to_cat) as gene_log_handle:
-                                lines = gene_log_handle.readlines()
-                                for line in lines:
-                                    logger.debug(line.strip())  # log contents to main logger
-                            if not keep_intermediate_files:
-                                os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
+                with open(f'{basename}_genes_with_non_terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
+                    for future in as_completed(futures_list):
+                        try:
+                            gene_name, prot_length, run_time, stop_codons_in_seqrecord_bool = future.result()
+                            if gene_name:  # i.e. log the Exonerate run regardless of success
+                                gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+                                gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+                                gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+                                with open(gene_log_file_to_cat) as gene_log_handle:
+                                    lines = gene_log_handle.readlines()
+                                    for line in lines:
+                                        logger.debug(line.strip())  # log contents to main logger
+                                if not keep_intermediate_files:
+                                    os.remove(gene_log_file_to_cat)  # delete the Exonerate log file
 
-                        # Write the 'gene_name', 'prot_length' strings returned by each process to file:
-                        if gene_name and prot_length:
-                            genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+                            # Write the 'gene_name', 'prot_length' strings returned by each process to file:
+                            if gene_name and prot_length:
+                                genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
 
-                    except TimeoutError as err:
-                        logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took '
-                                     f'more than {err.args[1]} seconds to complete and was cancelled')
-                        genes_cancelled_due_to_timeout.append(future_results_dict[future])
-                    except CancelledError:
-                        logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
-                    except Exception as error:
-                        genes_cancelled_due_to_errors.append(future_results_dict[future])
-                        print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
-                        print(f'error.traceback is: {error.traceback}')  # traceback of the function
+                            if stop_codons_in_seqrecord_bool:
+                                genes_with_stops_handle.write(f'{gene_name}\n')
+                                genes_with_non_terminal_stop_codons = True
+
+                        except TimeoutError as err:
+                            logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took '
+                                         f'more than {err.args[1]} seconds to complete and was cancelled')
+                            genes_cancelled_due_to_timeout.append(future_results_dict[future])
+                        except CancelledError:
+                            logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
+                        except Exception as error:
+                            genes_cancelled_due_to_errors.append(future_results_dict[future])
+                            print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
+                            # print(f'error.traceback is: {error.traceback}')  # traceback of the function
 
         wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
@@ -1476,12 +1494,25 @@ def assemble(args):
                               no_padding_supercontigs=args.no_padding_supercontigs,
                               keep_intermediate_files=args.keep_intermediate_files,
                               exonerate_contigs_timeout=args.timeout_exonerate_contigs,
+                              exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
                               verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
     ####################################################################################################################
     logger.info(f'\n{"[INFO]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
+    num_genes_with_stop_codons = len(open(f'{basename}_genes_with_non_terminal_stop_codons.txt').readlines())
+
+    if num_genes_with_stop_codons:
+        fill = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. See '
+                             f'file "{basename}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
+                             f'and visit the wiki at the following link to view troubleshooting recommendations.\n'
+                             f'https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
+                             f'-and-recommendations#31-sequences-containing-stop-codons\n',
+                             width=90, subsequent_indent=" " * 11)
+
+        logger.warning('')
+        logger.warning(fill)
 
     # Stitched contigs:
     collate_stitched_contig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_stitched_contig.csv')]

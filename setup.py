@@ -8,7 +8,7 @@ hybpiper_url = 'https://github.com/mossmatters/HybPiper'
 hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.assemble:main']}
 
 setuptools.setup(name='hybpiper',
-                 version='2.1.1',
+                 version='2.1.2',
                  packages=setuptools.find_packages(),
                  author='Chris Jackson, Matt Johnson',
                  author_email='chris.jackson@rbg.vic.gov.au',
