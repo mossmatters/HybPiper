@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.1.1 (December 2022)
+HybPiper Version 2.1.2 (January 2023)
 
 ########################################################################################################################
-############################################## NOTES ON VERSION 2.1.1 ##################################################
+############################################## NOTES ON VERSION 2.1.2 ##################################################
 ########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
@@ -1719,11 +1719,11 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.1.1',
+                         version='%(prog)s 2.1.2',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
-    subparsers = parser.add_subparsers(title='Subcommands for HybPiper', description='Valid subcommands:')
+    subparsers = parser.add_subparsers(title='Subcommands for HybPiper', metavar='')
     parser_assemble = hybpiper_subparsers.add_assemble_parser(subparsers)
     parser_stats = hybpiper_subparsers.add_stats_parser(subparsers)
     parser_retrieve_sequences = hybpiper_subparsers.add_retrieve_sequences_parser(subparsers)
