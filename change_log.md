@@ -2,9 +2,12 @@
 
 **2.1.2** *31st January, 2023*
 
-- Removed the call to `time` when running SPAdes assemblies via `parallel`; see issue #109.
+- Removed the call to `time` when running SPAdes assemblies via `parallel` (see https://github.com/mossmatters/HybPiper/issues/109).
 - Added a filter/trimming step to `exonerate_hits.py`. This process applies a sliding window to Exonerate hit alignments that have already passed a global similarity threshold (parameter `--thresh` for command `hybpiper assemble`). The 5' and 3' termini of SPAdes contig hits are trimmed if the similarity within the sliding window is below the `--thresh` value. This removes putative spurious 5' and 3' hit sequence produced by Exonerate alignments, and results in more accurate output `*.FNA` and `*.FAA` sequences. The sliding window size can be adjusted using the `hybpiper assemble` parameter `--exonerate_hit_sliding_window_size`; default value is 3 (i.e., 3 amino acids / 9 nucleotides).
 - HybPiper now provides a warning if any output sequence contains internal stop codons, and writes the corresponding gene names to the file `<prefix>_genes_with_non_terminal_stop_codons.txt`.
+- Fixed a bug that meant reads with older format headers (i.e., suffixes `/1` or `/2`) weren't processed properly when using BLASTx/DIAMOND (see https://github.com/mossmatters/HybPiper/issues/108).
+
+
 
 
 **2.1.1** *12th December, 2022*
