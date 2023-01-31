@@ -94,7 +94,7 @@ def read_sorting_blastx(blastfilename):
     with open(blastfilename) as blastfilename_handle:
         for line in blastfilename_handle:
             line = line.split()
-            readID = line[0]
+            readID = line[0].rstrip('/1').rstrip('/2')
             target = line[1].split('-')[-1]
             if readID in read_hit_dict:
                 if target not in read_hit_dict[readID]:
@@ -162,8 +162,8 @@ def write_paired_seqs_once(target, read_list, merged=False):
             outfile.write(f'>{ID2}\n{Seq2}\n')
 
             if merged:
-                fastq_outfile.write(f'>{ID1}\n{Seq1}\n+\n{Qual1}\n')
-                fastq_outfile.write(f'>{ID2}\n{Seq2}\n+\n{Qual2}\n')
+                fastq_outfile.write(f'@{ID1}\n{Seq1}\n+\n{Qual1}\n')
+                fastq_outfile.write(f'@{ID2}\n{Seq2}\n+\n{Qual2}\n')
 
     if merged:
         fastq_outfile.close()
@@ -211,7 +211,7 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
     :param bool merged: boolean passed to function write_paired_seqs()
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param bool single_end: True if a single file was provided as input to -r, False if not
-    :param bool low_mem: If False, reads to distribute will be saved in a dictionary and written once; uses more RAM
+    :param bool low_mem: if False, reads to distribute will be saved in a dictionary and written once; uses more RAM
     :return:
     """
 
