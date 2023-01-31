@@ -94,7 +94,7 @@ def read_sorting_blastx(blastfilename):
     with open(blastfilename) as blastfilename_handle:
         for line in blastfilename_handle:
             line = line.split()
-            readID = line[0]
+            readID = line[0].rstrip('/1').rstrip('/2')
             target = line[1].split('-')[-1]
             if readID in read_hit_dict:
                 if target not in read_hit_dict[readID]:
@@ -208,8 +208,7 @@ def distribute_reads(readfiles,
                      merged=False,
                      unpaired_readfile=None,
                      single_end=False,
-                     low_mem=False,
-                     bwa=False):
+                     low_mem=False):
     """
 
     :param list readfiles: a list of one or more readfiles
@@ -218,8 +217,6 @@ def distribute_reads(readfiles,
     :param str/bool unpaired_readfile: a path if an unpaired file has been provided, False if not
     :param bool single_end: True if a single file was provided as input to -r, False if not
     :param bool low_mem: if False, reads to distribute will be saved in a dictionary and written once; uses more RAM
-    ;param bool bwa: if False (i.e. NCBI or DIAMOND BLASTx used, and read fasta headers have /1 or /2, adjust search
-    of read_hit_dict accordingly
     :return:
     """
 
@@ -335,10 +332,10 @@ def distribute_reads(readfiles,
                                                                  min_poll_interval=30, widgets=widgets):
                 ID2_long, Seq2, Qual2 = next(iterator2)
                 ID1 = ID1_long.split()[0]
-                if bwa and ID1.endswith('/1') or ID1.endswith('/2'):
+                if ID1.endswith('/1') or ID1.endswith('/2'):
                     ID1 = ID1[:-2]
                 ID2 = ID2_long.split()[0]
-                if bwa and ID2.endswith('/1') or ID2.endswith('/2'):
+                if ID2.endswith('/1') or ID2.endswith('/2'):
                     ID2 = ID2[:-2]
                 if ID1 in read_hit_dict:
                     for target in read_hit_dict[ID1]:
