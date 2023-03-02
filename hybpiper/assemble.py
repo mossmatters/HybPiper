@@ -72,6 +72,7 @@ import pkg_resources
 import time
 import signal
 import cProfile
+import platform
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.7 or higher.'
@@ -880,11 +881,13 @@ def exonerate(gene_name,
     """
 
     # get parent PID and add to shared list; this is used to kill child processes on user interrupt:
-    pid_list.append(os.getpid())
+    pid = os.getpid()
+    pid_list.append(pid)
 
     logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
     if logger.hasHandlers():
         logger.handlers.clear()
+
     worker_configurer_func(gene_name)  # set up process-specific logging to file
     logger = logging.getLogger(gene_name)
     logger.setLevel(logging.DEBUG)
@@ -1200,6 +1203,15 @@ def assemble(args):
     logger.info(f'{fill}\n')
     logger.debug(args)
 
+    # Log system details for debugging:
+    utils.get_platform_info(logger=logger)
+
+    if platform.system() == 'Darwin':
+        utils.check_macos_version(logger=logger)
+
+    # Log ulimit details for debugging:
+    utils.get_ulimit_info(logger=logger)
+
     # Get number of cpus/threads for pipeline:
     if args.cpu:
         cpu = args.cpu
@@ -1389,7 +1401,7 @@ def assemble(args):
     else:
         genes = [x for x in os.listdir('.') if os.path.isfile(os.path.join(x, x + '_unpaired.fasta'))]
     if len(genes) == 0:
-        logger.error('ERROR: No genes with reads, exiting!')
+        logger.error(f'{"[ERROR]:":10} No genes with reads, exiting!')
         return
 
     ####################################################################################################################
