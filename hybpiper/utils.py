@@ -19,6 +19,8 @@ import sys
 import io
 import pstats
 import cProfile
+import platform
+import resource
 import argparse
 import progressbar
 
@@ -473,3 +475,72 @@ def createfolder(directory):
             os.makedirs(directory)
     except OSError:
         print(f'Error: Creating directory: {directory}')
+
+
+def check_macos_version(logger=None):
+    """
+    Due to this issue:
+
+        https://stackoverflow.com/questions/65290242/pythons-platform-mac-ver-reports-incorrect-macos-version
+
+    ...use the macOS command `sw_vers` to get the correct macOS version.
+
+    :param None, logging.Logger logger: a logger object
+    """
+
+    try:
+        result = subprocess.run('sw_vers', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True, check=True)
+        logger.debug(f'sw_vers check_returncode() is: {result.check_returncode()}')
+        logger.debug(f'sw_vers stdout is: {result.stdout}')
+        logger.debug(f'sw_vers stderr is: {result.stderr}')
+
+    except subprocess.CalledProcessError as exc:
+        logger.error(f'sw_vers FAILED. Output is: {exc}')
+        logger.error(f'sw_vers stdout is: {exc.stdout}')
+        logger.error(f'sw_vers stderr is: {exc.stderr}')
+
+
+def get_platform_info(logger=None):
+    """
+    Log the platform version for debugging
+
+    :param None, logging.Logger logger: a logger object
+    """
+
+    logger.debug(f'uname:     {platform.uname()}')
+    logger.debug(f'system:    {platform.system()}')
+    logger.debug(f'node:      {platform.node()}')
+    logger.debug(f'release:   {platform.release()}')
+    logger.debug(f'version:   {platform.version()}')
+    logger.debug(f'machine:   {platform.machine()}')
+    logger.debug(f'processor: {platform.processor()}')
+
+
+def get_ulimit_info(logger=None):
+    """
+    Log ulimit details for debugging.
+
+    Uses: https://github.com/python/cpython/blob/main/Modules/resource.c
+
+    :param None, logging.Logger logger: a logger object
+    """
+
+    for name, desc in [
+        ('RLIMIT_CORE', 'core file size'),
+        ('RLIMIT_CPU', 'CPU time'),
+        ('RLIMIT_FSIZE', 'file size'),
+        ('RLIMIT_DATA', 'heap size'),
+        ('RLIMIT_STACK', 'stack size'),
+        ('RLIMIT_RSS', 'resident set size'),
+        ('RLIMIT_NPROC', 'number of processes'),
+        ('RLIMIT_NOFILE', 'number of open files'),
+        ('RLIMIT_MEMLOCK', 'lockable memory address'),
+    ]:
+        try:
+            limit_num = getattr(resource, name)
+            soft, hard = resource.getrlimit(limit_num)
+            logger.debug(f'Maximum {desc:25} ({name:15}) : {soft:20} {hard:20}')
+        except ValueError:
+            logger.info(f'Specified resource {name} not found!')
+
