@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.1.2 (January 2023)
+HybPiper Version 2.1.3 (March 2023)
 
 ########################################################################################################################
-############################################## NOTES ON VERSION 2.1.2 ##################################################
+############################################## NOTES ON VERSION 2.1.3 ##################################################
 ########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
@@ -851,6 +851,7 @@ def exonerate(gene_name,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
               exonerate_hit_sliding_window_size=3,
+              exonerate_hit_sliding_window_thresh=55,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -876,6 +877,8 @@ def exonerate(gene_name,
     processing
     :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
     of Exonerate hits
+    :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    amino-acids) when trimming termini of Exonerate hits
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -958,6 +961,7 @@ def exonerate(gene_name,
             depth_multiplier=depth_multiplier,
             keep_intermediate_files=keep_intermediate_files,
             exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
+            exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
             verbose_logging=verbose_logging)
 
         if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
@@ -1012,6 +1016,7 @@ def exonerate_multiprocessing(genes,
                               keep_intermediate_files=False,
                               exonerate_contigs_timeout=None,
                               exonerate_hit_sliding_window_size=3,
+                              exonerate_hit_sliding_window_thresh=55,
                               verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
@@ -1037,12 +1042,15 @@ def exonerate_multiprocessing(genes,
     :param int exonerate_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
     :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
     of Exonerate hits
+    :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    amino-acids) when trimming termini of Exonerate hits
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
 
     logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
     logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
+    logger.debug(f'exonerate_hit_sliding_window_thresh is: {exonerate_hit_sliding_window_thresh}')
 
     logger.info(f'{"[INFO]:":10} Running exonerate_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
@@ -1076,6 +1084,7 @@ def exonerate_multiprocessing(genes,
                                    "no_padding_supercontigs": no_padding_supercontigs,
                                    "keep_intermediate_files": keep_intermediate_files,
                                    "exonerate_hit_sliding_window_size": exonerate_hit_sliding_window_size,
+                                   "exonerate_hit_sliding_window_thresh": exonerate_hit_sliding_window_thresh,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1762,7 +1771,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.1.2',
+                         version='%(prog)s 2.1.3',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:

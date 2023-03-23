@@ -480,6 +480,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             depth_multiplier,
                                             keep_intermediate_files,
                                             exonerate_hit_sliding_window_size,
+                                            exonerate_hit_sliding_window_thresh,
                                             verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -506,6 +507,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
     :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
     of Exonerate hits
+    :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    amino-acids) when trimming termini of Exonerate hits
     :param bool verbose_logging: if True, log additional information to file
 
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
@@ -540,6 +543,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  depth_multiplier=depth_multiplier,
                                  keep_intermediate_files=keep_intermediate_files,
                                  exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
+                                 exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
                                  verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -586,6 +590,7 @@ class Exonerate(object):
                  depth_multiplier=10,
                  keep_intermediate_files=False,
                  exonerate_hit_sliding_window_size=3,
+                 exonerate_hit_sliding_window_thresh=55,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -608,6 +613,8 @@ class Exonerate(object):
         :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
         :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming
         termini of Exonerate hits
+        :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
+        in amino-acids) when trimming termini of Exonerate hits
         :param bool verbose_logging: if True, log additional information to file
         """
 
@@ -619,6 +626,7 @@ class Exonerate(object):
         self.query_length = len(SeqIO.read(query_file, 'fasta'))
         self.similarity_threshold = thresh
         self.sliding_window_size = exonerate_hit_sliding_window_size
+        self.sliding_window_thresh = exonerate_hit_sliding_window_thresh
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
@@ -708,6 +716,7 @@ class Exonerate(object):
 
             # Calculate similarity values within a sliding window:
             window_size = self.sliding_window_size
+            window_thresh = self.sliding_window_thresh
             window_similarity_percentages = []
             all_window_similarity_triplets = []
             all_window_codons = []
@@ -735,7 +744,7 @@ class Exonerate(object):
 
             # Calculate indices of where a sliding-window similarity value crosses the similarity threshold:
             data = np.array(window_similarity_percentages)
-            data_adjusted = np.where(data <= self.similarity_threshold, 0, 1)  # 0 or 1 if above or below/equal
+            data_adjusted = np.where(data <= window_thresh, 0, 1)  # 0 or 1 if above or below/equal
 
             # Below: prepend=1 means that the start value (before first sliding window value) corresponds to good
             # quality sequence. So, if the first sliding window value is good, a value of 0 (no change) will be
@@ -773,7 +782,7 @@ class Exonerate(object):
                  three_prime_upward_crossings]
 
             three_prime_downward_crossings_nucleotides = \
-                [0 if not downward_crossing else (downward_crossing * 3) for  downward_crossing in
+                [0 if not downward_crossing else (downward_crossing * 3) for downward_crossing in
                  three_prime_downward_crossings]
 
             if self.verbose_logging:
@@ -838,15 +847,15 @@ class Exonerate(object):
             if three_prime_first_downward_crossing_nucleotides == 'no_crossing':
                 if self.verbose_logging:
                     self.logger.debug(f'three_prime_first_downward_crossing_nucleotides is '
-                                       f'{three_prime_first_downward_crossing_nucleotides}: no trimming required for '
-                                       f'prefix {self.prefix} hsp {hsp.hit_id}')
+                                      f'{three_prime_first_downward_crossing_nucleotides}: no trimming required for '
+                                      f'prefix {self.prefix} hsp {hsp.hit_id}')
 
             elif three_prime_first_downward_crossing_nucleotides != 0:  # i.e. hit starts above threshold
-                    if self.verbose_logging:
-                        self.logger.debug(f'three_prime_first_downward_crossing_nucleotides is'
-                                          f' {three_prime_first_downward_crossing_nucleotides}; hit starts above '
-                                          f'threshold, so no 3-prime trimming required for prefix {self.prefix} hsp '
-                                          f'{hsp.hit_id}')
+                if self.verbose_logging:
+                    self.logger.debug(f'three_prime_first_downward_crossing_nucleotides is'
+                                      f' {three_prime_first_downward_crossing_nucleotides}; hit starts above '
+                                      f'threshold, so no 3-prime trimming required for prefix {self.prefix} hsp '
+                                      f'{hsp.hit_id}')
             else:
                 three_prime_slice = three_prime_first_upward_crossing_nucleotides
                 if self.verbose_logging:
@@ -856,22 +865,18 @@ class Exonerate(object):
             # Adjust ends of slices to start with the first codon with similarity '|||':
             if five_prime_slice:  # i.e., five_prime_slice is not zero
                 window_similarity_five_prime_slice = all_window_similarity_triplets[round(five_prime_slice / 3)]
-                # print(f'window_similarity_five_prime_slice: {window_similarity_five_prime_slice}')
                 for triplet in window_similarity_five_prime_slice:
                     if triplet != '|||':
                         five_prime_slice = five_prime_slice + 3
                         break
-                # print(f'5-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {five_prime_slice}')
 
             if three_prime_slice:  # i.e., it's not zero
                 window_similarity_three_prime_slice = \
                     all_window_similarity_triplets[::-1][round(three_prime_slice / 3)][::-1]
-                # print(f'window_similarity_three_prime_slice: {window_similarity_three_prime_slice}')
                 for triplet in window_similarity_three_prime_slice:
                     if triplet != '|||':
                         three_prime_slice = three_prime_slice + 3
                         break
-                # print(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is {three_prime_slice}')
 
             # Re-calculate the hit similarity based in the sliced sequence:
             concatenated_fragment_similarities_slice = \
@@ -918,10 +923,6 @@ class Exonerate(object):
                 seq_sliced = seq[five_prime_slice:]
             else:
                 seq_sliced = seq[five_prime_slice: len(seq) - three_prime_slice]
-
-            # if seq != seq_sliced:
-            #     print(f'Original seq is:\n{seq}')
-            #     print(f'Trimmed seq is:\n{seq_sliced}')
 
             hit_seq = SeqRecord(id=unique_hit_name, name=unique_hit_name, description=unique_hit_name, seq=seq_sliced)
 

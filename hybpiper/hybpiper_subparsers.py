@@ -116,8 +116,9 @@ def add_assemble_parser(subparsers):
                                  default=None)
     parser_assemble.add_argument('--thresh',
                                  type=int,
+                                 default=55,
                                  help='Percent identity threshold for retaining Exonerate hits. Default is 55, '
-                                      'but increase this if you are worried about contaminant sequences.', default=55)
+                                      'but increase this if you are worried about contaminant sequences.')
     parser_assemble.add_argument('--paralog_min_length_percentage',
                                  default=0.75,
                                  type=float,
@@ -189,6 +190,11 @@ def add_assemble_parser(subparsers):
                                  help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
                                       'hits. Default is %(default)s.',
                                  default=3,
+                                 type=int)
+    parser_assemble.add_argument('--exonerate_hit_sliding_window_thresh',
+                                 help='Percentage similarity threshold for the sliding window (in amino-acids) when '
+                                      'trimming termini of Exonerate hits. Default is %(default)s.',
+                                 default=55,
                                  type=int)
     parser_assemble.add_argument('--merged',
                                  help='For assembly with both merged and unmerged (interleaved) reads.',
