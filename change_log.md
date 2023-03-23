@@ -3,7 +3,7 @@
 **2.1.3** *23rd March, 2023*
 
 - Log platform and ulimit details for debugging purposes.
-- Added parameter `--exonerate_hit_sliding_window_thresh` to `hybpiper assemble`. This value (default is 55) is used as the similarity threshold within the sliding window when trimming the 5' and 3' termini of Exonerate hits (i.e., the filter added in version 2.1.2). Previously, this filter used the value from the `--thresh` parameter, which is used to perform filtering of entire Exonerate hits based on global alignment similarity.
+- Added parameter `--exonerate_hit_sliding_window_thresh` to `hybpiper assemble`. This value (default is 55) is used as the similarity threshold within the sliding window when trimming the 5' and 3' termini of Exonerate hits (i.e., the filter added in version 2.1.2). Previously, this filter used the value from the `--thresh` parameter, which is also used to perform filtering of entire Exonerate hits based on global alignment similarity.
 
 **2.1.2** *31st January, 2023*
 
