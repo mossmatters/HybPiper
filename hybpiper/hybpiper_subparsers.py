@@ -273,6 +273,10 @@ def add_stats_parser(subparsers):
     parser_stats.add_argument("--stats_filename",
                               help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
                               default='hybpiper_stats')
+    parser_stats.add_argument('--hybpiper_output', '-o',
+                              dest='output_folder',
+                              help='Folder for HybPiper output. Default is %(default)s.',
+                              default=None)
     parser_stats.add_argument('--run_profiler',
                               help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
                               action='store_true',
