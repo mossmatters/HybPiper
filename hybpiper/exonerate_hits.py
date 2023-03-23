@@ -2121,6 +2121,11 @@ def standalone():
                              'hits. Default is %(default)s.',
                         default=3,
                         type=int)
+    parser.add_argument('--exonerate_hit_sliding_window_thresh',
+                        help='Percentage similarity threshold for the sliding window (in amino-acids) when trimming '
+                             'termini of Exonerate hits. Default is %(default)s.',
+                        default=55,
+                        type=int)
     parser.add_argument('--verbose_logging',
                         help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
                              'files by an order of magnitude.',
