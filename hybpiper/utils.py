@@ -335,31 +335,43 @@ def check_dependencies(logger=None):
     return everything_is_awesome
 
 
-def make_basename(readfiles, prefix=None):
+def make_basename(readfiles, prefix=None, output_folder=None):
     """
     Unless prefix is set, generate a directory based on the readfiles name, using everything up to the first
-    underscore. If prefix is set, generate the directory "prefix" and set basename to be the last component of the path.
+    underscore. If prefix is set, generate the directory "prefix". In both cases, if --hybpiper_output is set,
+    create the sample folder within the specified parent output directory.
+
+    https://docs.python.org/3/library/os.path.html#os.path.split:
+
+    Split the pathname path into a pair, (head, tail) where tail is the last pathname component and head is
+    everything leading up to that. The tail part will never contain a slash; if path ends in a slash, tail will be
+    empty. If there is no slash in path, head will be empty. If path is empty, both head and tail are empty. Trailing
+    slashes are stripped from head unless it is the root (one or more slashes only). In all cases, join(head, tail)
+    returns a path to the same location as path (but the strings may differ). Also see the functions dirname() and
+    basename().
 
     :param list readfiles: one or more read files used as input to the pipeline
     :param str prefix: directory name for sample pipeline output
+    :param str/None output_folder: name of output folder if supplied, else None
     :return str parent directory, directory name
     """
 
-    if prefix:
-        if not os.path.exists(prefix):
-            os.makedirs(prefix)
-        prefixparendir, prefix = os.path.split(prefix)
-        if not prefix:
-            # if prefix has a trailing /, prefixparendir will have the / stripped and prefix will be empty,
-            # so try again
-            prefix = os.path.split(prefixparendir)[1]
-        return prefixparendir, prefix
+    parent_dir = output_folder if output_folder else '.'
 
-    # --prefix is not set on cmd line;  Write output to subdir in "."
-    basename = os.path.split(readfiles[0])[1].split('_')[0]
-    if not os.path.exists(basename):
-        os.makedirs(basename)
-    return '.', basename
+    if prefix:
+        full_output_folder = os.path.join(parent_dir, prefix)
+
+        if not os.path.exists(full_output_folder):
+            os.makedirs(full_output_folder)
+
+    else:  # If --prefix is not set on cmd line, get sample name from read file:
+        prefix = os.path.split(readfiles[0])[1].split('_')[0]
+        full_output_folder = os.path.join(parent_dir, prefix)
+
+        if not os.path.exists(full_output_folder):
+            os.makedirs(full_output_folder)
+
+    return parent_dir, prefix
 
 
 def worker_configurer(gene_name):

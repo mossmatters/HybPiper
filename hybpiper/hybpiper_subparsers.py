@@ -226,6 +226,10 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  dest='verbose_logging',
                                  default=False)
+    parser_assemble.add_argument('--hybpiper_output', '-o',
+                                 dest='output_folder',
+                                 help='Folder for HybPiper output. Default is %(default)s.',
+                                 default=None)
     parser_assemble.add_argument('--run_profiler',
                                  help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
                                  action='store_true',

@@ -334,7 +334,7 @@ def check_target_file_stop_codons_and_multiple_of_three(targetfile,
     return translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict
 
 
-def check_targetfile(targetfile, targetfile_type, using_bwa, basedir, basename, logger=None):
+def check_targetfile(targetfile, targetfile_type, using_bwa, full_sample_directory, logger=None):
     """
     - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
     - Checks for duplicate gene names in the targetfile.
@@ -347,8 +347,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, basedir, basename, 
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
-    :param str basedir: path to the sample prefix base directory (if provided as part of --prefix string)
-    :param str basename: name of the sample directory
+    :param str full_sample_directory: path to the sample directory
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
@@ -376,8 +375,7 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, basedir, basename, 
                                                                 logger=logger)
 
         if translate_target_file:
-            sample_directory_path = os.path.join(basedir, basename)
-            translated_target_file = f'{sample_directory_path}/translated_target_file.fasta'
+            translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
             fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
                                             f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
                                             break_long_words=False, break_on_forward_slash=True)
@@ -391,13 +389,14 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, basedir, basename, 
     return targetfile
 
 
-def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
+def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
     """
     Conduct a BWA search of input reads against the targetfile.
 
     :param str/list readfiles: list one or more read files used as input to the pipeline, or path to unpaired read file
     :param str targetfile: path to targetfile (i.e. the target file)
-    :param str basename: directory name for sample
+    # :param str basename: directory name for sample
+    :param str sample_dir: directory name for sample
     :param int cpu: number of threads/cpus to use for BWA mapping
     :param bool unpaired: True if an unpaired file has been provided, False if not
     :param logging.Logger logger: a logger object
@@ -448,9 +447,9 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
 
     bwa_commands = ['bwa mem', '-t', str(cpu), db_file, bwa_fastq, ' | samtools view -h -b -S - > ']
     if unpaired:
-        bwa_commands.append(f'{basename}_unpaired.bam')
+        bwa_commands.append(f'{sample_dir}_unpaired.bam')
     else:
-        bwa_commands.append(f'{basename}.bam')
+        bwa_commands.append(f'{sample_dir}.bam')
     full_command = ' '.join(bwa_commands)
     fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
                                     break_long_words=False, break_on_forward_slash=True)
@@ -468,12 +467,12 @@ def bwa(readfiles, targetfile, basename, cpu, unpaired=False, logger=None):
         logger.error(f'BWA mapping stdout is: {exc.stdout}')
         logger.error(f'BWA mapping stderr is: {exc.stderr}')
         if unpaired:
-            os.remove(f'{basename}_unpaired.bam')
+            os.remove(f'{sample_dir}_unpaired.bam')
         else:
-            os.remove(f'{basename}.bam')
+            os.remove(f'{sample_dir}.bam')
         return None
 
-    return f'{basename}.bam'  # No return for {basename}_unpaired.bam?
+    return f'{sample_dir}.bam'  # No return for {basename}_unpaired.bam?
 
 
 def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10, unpaired=False, logger=None,
@@ -832,7 +831,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
 
 def exonerate(gene_name,
-              basename,
+              sample_dir,
               pid_list,
               thresh=55,
               paralog_warning_min_length_percentage=0.75,
@@ -855,7 +854,7 @@ def exonerate(gene_name,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
-    :param str basename: directory name for sample
+    :param str sample_dir: directory name for sample
     :param multiprocessing.managers.ListProxy pid_list: list shared by processes for capturing parent PIDs
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
@@ -902,8 +901,8 @@ def exonerate(gene_name,
         logger.debug(f'worker_stats for {gene_name} are: {worker_stats}')
 
     # Create directories for output files based on the prefix name, or assemblyfile name:
-    prefix = exonerate_hits.create_output_directories(f'{gene_name}/{basename}', f'{gene_name}/'
-                                                                                 f'{gene_name}_contigs.fasta')
+    prefix = exonerate_hits.create_output_directories(f'{gene_name}/{sample_dir}',
+                                                      f'{gene_name}/{gene_name}_contigs.fasta')
     logger.debug(f'prefix is: {prefix}')
 
     # Set whether the chimeric stitched contig test will be performed, and whether a file of interleaved reads is found:
@@ -999,7 +998,7 @@ def exonerate(gene_name,
 
 
 def exonerate_multiprocessing(genes,
-                              basename,
+                              sample_dir,
                               thresh=55,
                               paralog_warning_min_length_percentage=0.75,
                               pool_threads=None,
@@ -1022,7 +1021,7 @@ def exonerate_multiprocessing(genes,
     Runs the function exonerate() using multiprocessing.
 
     :param list genes: list of genes that had successful SPAdes runs
-    :param str basename: directory name for sample
+    :param str sample_dir: directory name for sample
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int pool_threads: number of threads/cpus to use for the pebble.ProcessPool pool
@@ -1088,7 +1087,7 @@ def exonerate_multiprocessing(genes,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
-                exonerate_job = pool.schedule(exonerate, args=[gene_name, basename, pid_list],
+                exonerate_job = pool.schedule(exonerate, args=[gene_name, sample_dir, pid_list],
                                               kwargs=kwargs_for_schedule, timeout=exonerate_contigs_timeout)
                 future_results_dict[exonerate_job] = gene_name
 
@@ -1097,7 +1096,7 @@ def exonerate_multiprocessing(genes,
             # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
             genes_with_non_terminal_stop_codons = False
             with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
-                with open(f'{basename}_genes_with_non_terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
+                with open(f'{sample_dir}_genes_with_non_terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
                     for future in as_completed(futures_list):
                         try:
                             gene_name, prot_length, run_time, stop_codons_in_seqrecord_bool = future.result()
@@ -1190,6 +1189,11 @@ def assemble(args):
     :return None: no return value specified; default is None
     """
 
+    # Check that args.prefix is NOT a path:
+    if args.prefix and re.search('/', args.prefix):
+        sys.exit(f'{"[ERROR]:":10} The prefix supplied with the parameter --prefix must not contain forward '
+                 f'slashes. You supplied: {args.prefix}')
+
     # Get a list of read files from args.readfiles (doesn't include any read file passed in via --unpaired flag):
     readfiles = [os.path.abspath(x) for x in args.readfiles]
 
@@ -1198,17 +1202,19 @@ def assemble(args):
                  f'--readfiles parameter')
 
     # Generate a directory for the sample:
-    basedir, basename = utils.make_basename(args.readfiles, prefix=args.prefix)
+    parent_dir, sample_dir = utils.make_basename(args.readfiles,
+                                                 prefix=args.prefix,
+                                                 output_folder=args.output_folder)
+
+    full_sample_directory = os.path.join(parent_dir, sample_dir)
 
     # Create logger:
-    if args.prefix:
-        logger = setup_logger(__name__, f'{basename}/{args.prefix}_hybpiper_assemble')
-    else:
-        logger = setup_logger(__name__, f'{basename}/{os.path.split(readfiles[0])[1].split("_")[0]}_hybpiper_assemble')
+    logger = setup_logger(__name__, f'{full_sample_directory}/{sample_dir}_hybpiper_assemble')
 
+    # Log command line and default parameters:
     logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
-    fill = textwrap.fill(' '.join(sys.argv), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
-                         break_on_hyphens=False)
+    fill = textwrap.fill(' '.join(sys.argv),
+                         width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11, break_on_hyphens=False)
     logger.info(f'{fill}\n')
     logger.debug(args)
 
@@ -1293,8 +1299,7 @@ def assemble(args):
     targetfile = check_targetfile(targetfile,
                                   targetfile_type,
                                   args.bwa,
-                                  basedir,
-                                  basename,
+                                  full_sample_directory,
                                   logger=logger)
 
     ####################################################################################################################
@@ -1313,8 +1318,11 @@ def assemble(args):
     else:
         target = None
 
+    # Log output folder:
+    logger.info(f'{"[INFO]:":10} Output will be written to the directory: {full_sample_directory}')
+
     # Move in to the sample directory:
-    os.chdir(os.path.join(basedir, basename))
+    os.chdir(full_sample_directory)
 
     ####################################################################################################################
     # Map reads to target file sequences
@@ -1324,7 +1332,7 @@ def assemble(args):
         logger.info(f'{"[INFO]:":10} Parameter "--start_from {args.start_from}" supplied, skipping read mapping step!')
 
         if args.bwa:
-            bamfile = f'{basename}.bam'
+            bamfile = f'{sample_dir}.bam'
             logger.debug(f'bamfile is: {bamfile}')
             if not utils.file_exists_and_not_empty(bamfile):
                 fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided '
@@ -1334,7 +1342,7 @@ def assemble(args):
                 logger.info(fill)
                 sys.exit(1)
         elif args.blast:
-            blastx_outputfile = f'{basename}.blastx'
+            blastx_outputfile = f'{sample_dir}.blastx'
             logger.debug(f'blastx outputfile is: {blastx_outputfile}')
             if not utils.file_exists_and_not_empty(blastx_outputfile):
                 fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided '
@@ -1348,28 +1356,28 @@ def assemble(args):
         if args.bwa:  # map reads to nucleotide targets with BWA
             if args.unpaired:
                 # Note that unpaired_readfile is a single path to the file:
-                bwa(unpaired_readfile, targetfile, basename, cpu=cpu, unpaired=True, logger=logger)
+                bwa(unpaired_readfile, targetfile, sample_dir, cpu=cpu, unpaired=True, logger=logger)
             # Note that readfiles is a list of one (single-end) or two (paired-end) paths to read files:
-            bamfile = bwa(readfiles, targetfile, basename, cpu=cpu, logger=logger)
+            bamfile = bwa(readfiles, targetfile, sample_dir, cpu=cpu, logger=logger)
             if not bamfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-                             f'hybpiper_assemble.log file for sample {basename}!')
+                             f'hybpiper_assemble.log file for sample {sample_dir}!')
                 return
             logger.debug(f'bamfile is: {bamfile}')
 
         elif args.blast:  # map reads to protein targets with BLASTx
             if args.unpaired:
-                blastx(unpaired_readfile, targetfile, args.evalue, basename, cpu=cpu,
+                blastx(unpaired_readfile, targetfile, args.evalue, sample_dir, cpu=cpu,
                        max_target_seqs=args.max_target_seqs, unpaired=True, logger=logger, diamond=args.diamond,
                        diamond_sensitivity=args.diamond_sensitivity)
 
-            blastx_outputfile = blastx(readfiles, targetfile, args.evalue, basename, cpu=cpu,
+            blastx_outputfile = blastx(readfiles, targetfile, args.evalue, sample_dir, cpu=cpu,
                                        max_target_seqs=args.max_target_seqs, logger=logger, diamond=args.diamond,
                                        diamond_sensitivity=args.diamond_sensitivity)
 
             if not blastx_outputfile:
                 logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-                             f'hybpiper_assemble.log file for sample {basename}!')
+                             f'hybpiper_assemble.log file for sample {sample_dir}!')
                 return
         else:
             sys.exit(f'Can not determine whether BWA or BLASTx option is supplied, exiting...')
@@ -1489,16 +1497,16 @@ def assemble(args):
     genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
     # Remove any pre-existing directories:
     for g in genes:
-        if os.path.isdir(os.path.join(g, basename)):
-            shutil.rmtree(os.path.join(g, basename))
+        if os.path.isdir(os.path.join(g, sample_dir)):
+            shutil.rmtree(os.path.join(g, sample_dir))
     if os.path.isfile('genes_with_seqs.txt'):
         os.remove('genes_with_seqs.txt')
     if len(genes) == 0:
-        logger.error(f'{"[ERROR]:":10} No genes recovered for {basename}!')
+        logger.error(f'{"[ERROR]:":10} No genes recovered for {sample_dir}!')
         return 1
 
     exonerate_multiprocessing(genes,
-                              basename,
+                              sample_dir,
                               thresh=args.thresh,
                               paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                               depth_multiplier=args.depth_multiplier,
@@ -1523,11 +1531,11 @@ def assemble(args):
     # Collate all stitched contig and putative chimera read reports
     ####################################################################################################################
     logger.info(f'\n{"[INFO]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
-    num_genes_with_stop_codons = len(open(f'{basename}_genes_with_non_terminal_stop_codons.txt').readlines())
+    num_genes_with_stop_codons = len(open(f'{sample_dir}_genes_with_non_terminal_stop_codons.txt').readlines())
 
     if num_genes_with_stop_codons:
         fill = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. See '
-                             f'file "{basename}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
+                             f'file "{sample_dir}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
                              f'and visit the wiki at the following link to view troubleshooting recommendations.\n'
                              f'https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
                              f'-and-recommendations#31-sequences-containing-stop-codons\n',
@@ -1537,16 +1545,16 @@ def assemble(args):
         logger.warning(fill)
 
     # Stitched contigs:
-    collate_stitched_contig_reports = [x for x in glob.glob(f'*/{basename}/genes_with_stitched_contig.csv')]
-    with open(f'{basename}_genes_with_stitched_contig.csv', 'w') as genes_with_stitched_contig_handle:
+    collate_stitched_contig_reports = [x for x in glob.glob(f'*/{sample_dir}/genes_with_stitched_contig.csv')]
+    with open(f'{sample_dir}_genes_with_stitched_contig.csv', 'w') as genes_with_stitched_contig_handle:
         for report_file in collate_stitched_contig_reports:
             with open(report_file, 'r') as report_handle:
                 lines = report_handle.readlines()
                 genes_with_stitched_contig_handle.write('\n'.join(lines))
 
     # Putative chimeras:
-    collate_putative_chimeras_reports = [x for x in glob.glob(f'*/{basename}/putative_chimeric_stitched_contig.csv')]
-    with open(f'{basename}_genes_derived_from_putative_chimeric_stitched_contig.csv',
+    collate_putative_chimeras_reports = [x for x in glob.glob(f'*/{sample_dir}/putative_chimeric_stitched_contig.csv')]
+    with open(f'{sample_dir}_genes_derived_from_putative_chimeric_stitched_contig.csv',
               'w') as genes_with_chimeras_handle:
         for report_file in collate_putative_chimeras_reports:
             with open(report_file, 'r') as report_handle:
@@ -1558,8 +1566,8 @@ def assemble(args):
     ####################################################################################################################
 
     # Collate report for long paralogs, and write warning to screen:
-    paralog_warnings_long = [x for x in glob.glob(f'*/{basename}/paralog_warning_long.txt')]
-    with open(f'{basename}_genes_with_long_paralog_warnings.txt', 'w') as long_paralogs_handle:
+    paralog_warnings_long = [x for x in glob.glob(f'*/{sample_dir}/paralog_warning_long.txt')]
+    with open(f'{sample_dir}_genes_with_long_paralog_warnings.txt', 'w') as long_paralogs_handle:
         for warning_file in paralog_warnings_long:
             with open(warning_file, 'r') as warning_handle:
                 report_line = warning_handle.readline().split()[0]  # only recover gene name
@@ -1567,9 +1575,9 @@ def assemble(args):
     logger.info(f'{"[WARNING]:":10} Potential long paralogs detected for {len(paralog_warnings_long)} genes!')
 
     # Collate report for paralogs via SPAdes contig depth, and write warning to screen:
-    paralog_warnings_short = [x for x in glob.glob(f'*/{basename}/paralog_warning_by_contig_depth.txt')]
+    paralog_warnings_short = [x for x in glob.glob(f'*/{sample_dir}/paralog_warning_by_contig_depth.txt')]
     paralog_warnings_short_true = 0
-    with open(f'{basename}_genes_with_paralog_warnings_by_contig_depth.csv', 'w') as depth_paralogs_handle:
+    with open(f'{sample_dir}_genes_with_paralog_warnings_by_contig_depth.csv', 'w') as depth_paralogs_handle:
         for warning_file in paralog_warnings_short:
             with open(warning_file, 'r') as warning_handle:
                 report_line = warning_handle.readline()
@@ -1579,7 +1587,7 @@ def assemble(args):
     logger.info(f'{"[WARNING]:":10} Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
 
-    logger.info(f'\nFinished running "hybpiper assemble" for sample {basename}!\n')
+    logger.info(f'\nFinished running "hybpiper assemble" for sample {sample_dir}!\n')
 
 
 def hybpiper_stats_main(args):
