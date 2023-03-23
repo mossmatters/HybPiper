@@ -1516,6 +1516,7 @@ def assemble(args):
                               keep_intermediate_files=args.keep_intermediate_files,
                               exonerate_contigs_timeout=args.timeout_exonerate_contigs,
                               exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
+                              exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
                               verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
