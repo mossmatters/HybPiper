@@ -496,7 +496,7 @@ def main(args):
         stats_dict_for_printing = '\t'.join(stats_dict[name])
         lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
 
-    with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
+    with open(f'{parent_dir}/{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
         for item in lines_for_stats_report:
             if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
                 continue
