@@ -942,7 +942,7 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_original'] = filtered_hsp[1]
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
 
-        # The sliding window trim filter can change the query start order of hits, so re-sort the dictionary:
+        # The sliding window trim filter can change the query start/end order of hits, so re-sort the dictionary:
         filtered_by_similarity_hsps_dict_sorted = \
             {sorted_key: filtered_by_similarity_hsps_dict[sorted_key] for sorted_key in
              sorted(filtered_by_similarity_hsps_dict,
