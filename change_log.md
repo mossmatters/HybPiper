@@ -4,6 +4,7 @@
 
 - Log platform and ulimit details for debugging purposes.
 - Added parameter `--exonerate_hit_sliding_window_thresh` to `hybpiper assemble`. This value (default is 55) is used as the similarity threshold within the sliding window when trimming the 5' and 3' termini of Exonerate hits (i.e., the filter added in version 2.1.2). Previously, this filter used the value from the `--thresh` parameter, which is also used to perform filtering of entire Exonerate hits based on global alignment similarity.
+- Bugfix: in `exonerate_hits.py`, ensure that similarity-filtered Exonerate hits are ordered by query start THEN query end; in cases where hits have identical query start coordinates, sorting only by query start can return the hits in a different order from one run to another, sometimes causing issues when trimming overlaps and concatenating to create a stitched-contig.
 
 **2.1.2** *31st January, 2023*
 

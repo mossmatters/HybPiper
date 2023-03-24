@@ -701,12 +701,14 @@ class Exonerate(object):
 
         filtered_by_similarity_hsps_dict = defaultdict(dict)  # dict of dicts for each filtered hsp
 
-        for filtered_hsp in sorted(filtered_hsps, key=lambda x: x[0].query_start):  # sort hsps by query start location
+        # Sort hsps list by query start location THEN query end location:
+        for filtered_hsp in sorted(filtered_hsps, key=lambda x: (x[0].query_start, x[0].query_end)):
 
             # Trim ends of filtered-for-similarity hsps if they fall beneath self.similarity_threshold. First, check if
             # there is more than one fragment in the hsp. If so, recover and concatenate the similarity annotations
             # and hit (nucleotide codon) annotations:
             hsp = filtered_hsp[0]
+
             fragment_similarity_triplets = [fragment['similarity'] for fragment in hsp.aln_annotation_all]
             fragment_codons = [fragment['hit_annotation'] for fragment in hsp.aln_annotation_all]
             concatenated_fragment_similarities = [similarity_triplet for similarity_triplets_list in
@@ -940,7 +942,14 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_original'] = filtered_hsp[1]
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
 
-        return filtered_by_similarity_hsps_dict
+        # The sliding window trim filter can change the query start order of hits, so re-sort the dictionary:
+        filtered_by_similarity_hsps_dict_sorted = \
+            {sorted_key: filtered_by_similarity_hsps_dict[sorted_key] for sorted_key in
+             sorted(filtered_by_similarity_hsps_dict,
+                    key=lambda x: (filtered_by_similarity_hsps_dict[x]['query_range'][0],
+                                   filtered_by_similarity_hsps_dict[x]['query_range'][1]))}
+
+        return filtered_by_similarity_hsps_dict_sorted
 
     def _recover_long_paralogs(self):
         """
