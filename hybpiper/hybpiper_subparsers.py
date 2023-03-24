@@ -491,6 +491,10 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               default=150,
                                               help='Dot per inch (DPI) for the output heatmap image. Default is '
                                                    '%(default)d')
+    parser_gene_recovery_heatmap.add_argument('--hybpiper_output', '-o',
+                                              dest='output_folder',
+                                              help='Folder for HybPiper output. Default is %(default)s.',
+                                              default=None)
     parser_gene_recovery_heatmap.add_argument('--run_profiler',
                                               action='store_true',
                                               dest='run_profiler',
