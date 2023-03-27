@@ -153,21 +153,11 @@ def main(args):
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
-    # Set parent dir:
-    parent_dir = args.output_folder if args.output_folder else '.'
-
-    path_to_seq_lengths_file = os.path.join(parent_dir, args.seq_lengths_file)
-
-    if args.seq_lengths_file and not os.path.exists(path_to_seq_lengths_file):
-        fill = textwrap.fill(f'{"[ERROR]:":10} Can not find file "{args.seq_lengths_file}". Is it in the current '
-                             f'working directory? Alternatively, did you mean to supply a parent output folder using '
-                             f'the parameter --hybpiper_output or -o ?',
-                             width=90, subsequent_indent=' ' * 11)
-        logger.info(fill)
-        sys.exit(1)
+    if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
+        logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
 
     # Read in the sequence length file:
-    df = pd.read_csv(path_to_seq_lengths_file, delimiter='\t', )
+    df = pd.read_csv(args.seq_lengths_file, delimiter='\t', )
 
     # For each sample, divide each gene length by the MeanLength value for that gene:
     df.loc[:, df.columns[1]:] = df.loc[:, df.columns[1]:].div(df.iloc[0][df.columns[1]:])
@@ -209,9 +199,9 @@ def main(args):
     # plt.tight_layout()
 
     # Save heatmap as png file:
-    path_to_output_heatmap = os.path.join(parent_dir, f'{args.heatmap_filename}.{args.heatmap_filetype}')
-    logger.info(f'{"[INFO]:":10} Saving heatmap as file "{path_to_output_heatmap}" at {args.heatmap_dpi} DPI')
-    plt.savefig(path_to_output_heatmap, dpi=args.heatmap_dpi, bbox_inches='tight')
+    logger.info(f'{"[INFO]:":10} Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at'
+                f' {args.heatmap_dpi} DPI')
+    plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=args.heatmap_dpi, bbox_inches='tight')
 
 
 ########################################################################################################################
