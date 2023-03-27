@@ -273,10 +273,6 @@ def add_stats_parser(subparsers):
     parser_stats.add_argument("--stats_filename",
                               help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
                               default='hybpiper_stats')
-    parser_stats.add_argument('--hybpiper_output', '-o',
-                              dest='output_folder',
-                              help='Folder for HybPiper output. Default is %(default)s.',
-                              default=None)
     parser_stats.add_argument('--run_profiler',
                               help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
                               action='store_true',
@@ -319,8 +315,10 @@ def add_retrieve_sequences_parser(subparsers):
                                            help='Type of sequence to extract',
                                            choices=["dna", "aa", "intron", "supercontig"])
     parser_retrieve_sequences.add_argument("--hybpiper_dir",
+                                           default=None,
                                            help='Specify directory containing HybPiper output')
     parser_retrieve_sequences.add_argument("--fasta_dir",
+                                           default=None,
                                            help='Specify directory for output FASTA files')
     parser_retrieve_sequences.add_argument('--skip_chimeric_genes',
                                            action='store_true',
@@ -491,10 +489,6 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               default=150,
                                               help='Dot per inch (DPI) for the output heatmap image. Default is '
                                                    '%(default)d')
-    parser_gene_recovery_heatmap.add_argument('--hybpiper_output', '-o',
-                                              dest='output_folder',
-                                              help='Folder for HybPiper output. Default is %(default)s.',
-                                              default=None)
     parser_gene_recovery_heatmap.add_argument('--run_profiler',
                                               action='store_true',
                                               dest='run_profiler',
