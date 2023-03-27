@@ -97,13 +97,20 @@ def get_samples_to_recover(filter_by, stats_df, target_genes):
     return samples_to_retain
 
 
-def recover_sequences_from_all_samples(seq_dir, filename, target_genes, sample_names, hybpiper_dir=None,
-                                       fasta_dir=None, skip_chimeric=False, stats_file=None, filter_by=False):
+def recover_sequences_from_all_samples(seq_dir,
+                                       filename,
+                                       target_genes,
+                                       sample_names,
+                                       hybpiper_dir=None,
+                                       fasta_dir=None,
+                                       skip_chimeric=False,
+                                       stats_file=None,
+                                       filter_by=False):
     """
     Recovers sequences (dna, amino acid, supercontig or intron) for all genes from all samples
 
-    :param str seq_dir: directory to recover sequence from
-    :param str filename: file name component used to reconstruct path to file
+    :param str seq_dir: directory to recover sequence from (FNA/FAA/intron)
+    :param str filename: file name component used to reconstruct path to file (introns/supercontig/None)
     :param list target_genes: list of unique gene names in the target file
     :param str sample_names: directory of samples, or text file with list of sample names
     :param None or str hybpiper_dir: if provided, a path to the directory containing HybPiper output
@@ -391,24 +398,33 @@ def main(args):
                          f'provided: {threshold}')
 
     # Set target file name:
+    targetfile = None
+
     if args.targetfile_dna:
         targetfile = args.targetfile_dna
     elif args.targetfile_aa:
         targetfile = args.targetfile_aa
 
+    assert targetfile
+
     # Set sequence directory name and file names:
+    seq_dir = None
+    filename = None
+
     if args.sequence_type == 'dna':
         seq_dir = "FNA"
-        filename = None
+        # filename = None
     elif args.sequence_type == 'aa':
         seq_dir = "FAA"
-        filename = None
+        # filename = None
     elif args.sequence_type == 'intron':
         seq_dir = 'intron'
         filename = 'introns'
     elif args.sequence_type == 'supercontig':
         seq_dir = 'intron'
         filename = 'supercontig'
+
+    assert seq_dir
 
     # Use gene names parsed from a target file.
     try:
