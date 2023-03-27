@@ -42,12 +42,8 @@ logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 
-def get_seq_lengths(targetfile,
-                    namelist,
-                    targetfile_sequence_type,
-                    sequence_type_to_calculate_stats_for,
-                    seq_lengths_filename,
-                    parent_dir):
+def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_type_to_calculate_stats_for,
+                    seq_lengths_filename):
     """
     Recover the sequence length of each target file gene (calculated as mean length if a representative sequence from
     more than one taxon is provided for a given gene). Calculate the percentage length recovery for each gene,
@@ -59,8 +55,6 @@ def get_seq_lengths(targetfile,
     :param str targetfile_sequence_type: sequence type in the target file ('DNA' or 'protein')
     :param str sequence_type_to_calculate_stats_for: gene (in nucleotides) or supercontig (in nucleotides)
     :param str seq_lengths_filename: optional filename for seq_lengths file. Default is seq_lengths.tsv
-    :param str parent_dir: name of output folder if supplied, else '.''
-
     :return str seq_lengths_report_filename: path to the sequence length report file written by this function
     """
 
@@ -104,23 +98,18 @@ def get_seq_lengths(targetfile,
 
     # Get seq lengths for sample gene sequences (FNA, FAA or supercontigs):
     for name in namelist_parsed:
-        full_sample_directory = os.path.join(parent_dir, name)
-        if not os.path.isdir(full_sample_directory):
-            fill = textwrap.fill(f'{"[ERROR]:":10} No sample directory found at "{full_sample_directory}". Did you '
-                                 f'mean to supply a parent output folder using the parameter --hybpiper_output or -o ?',
-                                 width=90, subsequent_indent=' ' * 11)
-            logger.info(fill)
-            sys.exit(1)
-
+        parentDir, name = os.path.split(name)
+        if not name:
+            parentDir, name = os.path.split(parentDir)
         name_lengths = []  # lengths of sequences in nucleotides
         for gene in range(len(unique_names)):
 
             # Reconstruct path to the sequence:
             if filetype == 'supercontig':
-                read_file = os.path.join(full_sample_directory, unique_names[gene], name, 'sequences', 'intron',
+                read_file = os.path.join(parentDir, name, unique_names[gene], name, 'sequences', 'intron',
                                          f'{unique_names[gene]}_supercontig.fasta')
             else:
-                read_file = os.path.join(full_sample_directory, unique_names[gene], name, "sequences", filetype,
+                read_file = os.path.join(parentDir, name, unique_names[gene], name, "sequences", filetype,
                                          f'{unique_names[gene]}.{filetype}')
 
             if os.path.isfile(read_file):
@@ -141,11 +130,10 @@ def get_seq_lengths(targetfile,
         lines_for_report.append(f'{name}\t{lengths_to_write}')
 
     # Write report file "seq_lengths.tsv"
-    seq_lengths_report_filename = f'{parent_dir}/{seq_lengths_filename}.tsv'
+    seq_lengths_report_filename = f'{seq_lengths_filename}.tsv'
     with open(seq_lengths_report_filename, 'w') as seq_lengths_handle:
         for item in lines_for_report:
             seq_lengths_handle.write(f'{item}\n')
-
     logger.info(f'{"[INFO]:":10} A sequence length table has been written to file: {seq_lengths_filename}.tsv')
 
     return seq_lengths_report_filename
@@ -371,16 +359,12 @@ def main(args):
     assert targetfile
     assert targetfile_type
 
-    # Set parent dir:
-    parent_dir = args.output_folder if args.output_folder else '.'
-
     # Get sequence lengths for recovered genes, and write them to file:
     seq_lengths_file_path = get_seq_lengths(targetfile,
                                             args.namelist,
                                             targetfile_type,
                                             args.sequence_type,
-                                            args.seq_lengths_filename,
-                                            parent_dir)
+                                            args.seq_lengths_filename)
 
     lines_for_stats_report = []
 
@@ -415,9 +399,8 @@ def main(args):
             stats_dict[name] = []
 
             # Enrichment Efficiency
-            bamfile = f'{parent_dir}/{name}/{name}.bam'
-            blastxfile = f'{parent_dir}/{name}/{name}.blastx'
-
+            bamfile = f'{name}/{name}.bam'
+            blastxfile = f'{name}/{name}.blastx'
             if os.path.isfile(bamfile):
                 stats_dict[name] += enrich_efficiency_bwa(bamfile)
             elif os.path.isfile(blastxfile):
@@ -432,22 +415,20 @@ def main(args):
                 continue
 
             # Recovery Efficiency
-            stats_dict[name] += recovery_efficiency(f'{parent_dir}/{name}')
+            stats_dict[name] += recovery_efficiency(name)
             stats_dict[name] += seq_length_dict[name]
 
             # Paralogs - long
-            if os.path.isfile(f'{parent_dir}/{name}/{name}_genes_with_long_paralog_warnings.txt'):
-                paralog_warns = file_len(f'{parent_dir}/{name}/{name}_genes_with_long_paralog_warnings.txt')
+            if os.path.isfile(f'{name}/{name}_genes_with_long_paralog_warnings.txt'):
+                paralog_warns = file_len(f'{name}/{name}_genes_with_long_paralog_warnings.txt')
                 stats_dict[name].append(str(paralog_warns))
             else:
                 stats_dict[name].append("0")
 
             # Paralogs - by contig depth across query protein
             num_genes_paralog_warning_by_depth = 0
-            if os.path.isfile(f'{parent_dir}/{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'):
-                with open(f'{parent_dir}/{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv') as \
-                        paralogs_by_depth:
-
+            if os.path.isfile(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'):
+                with open(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
                     lines = paralogs_by_depth.readlines()
                     for gene_stats in lines:
                         stat = gene_stats.split(',')[3].strip()
@@ -460,9 +441,8 @@ def main(args):
             stitched_contig_produced = 0
             no_stitched_contig = 0
             stitched_contig_skipped = 0
-            if os.path.isfile(f'{parent_dir}/{name}/{name}_genes_with_stitched_contig.csv'):
-                with open(f'{parent_dir}/{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
-
+            if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
+                with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
                     lines = stitched_contig_stats.readlines()
                     for gene_stats in lines:
                         stat = gene_stats.split(',')[2]
@@ -479,8 +459,8 @@ def main(args):
             stats_dict[name].append(str(stitched_contig_skipped))
 
             chimeric_stitched_contigs = 0
-            if os.path.isfile(f'{parent_dir}/{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
-                with open(f'{parent_dir}/{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as \
+            if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
+                with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as \
                         chimeric_stitched_contig_stats:
 
                     lines = chimeric_stitched_contig_stats.readlines()
@@ -496,7 +476,7 @@ def main(args):
         stats_dict_for_printing = '\t'.join(stats_dict[name])
         lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
 
-    with open(f'{parent_dir}/{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
+    with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
         for item in lines_for_stats_report:
             if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
                 continue
