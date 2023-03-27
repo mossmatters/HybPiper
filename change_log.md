@@ -5,6 +5,8 @@
 - Log platform and ulimit details for debugging purposes.
 - Added parameter `--exonerate_hit_sliding_window_thresh` to `hybpiper assemble`. This value (default is 55) is used as the similarity threshold within the sliding window when trimming the 5' and 3' termini of Exonerate hits (i.e., the filter added in version 2.1.2). Previously, this filter used the value from the `--thresh` parameter, which is also used to perform filtering of entire Exonerate hits based on global alignment similarity.
 - Bugfix: in `exonerate_hits.py`, ensure that similarity-filtered Exonerate hits are ordered by query start THEN query end; in cases where hits have identical query start coordinates, sorting only by query start can return the hits in a different order from one run to another, sometimes causing issues when trimming overlaps and concatenating to create a stitched-contig.
+- Add parameter `--hybpiper_output` / `-o` to `hybpiper assemble`. If a directory is supplied using this parameter, `hybpiper assemble` will create it and use it for all output.
+
 
 **2.1.2** *31st January, 2023*
 
@@ -12,8 +14,6 @@
 - Added a filter/trimming step to `exonerate_hits.py`. This process applies a sliding window to Exonerate hit alignments that have already passed a global similarity threshold (parameter `--thresh` for command `hybpiper assemble`). The 5' and 3' termini of SPAdes contig hits are trimmed if the similarity within the sliding window is below the `--thresh` value. This removes putative spurious 5' and 3' hit sequence produced by Exonerate alignments, and results in more accurate output `*.FNA` and `*.FAA` sequences. The sliding window size can be adjusted using the `hybpiper assemble` parameter `--exonerate_hit_sliding_window_size`; default value is 3 (i.e., 3 amino acids / 9 nucleotides).
 - HybPiper now provides a warning if any output sequence contains internal stop codons, and writes the corresponding gene names to the file `<prefix>_genes_with_non_terminal_stop_codons.txt`.
 - Fixed a bug that meant reads with older format headers (i.e., suffixes `/1` or `/2`) weren't processed properly when using BLASTx/DIAMOND (see https://github.com/mossmatters/HybPiper/issues/108).
-
-
 
 
 **2.1.1** *12th December, 2022*
@@ -30,21 +30,25 @@
 - The `time` command has been removed from all BWA and BLAST command strings (see https://github.com/mossmatters/HybPiper/issues/89).
 - Update minimum Python version from 3.6 to 3.7, to match minimum requirements for Biopython 1.80 release.
 
+
 **2.0.3** *16th November, 2022*
 
 - The calculation for automatically determining the default heatmap dimensions has been changed, to prevent label trimming when using large numbers of samples and genes (pull request from LPDagallier).
 - The default DPI of the heatmap `*.png` file has been reduced from 300 to 150.
+
 
 **2.0.2** *14th November, 2022*
 
 - Added the `--run_profiler` flag to the `check_dependencies` subcommand (bugfix). 
 - Moved to correct semantic versioning; removed the 'release candidate build x' string from version description, and bumped to version 2.0.2.
 
+
 **2.0.1 release candidate build 13** *12th September, 2022*
 
 - Added a `--run_profiler` option to all subcommands; when used, the given subcommand is run with cProfile and the data is saved to a *.csv file.
 - If a DNA target file is provided but the flag `--bwa` is omitted, a translated target file is now written directly to the sample directory (rather than the same directory as the input DNA file) with the generic name `translated_target_file.fasta`. This prevents file overwrite/access issues when processing multiple samples concurrently (e.g. using Nextflow).
 - Added a check for sequence fasta files that exist but are empty to `stats`, `paralog_retriever` and `retrieve_sequences`; a warning is printed if such a file is found.
+
 
 **2.0.1 release candidate build 12** *6th July, 2022*
 
@@ -56,6 +60,7 @@
 - Adding hybpiper_dir search for single sample recovery when running `hybpiper retrieve_sequences`. Adding sample name to recovered fasta file.
 -  Adding `--memory 1024` to `spades.py` command (macOS Monterey compatibility pre SPAdes version 3.15.4)
 
+
 **2.0.1 release candidate build 8** *24th June, 2022*
 
 - Capture errors relating to malformed input `*.fastq` files during read distribution, and log error to file.
@@ -65,6 +70,7 @@
 **2.0.1 release candidate build 8** *16th June, 2022*
 
 - If mapping is performed with BWA and the BWA mapping step fails, remove any `*.bam` file that has been produced.
+
 
 **2.0 release candidate** *March, 2022*
 
