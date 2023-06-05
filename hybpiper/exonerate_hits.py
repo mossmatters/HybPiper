@@ -438,10 +438,13 @@ def intronerate(exonerate_object,
         intron_sequences.append(intron_seqrecord)
 
     # Only write an "introns.fasta" file in certain cases:
-    if exonerate_object.stitched_contig_seqrecord.description == 'single_hit' and \
-            len(exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict['hit_inter_ranges']) == 0:
-        logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
-                     f'only a supercontig sequence will be recovered (i.e. no "introns.fasta" file) will be recovered')
+    if exonerate_object.stitched_contig_seqrecord.description == 'single_hit':
+        single_hit_dict_values = list(exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict.values())[0]
+        single_hit_inter_ranges = single_hit_dict_values['hit_inter_ranges']
+        if len(single_hit_inter_ranges) == 0:
+            logger.debug(f'Sequence for gene {gene_name} is derived from a single Exonerate hit with no introns - '
+                         f'only a supercontig sequence will be recovered (i.e. no "introns.fasta" file) will be '
+                         f'recovered')
     elif len(intron_sequences) == 0:  # e.g. When Exonerate splits the intronerate_supercontig target
         logger.debug(f'No introns for gene {gene_name}! This is likely caused by Exonerate splitting the '
                      f'"intronerate_supercontig" target in to multiple HSPs (i.e. it could not find an '

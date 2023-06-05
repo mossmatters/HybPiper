@@ -1,5 +1,10 @@
 # Changelog
 
+**2.1.4** *5th June, 2023*
+
+- Bugfix: fixed an issue when using `--run_intronerate` that could cause an error and result in no `*.FNA` sequence being produced for some genes.  
+
+
 **2.1.3** *23rd March, 2023*
 
 - Log platform and ulimit details for debugging purposes.
