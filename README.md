@@ -1,6 +1,6 @@
 # HybPiper
 
-Current version: 2.1.4 (June 2023)
+Current version: 2.1.5 (June 2023)
 
 [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
 
