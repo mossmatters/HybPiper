@@ -1,5 +1,10 @@
 # Changelog
 
+**2.1.5** *21st June, 2023*
+
+- Bugfix: fixed an issue in `exonerate_hits.py` that could result in initial Exonerate hits being trimmed too aggressively at their 3' ends.
+- Bugfix: fixed an issue in `exonerate_hits.py` that could introduce minor insertions in to the supercontig (concatenated exon and partial intron) sequence used when running Intronerate.  
+
 **2.1.4** *5th June, 2023*
 
 - Bugfix: fixed an issue when using `--run_intronerate` that could cause an error and result in no `*.FNA` sequence being produced for some genes.  
