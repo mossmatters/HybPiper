@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.1.4 (June 2023)
+HybPiper Version 2.1.5 (June 2023)
 
 ########################################################################################################################
-############################################## NOTES ON VERSION 2.1.3 ##################################################
+############################################## NOTES ON VERSION 2.1.5 ##################################################
 ########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
@@ -1780,7 +1780,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.1.4',
+                         version='%(prog)s 2.1.5',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
