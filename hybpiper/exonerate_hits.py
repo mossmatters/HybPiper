@@ -886,7 +886,8 @@ class Exonerate(object):
             # Re-calculate the hit similarity based in the sliced sequence:
             concatenated_fragment_similarities_slice = \
                 concatenated_fragment_similarities[int(five_prime_slice / 3):
-                                                   len(concatenated_fragment_similarities) - three_prime_slice]
+                                                   int(len(concatenated_fragment_similarities) -
+                                                       (three_prime_slice / 3))]
             similarity_count_total = 0
             similarity_count = 0
 
@@ -902,14 +903,31 @@ class Exonerate(object):
             query_range = (round(query_range_original[0] + (five_prime_slice / 3)),
                            round((query_range_original[1] - (three_prime_slice / 3))))
             query_range_all = filtered_hsp[0].query_range_all
-            hit_range_original = filtered_hsp[0].hit_range
-            hit_range = (round(hit_range_original[0] + five_prime_slice),
-                         round((hit_range_original[1] - three_prime_slice)))
-            hit_range_all = filtered_hsp[0].hit_range_all
             hit_inter_ranges = filtered_hsp[0].hit_inter_ranges
             hsp_hit_strand_all = filtered_hsp[0].hit_strand_all
             assert len(set(hsp_hit_strand_all)) == 1  # Check that all HSP fragments are on the same strand
             hsp_hit_strand = next(iter(set(hsp_hit_strand_all)))
+            hit_range_original = filtered_hsp[0].hit_range
+            hit_range = (round(hit_range_original[0] + five_prime_slice),
+                         round((hit_range_original[1] - three_prime_slice)))
+            hit_range_all_original = filtered_hsp[0].hit_range_all
+
+            # Adjust hit_range_all_original for 5' and 3' slices, if any:
+            hit_range_all_flattened = [item for sublist in hit_range_all_original for item in sublist]
+            if hsp_hit_strand == -1:
+                if len(hit_range_all_original) == 1:  # i.e. a single coordinate tuple
+                    hit_range_all_flattened[0] = round(hit_range_original[0] + five_prime_slice)
+                    hit_range_all_flattened[-1] = round(hit_range_original[1] - three_prime_slice)
+                else:  # more than one coordinate tuple
+                    hit_range_all_flattened[-2] = round(hit_range_original[0] + five_prime_slice)
+                    hit_range_all_flattened[1] = round(hit_range_original[1] - three_prime_slice)
+            else:
+                hit_range_all_flattened[0] = round(hit_range_original[0] + five_prime_slice)
+                hit_range_all_flattened[-1] = round(hit_range_original[1] - three_prime_slice)
+
+            hit_range_all = []  # re-make the hit_range_all list with adjusted values
+            for pair in grouped(hit_range_all_flattened, 2):
+                hit_range_all.append(pair)
 
             # Set a unique hit name for cases where there's >1 hit for a single SPAdes contig:
             unique_hit_name = f'{filtered_hsp[0].hit_id},{self.query_id},{query_range[0]},{query_range[1]}' \
@@ -937,6 +955,7 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['query_range_all'] = query_range_all
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_original'] = hit_range_original
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range'] = hit_range
+            filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_all_original'] = hit_range_all_original
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_all'] = hit_range_all
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_inter_ranges'] = hit_inter_ranges
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_strand'] = hsp_hit_strand
@@ -1484,7 +1503,8 @@ class Exonerate(object):
                    'hit_strand',
                    'hit_HSP_range_limits_original',
                    'hit_HSP_range_limits_trimmed',
-                   'hit_HSPFragment_ranges',
+                   'hit_HSPFragment_ranges_original',
+                   'hit_HSPFragment_ranges_trimmed',
                    '3-prime_bases_trimmed']
 
         def nested_dict_iterator(nested_dict):
@@ -1518,6 +1538,7 @@ class Exonerate(object):
                                           f"\t{first_hit_dict_value['hit_strand']}"
                                           f"\t{first_hit_dict_value['hit_range_original']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
+                                          f"\t{first_hit_dict_value['hit_range_all_original']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
                                           f"\tN/A\n"))  # as no trimming performed yet
             for key, value in nested_dict_iter:  # Write remaining lines
@@ -1532,6 +1553,7 @@ class Exonerate(object):
                                               f"\t{value['hit_strand']}"
                                               f"\t{value['hit_range_original']}"
                                               f"\t{value['hit_range']}"
+                                              f"\t{value['hit_range_all_original']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\tN/A\n"))
 
@@ -1550,6 +1572,7 @@ class Exonerate(object):
                                           f"\t{first_hit_dict_value['hit_strand']}"
                                           f"\t{first_hit_dict_value['hit_range_original']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
+                                          f"\t{first_hit_dict_value['hit_range_all_original']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
                                           f"\tN/A\n"))  # as no trimming performed yet
             for key, value in nested_dict_iter:  # Write remaining lines
@@ -1564,6 +1587,7 @@ class Exonerate(object):
                                               f"\t{value['hit_strand']}"
                                               f"\t{value['hit_range_original']}"
                                               f"\t{value['hit_range']}"
+                                              f"\t{value['hit_range_all_original']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\tN/A\n"))
 
@@ -1583,6 +1607,7 @@ class Exonerate(object):
                                           f"\t{first_hit_dict_value['hit_strand']}"
                                           f"\t{first_hit_dict_value['hit_range_original']}"
                                           f"\t{first_hit_dict_value['hit_range']}"
+                                          f"\t{first_hit_dict_value['hit_range_all_original']}"
                                           f"\t{first_hit_dict_value['hit_range_all']}"
                                           f"\t{trimmed_bases}\n"))
             for key, value in nested_dict_iter:  # Write remaining lines
@@ -1598,6 +1623,7 @@ class Exonerate(object):
                                               f"\t{value['hit_strand']}"
                                               f"\t{value['hit_range_original']}"
                                               f"\t{value['hit_range']}"
+                                              f"\t{value['hit_range_all_original']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\t{trimmed_bases}\n"))
 
@@ -1610,28 +1636,30 @@ class Exonerate(object):
                      f"\t{self.query_id}"
                      f"\t{self.query_length}"
                      f"\t{str(first_hit_dict_key.split(',')[0])}"
+                     f"\t{first_hit_dict_value['query_range_original']}"
                      f"\t{first_hit_dict_value['query_range']}"
-                     f"\tN/A"
                      f"\t{first_hit_dict_value['query_range_all']}"
+                     f"\t{first_hit_dict_value['hit_similarity_original']}"
                      f"\t{first_hit_dict_value['hit_similarity']}"
-                     f"\tN/A"
                      f"\t{first_hit_dict_value['hit_strand']}"
+                     f"\t{first_hit_dict_value['hit_range_original']}"
                      f"\t{first_hit_dict_value['hit_range']}"
-                     f"\tN/A"
+                     f"\t{first_hit_dict_value['hit_range_all_original']}"
                      f"\t{first_hit_dict_value['hit_range_all']}"
                      f"\tN/A\n"))
                 for key, value in dict_iter:  # Write remaining lines
                     exonerate_stats_handle.write((f"\t{self.query_id}"
                                                   f"\t{self.query_length}"
                                                   f"\t{str(key.split(',')[0])}"
+                                                  f"\t{value['query_range_original']}"
                                                   f"\t{value['query_range']}"
-                                                  f"\tN/A"
                                                   f"\t{value['query_range_all']}"
+                                                  f"\t{value['hit_similarity_original']}"
                                                   f"\t{value['hit_similarity']}"
-                                                  f"\tN/A"
                                                   f"\t{value['hit_strand']}"
+                                                  f"\t{value['hit_range_original']}"
                                                   f"\t{value['hit_range']}"
-                                                  f"\tN/A"
+                                                  f"\t{value['hit_range_all_original']}"
                                                   f"\t{value['hit_range_all']}"
                                                   f"\tN/A\n"))
 
@@ -2205,6 +2233,7 @@ def main(args):
         depth_multiplier=args.depth_multiplier,
         keep_intermediate_files=args.keep_intermediate_files,
         exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
+        exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
         verbose_logging=args.verbose_logging)
 
     if not exonerate_result.stitched_contig_seqrecord:
