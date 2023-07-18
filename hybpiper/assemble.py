@@ -73,6 +73,7 @@ import time
 import signal
 import cProfile
 import platform
+import traceback
 
 # f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
 f'HybPiper requires Python 3.7 or higher.'
@@ -1127,8 +1128,9 @@ def exonerate_multiprocessing(genes,
                             logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
                         except Exception as error:
                             genes_cancelled_due_to_errors.append(future_results_dict[future])
-                            print(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
-                            # print(f'error.traceback is: {error.traceback}')  # traceback of the function
+                            logger.debug(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
+                            tb = traceback.format_exc()
+                            logger.debug(f'traceback is:\n{tb}')
 
         wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
