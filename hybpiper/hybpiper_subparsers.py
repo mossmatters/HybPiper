@@ -489,6 +489,16 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               default=100,
                                               help='Dot per inch (DPI) for the output heatmap image. Default is '
                                                    '%(default)d')
+    parser_gene_recovery_heatmap.add_argument('--no_xlabels',
+                                              action='store_true',
+                                              default=False,
+                                              help='If supplied, do not render labels for x-axis (loci) in the saved '
+                                                   'heatmap figure')
+    parser_gene_recovery_heatmap.add_argument('--no_ylabels',
+                                              action='store_true',
+                                              default=False,
+                                              help='If supplied, do not render labels for y-axis (samples) in the '
+                                                   'saved heatmap figure')
     parser_gene_recovery_heatmap.add_argument('--run_profiler',
                                               action='store_true',
                                               dest='run_profiler',
