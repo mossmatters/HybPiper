@@ -428,7 +428,7 @@ def add_paralog_retriever_parser(subparsers):
     parser_paralog_retriever.add_argument('--heatmap_dpi',
                                           type=int,
                                           help='Dots per inch (DPI) for the output heatmap image. Default is 300',
-                                          default='150')
+                                          default=100)
     parser_paralog_retriever.add_argument('--run_profiler',
                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
                                                'of results',
@@ -486,7 +486,7 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               help='File type to save the output heatmap image as. Default is *.png')
     parser_gene_recovery_heatmap.add_argument('--heatmap_dpi',
                                               type=int,
-                                              default=150,
+                                              default=100,
                                               help='Dot per inch (DPI) for the output heatmap image. Default is '
                                                    '%(default)d')
     parser_gene_recovery_heatmap.add_argument('--run_profiler',
