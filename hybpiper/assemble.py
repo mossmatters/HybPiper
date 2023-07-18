@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 """
-HybPiper Version 2.1.5 (June 2023)
-
 ########################################################################################################################
-############################################## NOTES ON VERSION 2.1.5 ##################################################
+####################################################### NOTES  #########################################################
 ########################################################################################################################
 
 After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
@@ -126,6 +124,7 @@ if biopython_version[0:2] < [1, 80]:
              f'Please update your Biopython for the Python installation used to run HybPiper!')
 
 # Import HybPiper modules:
+from hybpiper.version import __version__
 from hybpiper import distribute_reads_to_targets
 from hybpiper import distribute_targets
 from hybpiper import spades_runner
@@ -1214,7 +1213,7 @@ def assemble(args):
     logger = setup_logger(__name__, f'{full_sample_directory}/{sample_dir}_hybpiper_assemble')
 
     # Log command line and default parameters:
-    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    logger.info(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
     fill = textwrap.fill(' '.join(sys.argv),
                          width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11, break_on_hyphens=False)
     logger.info(f'{fill}\n')
@@ -1656,7 +1655,7 @@ def check_targetfile_standalone(args):
     :return: None: no return value specified; default is None
     """
 
-    print(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    print(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
     fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                          break_on_hyphens=False)
     print(f'{fill}\n')
@@ -1782,7 +1781,7 @@ def parse_arguments():
     group_1.add_argument('--version', '-v',
                          dest='version',
                          action='version',
-                         version='%(prog)s 2.1.5',
+                         version=f'hybpiper {__version__}',
                          help='Print the HybPiper version number.')
 
     # Add subparsers:
