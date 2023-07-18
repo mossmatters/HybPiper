@@ -62,6 +62,7 @@ import glob
 import textwrap
 import io
 from hybpiper import utils
+from hybpiper.version import __version__
 
 # Import non-standard-library modules:
 unsuccessful_imports = []
@@ -1320,7 +1321,7 @@ def main(args):
 
     logger = setup_logger(__name__, 'fix_targetfile')
 
-    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    logger.info(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
     fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
