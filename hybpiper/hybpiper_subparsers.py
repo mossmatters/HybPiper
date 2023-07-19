@@ -200,11 +200,11 @@ def add_assemble_parser(subparsers):
                                  help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true',
                                  default=False)
-    parser_assemble.add_argument('--run_intronerate',
-                                 help='Run intronerate to recover fasta files for supercontigs with introns (if '
+    parser_assemble.add_argument('--no_intronerate',
+                                 help='Do not run intronerate to recover fasta files for supercontigs with introns (if '
                                       'present), and introns-only.',
                                  action='store_true',
-                                 dest='intronerate',
+                                 dest='no_intronerate',
                                  default=False)
     parser_assemble.add_argument('--keep_intermediate_files',
                                  help='Keep all intermediate files and logs, which can be useful for '
@@ -429,6 +429,16 @@ def add_paralog_retriever_parser(subparsers):
                                           type=int,
                                           help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                                           default=100)
+    parser_paralog_retriever.add_argument('--no_xlabels',
+                                          action='store_true',
+                                          default=False,
+                                          help='If supplied, do not render labels for x-axis (loci) in the saved '
+                                               'heatmap figure')
+    parser_paralog_retriever.add_argument('--no_ylabels',
+                                          action='store_true',
+                                          default=False,
+                                          help='If supplied, do not render labels for y-axis (samples) in the '
+                                               'saved heatmap figure')
     parser_paralog_retriever.add_argument('--run_profiler',
                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
                                                'of results',
