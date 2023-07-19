@@ -370,7 +370,8 @@ def main(args):
                'GenesWithoutSupercontigs',
                'GenesWithSupercontigs',
                'GenesWithSupercontigSkipped',
-               'GenesWithChimeraWarning']
+               'GenesWithChimeraWarning',
+               'TotalBasesRecovered']
 
     operators = ['greater', 'smaller']
 
