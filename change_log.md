@@ -1,5 +1,18 @@
 # Changelog
 
+**2.1.6** *19th July, 2023*
+
+- **Intronerate is now run by default**. The flag `--run_intronerate` for subcommand `hybpiper assemble` has been changed to `--no_intronerate`. 
+- If Intronerate fails, failed genes and errors will be printed and logged; the exonerate_contigs step of the pipeline will continue.
+- Updated error handling and logging for the exonerate_contigs step of the pipeline.
+- Change default DPI of heatmaps to 100 (previously 150) for `hybpiper recovery_heatmap` and `hybpiper paralog_retriever`
+- Enforce rendering of all loci (x-axis) and sample (y-axis) labels in heatmaps; previously, matplotlib/seaborn would dynamically drop labels if they were too closely spaced.
+- Added flags `--no_xlabels` and `--no_ylabels` for `hybpiper recovery_heatmap` and `hybpiper paralog_retriever`; turns off rendering of the corresponding labels in the saved figures.
+- If the auto-calculated size of heatmaps for `hybpiper recovery_heatmap` and `hybpiper paralog_retriever` is greater than the maximum number of pixels (65536) in either/or length and height, resize the figure to 400 inches and 100 DPI. Note that large datasets can fail to render fully in the saved figure even if the pixel dimensions are less than the maximum (see e.g. https://stackoverflow.com/questions/64393779/how-to-render-a-heatmap-for-a-large-array), but reducing the size/DPI further allows the full figure to be rendered. 
+- Added module `version.py` for a single location of HybPiper version number.
+- Print and log HybPiper version when calling all subcommands.
+- Added column 'TotalBasesRecovered' to the `hybpiper stats` report, listing the total number of nucleotides recovered for each sample (not counting N characters). Added 'TotalBasesRecovered' as a filtering option in `hybpiper retrieve_sequences`.
+
 **2.1.5** *21st June, 2023*
 
 - Bugfix: fixed an issue in `exonerate_hits.py` that could result in initial Exonerate hits being trimmed too aggressively at their 3' ends.
