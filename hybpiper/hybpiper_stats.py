@@ -97,7 +97,9 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
     lines_for_report.append(f'Species\t{unique_names_to_write}')
     lines_for_report.append(f'MeanLength\t{avg_ref_lengths_to_write}')
 
-    # Get seq lengths for sample gene sequences (FNA, FAA or supercontigs):
+    # Get seq lengths for sample gene sequences (FNA or supercontigs):
+    sample_name_2_total_bases_dict = defaultdict(int)
+
     for name in namelist_parsed:
         parentDir, name = os.path.split(name)
         if not name:
@@ -124,6 +126,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
                         logger.warning(f'{"[WARNING]:":10} Sequence length for {name} is more than 50% longer than'
                                        f' {unique_names[gene]} reference!\n')
                     name_lengths.append(str(seq_length))
+                    sample_name_2_total_bases_dict[name] += seq_length
             else:
                 name_lengths.append("0")
 
@@ -137,7 +140,7 @@ def get_seq_lengths(targetfile, namelist, targetfile_sequence_type, sequence_typ
             seq_lengths_handle.write(f'{item}\n')
     logger.info(f'{"[INFO]:":10} A sequence length table has been written to file: {seq_lengths_filename}.tsv')
 
-    return seq_lengths_report_filename
+    return seq_lengths_report_filename, sample_name_2_total_bases_dict
 
 
 def file_len(fname):
@@ -360,12 +363,13 @@ def main(args):
     assert targetfile
     assert targetfile_type
 
-    # Get sequence lengths for recovered genes, and write them to file:
-    seq_lengths_file_path = get_seq_lengths(targetfile,
-                                            args.namelist,
-                                            targetfile_type,
-                                            args.sequence_type,
-                                            args.seq_lengths_filename)
+    # Get sequence lengths for recovered genes, and write them to file, along with total bases recovered:
+    seq_lengths_file_path, \
+        sample_name_2_total_bases_dict = get_seq_lengths(targetfile,
+                                                         args.namelist,
+                                                         targetfile_type,
+                                                         args.sequence_type,
+                                                         args.seq_lengths_filename)
 
     lines_for_stats_report = []
 
@@ -385,7 +389,8 @@ def main(args):
                   "GenesWithoutStitchedContigs",
                   "GenesWithStitchedContigs",
                   "GenesWithStitchedContigsSkipped",
-                  "GenesWithChimeraWarning"
+                  "GenesWithChimeraWarning",
+                  "TotalBasesRecovered"
                   ]
 
     categories_for_printing = '\t'.join(categories)
@@ -471,6 +476,9 @@ def main(args):
                             chimeric_stitched_contigs += 1
 
             stats_dict[name].append(str(chimeric_stitched_contigs))
+
+            # Total bases recovered (not counting N characters):
+            stats_dict[name].append(str(sample_name_2_total_bases_dict[name]))
 
     # SeqLengths
     for name in stats_dict:
