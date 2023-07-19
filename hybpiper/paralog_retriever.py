@@ -20,6 +20,7 @@ import textwrap
 from hybpiper.gene_recovery_heatmap import get_figure_dimensions
 from hybpiper.retrieve_sequences import get_chimeric_genes_for_sample
 from hybpiper import utils
+from hybpiper.version import __version__
 
 try:
     import pandas as pd
@@ -195,7 +196,9 @@ def create_paralog_heatmap(paralog_report_filename,
                            gene_text_size,
                            heatmap_filename,
                            heatmap_filetype,
-                           heatmap_dpi):
+                           heatmap_dpi,
+                           no_xlabels,
+                           no_ylabels):
 
     """
     Creates a heatmap showing the number of sequences recovered for each gene, for each sample.
@@ -207,7 +210,9 @@ def create_paralog_heatmap(paralog_report_filename,
     :param int gene_text_size: size in points for gene name text in heatmap figure
     :param str heatmap_filename: name for the heatmap figure image file
     :param str heatmap_filetype: type of figure to save ('png', 'pdf', 'eps', 'tiff', 'svg')
-    :param in heatmap_dpi: Dots per inch (DPI) for the output heatmap image
+    :param int heatmap_dpi: Dots per inch (DPI) for the output heatmap image
+    :param bool no_xlabels: if True, don't draw x-axis labels on saved figure
+    :param bool no_ylabels: if True, don't draw y-axis labels on saved figure
     :return:
     """
 
@@ -227,11 +232,51 @@ def create_paralog_heatmap(paralog_report_filename,
                                                                                            sample_text_size,
                                                                                            gene_text_size)
 
+    # Check that figure won't be greater than the maximum pixels allowed (65536) in either dimension, and resize to
+    # 400 inches / 100 DPI if it is. Note that even if the dimensions are less than 65536, a large dataset can still
+    #  on render partially (https://stackoverflow.com/questions/64393779/how-to-render-a-heatmap-for-a-large-array):
+
+    figure_length_pixels = fig_length * heatmap_dpi
+    figure_height_pixels = figure_height * heatmap_dpi
+
+    if figure_length_pixels >= 65536:
+
+        fig_length = 400
+        heatmap_dpi = 100
+
+        fill = textwrap.fill(
+            f'{"[INFO]:":10} The large number of loci in this analysis means that the auto-calculated figure length '
+            f'({fig_length:.2f} inches / {figure_length_pixels} pixels) is larger than the maximum allowed size '
+            f'(65536 pixels). Figure length has been set to 400 inches, and DPI has been set to 100 '
+            f'({400 * heatmap_dpi:.2f} pixels). If you find that the heatmap is only partially rendered in the '
+            f'saved file, try reducing the DPI further via the --heatmap_dpi parameter, and/or the figure length via '
+            f'the --figure_length parameter.',
+            width=90, subsequent_indent=' ' * 11)
+
+        logger.info(fill)
+
+    if figure_height_pixels >= 65536:
+
+        figure_height = 400
+        heatmap_dpi = 100
+
+        fill = textwrap.fill(
+            f'{"[INFO]:":10} The large number of samples in this analysis means that the auto-calculated figure height '
+            f'({figure_height:.2f} inches / {figure_height_pixels} pixels) is larger than the maximum allowed size '
+            f'(65536 pixels). Figure height has been set to 400 inches, and DPI has been set to 100 '
+            f'({400 * heatmap_dpi:.2f} pixels). If you find that the heatmap is only partially rendered in the '
+            f'saved file, try reducing the DPI further via the --heatmap_dpi parameter, and/or the figure length via '
+            f'the --figure_length parameter.',
+            width=90, subsequent_indent=' ' * 11)
+
+        logger.info(fill)
+
     # Create heatmap:
     sns.set(rc={'figure.figsize': (fig_length, figure_height)})
     sns.set_style('ticks')  # options are: white, dark, whitegrid, darkgrid, ticks
     cmap = 'bone_r'  # sets colour scheme
-    heatmap = sns.heatmap(df, vmin=0, cmap=cmap)
+    heatmap = sns.heatmap(df, vmin=0, cmap=cmap, xticklabels=1, yticklabels=1,
+                          cbar_kws={"orientation": "vertical", "pad": 0.01})
     heatmap.tick_params(axis='x', labelsize=gene_id_text_size)
     heatmap.tick_params(axis='y', labelsize=sample_text_size)
     heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0)
@@ -239,7 +284,13 @@ def create_paralog_heatmap(paralog_report_filename,
     heatmap.set_ylabel("Sample name", fontsize=14, fontweight='bold', labelpad=20)
     plt.title("Number of paralog sequences for each gene, for each sample", fontsize=14,
               fontweight='bold', y=1.05)
-    # plt.tight_layout()
+
+    # Remove x-axis and y-axis labels if flags provided:
+    if no_xlabels:
+        heatmap.set(xticks=[])
+
+    if no_ylabels:
+        heatmap.set(yticks=[])
 
     # Save heatmap as png file:
     logger.info(f'{"[INFO]:":10} Saving heatmap as file "{heatmap_filename}.{heatmap_filetype}" at {heatmap_dpi} DPI')
@@ -311,6 +362,14 @@ def standalone():
     parser.add_argument('--heatmap_dpi', type=int,
                         help='Dots per inch (DPI) for the output heatmap image. Default is 300',
                         default='300')
+    parser.add_argument('--no_xlabels',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not render labels for x-axis (loci) in the saved heatmap figure')
+    parser.add_argument('--no_ylabels',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not render labels for y-axis (samples) in the saved heatmap figure')
 
     parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
@@ -325,7 +384,7 @@ def main(args):
     :param argparse.Namespace args:
     """
 
-    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    logger.info(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
     fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
@@ -409,7 +468,9 @@ def main(args):
                            args.gene_text_size,
                            args.heatmap_filename,
                            args.heatmap_filetype,
-                           args.heatmap_dpi)
+                           args.heatmap_dpi,
+                           args.no_xlabels,
+                           args.no_ylabels)
 
     # Write text statistics report:
     write_paralogs_above_threshold_report(gene_with_paralogs_to_sample_list_dict,
