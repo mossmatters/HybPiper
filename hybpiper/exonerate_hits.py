@@ -2143,9 +2143,9 @@ def standalone():
                         help="When constructing stitched contigs, pad any gaps between hits (with respect to the "
                              "query protein) with a number of Ns corresponding to the query gap multiplied by 3",
                         action="store_true", dest='stitched_contig_pad_n', default=False)
-    parser.add_argument("--run_intronerate",
-                        help="Run intronerate to recover fasta files for supercontig with introns (if present), "
-                             "and introns-only", action="store_true", dest='intronerate', default=False)
+    parser.add_argument("--no_intronerate",
+                        help="Do no run intronerate to recover fasta files for supercontig with introns (if present), "
+                             "and introns-only", action="store_true", dest='no_intronerate', default=False)
     parser.add_argument("--no_padding_supercontigs",
                         help='If Intronerate is run, and a supercontig is created by concatenating multiple SPAdes '
                              'contigs, do not add 10 "N" characters between contig joins. By default, Ns will be '
@@ -2242,7 +2242,7 @@ def main(args):
     logger.debug(f'There were {len(exonerate_result.hits_filtered_by_pct_similarity_dict)} Exonerate '
                  f'hits for {args.proteinfile} after filtering by similarity threshold {args.thresh}.')
 
-    if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
+    if not args.no_intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
         logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict is:'
                      f' {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
         logger.debug(f'Running intronerate')
