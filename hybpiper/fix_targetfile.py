@@ -910,7 +910,7 @@ def write_dna_output_files(target_fasta_file,
                     f'exceeded the maximum allowed distance threshold from the reference. These sequences have been '
                     f'removed from the fixed target file, and written to: '
                     f'"{output_folder}/{seqs_with_single_frame_above_maximum_distance_filename}".',
-                    width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
+                    width=90, subsequent_indent=' ' * 11, break_on_forward_slash=False)
 
                 logger.info(fill)
 
