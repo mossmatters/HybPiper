@@ -15,6 +15,7 @@ import argparse
 import os
 import logging
 import textwrap
+from hybpiper.version import __version__
 
 # Import non-standard-library modules:
 
@@ -134,8 +135,16 @@ def standalone():
                         default='png')
     parser.add_argument('--heatmap_dpi',
                         type=int,
-                        default=150,
+                        default=100,
                         help='Dots per inch (DPI) for the output heatmap image. Default is %(default)d')
+    parser.add_argument('--no_xlabels',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not render labels for x-axis (loci) in the saved heatmap figure')
+    parser.add_argument('--no_ylabels',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not render labels for y-axis (samples) in the saved heatmap figure')
 
     args = parser.parse_args()
     main(args)
@@ -148,13 +157,14 @@ def main(args):
     :param argparse.Namespace args:
     """
 
-    logger.info(f'{"[INFO]:":10} HybPiper was called with these arguments:')
+    logger.info(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
     fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
     if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
         logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
+        sys.exit()
 
     # Read in the sequence length file:
     df = pd.read_csv(args.seq_lengths_file, delimiter='\t', )
@@ -184,11 +194,51 @@ def main(args):
                                                                                            args.sample_text_size,
                                                                                            args.gene_text_size)
 
+    # Check that figure won't be greater than the maximum pixels allowed (65536) in either dimension, and resize to
+    # 400 inches / 100 DPI if it is. Note that even if the dimensions are less than 65536, a large dataset can still
+    #  on render partially (https://stackoverflow.com/questions/64393779/how-to-render-a-heatmap-for-a-large-array):
+
+    figure_length_pixels = fig_length * args.heatmap_dpi
+    figure_height_pixels = figure_height * args.heatmap_dpi
+
+    if figure_length_pixels >= 65536:
+
+        fig_length = 400
+        args.heatmap_dpi = 100
+
+        fill = textwrap.fill(
+            f'{"[INFO]:":10} The large number of loci in this analysis means that the auto-calculated figure length '
+            f'({fig_length:.2f} inches / {figure_length_pixels} pixels) is larger than the maximum allowed size '
+            f'(65536 pixels). Figure length has been set to 400 inches, and DPI has been set to 100 '
+            f'({400 * args.heatmap_dpi:.2f} pixels). If you find that the heatmap is only partially rendered in the '
+            f'saved file, try reducing the DPI further via the --heatmap_dpi parameter, and/or the figure length via '
+            f'the --figure_length parameter.',
+            width=90, subsequent_indent=' ' * 11)
+
+        logger.info(fill)
+
+    if figure_height_pixels >= 65536:
+
+        figure_height = 400
+        args.heatmap_dpi = 100
+
+        fill = textwrap.fill(
+            f'{"[INFO]:":10} The large number of samples in this analysis means that the auto-calculated figure height '
+            f'({figure_height:.2f} inches / {figure_height_pixels} pixels) is larger than the maximum allowed size '
+            f'(65536 pixels). Figure height has been set to 400 inches, and DPI has been set to 100 '
+            f'({400 * args.heatmap_dpi:.2f} pixels). If you find that the heatmap is only partially rendered in the '
+            f'saved file, try reducing the DPI further via the --heatmap_dpi parameter, and/or the figure length via '
+            f'the --figure_length parameter.',
+            width=90, subsequent_indent=' ' * 11)
+
+        logger.info(fill)
+
     # Create heatmap:
     sns.set(rc={'figure.figsize': (fig_length, figure_height)})
     sns.set_style('ticks')  # options are: white, dark, whitegrid, darkgrid, ticks
     cmap = 'bone_r'  # sets colour scheme
-    heatmap = sns.heatmap(df, vmin=0, cmap=cmap)
+    heatmap = sns.heatmap(df, vmin=0, cmap=cmap, xticklabels=1, yticklabels=1,
+                          cbar_kws={"orientation": "vertical", "pad": 0.01})
     heatmap.tick_params(axis='x', labelsize=gene_id_text_size)
     heatmap.tick_params(axis='y', labelsize=sample_text_size)
     heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0)
@@ -196,7 +246,13 @@ def main(args):
     heatmap.set_ylabel("Sample name", fontsize=14, fontweight='bold', labelpad=20)
     plt.title("Percentage length recovery for each gene, relative to mean of targetfile references", fontsize=14,
               fontweight='bold', y=1.05)
-    # plt.tight_layout()
+
+    # Remove x-axis and y-axis labels if flags provided:
+    if args.no_xlabels:
+        heatmap.set(xticks=[])
+
+    if args.no_ylabels:
+        heatmap.set(yticks=[])
 
     # Save heatmap as png file:
     logger.info(f'{"[INFO]:":10} Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at'
