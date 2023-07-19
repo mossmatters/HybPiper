@@ -846,7 +846,7 @@ def exonerate(gene_name,
               counter=None,
               lock=None,
               genes_to_process=0,
-              intronerate=False,
+              no_intronerate=False,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
               exonerate_hit_sliding_window_size=3,
@@ -870,7 +870,7 @@ def exonerate(gene_name,
     :param multiprocessing.managers.ValueProxy counter:
     :param multiprocessing.managers.AcquirerProxy lock:
     :param int genes_to_process: total number of genes to be processed via Exonerate
-    :param bool intronerate: if True, run intronerate
+    :param bool no_intronerate: if True, do not run intronerate
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
@@ -936,6 +936,9 @@ def exonerate(gene_name,
         proc_run_time = end - start
         return gene_name, None, proc_run_time  # return gene_name to that log can be re-logged to main log file
 
+    # Set variable for intronerate_success
+    intronerate_success = 'N/A'
+
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
     exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_target.fasta',
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
@@ -963,17 +966,26 @@ def exonerate(gene_name,
             exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
             verbose_logging=verbose_logging)
 
-        if intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
+        if not no_intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
             if verbose_logging:
                 logger.debug(f'exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict for gene {gene_name} '
                              f'is: {exonerate_result.hits_subsumed_hits_removed_overlaps_trimmed_dict}')
             logger.debug(f'Running intronerate')
-            exonerate_hits.intronerate(exonerate_result,
-                                       spades_assembly_dict,
-                                       logger=logger,
-                                       no_padding_supercontigs=no_padding_supercontigs,
-                                       keep_intermediate_files=keep_intermediate_files,
-                                       verbose_logging=verbose_logging)
+
+            try:
+                exonerate_hits.intronerate(exonerate_result,
+                                           spades_assembly_dict,
+                                           logger=logger,
+                                           no_padding_supercontigs=no_padding_supercontigs,
+                                           keep_intermediate_files=keep_intermediate_files,
+                                           verbose_logging=verbose_logging)
+
+                intronerate_success = True
+
+            except Exception:
+                tb = traceback.format_exc()
+                logger.debug(f'Intronerate failed for gene {gene_name} with Exception:\n{tb}')
+                intronerate_success = False
     else:
         exonerate_result = False
 
@@ -985,8 +997,9 @@ def exonerate(gene_name,
     if not exonerate_text_output or not exonerate_result or not exonerate_result.stitched_contig_seqrecord:
         end = time.time()
         proc_run_time = end - start
+
         # return gene_name to that exonerate_hits.py log can be re-logged to main log file:
-        return gene_name, None, proc_run_time, False
+        return gene_name, None, proc_run_time, False, intronerate_success
 
     end = time.time()
     proc_run_time = end - start
@@ -994,7 +1007,8 @@ def exonerate(gene_name,
     return gene_name, \
            len(exonerate_result.stitched_contig_seqrecord), \
            proc_run_time, \
-           exonerate_result.stop_codons_in_seqrecord_bool
+           exonerate_result.stop_codons_in_seqrecord_bool, \
+           intronerate_success
 
 
 def exonerate_multiprocessing(genes,
@@ -1010,7 +1024,7 @@ def exonerate_multiprocessing(genes,
                               chimeric_stitched_contig_edit_distance=5,
                               chimeric_stitched_contig_discordant_reads_cutoff=5,
                               logger=None,
-                              intronerate=False,
+                              no_intronerate=False,
                               no_padding_supercontigs=False,
                               keep_intermediate_files=False,
                               exonerate_contigs_timeout=None,
@@ -1034,7 +1048,7 @@ def exonerate_multiprocessing(genes,
     :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched
     contig as chimeric
     :param logging.Logger logger: a logger object
-    :param bool intronerate: if True, intronerate will be run (if a gene is constructed from hits with introns)
+    :param bool no_intronerate: if True, intronerate will not be run (if a gene is constructed from hits with introns)
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
@@ -1047,6 +1061,7 @@ def exonerate_multiprocessing(genes,
     :return:
     """
 
+    logger.debug(f'no_intronerate is: {no_intronerate}')
     logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
     logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
     logger.debug(f'exonerate_hit_sliding_window_thresh is: {exonerate_hit_sliding_window_thresh}')
@@ -1079,7 +1094,7 @@ def exonerate_multiprocessing(genes,
                                    "counter": counter,
                                    "lock": lock,
                                    "genes_to_process": genes_to_process,
-                                   "intronerate": intronerate,
+                                   "no_intronerate": no_intronerate,
                                    "no_padding_supercontigs": no_padding_supercontigs,
                                    "keep_intermediate_files": keep_intermediate_files,
                                    "exonerate_hit_sliding_window_size": exonerate_hit_sliding_window_size,
@@ -1094,12 +1109,14 @@ def exonerate_multiprocessing(genes,
             futures_list = [future for future in future_results_dict.keys()]
 
             # As per-gene Exonerate runs complete, read the gene log, log it to the main logger, delete gene log:
-            genes_with_non_terminal_stop_codons = False
+            genes_with_failed_intronerate = []
+
             with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
                 with open(f'{sample_dir}_genes_with_non_terminal_stop_codons.txt', 'w') as genes_with_stops_handle:
                     for future in as_completed(futures_list):
                         try:
-                            gene_name, prot_length, run_time, stop_codons_in_seqrecord_bool = future.result()
+                            gene_name, prot_length, run_time, stop_codons_in_seqrecord_bool, intronerate_success = \
+                                future.result()
                             if gene_name:  # i.e. log the Exonerate run regardless of success
                                 gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
                                 gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
@@ -1117,7 +1134,14 @@ def exonerate_multiprocessing(genes,
 
                             if stop_codons_in_seqrecord_bool:
                                 genes_with_stops_handle.write(f'{gene_name}\n')
-                                genes_with_non_terminal_stop_codons = True
+
+                            # Check if intronerate was run and, if so, if it ran successfully:
+                            if intronerate_success == 'N/A':
+                                pass
+                            elif intronerate_success:
+                                pass
+                            else:
+                                genes_with_failed_intronerate.append(future_results_dict[future])
 
                         except TimeoutError as err:
                             logger.debug(f'\nProcess timeout - exonerate() for gene {future_results_dict[future]} took '
@@ -1133,16 +1157,28 @@ def exonerate_multiprocessing(genes,
 
         wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
+        if genes_with_failed_intronerate:
+            fill = textwrap.fill(f'{"[WARNING]:":10} The Intronerate step of the pipeline failed for the '
+                                 f'following genes:\n', width=90, subsequent_indent=" " * 11)
+            logger.info('')
+            logger.info(fill)
+            for gene in genes_with_failed_intronerate:
+                logger.info(f'{" " * 11}{gene}')
+
+            logger.info(f'\nPlease see the log file in the sample directory for more information.')
+
         if genes_cancelled_due_to_errors:
-            fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline failed for the '
+            fill = textwrap.fill(f'{"[WARNING]:":10} The exonerate_contigs step of the pipeline failed for the '
                                  f'following genes:\n', width=90, subsequent_indent=" " * 11)
             logger.info('')
             logger.info(fill)
             for gene in genes_cancelled_due_to_errors:
                 logger.info(f'{" " * 11}{gene}')
 
+            logger.info(f'\nPlease see the log file in the sample directory for more information.')
+
         if genes_cancelled_due_to_timeout:
-            fill = textwrap.fill(f'{"[INFO]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
+            fill = textwrap.fill(f'{"[WARNING]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
                                  f'following genes, due to exceeding the timeout limit of {exonerate_contigs_timeout} '
                                  f'seconds\n:', width=90, subsequent_indent=" " * 11)
             logger.info('')
@@ -1520,7 +1556,7 @@ def assemble(args):
                               bbmap_threads=args.bbmap_threads,
                               pool_threads=cpu,
                               logger=logger,
-                              intronerate=args.intronerate,
+                              no_intronerate=args.no_intronerate,
                               no_padding_supercontigs=args.no_padding_supercontigs,
                               keep_intermediate_files=args.keep_intermediate_files,
                               exonerate_contigs_timeout=args.timeout_exonerate_contigs,
