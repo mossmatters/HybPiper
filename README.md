@@ -73,13 +73,19 @@ The SPAdes assembler prior to version 3.15.4 is incompatible with Python 3.10 an
 We strongly recommend installing HybPiper using [conda](https://docs.conda.io/en/latest/miniconda.html) with a new environment. This will install HybPiper, all required Python packages, and all required external programs. If you have conda installed and the channels `bioconda` and `conda-forge` have already been added, this can be done using the command:
 
 ```
-conda create -n hybpiper -c chrisjackson-pellicle hybpiper
+conda create -n hybpiper -c bioconda hybpiper
 ```
 
 ...followed by:
 
 ```
 conda activate hybpiper
+```
+
+HybPiper is also available as a [biocontainer](https://quay.io/repository/biocontainers/hybpiper?tab=tags), and can be run using Singularity (Apptainer) or Docker.
+
+```bash
+apptainer pull docker://quay.io/biocontainers/hybpiper:2.1.6--h031d066_0
 ```
 
 For full installation instructions, please see our wiki page:
