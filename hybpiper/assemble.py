@@ -1281,6 +1281,7 @@ def assemble(args):
         logger.info(f'{"[INFO]:":10} Everything looks good!')
     else:
         logger.error(f'{"[ERROR]:":10} One or more dependencies not found!')
+        sys.exit()
 
     ####################################################################################################################
     # Check read and target files
