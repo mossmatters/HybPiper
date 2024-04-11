@@ -202,7 +202,7 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
     gene_lists = defaultdict(list)
     with open(targetfile, 'r') as target_file_handle:
         seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
-        incorrectly_formatted_fasta_headers = []
+        incorrectly_formatted_fasta_headers = set()
         check_for_duplicate_genes_dict = {}
         for seq in seqs:
             if seq.name in check_for_duplicate_genes_dict:
@@ -210,7 +210,9 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
             else:
                 check_for_duplicate_genes_dict[seq.name] = 1
             if not re.match('.+-[^-]+', seq.name):
-                incorrectly_formatted_fasta_headers.append(seq.name)
+                incorrectly_formatted_fasta_headers.add(seq.name)
+            if re.search('\"|\'', seq.name):
+                incorrectly_formatted_fasta_headers.add(seq.name)
             gene_id = re.split('-', seq.name)[-1]
             gene_lists[gene_id].append(seq)
 
