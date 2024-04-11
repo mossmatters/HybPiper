@@ -19,6 +19,7 @@ from Bio import SeqIO
 import logging
 import pandas
 import textwrap
+import re
 from hybpiper.version import __version__
 
 
@@ -151,7 +152,12 @@ def recover_sequences_from_all_samples(seq_dir,
             sys.exit(f'{"[ERROR]:":10} Can not find either a directory or a file with the name "{sample_names}", '
                      f'exiting...')
 
-        sample_names = [x.rstrip() for x in open(sample_names)]
+        sample_names_list = [x.rstrip() for x in open(sample_names) if x.rstrip()]
+
+        for sample in sample_names_list:
+            if re.search('/', sample):
+                sys.exit(f'{"[ERROR]:":10} A sample name must not contain '
+                         f'forward slashes. The file {sample_names} contains: {sample}')
 
         # Search within a user-supplied directory for the given sample directories, or the current directory if not:
         if hybpiper_dir:
@@ -170,7 +176,7 @@ def recover_sequences_from_all_samples(seq_dir,
     if samples_to_recover:
         logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(samples_to_recover)} samples')
     else:
-        logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(sample_names)} samples')
+        logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(sample_names_list)} samples')
     for gene in target_genes:
         numSeqs = 0
 
@@ -181,7 +187,7 @@ def recover_sequences_from_all_samples(seq_dir,
             outfilename = f'{gene}.{seq_dir}'
 
         with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
-            for sample in sample_names:
+            for sample in sample_names_list:
 
                 # Filter samples:
                 if samples_to_recover and sample not in samples_to_recover:

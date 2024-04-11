@@ -402,6 +402,11 @@ def main(args):
     for line in open(args.namelist):
         name = line.rstrip()
         if name:
+
+            if re.search('/', name):
+                sys.exit(f'{"[ERROR]:":10} A sample name must not contain '
+                         f'forward slashes. The file {args.namelist} contains: {name}')
+
             stats_dict[name] = []
 
             # Enrichment Efficiency
