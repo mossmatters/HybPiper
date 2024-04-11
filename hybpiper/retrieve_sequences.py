@@ -52,9 +52,12 @@ def get_chimeric_genes_for_sample(sample_directory_name):
             lines = chimeric.readlines()
             for line in lines:
                 chimeric_genes_to_skip.append(line.split(',')[1])
-    except FileNotFoundError:  # This file should be written in assemble.py even if it's empty
-        logger.info(f'No chimeric stitched contig summary file found for sample {sample_directory_name}!')
-        raise
+    except FileNotFoundError:  # This file will only be written in assemble.py even if sequences were generated
+        fill = textwrap.fill(f'{"[WARNING]:":10} No chimeric stitched contig summary file found for sample  '
+                             f'{sample_directory_name}. This usually occurs when no gene sequences were produced for '
+                             f'this sample.', width=90, subsequent_indent=" " * 11)
+
+        logger.warning(fill)
 
     return chimeric_genes_to_skip
 
