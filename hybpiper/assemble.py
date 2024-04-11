@@ -66,7 +66,7 @@ import datetime
 import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
-import pkg_resources
+import importlib.metadata
 import time
 import signal
 import cProfile
@@ -117,7 +117,7 @@ if unsuccessful_imports:
              f'installation used to run HybPiper?')
 
 # Check that user has the minimum required version of Biopython (1.80):
-biopython_version_print = pkg_resources.get_distribution('biopython').version
+biopython_version_print = importlib.metadata.version('biopython')
 biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)[:2]]
 if biopython_version[0:2] < [1, 80]:
     sys.exit(f'HybPiper requires Biopython version 1.80 or above. You are using version {biopython_version_print}. '
