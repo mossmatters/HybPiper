@@ -1,4 +1,5 @@
 # HybPiper
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/captus/README.html)
 
 Current version: 2.1.6 (July 2023). See the change_log.md [here](https://github.com/mossmatters/HybPiper/blob/master/change_log.md)
 
@@ -73,7 +74,7 @@ The SPAdes assembler prior to version 3.15.4 is incompatible with Python 3.10 an
 We strongly recommend installing HybPiper using [conda](https://docs.conda.io/en/latest/miniconda.html) with a new environment. This will install HybPiper, all required Python packages, and all required external programs. If you have conda installed and the channels `bioconda` and `conda-forge` have already been added, this can be done using the command:
 
 ```
-conda create -n hybpiper -c chrisjackson-pellicle hybpiper
+conda create -n hybpiper hybpiper
 ```
 
 ...followed by:
@@ -82,7 +83,7 @@ conda create -n hybpiper -c chrisjackson-pellicle hybpiper
 conda activate hybpiper
 ```
 
-For full installation instructions, please see our wiki page:
+For full installation instructions, including details on how to install on **Macs with Apple Silicon (M1/M2/M3 chips)**, please see our wiki page:
 
 [https://github.com/mossmatters/HybPiper/wiki/Installation](https://github.com/mossmatters/HybPiper/wiki/Installation)
 

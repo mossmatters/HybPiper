@@ -873,6 +873,7 @@ class Exonerate(object):
                 for triplet in window_similarity_five_prime_slice:
                     if triplet != '|||':
                         five_prime_slice = five_prime_slice + 3
+                    else:
                         break
 
             if three_prime_slice:  # i.e., it's not zero
@@ -881,6 +882,7 @@ class Exonerate(object):
                 for triplet in window_similarity_three_prime_slice:
                     if triplet != '|||':
                         three_prime_slice = three_prime_slice + 3
+                    else:
                         break
 
             # Re-calculate the hit similarity based in the sliced sequence:
@@ -888,6 +890,7 @@ class Exonerate(object):
                 concatenated_fragment_similarities[int(five_prime_slice / 3):
                                                    int(len(concatenated_fragment_similarities) -
                                                        (three_prime_slice / 3))]
+
             similarity_count_total = 0
             similarity_count = 0
 
