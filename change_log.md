@@ -1,10 +1,10 @@
 # Changelog
 
-**2.1.7** *12 April, 2024*
+**2.1.7** *09 May, 2024*
 
 - The flag `--run_intronerate` was removed from the `hybpiper assemble` command in the `run_hybpiper_test_dataset.sh` file.
 - Removed the legacy check and attempted download of the test dataset in the `run_hybpiper_test_dataset.sh` file.
-  - Added a check to `hybpiper stats` and `hybpiper retrieve_sequences` to ensure sample names in the `namelist.txt` file do not contain forward slashes [issue#143](https://github.com/mossmatters/HybPiper/issues/143).
+- Added a check to `hybpiper stats` and `hybpiper retrieve_sequences` to ensure sample names in the `namelist.txt` file do not contain forward slashes [issue#143](https://github.com/mossmatters/HybPiper/issues/143).
 - When checking for putative chimeric gene sequences in `hybpiper retrieve_sequences` and `hybpiper paralog_retriever`, generate a warning rather than an error if the file `<sample_name>_genes_derived_from_putative_chimeric_stitched_contig.csv` can't be found for a given sample. This file will not be written if no gene sequences were produced for this sample (i.e. no reads mapped, no SPAdes contigs, no sequences extracted from SPAdes contigs via Exonerate).
 - Check that target file FASTA headers do not contain quotation marks (`"` or `'`); [issue#125](https://github.com/mossmatters/HybPiper/issues/125).
 - Updated the installation instructions in the README and Wiki to use the Bioconda package, and added installation instruction for Macs with Apple Silicon (M1/M2/M3 chips).
