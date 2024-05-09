@@ -1,5 +1,5 @@
 # HybPiper
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/captus/README.html)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/hybpiper/README.html)
 
 Current version: 2.1.7 (May 2024). See the change_log.md [here](https://github.com/mossmatters/HybPiper/blob/master/change_log.md)
 
