@@ -35,7 +35,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 
 ---
 # Dependencies
-* [Python](https://www.python.org/downloads/) 3.7 or later (see [note](#NOTE)), along with the Python libraries:
+* [Python](https://www.python.org/downloads/) 3.9 or later (see [note](#NOTE)), along with the Python libraries:
     * [seaborn](https://seaborn.pydata.org/installing.html)
     * [matplotlib](https://matplotlib.org/stable/users/getting_started/)
     * [pebble](https://github.com/noxdafox/pebble). The conda install can be found [here](https://anaconda.org/conda-forge/pebble)
