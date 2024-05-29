@@ -68,6 +68,8 @@ Prior to this release, HybPiper users needed to install an in-progress version b
 
 The SPAdes assembler prior to version 3.15.4 is incompatible with Python 3.10 and 3.11, see [here](https://github.com/ablab/spades/issues/873). The highest SPAdes version [available](https://anaconda.org/bioconda/spades) as a macOS conda package is 3.15.2. This means that the macOS conda package for HybPiper is restricted to Python version 3.9 at the highest. This restriction will be removed once SPAdes >= 3.15.4 is released as a macOS conda package.  
 
+**Update 29/05/2024:** SPAdes version 3.15.5 is now available on Bioconda. Bioconda installs of HybPiper version 2.1.7 will now use this SPAdes version and a Python version higher than 3.9.
+
 ---
 # Setup
 
