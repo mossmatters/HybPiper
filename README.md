@@ -49,7 +49,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 * [DIAMOND](https://github.com/bbuchfink/diamond/wiki). The conda install can be found [here](https://anaconda.org/bioconda/diamond).
 * [BWA](http://bio-bwa.sourceforge.net/)
 * [BBtools](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/). The conda install can be found [here](https://anaconda.org/bioconda/bbmap).
-* [SPAdes](http://bioinf.spbau.ru/en/spades) 3.15.0
+* [SPAdes](http://bioinf.spbau.ru/en/spades) >=3.15.4
 * [GNU Parallel](http://www.gnu.org/software/parallel/)
 * [samtools](http://www.htslib.org/) 1.14
 * [MAFFT](https://mafft.cbrc.jp/alignment/software/). ***New requirement for HybPiper version 2.1.0***
