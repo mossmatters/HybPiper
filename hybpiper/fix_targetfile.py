@@ -61,6 +61,7 @@ from concurrent.futures import wait
 import glob
 import textwrap
 import io
+import subprocess
 from hybpiper import utils
 from hybpiper.version import __version__
 
@@ -70,7 +71,6 @@ try:
     from Bio import SeqIO, SeqRecord, AlignIO
     from Bio.Seq import Seq
     from Bio.SeqRecord import SeqRecord
-    from Bio.Align.Applications import MafftCommandline
     from Bio.Phylo.TreeConstruction import DistanceCalculator
 except ImportError:
     unsuccessful_imports.append('Bio')
@@ -179,14 +179,35 @@ def align(fasta_file, algorithm, output_folder, counter, lock, num_files_to_proc
         with lock:
             counter.value += 1
         return os.path.basename(expected_alignment_file)
+
     except AssertionError:
-        mafft_cline = (MafftCommandline(algorithm, thread=threads_per_concurrent_alignment, input=fasta_file))
-        stdout, stderr = mafft_cline()
-        with open(expected_alignment_file, 'w') as alignment_file:
-            alignment_file.write(stdout)
+        mafft_command = (f'{algorithm} --thread {threads_per_concurrent_alignment} {fasta_file} > '
+                         f'{expected_alignment_file}')
+
+        try:
+            result = subprocess.run(mafft_command,
+                                    universal_newlines=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    check=True,
+                                    shell=True)
+
+            logger.debug(f'mafft check_returncode() is: {result.check_returncode()}')
+            logger.debug(f'mafft stdout is: {result.stdout}')
+            logger.debug(f'mafft stderr is: {result.stderr}')
+
             with lock:
                 counter.value += 1
-        return os.path.basename(expected_alignment_file)
+
+            return os.path.basename(expected_alignment_file)
+
+        except subprocess.CalledProcessError as exc:
+            logger.error(f'mafft FAILED. Output is: {exc}')
+            logger.error(f'mafft stdout is: {exc.stdout}')
+            logger.error(f'mafft stderr is: {exc.stderr}')
+
+            raise ValueError('There was an issue running MAFFT. Check input files!')
+
     finally:
         sys.stderr.write(f'\r{"[INFO]:":10} Finished generating alignment for file {fasta_file_basename}, '
                          f' {counter.value}/{num_files_to_process}')

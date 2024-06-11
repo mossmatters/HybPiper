@@ -1,6 +1,11 @@
 # Changelog
 
-**2.1.7** *09 May, 2024*
+**2.1.8** *11th June, 2024*
+
+- Update the regex used to check target file fasta header formatting, to capture scenarios where a name contains multiple dashes and also ends with a dash.
+- In the `fix_targetfile.py` module, remove the import of `Bio.Align.Applications.MafftCommandline` and call `MAFFT` via `subprocess` (see issue#147)
+
+**2.1.7** *09th May, 2024*
 
 - The flag `--run_intronerate` was removed from the `hybpiper assemble` command in the `run_hybpiper_test_dataset.sh` file.
 - Removed the legacy check and attempted download of the test dataset in the `run_hybpiper_test_dataset.sh` file.

@@ -209,7 +209,7 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
                 check_for_duplicate_genes_dict[seq.name] += 1
             else:
                 check_for_duplicate_genes_dict[seq.name] = 1
-            if not re.match('.+-[^-]+', seq.name):
+            if not re.match('.+-[^-]+$', seq.name):
                 incorrectly_formatted_fasta_headers.add(seq.name)
             if re.search('\"|\'', seq.name):
                 incorrectly_formatted_fasta_headers.add(seq.name)
@@ -221,6 +221,10 @@ def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
         log_or_print(f'{"[ERROR!]:":10} The following sequences in your target file have incorrectly formatted fasta '
                      f'headers:\n', logger=logger, logger_level='error')
         fill = textwrap.fill(f'{seq_list}')
+        log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger)
+        log_or_print('', logger=logger)
+        fill = textwrap.fill(f'Please see target file formatting requirements here: '
+                             f'https://github.com/mossmatters/HybPiper/wiki#12-target-file')
         log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger)
         log_or_print('', logger=logger)
         sys.exit(1)  # target file fasta header formatting should be fixed!
