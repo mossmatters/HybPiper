@@ -695,7 +695,65 @@ def add_fix_targetfile_parser(subparsers):
                                         dest='run_profiler',
                                         default=False)
 
-    # Set defaults for subparser <check_target_file>:
+    # Set defaults for subparser <fix_target_file>:
     parser_fix_target_file.set_defaults(logger=None)
 
     return parser_fix_target_file
+
+
+def add_filter_by_length_parser(subparsers):
+    """
+    Parser for filter_by_length
+
+    :param argparse._SubParsersAction subparsers: subparsers object to add parser(s) to
+    :return None: no return value specified; default is None
+    """
+
+    parser_filter_by_length = subparsers.add_parser('filter_by_length',
+                                                    help='Filter the sequences output by command "hybpiper '
+                                                         'retrieve_sequences" by length (absolute and relative to mean')
+
+    parser_filter_by_length.add_argument('sequence_type',
+                                         choices=["dna", "aa", "supercontig", "intron"],
+                                         help='File sequence type for all FASTA files to filter in current directory. '
+                                              'For example, the amino-acid output of HybPiper would be: aa')
+    group_1 = parser_filter_by_length.add_mutually_exclusive_group(required=True)
+    group_1.add_argument('--denylist',
+                         default=None,
+                         help='Text file containing gene-sample combinations to omit.\nThe format of the file should '
+                              'be one gene per line, a tab, and then a comma-delimited list of samples to disallow: '
+                              '\n\n\tgene[tab]sample,sample,sample ')
+    group_1.add_argument('--seq_lengths_file',
+                         help='Filename for the seq_lengths file (output of the "hybpiper stats" command), with a list '
+                              'of genes in the first row, mean target lengths in the second row, and sample recovery '
+                              'in other rows.')
+    parser_filter_by_length.add_argument('--length_filter',
+                                         default=0,
+                                         type=int,
+                                         help='Minimum length to allow a sequence in nucleotides for DNA or amino '
+                                              'acids for protein sequences')
+    parser_filter_by_length.add_argument('--percent_filter',
+                                         default=0,
+                                         type=float,
+                                         help='Minimum fraction (between 0 and 1) of the mean target length to allow '
+                                              'a sequence for a gene. Lengths taken from HybPiper stats file.')
+    parser_filter_by_length.add_argument('--sequence_dir',
+                                         default=None,
+                                         help='Specify directory containing sequences output by the "hybpiper '
+                                              'retrieve_sequences" command. Default is to search in the current '
+                                              'working directory')
+    parser_filter_by_length.add_argument('--filtered_dir',
+                                         default=None,
+                                         help='Specify directory for output filtered FASTA files. Default is to write '
+                                              'to the current working directory')
+    parser_filter_by_length.add_argument('--run_profiler',
+                                         help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                              'of results',
+                                         action='store_true',
+                                         dest='run_profiler',
+                                         default=False)
+
+    # Set defaults for subparser <filter_by_length>:
+    parser_filter_by_length.set_defaults(logger=None)
+
+    return parser_filter_by_length

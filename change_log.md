@@ -1,7 +1,8 @@
 # Changelog
 
-**2.1.8** *11th June, 2024*
+**2.1.8** *12th June, 2024*
 
+- Add new subcommand `hybpiper filter_by_length`, used to filter the sequence output of `hybpiper retrieve sequences` by absolute length or length relative to mean length in target file representatives. This is done on a per-sample/per-gene basis, rather than the sample-level filtering available in `hybpiper retrieve_sequences`.
 - Update the regex used to check target file fasta header formatting, to capture scenarios where a name contains multiple dashes and also ends with a dash.
 - In the `fix_targetfile.py` module, remove the import of `Bio.Align.Applications.MafftCommandline` and call `MAFFT` via `subprocess` (see issue#147)
 

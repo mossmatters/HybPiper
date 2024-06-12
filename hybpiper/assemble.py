@@ -134,6 +134,7 @@ from hybpiper import retrieve_sequences
 from hybpiper import paralog_retriever
 from hybpiper import gene_recovery_heatmap
 from hybpiper import fix_targetfile
+from hybpiper import filter_by_length
 from hybpiper import hybpiper_subparsers
 from hybpiper import utils
 from hybpiper.utils import log_or_print
@@ -1803,10 +1804,20 @@ def fix_targetfile_standalone(args):
 
     :param args: argparse namespace with subparser options for function fix_targetfile_standalone()
     :return: None: no return value specified; default is None
-    :return: None: no return value specified; default is None
     """
 
     fix_targetfile.main(args)
+
+
+def filter_by_length_standalone(args):
+    """
+    Calls the function main() from module filter_by_length
+
+    :param args: argparse namespace with subparser options for function filter_by_length_standalone()
+    :return: None: no return value specified; default is None
+    """
+
+    filter_by_length.main(args)
 
 
 def parse_arguments():
@@ -1837,6 +1848,7 @@ def parse_arguments():
     parser_check_dependencies = hybpiper_subparsers.add_check_dependencies_parser(subparsers)
     parser_check_targetfile = hybpiper_subparsers.add_check_targetfile_parser(subparsers)
     parser_fix_targetfile = hybpiper_subparsers.add_fix_targetfile_parser(subparsers)
+    parser_filter_by_length = hybpiper_subparsers.add_filter_by_length_parser(subparsers)
 
     # Set functions for subparsers:
     parser_assemble.set_defaults(func=assemble)
@@ -1847,6 +1859,7 @@ def parse_arguments():
     parser_check_dependencies.set_defaults(func=check_dependencies)
     parser_check_targetfile.set_defaults(func=check_targetfile_standalone)
     parser_fix_targetfile.set_defaults(func=fix_targetfile_standalone)
+    parser_filter_by_length.set_defaults(func=filter_by_length_standalone)
 
     # Parse and return all arguments:
     arguments = parser.parse_args()
