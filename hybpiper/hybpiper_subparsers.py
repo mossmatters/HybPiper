@@ -396,6 +396,10 @@ def add_paralog_retriever_parser(subparsers):
                                                'one paralog warning will be reported',
                                           type=float,
                                           default=0.0)
+    parser_paralog_retriever.add_argument('--no_heatmap',
+                                          action='store_true',
+                                          default=False,
+                                          help='If supplied, do not create a heatmap figure')
     parser_paralog_retriever.add_argument('--heatmap_filename',
                                           help='Filename for the output heatmap, saved by default as a *.png file. '
                                                'Defaults to "paralog_heatmap"',
@@ -727,6 +731,11 @@ def add_filter_by_length_parser(subparsers):
                          help='Filename for the seq_lengths file (output of the "hybpiper stats" command), with a list '
                               'of genes in the first row, mean target lengths in the second row, and sample recovery '
                               'in other rows.')
+    parser_filter_by_length.add_argument('--denylist_filename',
+                                         default='denylist.txt',
+                                         type=str,
+                                         help='File name for the "deny list" text file (if written). Default is '
+                                              '<denylist.txt>')
     parser_filter_by_length.add_argument('--length_filter',
                                          default=0,
                                          type=int,

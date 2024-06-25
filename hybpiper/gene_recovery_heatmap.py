@@ -169,6 +169,8 @@ def main(args):
     # Read in the sequence length file:
     df = pd.read_csv(args.seq_lengths_file, delimiter='\t', )
 
+    df = df.astype('object')  # https://pandas.pydata.org/docs/whatsnew/v2.1.0.html#deprecated-silent-upcasting-in-setitem-like-series-operations
+
     # For each sample, divide each gene length by the MeanLength value for that gene:
     df.loc[:, df.columns[1]:] = df.loc[:, df.columns[1]:].div(df.iloc[0][df.columns[1]:])
 

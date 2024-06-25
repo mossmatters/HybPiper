@@ -1,10 +1,13 @@
 # Changelog
 
-**2.1.8** *12th June, 2024*
+**2.1.8** *25th June, 2024*
 
-- Add new subcommand `hybpiper filter_by_length`, used to filter the sequence output of `hybpiper retrieve sequences` by absolute length or length relative to mean length in target file representatives. This is done on a per-sample/per-gene basis, rather than the sample-level filtering available in `hybpiper retrieve_sequences`.
+- Add new subcommand `hybpiper filter_by_length`, used to filter the sequence output of `hybpiper retrieve sequences` by absolute length and/or length relative to mean length in target file representatives. This is done on a per-sample/per-gene basis, rather than the sample-level filtering available in `hybpiper retrieve_sequences`. See [wiki](https://github.com/mossmatters/HybPiper/wiki#hybpiper-filter_by_length) for more information.
 - Update the regex used to check target file fasta header formatting, to capture scenarios where a name contains multiple dashes and also ends with a dash.
-- In the `fix_targetfile.py` module, remove the import of `Bio.Align.Applications.MafftCommandline` and call `MAFFT` via `subprocess` (see issue#147)
+- In the `fix_targetfile.py` module, remove the import of `Bio.Align.Applications.MafftCommandline` and call `MAFFT` via `subprocess` (see [issue#147](https://github.com/mossmatters/HybPiper/issues/147)).
+- In the `gene_recovery_heatmap.py` module, cast the dataframe from the `seq_lengths_file` to object `dtype` to avoid a [deprecation warning](https://pandas.pydata.org/docs/whatsnew/v2.1.0.html#deprecated-silent-upcasting-in-setitem-like-series-operations) .
+- Add option `--no_heatmap` to command `hybpiper paralog_retriever` (see [issue#150](https://github.com/mossmatters/HybPiper/discussions/150)).
+- Fix an Exonerate-related debug message in `exonerate_hits.py`.
 
 **2.1.7** *09th May, 2024*
 
@@ -17,7 +20,7 @@
 - Fixed a bug in `exonerate_hits.py` that meant that hits were not always trimmed to start with the first amino-acid with full alignment identity. This bug could potentially have had an effect on output sequences only if the values for `--exonerate_hit_sliding_window_size` and/or `--exonerate_hit_sliding_window_thresh` were changed from default values.
 - Use `importlib.metadata` rather than `pkg_resources` for module version checks, due to deprecation of the latter. 
 
-**2.1.6** *19th July, 2023*
+**2.1.6* * *19th July, 2023*
 
 - **Intronerate is now run by default**. The flag `--run_intronerate` for subcommand `hybpiper assemble` has been changed to `--no_intronerate`. 
 - If Intronerate fails, failed genes and errors will be printed and logged; the exonerate_contigs step of the pipeline will continue.

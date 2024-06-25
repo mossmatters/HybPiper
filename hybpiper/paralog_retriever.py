@@ -460,17 +460,20 @@ def main(args):
             paralog_report_handle.write(f'{sample}\t{gene_counts}\n')
 
     # Create a heatmap from the *.tsv file:
-    logger.info(f'{"[INFO]:":10} Creating paralog heatmap...')
-    create_paralog_heatmap(f'{args.paralog_report_filename}.tsv',
-                           args.figure_length,
-                           args.figure_height,
-                           args.sample_text_size,
-                           args.gene_text_size,
-                           args.heatmap_filename,
-                           args.heatmap_filetype,
-                           args.heatmap_dpi,
-                           args.no_xlabels,
-                           args.no_ylabels)
+    if args.no_heatmap:
+        logger.info(f'{"[INFO]:":10} Option "--no_heatmap" provided. No paralog heatmap will be created!')
+    else:
+        logger.info(f'{"[INFO]:":10} Creating paralog heatmap...')
+        create_paralog_heatmap(f'{args.paralog_report_filename}.tsv',
+                               args.figure_length,
+                               args.figure_height,
+                               args.sample_text_size,
+                               args.gene_text_size,
+                               args.heatmap_filename,
+                               args.heatmap_filetype,
+                               args.heatmap_dpi,
+                               args.no_xlabels,
+                               args.no_ylabels)
 
     # Write text statistics report:
     write_paralogs_above_threshold_report(gene_with_paralogs_to_sample_list_dict,

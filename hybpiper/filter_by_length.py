@@ -1,28 +1,28 @@
 #!/usr/bin/env python
 
 """
-This script will filter output from HybPiper based on the output of hybpiper retrieve_sequences
+This script will filter output from HybPiper based on the output of "hybpiper retrieve_sequences".
 
-As of HybPiper version 2.1.6, hybpiper retrieve_sequences only supports filtering based
+As of HybPiper version 2.1.6, "hybpiper retrieve_sequences" only supports filtering based
 on project-wide thresholds (i.e. number of total genes recovered). This script will allow
 filtering based on individual genes and the mean length or minimum length threshold.
 
-1. Run hybpiper stats to generate the stats.tsv and lengths.tsv files
-2. Run hybpiper retrieve_sequences to create a folder of FASTA sequences
-3. Run this script to create new FASTA files based on the per-gene filters.
-    Also writes to standard output the denylist by gene, redirect this to save to a file.
+1. Run "hybpiper stats" to generate the "stats.tsv" and "lengths.tsv" files.
+2. Run "hybpiper retrieve_sequences "to create a folder of FASTA sequences.
+3. Run this command to create new FASTA files based on the per-gene filters provided.
+   Also writes the per-gene "deny list" text file.
 
-The FASTA sequences will expect to have the naming scheme of HybPiper:
-    geneName.FNA for nucleotide exon files
-    geneName.FAA for amino acid files
-    geneName_supercontig.fasta for supercontig files
-    geneName_intron.fasta for intron-only files
+The FASTA sequences are expected to have the naming scheme of HybPiper:
+    geneName.FNA for nucleotide exon files.
+    geneName.FAA for amino acid files.
+    geneName_supercontig.fasta for supercontig files.
+    geneName_intron.fasta for intron-only files.
 
-The geneNames will be taken from either the hybpiper stats file (--lengthfile) or a supplied
-    list of gene sample combinations (--denylist, also produced by running this script)
+The geneNames will be taken from either the "hybpiper stats" file (supplied via parameter "--seq_lengths_file")
+or a list of gene/sample combinations (supplied via parameter "--denylist"; also produced by running this script).
 
-If you wish to filter intron or supercontig sequences, run again with the --denylist flag
-    to skip the filtering based on lengths.
+If you wish to filter intron or supercontig sequences, run this command again with the parameter "--denylist" to
+skip the filtering based on lengths.
 """
 
 
@@ -49,6 +49,9 @@ logger = logging.getLogger(f'hybpiper.{__name__}')
 logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
+# Get current working directory:
+cwd = os.getcwd()
+
 
 def filter_fastas(deny_dict,
                   sequence_type,
@@ -64,9 +67,10 @@ def filter_fastas(deny_dict,
 
     # Search within a user-supplied directory for the given fasta sequence files, or the current directory if not:
     if sequence_dir:
-        sequence_dir = sequence_dir
+        logger.info(f'{"[INFO]:":10} Parsing inpout sequences in directory: {sequence_dir}')
     else:
-        sequence_dir = '.'
+        sequence_dir = cwd
+        logger.info(f'{"[INFO]:":10} Parsing inpout sequences in directory: {cwd}')
 
     # Set output directory:
     if filtered_dir:
@@ -111,17 +115,21 @@ def filter_fastas(deny_dict,
     return
 
 
-def write_denylist(deny_dict):
+def write_denylist(deny_dict,
+                   outfile='denylist.txt'):
     """
     Write a text file deny list
 
     :param dict deny_dict:
+    :param str outfile: filename for the "deny list" text file
     """
 
-    # with open(denylistfn,'w') as outfile:
-    for gene in deny_dict:
-        samples = ",".join(deny_dict[gene])
-        sys.stdout.write(f"{gene}\t{samples}\n")
+    with open(outfile, 'w') as outfile_handle:
+        for gene in sorted(deny_dict):
+            samples = ",".join(deny_dict[gene])
+            outfile_handle.write(f'{gene}\t{samples}\n')
+    logger.info(f'{"[INFO]:":10} A "deny list" text file has been written to file: {outfile}')
+
     return
 
 
@@ -138,12 +146,16 @@ def filter_seqs(gene_lengths_dict,
 
     deny_dict = {}
     total_deny = 0
+
     for gene in gene_lengths_dict:
         deny_dict[gene] = []
         percent_thresh = gene_lengths_dict[gene]["mean_length"] * minpercent
 
         for sample_name in gene_lengths_dict[gene]["sample_lengths"]:
             sample_length = gene_lengths_dict[gene]["sample_lengths"][sample_name]
+
+            if sample_length == 0.0:
+                continue
 
             if sample_length < minlength:
                 deny_dict[gene].append(sample_name)
@@ -154,7 +166,8 @@ def filter_seqs(gene_lengths_dict,
                 deny_dict[gene].append(sample_name)
                 total_deny += 1
 
-    logger.info(f'{"[INFO]:":10} Filtered {total_deny} total sequences for {len(deny_dict)} genes based on parameters.')
+    logger.info(f'{"[INFO]:":10} Filtered out {total_deny} total sequences for {len(deny_dict)} genes based on the'
+                f'parameters provided.')
 
     return deny_dict
 
@@ -166,10 +179,10 @@ def parse_seqlengths(seq_lengths_file):
     - a list of sample names
     - a dictionary for each gene containing:
         * the name of the gene as the dict key
-        * "mean length":integer
-        * "sample_lengths":{a dictionary of key:sample_lengths}
+        * "mean length": integer
+        * "sample_lengths": {a dictionary of key:sample_lengths}
 
-    :param str seq_lengths_file: path to the seq_lenghts file output by "hybpiper stats"
+    :param str seq_lengths_file: path to the seq_lentghs file output by "hybpiper stats"
     """
 
     sample_names = []
@@ -204,6 +217,8 @@ def parse_denylist(denylist_fn):
     if not utils.file_exists_and_not_empty(denylist_fn):
         logger.error(f'{"[ERROR]:":10} File {denylist_fn} does not exist or is empty!')
         sys.exit(1)
+    else:
+        logger.info(f'{"[INFO]:":10} Parsing "deny list" text file: {denylist_fn}')
 
     deny_dict = {}
     total_deny = 0
@@ -218,7 +233,7 @@ def parse_denylist(denylist_fn):
         total_deny += len(samples)
         deny_dict[line[0]] = samples
 
-    sys.stderr.write(f"Found {total_deny} total samples at {len(deny_dict)} genes in the denylist {denylist_fn}")
+    logger.info(f'{"[INFO]:":10} Found {total_deny} total samples at {len(deny_dict)} genes')
     return deny_dict
 
 
@@ -239,6 +254,10 @@ def standalone():
                          help='Filename for the seq_lengths file (output of the "hybpiper stats" command), with a list '
                               'of genes in the first row, mean target lengths in the second row, and sample recovery '
                               'in other rows.')
+    parser.add_argument('--denylist_filename',
+                        default='denylist.txt',
+                        type=str,
+                        help='File name for the "deny list" text file (if written). Default is <denylist.txt>')
     parser.add_argument('--length_filter',
                         default=0,
                         type=int,
@@ -290,7 +309,8 @@ def main(args):
                                 args.length_filter,
                                 args.percent_filter)
 
-        write_denylist(deny_dict)
+        write_denylist(deny_dict,
+                       outfile=args.denylist_filename)
 
     # Filter the fasta sequences based on the deny_dict:
     filter_fastas(deny_dict,

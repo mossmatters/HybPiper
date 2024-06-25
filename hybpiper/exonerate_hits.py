@@ -360,6 +360,7 @@ def intronerate(exonerate_object,
         logger.debug(f'Intronerate run of Exonerate for gff will be run using {ref}')
         exonerate_supercontig_reference = f'{intronerate_processing_directory}/{ref}'
 
+    exonerate_with_refine = False
     exonerate_command = f'exonerate -m protein2genome -q {intronerate_query_stripped} -t ' \
                         f'{exonerate_supercontig_reference} ' \
                         f'--verbose 0 --showalignment yes --showvulgar no --refine full --showtargetgff yes >' \
@@ -380,6 +381,7 @@ def intronerate(exonerate_object,
 
     # Exonerate with --refine can fail (empty output file) with no error
     if utils.file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
+        exonerate_with_refine = True
         logger.debug('Exonerate run for Intronerate ran with --refine')
     else:
         exonerate_command = f'exonerate -m protein2genome -q {intronerate_query_stripped} -t ' \
@@ -398,12 +400,14 @@ def intronerate(exonerate_object,
             logger.debug(f'Exonerate without "--refine" stdout is: {exc.stdout}')
             logger.debug(f'Exonerate without "--refine" stderr is: {exc.stderr}')
 
-    # Exonerate without --refine can fail (emtpy file) with no error
-    if utils.file_exists_and_not_empty(f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt'):
-        logger.debug('Exonerate ran without --refine')
-    else:
-        logger.debug(f'Exonerate within intronerate() FAILED - skipping Intronerate for gene {gene_name}.')
-        return
+    # Exonerate without --refine can fail (empty file) with no error:
+    if not exonerate_with_refine:
+        if (utils.file_exists_and_not_empty(
+                f'{intronerate_processing_directory}/{gene_name}_intronerate_fasta_and_gff.txt')):
+            logger.debug('Exonerate run for Intronerate ran without --refine')
+        else:
+            logger.debug(f'Exonerate within intronerate() FAILED - skipping Intronerate for gene {gene_name}.')
+            return
 
     # CJJ only use introns that occur in between detected exons, as there's no guarantee that the query protein is
     #  full length (we don't want flanking exonic regions in the raw SPAdes contigs being annotated as introns by
