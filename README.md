@@ -1,7 +1,7 @@
 # HybPiper
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/hybpiper/README.html)
 
-Current version: 2.1.7 (May 2024). See the change_log.md [here](https://github.com/mossmatters/HybPiper/blob/master/change_log.md)
+Current version: 2.1.8 (June 2024). See the change_log.md [here](https://github.com/mossmatters/HybPiper/blob/master/change_log.md)
 
 [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
 
@@ -128,6 +128,10 @@ For a full description of HybPiper output, [see the wiki](https://github.com/mos
 
 -----
 # Changelog
+
+**2.1.8** *June, 2024*
+
+Added the new subcommand `hybpiper filter_by_length`. Used to filter the sequence output of `hybpiper retrieve sequences` by absolute length and/or length relative to mean length in target file representatives. This is done on a per-sample/per-gene basis, rather than the sample-level filtering available in `hybpiper retrieve_sequences`. See [wiki](https://github.com/mossmatters/HybPiper/wiki#hybpiper-filter_by_length) for more information. For a full list of changes see the [changelog](https://github.com/mossmatters/HybPiper/blob/master/change_log.md).
 
 **2.1.0** *December, 2022*
 
