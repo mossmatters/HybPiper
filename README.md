@@ -35,7 +35,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 
 ---
 # Dependencies
-* [Python](https://www.python.org/downloads/) 3.7 or later (see [note](#NOTE)), along with the Python libraries:
+* [Python](https://www.python.org/downloads/) 3.9 or later (see [note](#NOTE)), along with the Python libraries:
     * [seaborn](https://seaborn.pydata.org/installing.html)
     * [matplotlib](https://matplotlib.org/stable/users/getting_started/)
     * [pebble](https://github.com/noxdafox/pebble). The conda install can be found [here](https://anaconda.org/conda-forge/pebble)
@@ -49,7 +49,7 @@ files from the reads, it does so in a standardized directory hierarchy. Many of 
 * [DIAMOND](https://github.com/bbuchfink/diamond/wiki). The conda install can be found [here](https://anaconda.org/bioconda/diamond).
 * [BWA](http://bio-bwa.sourceforge.net/)
 * [BBtools](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/). The conda install can be found [here](https://anaconda.org/bioconda/bbmap).
-* [SPAdes](http://bioinf.spbau.ru/en/spades) 3.15.0
+* [SPAdes](http://bioinf.spbau.ru/en/spades) >=3.15.4
 * [GNU Parallel](http://www.gnu.org/software/parallel/)
 * [samtools](http://www.htslib.org/) 1.14
 * [MAFFT](https://mafft.cbrc.jp/alignment/software/). ***New requirement for HybPiper version 2.1.0***
@@ -67,6 +67,8 @@ Prior to this release, HybPiper users needed to install an in-progress version b
 ***Python and SPAdes***
 
 The SPAdes assembler prior to version 3.15.4 is incompatible with Python 3.10 and 3.11, see [here](https://github.com/ablab/spades/issues/873). The highest SPAdes version [available](https://anaconda.org/bioconda/spades) as a macOS conda package is 3.15.2. This means that the macOS conda package for HybPiper is restricted to Python version 3.9 at the highest. This restriction will be removed once SPAdes >= 3.15.4 is released as a macOS conda package.  
+
+**Update 29/05/2024:** SPAdes version 3.15.5 is now available on Bioconda. Bioconda installs of HybPiper version 2.1.7 will now use this SPAdes version and a Python version higher than 3.9.
 
 ---
 # Setup
