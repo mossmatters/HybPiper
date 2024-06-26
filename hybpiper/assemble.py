@@ -17,6 +17,8 @@ followed by a subcommand to run different parts of the pipeline. The available s
     check_dependencies  Run a check for all pipeline dependencies and exit
     check_targetfile    Check the target file for issues, then exit
     fix_targetfile      Fix the target file, then exit
+    filter_by_length    Filter the sequences output by command "hybpiper retrieve_sequences" by length
+                        (absolute and relative to mean)
 
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
@@ -32,10 +34,8 @@ if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
 ==> NOTE <==
 The recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
-is now incorporated in to the 'hybpiper assemble' command. It can be enabled using the flag
-'--run_intronerate', e.g.:
-
-    hybpiper assemble -t_dna test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa --run_intronerate
+is now incorporated in to the 'hybpiper assemble' command. It is run by default, but can be disabled using the flag
+'--no_intronerate'.
 
 ==> NOTE <==
 The command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to

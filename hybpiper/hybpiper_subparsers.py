@@ -715,7 +715,7 @@ def add_filter_by_length_parser(subparsers):
 
     parser_filter_by_length = subparsers.add_parser('filter_by_length',
                                                     help='Filter the sequences output by command "hybpiper '
-                                                         'retrieve_sequences" by length (absolute and relative to mean')
+                                                         'retrieve_sequences" by length (absolute and relative to mean)')
 
     parser_filter_by_length.add_argument('sequence_type',
                                          choices=["dna", "aa", "supercontig", "intron"],
