@@ -82,9 +82,14 @@ def add_assemble_parser(subparsers):
                                  choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
                                  help='Start the pipeline from the given step. Note that this relies on the presence '
                                       'of output files for previous steps, produced by a previous run attempt. '
-                                      'Default is map_reads',
+                                      'Default is: %(default)s',
                                  dest='start_from',
                                  default='map_reads')
+    parser_assemble.add_argument('--end_with',
+                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
+                                 help='End the pipeline at the given step. Default is: %(default)s',
+                                 dest='end_with',
+                                 default='exonerate_contigs')
     parser_assemble.add_argument('--cpu',
                                  type=int,
                                  default=0,
@@ -162,6 +167,19 @@ def add_assemble_parser(subparsers):
                                  help='Do not create any stitched contigs. The longest single Exonerate hit will be '
                                       'used.',
                                  default=False)
+    parser_assemble.add_argument('--no_pad_stitched_contig_gaps_with_n',
+                                 help='When constructing stitched contigs, do not pad any gaps between hits (with '
+                                      'respect to the "best" protein reference) with a number of Ns corresponding to '
+                                      'the reference gap multiplied by 3. Default is %(default)s.',
+                                 action="store_false",
+                                 dest='stitched_contig_pad_n',
+                                 default=True)
+    parser_assemble.add_argument('--chimeric_stitched_contig_check',
+                                 help='Attempt to determine whether a stitched contig is a potential '
+                                      'chimera of contigs from multiple paralogs. Default is %(default)s.',
+                                 action='store_true',
+                                 dest='chimera_check',
+                                 default=False)
     parser_assemble.add_argument('--bbmap_memory',
                                  default=1000,
                                  type=int,
@@ -196,6 +214,12 @@ def add_assemble_parser(subparsers):
                                       'trimming termini of Exonerate hits. Default is %(default)s.',
                                  default=55,
                                  type=int)
+    parser_assemble.add_argument('--exonerate_allow_hits_with_frameshifts',
+                                 help='Allow Exonerate hits where the SPAdes sequence contains a frameshift. Default '
+                                      'is %(default)s.',
+                                 action='store_true',
+                                 dest='allow_frameshifts',
+                                 default=False)
     parser_assemble.add_argument('--merged',
                                  help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true',
@@ -209,7 +233,7 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--keep_intermediate_files',
                                  help='Keep all intermediate files and logs, which can be useful for '
                                       'debugging. Default action is to delete them, which greatly reduces the total '
-                                      'file number).',
+                                      'file number.',
                                  action='store_true',
                                  dest='keep_intermediate_files',
                                  default=False)

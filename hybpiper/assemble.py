@@ -349,12 +349,12 @@ def check_targetfile(targetfile, targetfile_type, using_bwa, full_sample_directo
     - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
       three, no unexpected stop codons), and logs a warning if not.
     - If targetfile is DNA but using_bwa is False, translate the targetfile, write it to the sample directory with
-    name 'translated_target_file.fasta', and return the path
+      name 'translated_target_file.fasta', and return the path
 
     :param str targetfile: path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
-    :param str full_sample_directory: path to the sample directory
+    :param path full_sample_directory: path to the sample directory
     :param logging.Logger logger: a logger object
     :return: None, str: NoneType or path to the translated targetfile
     """
@@ -844,6 +844,8 @@ def exonerate(gene_name,
               paralog_warning_min_length_percentage=0.75,
               depth_multiplier=10,
               no_stitched_contig=False,
+              stitched_contig_pad_n=True,
+              chimera_check=False,
               bbmap_memory=250,
               bbmap_subfilter=7,
               bbmap_threads=2,
@@ -858,6 +860,7 @@ def exonerate(gene_name,
               keep_intermediate_files=False,
               exonerate_hit_sliding_window_size=3,
               exonerate_hit_sliding_window_thresh=55,
+              exonerate_allow_frameshifts=False,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -867,6 +870,8 @@ def exonerate(gene_name,
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
     :param bool no_stitched_contig: if True, don't create stitched contigs and just use longest Exonerate hit
+    :param bool stitched_contig_pad_n: if True, pad gaps in stitched contig with Ns corresponding to query gap * 3
+    :param bool chimera_check: run chimera check. Default is False
     :param int bbmap_memory: MB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
@@ -885,6 +890,7 @@ def exonerate(gene_name,
     of Exonerate hits
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
+    :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -959,6 +965,7 @@ def exonerate(gene_name,
             thresh=thresh,
             logger=logger,
             prefix=prefix,
+            chimera_check=chimera_check,
             discordant_cutoff=chimeric_stitched_contig_discordant_reads_cutoff,
             edit_distance=chimeric_stitched_contig_edit_distance,
             bbmap_subfilter=bbmap_subfilter,
@@ -966,11 +973,13 @@ def exonerate(gene_name,
             bbmap_threads=bbmap_threads,
             interleaved_fasta_file=path_to_interleaved_fasta,
             no_stitched_contig=no_stitched_contig,
+            stitched_contig_pad_n=stitched_contig_pad_n,
             spades_assembly_dict=spades_assembly_dict,
             depth_multiplier=depth_multiplier,
             keep_intermediate_files=keep_intermediate_files,
             exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
             exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
+            exonerate_allow_frameshifts=exonerate_allow_frameshifts,
             verbose_logging=verbose_logging)
 
         if not no_intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
@@ -1025,6 +1034,8 @@ def exonerate_multiprocessing(genes,
                               pool_threads=None,
                               depth_multiplier=10,
                               no_stitched_contig=False,
+                              stitched_contig_pad_n=True,
+                              chimera_check=False,
                               bbmap_memory=250,
                               bbmap_subfilter=7,
                               bbmap_threads=2,
@@ -1037,6 +1048,7 @@ def exonerate_multiprocessing(genes,
                               exonerate_contigs_timeout=None,
                               exonerate_hit_sliding_window_size=3,
                               exonerate_hit_sliding_window_thresh=55,
+                              exonerate_allow_frameshifts=False,
                               verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
@@ -1048,6 +1060,8 @@ def exonerate_multiprocessing(genes,
     :param int pool_threads: number of threads/cpus to use for the pebble.ProcessPool pool
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
     :param bool no_stitched_contig: if True, don't create stitched contig and just use longest Exonerate hit
+    :param bool stitched_contig_pad_n: if True, pad gaps in stitched contig with Ns corresponding to query gap * 3
+    :param bool chimera_check: run chimera check. Default is False
     :param int bbmap_memory: MB memory (RAM ) to use for bbmap.sh
     :param int bbmap_subfilter: ban alignments with more than this many substitutions
     :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
@@ -1064,6 +1078,7 @@ def exonerate_multiprocessing(genes,
     of Exonerate hits
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
+    :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
@@ -1072,11 +1087,13 @@ def exonerate_multiprocessing(genes,
     logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
     logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
     logger.debug(f'exonerate_hit_sliding_window_thresh is: {exonerate_hit_sliding_window_thresh}')
+    logger.debug(f'exonerate_allow_frameshifts is: {exonerate_allow_frameshifts}')
+    logger.debug(f'chimera_check is: {chimera_check}')
+    logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
+    logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
     logger.info(f'{"[INFO]:":10} Running exonerate_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
-
-    logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
 
     try:
         with pebble.ProcessPool(max_workers=pool_threads) as pool:
@@ -1091,6 +1108,8 @@ def exonerate_multiprocessing(genes,
                                    "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
                                    "depth_multiplier": depth_multiplier,
                                    "no_stitched_contig": no_stitched_contig,
+                                   "stitched_contig_pad_n": stitched_contig_pad_n,
+                                   "chimera_check": chimera_check,
                                    "bbmap_memory": bbmap_memory,
                                    "bbmap_subfilter": bbmap_subfilter,
                                    "bbmap_threads": bbmap_threads,
@@ -1106,6 +1125,7 @@ def exonerate_multiprocessing(genes,
                                    "keep_intermediate_files": keep_intermediate_files,
                                    "exonerate_hit_sliding_window_size": exonerate_hit_sliding_window_size,
                                    "exonerate_hit_sliding_window_thresh": exonerate_hit_sliding_window_thresh,
+                                   "exonerate_allow_frameshifts": exonerate_allow_frameshifts,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1291,6 +1311,24 @@ def assemble(args):
         sys.exit()
 
     ####################################################################################################################
+    # Check that --start_from <= --end_with
+    ####################################################################################################################
+    assemble_stages_dict = {'map_reads': 0,
+                            'distribute_reads': 1,
+                            'assemble_reads': 2,
+                            'exonerate_contigs': 3}
+
+    if not assemble_stages_dict[args.start_from] <= assemble_stages_dict[args.end_with]:
+        logger.error(f'{"[ERROR]:":10} The selected "--start_from" step is greater than the selected "--end_with" '
+                     f'step!')
+        logger.error(f'{" " * 10} --start_from: {args.start_from}')
+        logger.error(f'{" " * 10} --end_with: {args.end_with}')
+        logger.error('')
+        logger.error(f'{" " * 10} The order of steps is: map_reads, distribute_reads, assemble_reads, '
+                     f'exonerate_contigs')
+        sys.exit()
+
+    ####################################################################################################################
     # Check read and target files
     ####################################################################################################################
     # Set target file type and path, and check it exists and isn't empty:
@@ -1427,6 +1465,10 @@ def assemble(args):
         else:
             sys.exit(f'Can not determine whether BWA or BLASTx option is supplied, exiting...')
 
+    if args.end_with in ['map_reads']:
+        logger.info(f'{"[INFO]:":10} Parameter "--end_with {args.end_with}" supplied. Exiting assembly pipeline.')
+        sys.exit()
+
     ####################################################################################################################
     # Distribute reads to gene directories from either BLASTx or BWA mapping
     ####################################################################################################################
@@ -1465,6 +1507,10 @@ def assemble(args):
     if len(genes) == 0:
         logger.error(f'{"[ERROR]:":10} No genes with reads, exiting!')
         return
+
+    if args.end_with in ['distribute_reads']:
+        logger.info(f'{"[INFO]:":10} Parameter "--end_with {args.end_with}" supplied. Exiting assembly pipeline.')
+        sys.exit()
 
     ####################################################################################################################
     # Assemble reads using SPAdes
@@ -1535,6 +1581,10 @@ def assemble(args):
             logger.error('ERROR: No genes had assembled contigs! Exiting!')
             return
 
+    if args.end_with in ['assemble_reads']:
+        logger.info(f'{"[INFO]:":10} Parameter "--end_with {args.end_with}" supplied. Exiting assembly pipeline.')
+        sys.exit()
+
     ####################################################################################################################
     # Run Exonerate on the assembled SPAdes contigs, and intronerate() if flag --run_intronerate is supplied:
     ####################################################################################################################
@@ -1556,6 +1606,8 @@ def assemble(args):
                               paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                               depth_multiplier=args.depth_multiplier,
                               no_stitched_contig=args.no_stitched_contig,
+                              stitched_contig_pad_n=args.stitched_contig_pad_n,
+                              chimera_check=args.chimera_check,
                               bbmap_memory=args.bbmap_memory,
                               bbmap_subfilter=args.bbmap_subfilter,
                               chimeric_stitched_contig_edit_distance=args.chimeric_stitched_contig_edit_distance,
@@ -1570,6 +1622,7 @@ def assemble(args):
                               exonerate_contigs_timeout=args.timeout_exonerate_contigs,
                               exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
                               exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
+                              exonerate_allow_frameshifts=args.allow_frameshifts,
                               verbose_logging=args.verbose_logging)
 
     ####################################################################################################################

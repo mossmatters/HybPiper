@@ -228,7 +228,6 @@ def intronerate(exonerate_object,
 
         trimmed_hit_ranges_all = hit_data_dict['hit_range_all']
         inter_ranges_all = hit_data_dict['hit_inter_ranges']
-        # print(hit_data_dict['hit_sequence'].description)
         three_prime_bases_trimmed = hit_data_dict['hit_sequence'].description.split(':')[-1].strip()
 
         # If no trimming has been performed for a SPAdes contig, or the overlap between adjacent Exonerate contig
@@ -476,6 +475,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             thresh,
                                             logger,
                                             prefix,
+                                            chimera_check,
                                             discordant_cutoff,
                                             edit_distance,
                                             bbmap_subfilter,
@@ -483,11 +483,13 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             bbmap_threads,
                                             interleaved_fasta_file,
                                             no_stitched_contig,
+                                            stitched_contig_pad_n,
                                             spades_assembly_dict,
                                             depth_multiplier,
                                             keep_intermediate_files,
                                             exonerate_hit_sliding_window_size,
                                             exonerate_hit_sliding_window_thresh,
+                                            exonerate_allow_frameshifts,
                                             verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -502,6 +504,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param int thresh: minimum percentage similarity threshold used to filter Exonerate hits.
     :param logger logger: a logger object
     :param str prefix: path to gene/sample folder e.g. gene001/sampleID
+    :param bool chimera_check: run chimera check. Default is False
     :param int discordant_cutoff: number of discordant read pairs for a stitched contig to be flagged as chimeric
     :param int edit_distance: edit distance threshold for identifying discordant read pairs
     :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
@@ -509,6 +512,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param int bbmap_threads: number of threads to use for bbmap.sh
     :param None, str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
     :param bool no_stitched_contig: if True, return the longest Exonerate hit only
+    :param bool stitched_contig_pad_n: if True, pad gaps in stitched contig with Ns corresponding to query gap * 3
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
@@ -516,6 +520,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     of Exonerate hits
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
+    :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
     :param bool verbose_logging: if True, log additional information to file
 
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
@@ -539,6 +544,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  thresh=thresh,
                                  logger=logger,
                                  prefix=prefix,
+                                 chimera_check=chimera_check,
                                  discordant_cutoff=discordant_cutoff,
                                  edit_distance=edit_distance,
                                  bbmap_subfilter=bbmap_subfilter,
@@ -546,11 +552,13 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  bbmap_threads=bbmap_threads,
                                  interleaved_fasta_file=interleaved_fasta_file,
                                  no_stitched_contig=no_stitched_contig,
+                                 stitched_contig_pad_n=stitched_contig_pad_n,
                                  spades_assembly_dict=spades_assembly_dict,
                                  depth_multiplier=depth_multiplier,
                                  keep_intermediate_files=keep_intermediate_files,
                                  exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
                                  exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
+                                 exonerate_allow_frameshifts=exonerate_allow_frameshifts,
                                  verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -586,6 +594,7 @@ class Exonerate(object):
                  thresh=55,
                  logger=None,
                  prefix=None,
+                 chimera_check=False,
                  discordant_cutoff=5,
                  edit_distance=5,
                  bbmap_subfilter=7,
@@ -593,11 +602,13 @@ class Exonerate(object):
                  bbmap_threads=1,
                  interleaved_fasta_file=None,
                  no_stitched_contig=False,
+                 stitched_contig_pad_n=True,
                  spades_assembly_dict=None,
                  depth_multiplier=10,
                  keep_intermediate_files=False,
                  exonerate_hit_sliding_window_size=3,
                  exonerate_hit_sliding_window_thresh=55,
+                 exonerate_allow_frameshifts=False,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -608,6 +619,7 @@ class Exonerate(object):
         :param int thresh: minimum percentage similarity threshold used to filter Exonerate hits
         :param logging.RootLogger logger: a logger object
         :param str prefix: path to gene/sample folder e.g. gene001/sampleID
+        :param bool chimera_check: run chimera check. Default is False
         :param int discordant_cutoff: number of discordant read pairs for a stitched contig to be flagged as chimeric
         :param int edit_distance: edit distance threshold for identifying discordant read pairs
         :param int bbmap_subfilter: ban bbmap.sh alignments with more than this many substitutions
@@ -615,6 +627,7 @@ class Exonerate(object):
         :param int bbmap_threads: number of threads to use for bbmap.sh
         :param str interleaved_fasta_file: path to the file of interleaved R1 and R2 fasta seqs, if present
         :param bool no_stitched_contig: if True, return the longest Exonerate hit only
+        :param bool stitched_contig_pad_n: if True, pad gaps in stitched contig with Ns corresponding to query gap * 3
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
         :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
@@ -622,6 +635,7 @@ class Exonerate(object):
         termini of Exonerate hits
         :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
         in amino-acids) when trimming termini of Exonerate hits
+        :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
         :param bool verbose_logging: if True, log additional information to file
         """
 
@@ -634,10 +648,12 @@ class Exonerate(object):
         self.similarity_threshold = thresh
         self.sliding_window_size = exonerate_hit_sliding_window_size
         self.sliding_window_thresh = exonerate_hit_sliding_window_thresh
+        self.allow_frameshifts = exonerate_allow_frameshifts
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
         self.no_stitched_contig = no_stitched_contig
+        self.stitched_contig_pad_n = stitched_contig_pad_n
         self.interleaved_fasta_file = interleaved_fasta_file
         self.chimera_discordant_cutoff = discordant_cutoff
         self.chimera_edit_distance = edit_distance
@@ -656,17 +672,23 @@ class Exonerate(object):
         self.stitched_contig_seqrecord = self._create_stitched_contig()
         self.stop_codons_in_seqrecord_bool = self._check_stop_codons_in_seqrecord()
         self.stitched_contig_hit_ranges = self._get_stitched_contig_hit_ranges()
+
         # only generate a no_stitched_contig_seqrecord (and write report) if no_stitched_contig is True:
         if self.no_stitched_contig:
             self.no_stitched_contig_seqrecord = self._no_stitched_contig()
         else:
             self.no_stitched_contig_seqrecord = None
 
-        # Only perform chimera test if stitched contigs are being created AND interleaved_fasta_file is not None AND a
-        # multi-hit stitched contig has been created:
-        if self.hits_filtered_by_pct_similarity_dict and not self.no_stitched_contig and interleaved_fasta_file and \
-                not self.stitched_contig_seqrecord.description == 'single_hit':
-            self.chimera_warning_bool = self._stitched_contig_chimera_warning()
+        # If chimera_check is True, only perform chimera test if stitched contigs are being created AND
+        # interleaved_fasta_file is not None AND a multi-hit stitched contig has been created:
+        if chimera_check:
+            if (self.hits_filtered_by_pct_similarity_dict
+                    and not self.no_stitched_contig
+                    and interleaved_fasta_file
+                    and not self.stitched_contig_seqrecord.description == 'single_hit'):
+                self.chimera_warning_bool = self._stitched_contig_chimera_warning()
+            else:
+                self.chimera_warning_bool = None
         else:
             self.chimera_warning_bool = None
 
@@ -674,7 +696,8 @@ class Exonerate(object):
         """
         Parses the object returned by BioPython SearchIO.parse.
         => Calculates query-vs-hit similarity scores for each hit, and filters hit based on a given threshold
-        => Sorts similarity-filtered hsps by start position in the protein query
+        => Removes any hits that contain a frameshift unless allow_frameshifts is True
+        => Sorts similarity-filtered hsps by start position then end position in the protein query
         => Applies a sliding window similarity filter to 5' and 3' hit termini, and trims if below similarity threshold
         => Populates a dict of dicts for each hit, with hitname: {key:value hit data}
 
@@ -705,6 +728,27 @@ class Exonerate(object):
         if len(filtered_hsps) == 0:
             self.logger.debug(f'Number of HSPs after filtering via percent_similarity is zero')
             return None
+
+        # If not self.allow_frameshifts, remove any hits with a frameshift in the SPAdes sequence:
+        self.logger.debug(f'self.allow_frameshifts: {self.allow_frameshifts}')
+
+        if not self.allow_frameshifts:
+            filtered_hsps_by_similarity = copy.deepcopy(filtered_hsps)
+            filtered_hsps = []
+
+            for filtered_hsp in filtered_hsps_by_similarity:
+                hsp = filtered_hsp[0]
+                if len(set(hsp.hit_frame_all)) > 1:
+                    self.logger.debug(f'{hsp.hit_id} hsp.hit_frame_all: {hsp.hit_frame_all}')
+                else:
+                    filtered_hsps.append(filtered_hsp)
+
+            self.logger.debug(f'Number of HSPs after filtering out hits with frameshifts: {len(filtered_hsps)}')
+            self.logger.info(f'Number of HSPs after filtering out hits with frameshifts: {len(filtered_hsps)}')
+
+            if len(filtered_hsps) == 0:
+                self.logger.debug(f'Number of HSPs after out hits with frameshifts is zero')
+                return None
 
         filtered_by_similarity_hsps_dict = defaultdict(dict)  # dict of dicts for each filtered hsp
 
@@ -946,7 +990,9 @@ class Exonerate(object):
                 alignment_seq = ''.join(alignment['hit_annotation'])
                 concatenated_hsp_alignment_seqs.append(alignment_seq)
 
-            seq = Seq(''.join(concatenated_hsp_alignment_seqs)).replace('-', '')
+            # Note that the seq below does _not_ include any frameshift bases:
+            # seq = Seq(''.join(concatenated_hsp_alignment_seqs)).replace('-', '')
+            seq = Seq(''.join(concatenated_hsp_alignment_seqs))
 
             # Trim/slice the seq if required:
             if not three_prime_slice:
@@ -1273,19 +1319,32 @@ class Exonerate(object):
             if pair[1] is not None:  # as pairwise_longest() will pad a hit without a pair with 'None'
                 left_seq_hit_name, right_seq_hit_name = pair[0]['hit_sequence'].id, pair[1]['hit_sequence'].id
                 left_seq_query_range, right_seq_query_range = pair[0]['query_range'], pair[1]['query_range']
+                left_seq_seq, right_seq_seq = pair[0]['hit_sequence'], pair[1]['hit_sequence']
 
                 # If overlapping hits, always trim the 3' end of the left hit:
                 if left_seq_query_range[1] > right_seq_query_range[0]:
-                    num_bases_overlap = (left_seq_query_range[1] - right_seq_query_range[0]) * 3
-                    bases_to_recover = len(pair[0]['hit_sequence'].seq) - num_bases_overlap
-                    pair[0]['hit_sequence'].seq = pair[0]['hit_sequence'].seq[:bases_to_recover]
-                    pair[0]['hit_sequence'].description = f'3prime overlap trimmed by: {num_bases_overlap}'
+                    num_amino_acid_overlap = left_seq_query_range[1] - right_seq_query_range[0]
+
+                    seq_to_keep = left_seq_seq[: -num_amino_acid_overlap * 3]
+                    seq_to_trim = left_seq_seq[-num_amino_acid_overlap * 3:]
+
+                    assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
+                    assert len(seq_to_keep) >= 3
+
+                    seq_to_keep_stripped = ''.join([base for base in seq_to_keep.seq if base not in ['-']])
+                    seq_to_trim_stripped = ''.join([base for base in seq_to_trim.seq if base not in ['-']])
+
+                    pair[0]['hit_sequence'].seq = Seq(seq_to_keep_stripped)
+                    pair[0]['hit_sequence'].description = f'3prime overlap trimmed by: {len(seq_to_trim_stripped)}'
                     exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
 
                 else:  # if no overlap, add left hit unmodified (3' padded with Ns if gap before next hit):
                     bases_in_gap_between_hits = (right_seq_query_range[0] - left_seq_query_range[1]) * 3
-                    pair[0]['hit_sequence'].seq = Seq(f"{pair[0]['hit_sequence'].seq}"
-                                                      f"{'N' * bases_in_gap_between_hits}")
+
+                    if self.stitched_contig_pad_n:
+                        pair[0]['hit_sequence'].seq = Seq(f"{pair[0]['hit_sequence'].seq}"
+                                                          f"{'N' * bases_in_gap_between_hits}")
+
                     pair[0]['hit_sequence'].description = f'No overlap: N/A'
                     exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
 
@@ -2078,6 +2137,9 @@ def parse_spades_and_best_reference(assemblyfile, proteinfile, prefix):
     spades_assembly_dict = SeqIO.to_dict(SeqIO.parse(assemblyfile, 'fasta'))
     best_protein_ref_dict = SeqIO.to_dict(SeqIO.parse(proteinfile, 'fasta'))
 
+    assemblyfile.close()
+    proteinfile.close()
+
     return spades_assembly_dict, best_protein_ref_dict
 
 
@@ -2146,10 +2208,13 @@ def standalone():
     parser.add_argument("--paralog_warning_min_length_percentage", default=0.75, type=float,
                         help="Minimum length percentage of a contig vs reference protein length for a paralog warning "
                              "to be generated. Default is %(default)s")
-    parser.add_argument("--pad_stitched_contig_query_gaps_with_n",
-                        help="When constructing stitched contigs, pad any gaps between hits (with respect to the "
-                             "query protein) with a number of Ns corresponding to the query gap multiplied by 3",
-                        action="store_true", dest='stitched_contig_pad_n', default=False)
+    parser.add_argument("--no_pad_stitched_contig_gaps_with_n",
+                        help="When constructing stitched contigs, do not pad any gaps between hits (with respect to "
+                             "the 'best' protein reference) with a number of Ns corresponding to the "
+                             "reference gap multiplied by 3. Default is %(default)s.",
+                        action="store_false",
+                        dest='stitched_contig_pad_n',
+                        default=True)
     parser.add_argument("--no_intronerate",
                         help="Do no run intronerate to recover fasta files for supercontig with introns (if present), "
                              "and introns-only", action="store_true", dest='no_intronerate', default=False)
@@ -2173,6 +2238,12 @@ def standalone():
                              'termini of Exonerate hits. Default is %(default)s.',
                         default=55,
                         type=int)
+    parser.add_argument('--exonerate_allow_hits_with_frameshifts',
+                        help='Allow Exonerate hits where the SPAdes sequence contains a frameshift. Default is '
+                             '%(default)s.',
+                        action='store_true',
+                        dest='allow_frameshifts',
+                        default=False)
     parser.add_argument('--verbose_logging',
                         help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
                              'files by an order of magnitude.',
@@ -2228,6 +2299,7 @@ def main(args):
         thresh=args.thresh,
         logger=logger,
         prefix=prefix,
+        chimera_check=args.chimera_check,
         discordant_cutoff=
         args.chimeric_stitched_contig_discordant_reads_cutoff,
         edit_distance=args.chimeric_stitched_contig_edit_distance,
@@ -2236,11 +2308,13 @@ def main(args):
         bbmap_threads=args.bbmap_threads,
         interleaved_fasta_file=path_to_interleaved_fasta,
         no_stitched_contig=args.no_stitched_contig,
+        stitched_contig_pad_n=args.stitched_contig_pad_n,
         spades_assembly_dict=spades_assembly_dict,
         depth_multiplier=args.depth_multiplier,
         keep_intermediate_files=args.keep_intermediate_files,
         exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
         exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
+        exonerate_allow_frameshifts=args.allow_frameshifts,
         verbose_logging=args.verbose_logging)
 
     if not exonerate_result.stitched_contig_seqrecord:

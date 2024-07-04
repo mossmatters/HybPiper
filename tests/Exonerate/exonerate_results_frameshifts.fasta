@@ -1,0 +1,303 @@
+
+C4 Alignment:
+------------
+         Query: Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527
+        Target: NODE_4_length_755_cov_4.915605 [revcomp]
+         Model: protein2genome:local
+     Raw score: 376
+   Query range: 6 -> 124
+  Target range: 508 -> 149
+
+   7 : ValIleGlyGlyGlyGlyArgGluHisAlaLeuCysTyrAlaLeuLysGlnSerPro--SerCy :  27
+       |||  !|||! !|||||||||||||||||||||||||||||||||:!!|||||||||##.!!  
+       ValGlyGlyValGlyGlyArgGluHisAlaLeuCysTyrAlaLeuGlnGlnSerPro##Gly--
+ 508 : GTTGGTGGTGTTGGAGGAAGGGAACATGCACTTTGCTATGCCTTGCAGCAATCTCCATTGGT-- : 446
+
+  28 : sAspAlaValPheCysAlaProGlyAsnAlaGlyIleGlyGlnSerGlyAspAlaThrCysIle :  48
+        |||||||||! !||||||||||||||||||||||||..!!!.||||||:!!! !|||!! |||
+       -AspAlaValSerCysAlaProGlyAsnAlaGlyIleSerHisSerGlyAsnGluThrTrpIle
+ 445 : -GATGCAGTCTCTTGTGCACCTGGTAATGCAGGGATTTCTCATTCTGGCAATGAGACTTGGATA : 386
+
+  49 : SerAspLeuAsnIleSer<-><->AspSerAlaAlaValIleSerPheCysHisMetTrpGluV :  68
+       |||||||||!!.  !! !      .!.|||..!  !||||||!!!||||||!.!!   !!! !|
+       SerAspLeuLysHisIleGlyTrpGlnSerCysAsnValIleThrPheCysArgThrArgGlyV
+ 385 : TCAGACTTAAAACATATTGGATGGCAAAGCTGTAATGTAATCACCTTTTGCCGCACTAGGGGAG : 320
+
+  69 : alGlyLeuValIleIleGlyProGluAlaProLeuValAlaGlyLeuAlaAsnAspLeuValLy :  89
+       |||||||||||:!::!:|||||||||||||||||||||:!!||||||!.!||||||||||||:!
+       alGlyLeuValValValGlyProGluAlaProLeuValSerGlyLeuValAsnAspLeuValGl
+ 319 : TTGGTCTAGTTGTGGTGGGTCCAGAAGCTCCGCTGGTTTCTGGCCTTGTAAATGACCTTGTTGA : 257
+
+  90 : sAlaGlyIleProThrPheGlyProSerAlaGluAlaAlaAlaLeuGluGlySerLysAspPhe : 110
+       !|||||||||||||||||||||||||||:!!||||||!.!||||||||||||||||||||||||
+       uAlaGlyIleProThrPheGlyProSerSerGluAlaValAlaLeuGluGlySerLysAspPhe
+ 256 : AGCTGGCATCCCAACATTTGGCCCTTCATCGGAGGCTGTGGCATTGGAGGGGTCAAAAGACTTT : 194
+
+ 111 : MetLysLysLeuCysAspLysTyrAspIleProThrAlaLys : 124
+       ||||||||||||||||||||||||!  |||||||||||||||
+       MetLysLysLeuCysAspLysTyrGlyIleProThrAlaLys
+ 193 : ATGAAGAAGTTGTGTGATAAATATGGAATCCCCACCGCAAAG : 150
+
+>NODE_4_length_755_cov_4.915605,Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527,6,124,75.21,(-),508,149
+GTTGGTGGTGTTGGAGGAAGGGAACATGCACTTTGCTATGCCTTGCAGCAATCTCCAGGTGATGCAGTCT
+CTTGTGCACCTGGTAATGCAGGGATTTCTCATTCTGGCAATGAGACTTGGATATCAGACTTAAAACATAT
+TGGATGGCAAAGCTGTAATGTAATCACCTTTTGCCGCACTAGGGGAGTTGGTCTAGTTGTGGTGGGTCCA
+GAAGCTCCGCTGGTTTCTGGCCTTGTAAATGACCTTGTTGAAGCTGGCATCCCAACATTTGGCCCTTCAT
+CGGAGGCTGTGGCATTGGAGGGGTCAAAAGACTTTATGAAGAAGTTGTGTGATAAATATGGAATCCCCAC
+CGCAAAG
+
+
+C4 Alignment:
+------------
+         Query: Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527
+        Target: NODE_5_length_510_cov_2.869452
+         Model: protein2genome:local
+     Raw score: 113
+   Query range: 325 -> 401
+  Target range: 162 -> 377
+
+ 326 : ValSerLeuSerTrpSerProGlyProAlaMetValValValMetAlaSerGlnGlyTyrProG : 347
+       !.!:!!|||!:!||| !! !!||| !!||||||:!!||||||!!:|||!!!!:!|||!! ||||
+       AlaAlaLeuAsnTrpProAlaGlySerAlaMetLeuValValIleAlaArgArgGly***ProG
+ 163 : GCAGCTTTGAATTGGCCAGCTGGATCGGCCATGTTGGTCGTGATAGCAAGACGAGGTTAACCAG : 226
+
+ 348 : lyAlaTyrGluLysGlyThrValIleArgAsnLeuGluGluAlaGluLeuIleSerProLeuVa : 368
+       ||||||||||||||! !|||:!!:!:|||  !! !..!!    !!!:               ! 
+       lyAlaTyrGluLysGluThrIleValArgPro***ArgGlyArgAsp---------------As
+ 227 : GGGCCTATGAGAAGGAAACTATTGTGAGACCTTGAAGAGGCAGGGAT---------------GA : 274
+
+ 369 : lLys--IlePheHisAlaGlyThrSerLeuAspSerAsnGlyAspPheIleAlaSerGlyGlyA : 389
+       !!..##||||||||||||||||||:!!! !||||||||||||:!!||||||  !|||!.!! !|
+       pSer##IlePheHisAlaGlyThrAlaProAspSerAsnGlyAsnPheIleMetSerAlaValA
+ 275 : TAGCACATATTTCATGCAGGAACAGCACCAGACTCAAATGGCAACTTCATCATGTCTGCTGTCC : 339
+
+ 390 : rgValLeuGlyValThrAlaLysGlyGluAspLeuGlu : 401
+       ||:!!||||||||||||:!!|||! !:!!|||||||||
+       rgMetLeuGlyValThrSerLysValLysAspLeuGlu
+ 340 : GTATGCTTGGTGTCACTTCAAAGGTAAAAGATTTAGAG : 377
+
+>NODE_5_length_510_cov_2.869452,Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527,325,401,54.93,(+),162,377
+GCAGCTTTGAATTGGCCAGCTGGATCGGCCATGTTGGTCGTGATAGCAAGACGAGGTTAACCAGGGGCCT
+ATGAGAAGGAAACTATTGTGAGACCTTGAAGAGGCAGGGATGATAGCATATTTCATGCAGGAACAGCACC
+AGACTCAAATGGCAACTTCATCATGTCTGCTGTCCGTATGCTTGGTGTCACTTCAAAGGTAAAAGATTTA
+GAG
+
+
+C4 Alignment:
+------------
+         Query: Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527
+        Target: NODE_3_length_925_cov_11.824561
+         Model: protein2genome:local
+     Raw score: 528
+   Query range: 123 -> 302
+  Target range: 203 -> 710
+
+ 124 : LysTyrGlnThrPheThrAsnProSerAspAlaLysGlnTyrValLysArgGlnGlyAlaProI : 145
+       :!!|||||||||||||||||||||||||||||||||:!!|||:!!|||..!||||||||||||!
+       GlnTyrGlnThrPheThrAsnProSerAspAlaLysLysTyrIleLysGluGlnGlyAlaProT
+ 204 : CAGTATCAAACTTTTACAAACCCATCCGATGCAAAGAAATATATTAAGGAGCAAGGAGCGCCCA : 267
+
+ 146 : leValValLysAlaAspGlyLeuAlaAlaGlyLysGlyVal-IleValAlaMetThrLeuGluG : 166
+        !|||||||||||||||||||||||||||||||||||||||#||||||||||||||||||||||
+       hrValValLysAlaAspGlyLeuAlaAlaGlyLysGlyVal#IleValAlaMetThrLeuGluG
+ 268 : CTGTTGTCAAGGCTGATGGGTTGGCTGCTGGGAAAGGAGTTAATTGTTGCCATGACTCTAGAAG : 331
+
+ 167 : luAlaTyrAspAlaIleAspLeuMetLeuValAsnGlyAlaPheGlySerAlaGlySerGlnVa : 187
+       ||||||||||||||:!!! !|||||||||||||||||||||||||||||||||! !|||!:!||
+       luAlaTyrAspAlaValGlyLeuMetLeuValAsnGlyAlaPheGlySerAlaValSerArgVa
+ 332 : AGGCATATGATGCTGTAGGCTTAATGCTGGTAAATGGTGCTTTTGGGTCTGCTGTTTCCCGAGT : 394
+
+ 188 : lIleIleGluGluPheLeuGluGlyGluGluAlaSerPhePheAlaLeuValAspGlyGluThr : 208
+       |||||||||| !!||||||! !|||||||||||||||||||||||||||||||||         
+       lIleIleGlu***PheLeuValGlyGluGluAlaSerPhePheAlaLeuValAsp---------
+ 395 : CATTATTGAATAATTTCTTGTGGGAGAAGAAGCTTCATTCTTTGCTTTGGTAGAC--------- : 451
+
+ 209 : Ala-LeuProLeuGluThrAlaGlnAspHisLysArgValGlyAspGlyAspThrGlyProAsn : 229
+         !#:!!|||||||||:!!||||||! !|||||| !!|||||||||||||||            
+       Arg#MetProLeuGluSerAlaGlnGlyHisLysGlyValGlyAspGlyAsp------------
+ 452 : CGACATGCCTCTTGAGTCTGCACAGGGCCATAAAGGAGTTGGTGATGGTGAT------------ : 503
+
+ 230 : ThrGlyGlyMetGlyAlaTyrSerProAlaProValLeuThrLysGluLeuGlnSerValValM : 251
+       ||||||||||||!.!||||||||||||||||||:!!||||||!:!|||||||||||||||||||
+       ThrGlyGlyMetAlaAlaTyrSerProAlaProIleLeuThrArgGluLeuGlnSerValValM
+ 504 : ACCGGTGGAATGGCGGCATATTCCCCTGCTCCAATATTAACTAGAGAGCTACAGTCTGTGGTTA : 566
+
+ 252 : etGluSerIleIleLeuProThrValLysGlyMetAlaAlaGluGlyCysLysPheValGlyVa : 272
+       ||||||||||||||! !|||||||||||||||||||||! !|||||||||||||||        
+       etGluSerIleIleSerProThrValLysGlyMetAlaGluGluGlyCysLysPhe--------
+ 567 : TGGAATCAATAATTTCCCCCACAGTGAAGGGAATGGCTGAAGAAGGTTGCAAATTT-------- : 623
+
+ 273 : lLeu-TyrAlaGlyLeuMetIleGluLysLysSerGlyLeuProLysLeuIleGluTyrAsnVa : 293
+           #|||||||||||||||||||||||||||!!!|||:!!|||! !|||||||||||||||||
+       ----#TyrAlaGlyLeuMetIleGluLysLysThrGlyMetProThrLeuIleGluTyrAsnVa
+ 624 : ----GTATGCTGGGCTTATGATTGAGAAAAAAACCGGGATGCCTACGCTTATTGAGTACAATGT : 681
+
+ 294 : lArgPheGlyAspProGluCysGlnVal : 302
+       |!.!||||||||||||:!!|||||||||
+       lHisPheGlyAspProGlnCysGlnVal
+ 682 : GCATTTTGGAGATCCTCAATGCCAGGTT : 710
+
+>NODE_3_length_925_cov_11.824561,Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527,123,302,84.52,(+),203,710
+CAGTATCAAACTTTTACAAACCCATCCGATGCAAAGAAATATATTAAGGAGCAAGGAGCGCCCACTGTTG
+TCAAGGCTGATGGGTTGGCTGCTGGGAAAGGAGTTATTGTTGCCATGACTCTAGAAGAGGCATATGATGC
+TGTAGGCTTAATGCTGGTAAATGGTGCTTTTGGGTCTGCTGTTTCCCGAGTCATTATTGAATAATTTCTT
+GTGGGAGAAGAAGCTTCATTCTTTGCTTTGGTAGACCGAATGCCTCTTGAGTCTGCACAGGGCCATAAAG
+GAGTTGGTGATGGTGATACCGGTGGAATGGCGGCATATTCCCCTGCTCCAATATTAACTAGAGAGCTACA
+GTCTGTGGTTATGGAATCAATAATTTCCCCCACAGTGAAGGGAATGGCTGAAGAAGGTTGCAAATTTTAT
+GCTGGGCTTATGATTGAGAAAAAAACCGGGATGCCTACGCTTATTGAGTACAATGTGCATTTTGGAGATC
+CTCAATGCCAGGTT
+
+
+C4 Alignment:
+------------
+         Query: Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527
+        Target: NODE_2_length_1154_cov_10.705940
+         Model: protein2genome:local
+     Raw score: 625
+   Query range: 0 -> 124
+  Target range: 451 -> 823
+
+   1 : GluArgValValValLeuValIleGlyGlyGlyGlyArgGluHisAlaLeuCysTyrAlaLeuL :  22
+       ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+       GluArgValValValLeuValIleGlyGlyGlyGlyArgGluHisAlaLeuCysTyrAlaLeuL
+ 452 : GAGAGGGTAGTGGTGCTGGTCATTGGTGGTGGAGGAAGGGAGCATGCACTTTGCTATGCCTTGA : 515
+
+  23 : ysGlnSerProSerCysAspAlaValPheCysAlaProGlyAsnAlaGlyIleGlyGlnSerGl :  43
+       ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+       ysGlnSerProSerCysAspAlaValPheCysAlaProGlyAsnAlaGlyIleGlyGlnSerGl
+ 516 : AGCAGTCTCCATCCTGTGATGCAGTTTTTTGTGCCCCTGGTAATGCAGGGATTGGTCAATCTGG : 578
+
+  44 : yAspAlaThrCysIleSerAspLeuAsnIleSerAspSerAlaAlaValIleSerPheCysHis :  64
+       |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||!.!
+       yAspAlaThrCysIleSerAspLeuAsnIleSerAspSerAlaAlaValIleSerPheCysArg
+ 579 : GGATGCCACCTGCATATCAGACCTAAATATCTCCGACAGTGCAGCTGTGATATCCTTTTGCCGC : 641
+
+  65 : MetTrpGluValGlyLeuValIleIleGlyProGluAlaProLeuValAlaGlyLeuAlaAsnA :  86
+       ||||||! !||||||||||||:!!||||||||||||||||||||||||||||||||||||||||
+       MetTrpGlyValGlyLeuValValIleGlyProGluAlaProLeuValAlaGlyLeuAlaAsnA
+ 642 : ATGTGGGGAGTTGGCCTGGTGGTAATTGGTCCAGAAGCTCCCTTAGTTGCTGGCCTTGCGAATG : 707
+
+  87 : spLeuValLysAlaGlyIleProThrPheGlyProSerAlaGluAlaAlaAlaLeuGluGlySe : 107
+       ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+       spLeuValLysAlaGlyIleProThrPheGlyProSerAlaGluAlaAlaAlaLeuGluGlySe
+ 708 : ACCTCGTTAAGGCTGGGATCCCAACGTTTGGTCCATCAGCAGAGGCTGCAGCATTGGAGGGATC : 770
+
+ 108 : rLysAspPheMetLysLysLeuCysAspLysTyrAspIleProThrAlaLys : 124
+       ||||||||||||||||||||||||||||||||||! !|||||||||||||||
+       rLysAspPheMetLysLysLeuCysAspLysTyrGlyIleProThrAlaLys
+ 771 : GAAGGACTTCATGAAGAAGTTGTGCGACAAATATGGCATCCCTACAGCAAAG : 823
+
+>NODE_2_length_1154_cov_10.705940,Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527,0,124,96.77,(+),451,823
+GAGAGGGTAGTGGTGCTGGTCATTGGTGGTGGAGGAAGGGAGCATGCACTTTGCTATGCCTTGAAGCAGT
+CTCCATCCTGTGATGCAGTTTTTTGTGCCCCTGGTAATGCAGGGATTGGTCAATCTGGGGATGCCACCTG
+CATATCAGACCTAAATATCTCCGACAGTGCAGCTGTGATATCCTTTTGCCGCATGTGGGGAGTTGGCCTG
+GTGGTAATTGGTCCAGAAGCTCCCTTAGTTGCTGGCCTTGCGAATGACCTCGTTAAGGCTGGGATCCCAA
+CGTTTGGTCCATCAGCAGAGGCTGCAGCATTGGAGGGATCGAAGGACTTCATGAAGAAGTTGTGCGACAA
+ATATGGCATCCCTACAGCAAAG
+
+
+C4 Alignment:
+------------
+         Query: Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527
+        Target: NODE_1_length_1974_cov_15.011911 [revcomp]
+         Model: protein2genome:local
+     Raw score: 1471
+   Query range: 122 -> 429
+  Target range: 1692 -> 333
+
+  123 : AlaLysTyrGlnThrPheThrAsnProSerAspAlaLysGlnTyrValLysArgGlnGlyAl :  143
+        .!!:!!|||||||||||||||||||||||||||||||||||||||||||||..!||||||||
+        ThrGlnTyrGlnThrPheThrAsnProSerAspAlaLysGlnTyrValLysGluGlnGlyAl
+ 1692 : ACGCAGTATCAAACCTTTACAAACCCTTCTGATGCAAAGCAATACGTCAAGGAGCAAGGAGC : 1632
+
+  144 : aProIleValValLysAlaAspGlyLeuAlaAlaGlyLysGlyValIleValAlaMetThrL :  164
+        ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        aProIleValValLysAlaAspGlyLeuAlaAlaGlyLysGlyValIleValAlaMetThrL
+ 1631 : ACCTATTGTTGTGAAGGCTGACGGATTGGCTGCTGGGAAGGGAGTCATTGTTGCCATGACTT : 1569
+
+  165 : euGluGluAlaTyrAspAlaIleAspLeuMetLeuValAsnGlyAlaPheGlySerAlaGly :  184
+        ||||||||||||||!!:|||||||||! !|||||||||||||||||||||||||||||||||
+        euGluGluAlaTyrGluAlaIleAspSerMetLeuValAsnGlyAlaPheGlySerAlaGly
+ 1568 : TGGAGGAGGCATATGAAGCTATAGACTCGATGCTGGTTAATGGTGCTTTTGGATCTGCTGGT : 1509
+
+  185 : SerGlnValIleIleGluGluPheLeuGluGlyGluGluAlaSerPhePheAlaLeuValAs :  205
+        |||!:!||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        SerArgValIleIleGluGluPheLeuGluGlyGluGluAlaSerPhePheAlaLeuValAs
+ 1508 : TCCCGAGTCATTATTGAAGAATTCCTAGAGGGTGAAGAAGCTTCTTTCTTTGCTCTCGTCGA : 1446
+
+  206 : pGlyGluThrAlaLeuProLeuGluThrAlaGlnAspHisLysArgValGlyAspGlyAspT :  226
+        |||||||||||||||||||||||||:!!||||||||||||||||||||||||||||||||||
+        pGlyGluThrAlaLeuProLeuGluSerAlaGlnAspHisLysArgValGlyAspGlyAspT
+ 1445 : TGGTGAAACTGCCTTACCGCTTGAATCTGCACAGGACCATAAAAGAGTGGGTGATGGAGATA : 1383
+
+  227 : hrGlyProAsnThrGlyGlyMetGlyAlaTyrSerProAlaProValLeuThrLysGluLeu :  246
+        ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        hrGlyProAsnThrGlyGlyMetGlyAlaTyrSerProAlaProValLeuThrLysGluLeu
+ 1382 : CTGGCCCAAATACAGGTGGAATGGGTGCATATTCTCCTGCACCGGTACTAACAAAAGAACTT : 1323
+
+  247 : GlnSerValValMetGluSerIleIleLeuProThrValLysGlyMetAlaAlaGluGlyCy :  267
+        ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        GlnSerValValMetGluSerIleIleLeuProThrValLysGlyMetAlaAlaGluGlyCy
+ 1322 : CAGTCTGTTGTCATGGAATCAATAATCCTCCCAACAGTGAAGGGGATGGCAGCTGAAGGGTG : 1260
+
+  268 : sLysPheValGlyValLeuTyrAlaGlyLeuMetIleGluLysLysSerGlyLeuProLysL :  288
+        ||||||||||||||||||||||||||||||||||||||||||||||||| !!||||||||||
+        sLysPheValGlyValLeuTyrAlaGlyLeuMetIleGluLysLysSerArgLeuProLysL
+ 1259 : CAAATTTGTTGGTGTGTTGTATGCTGGGCTTATGATTGAGAAAAAATCTAGGCTACCTAAGC : 1197
+
+  289 : euIleGluTyrAsnValArgPheGlyAspProGluCysGln  >>>> Target Intron  :  302
+        |||||||||||||||||||||||||||||||||||||||||            438 bp   
+        euIleGluTyrAsnValArgPheGlyAspProGluCysGln++                   
+ 1196 : TCATTGAGTACAATGTCCGCTTTGGAGATCCTGAATGCCAGgt................... : 1153
+
+  303 : 1 >>>>  ValLeuMetMetArgLeuLysSerAspLeuAlaGlnValLeuLeuAlaAlaSer :  319
+                ||||||||||||||||||:!!|||||||||||||||||||||||||||||||||
+              ++ValLeuMetMetArgLeuGluSerAspLeuAlaGlnValLeuLeuAlaAlaSer
+ 1152 : ......agGTTCTGATGATGCGGTTGGAGTCCGATCTGGCACAGGTTCTGCTTGCAGCTTCT :  666
+
+  320 : ArgGlyGluLeuGlyArgValSerLeuSerTrpSerProGlyProAlaMetValValValMe :  340
+        |||||||||||||||!.!!.!|||||||||||||||||||||||||||||||||||||||||
+        ArgGlyGluLeuGlyAsnAlaSerLeuSerTrpSerProGlyProAlaMetValValValMe
+  665 : CGGGGAGAGTTGGGCAATGCGTCGCTGAGTTGGTCACCTGGACCAGCTATGGTGGTTGTGAT :  603
+
+  341 : tAlaSerGlnGlyTyrProGlyAlaTyrGluLysGlyThrValIleArgAsnLeuGluGluA :  361
+        |||||||!:!||||||||||||||||||||||||||||||||||||||||||||||||||||
+        tAlaSerArgGlyTyrProGlyAlaTyrGluLysGlyThrValIleArgAsnLeuGluGluA
+  602 : GGCTAGTCGAGGTTATCCAGGTGCCTATGAGAAGGGCACTGTGATAAGAAACCTAGAAGAAG :  540
+
+  362 : laGluLeuIleSerProLeuValLysIlePheHisAlaGlyThrSerLeuAspSerAsnGly :  381
+        |||||||||||||||||:!!||||||||||||||||||||||||:!!|||||||||||||||
+        laGluLeuIleSerProMetValLysIlePheHisAlaGlyThrAlaLeuAspSerAsnGly
+  539 : CAGAGCTGATTTCTCCGATGGTTAAGATATTTCATGCTGGAACAGCTCTGGACTCAAATGGC :  480
+
+  382 : AspPheIleAlaSerGlyGlyArgValLeuGlyValThrAlaLysGlyGluAspLeuGluGl :  402
+        :!!|||||||||||||||||||||||||||||||||||||||||||||:!!|||:!!|||||
+        AsnPheIleAlaSerGlyGlyArgValLeuGlyValThrAlaLysGlyLysAspIleGluGl
+  479 : AATTTCATTGCCTCTGGGGGTCGTGTGCTTGGGGTAACCGCAAAGGGGAAAGACATAGAAGA :  417
+
+  403 : uAlaArgAlaArgAlaTyrAspAlaValGluAlaValAspTrpProGluGlyPheTyrArgH :  423
+        |||||||.!!||||||||||||||||||||||||:!!|||||||||||||||||||||||||
+        uAlaArgThrArgAlaTyrAspAlaValGluAlaIleAspTrpProGluGlyPheTyrArgH
+  416 : AGCGAGAACAAGGGCTTATGATGCAGTTGAAGCAATCGACTGGCCTGAAGGATTCTATAGGC :  354
+
+  424 : isAspIleGlyTrpArgAla :  429
+        ||||||||||||||||||||
+        isAspIleGlyTrpArgAla
+  353 : ATGATATTGGCTGGAGAGCA :  334
+
+>NODE_1_length_1974_cov_15.011911,Arecales_Arecaceae_Chamaedorea_seifrizii_Timilsena_et_al-4527,122,429,93.81,(-),1692,333
+ACGCAGTATCAAACCTTTACAAACCCTTCTGATGCAAAGCAATACGTCAAGGAGCAAGGAGCACCTATTG
+TTGTGAAGGCTGACGGATTGGCTGCTGGGAAGGGAGTCATTGTTGCCATGACTTTGGAGGAGGCATATGA
+AGCTATAGACTCGATGCTGGTTAATGGTGCTTTTGGATCTGCTGGTTCCCGAGTCATTATTGAAGAATTC
+CTAGAGGGTGAAGAAGCTTCTTTCTTTGCTCTCGTCGATGGTGAAACTGCCTTACCGCTTGAATCTGCAC
+AGGACCATAAAAGAGTGGGTGATGGAGATACTGGCCCAAATACAGGTGGAATGGGTGCATATTCTCCTGC
+ACCGGTACTAACAAAAGAACTTCAGTCTGTTGTCATGGAATCAATAATCCTCCCAACAGTGAAGGGGATG
+GCAGCTGAAGGGTGCAAATTTGTTGGTGTGTTGTATGCTGGGCTTATGATTGAGAAAAAATCTAGGCTAC
+CTAAGCTCATTGAGTACAATGTCCGCTTTGGAGATCCTGAATGCCAGGTTCTGATGATGCGGTTGGAGTC
+CGATCTGGCACAGGTTCTGCTTGCAGCTTCTCGGGGAGAGTTGGGCAATGCGTCGCTGAGTTGGTCACCT
+GGACCAGCTATGGTGGTTGTGATGGCTAGTCGAGGTTATCCAGGTGCCTATGAGAAGGGCACTGTGATAA
+GAAACCTAGAAGAAGCAGAGCTGATTTCTCCGATGGTTAAGATATTTCATGCTGGAACAGCTCTGGACTC
+AAATGGCAATTTCATTGCCTCTGGGGGTCGTGTGCTTGGGGTAACCGCAAAGGGGAAAGACATAGAAGAA
+GCGAGAACAAGGGCTTATGATGCAGTTGAAGCAATCGACTGGCCTGAAGGATTCTATAGGCATGATATTG
+GCTGGAGAGCA
+

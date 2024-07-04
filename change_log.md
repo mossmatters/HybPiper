@@ -1,8 +1,17 @@
 # Changelog
 
+**2.1.9** *3rd July, 2024*
+
+- Add option `--end_with` to command `hybpiper assemble`. Allows the user to end the assembly pipeline at a chosen step (map_reads, distribute_reads, assemble_reads, exonerate_contigs).
+- Add option `--exonerate_allow_hits_with_frameshifts` to command `hybpiper assemble`. If provided, allow Exonerate hits where the SPAdes contig contains frameshifts to be considered for assembly of an `*.FNA` sequence. Default behaviour in HybPiper v2.1.9 is to skip these hits; previous versions allowed them.
+- Add option `--chimeric_stitched_contig_check` to command `hybpiper assemble`. If provided, HybPiper will attempt to determine whether a stitched contig is a potential chimera of contigs from multiple paralogs. Default behaviour in HybPiper v2.1.9 is to skip this check; previous versions performed the check automatically.
+- Add option `--no_pad_stitched_contig_gaps_with_n`. If provided, when constructing stitched contigs, do not pad any gaps between hits (with respect to the "best" protein reference) with a number of Ns corresponding to the reference gap multiplied by 3. Default behaviour in HybPiper v2.1.9 is to pad gaps with Ns; previous versions did this automatically.
+- Fixed a bug in `exonerate_hits.py` that could (rarely) result in a duplicated region in the output `*.FNA` sequence.
+- Added `tests` folder containing initial unit tests. Some tests require python package [`pyfakefs`](https://github.com/pytest-dev/pyfakefs) to run. 
+
 **2.1.8** *25th June, 2024*
 
-- Add new subcommand `hybpiper filter_by_length`, used to filter the sequence output of `hybpiper retrieve sequences` by absolute length and/or length relative to mean length in target file representatives. This is done on a per-sample/per-gene basis, rather than the sample-level filtering available in `hybpiper retrieve_sequences`. See [wiki](https://github.com/mossmatters/HybPiper/wiki#hybpiper-filter_by_length) for more information.
+- Add new subcommand `hybpiper filter_by_length`, used to filter the sequence output of `hybpiper retrieve_sequences` by absolute length and/or length relative to mean length in target file representatives. This is done on a per-sample/per-gene basis, rather than the sample-level filtering available in `hybpiper retrieve_sequences`. See [wiki](https://github.com/mossmatters/HybPiper/wiki#hybpiper-filter_by_length) for more information.
 - Update the regex used to check target file fasta header formatting, to capture scenarios where a name contains multiple dashes and also ends with a dash.
 - In the `fix_targetfile.py` module, remove the import of `Bio.Align.Applications.MafftCommandline` and call `MAFFT` via `subprocess` (see [issue#147](https://github.com/mossmatters/HybPiper/issues/147)).
 - In the `gene_recovery_heatmap.py` module, cast the dataframe from the `seq_lengths_file` to object `dtype` to avoid a [deprecation warning](https://pandas.pydata.org/docs/whatsnew/v2.1.0.html#deprecated-silent-upcasting-in-setitem-like-series-operations) .
