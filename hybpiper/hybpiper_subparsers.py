@@ -10,30 +10,8 @@ import sys
 
 from hybpiper import utils
 
-
 # Create logger:
 logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
-
-title = textwrap.dedent(
-    fr"""
-                                                     T
-                                                        T
-                                         C  G
- _    _            _       _____      T        G        A
-| |  | |          | |     |  _  \  A              A  A
-| |__| | __    __ | |___  | |_| |  _   _____   _____   _____
-|  __  | \ \  / / |  _  \ |  ___/ | | |  _  \ |  _  | |  _  \
-| |  | |  \ \/ /  | |_| | | |     | | | |_| | |  __/  | |  --
-|_|  |_|   \  /   |_____/ |_|     |_| |  ___/ |_____| |_|
-           / /                        | |
-          /_/                         |_|
-
-    """
-)
-
-
-sys.stderr.write(title)
-sys.stderr.flush()
 
 
 def add_assemble_parser(subparsers):

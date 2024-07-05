@@ -1,56 +1,5 @@
 #!/usr/bin/env python
 
-"""
-########################################################################################################################
-####################################################### NOTES  #########################################################
-########################################################################################################################
-
-After installation of the pipeline, all pipeline commands are now accessed via the main command 'hybpiper',
-followed by a subcommand to run different parts of the pipeline. The available subcommands can be viewed by typing
-'hybpiper -h' or 'hybpiper --help'. They are:
-
-    assemble            Assemble gene, intron, and supercontig sequences
-    stats               Gather statistics about the HybPiper run(s)
-    retrieve_sequences  Retrieve sequences generated from multiple runs of HybPiper
-    recovery_heatmap    Create a gene recovery heatmap for the HybPiper run
-    paralog_retriever   Retrieve paralog sequences for a given gene, for all samples
-    check_dependencies  Run a check for all pipeline dependencies and exit
-    check_targetfile    Check the target file for issues, then exit
-    fix_targetfile      Fix the target file, then exit
-    filter_by_length    Filter the sequences output by command "hybpiper retrieve_sequences" by length
-                        (absolute and relative to mean)
-
-To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
-
-==> NOTE <==
-The script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
-if you had previously run 'reads_first.py' on a sample using the command e.g.:
-
-    python /<path_to>/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
-
-...this is now replaced by the command:
-
-    hybpiper assemble -t_dna test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
-
-==> NOTE <==
-The recovery of introns and supercontigs, previously achieved via the script 'intronerate.py',
-is now incorporated in to the 'hybpiper assemble' command. It is run by default, but can be disabled using the flag
-'--no_intronerate'.
-
-==> NOTE <==
-The command/script 'get_seq_lengths.py' no longer exists, and this functionality has been incorporated in to
-the command 'hybpiper stats'. The sequence length details that were previously printed to screen are now written to
-the file 'seq_lengths.tsv', by default. Similarly, the stats details that were previously written to screen by
-'hybpiper_stats.py' are now written to the file 'hybpiper_stats.tsv', by default.
-
-For full details of all commands and changes, please read the Wiki page at
-https://github.com/mossmatters/HybPiper/wiki and the change log at
-https://github.com/mossmatters/HybPiper/blob/master/change_log.md.
-
-########################################################################################################################
-
-"""
-
 import argparse
 import os
 import sys
@@ -62,66 +11,15 @@ import logging.handlers
 from collections import defaultdict
 import re
 import textwrap
-import datetime
 import multiprocessing
 from multiprocessing import Manager
 from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
-import importlib.metadata
 import time
 import signal
-import cProfile
 import platform
 import traceback
-
-# f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
-f'HybPiper requires Python 3.7 or higher.'
-
-# Import non-standard-library modules:
-unsuccessful_imports = []
-try:
-    from Bio import SeqIO, SeqRecord
-except ImportError:
-    unsuccessful_imports.append('Bio')
-try:
-    import progressbar
-except ImportError:
-    unsuccessful_imports.append('progressbar')
-try:
-    import seaborn
-except ImportError:
-    unsuccessful_imports.append('seaborn')
-try:
-    import matplotlib
-except ImportError:
-    unsuccessful_imports.append('matplotlib')
-try:
-    import pandas
-except ImportError:
-    unsuccessful_imports.append('pandas')
-try:
-    import pebble
-except ImportError:
-    unsuccessful_imports.append('pebble')
-try:
-    import scipy
-except ImportError:
-    unsuccessful_imports.append('scipy')
-try:
-    import psutil
-except ImportError:
-    unsuccessful_imports.append('psutil')
-
-if unsuccessful_imports:
-    package_list = '\n'.join(unsuccessful_imports)
-    sys.exit(f'The required Python packages are not found:\n\n{package_list}\n\nAre they installed for the Python '
-             f'installation used to run HybPiper?')
-
-# Check that user has the minimum required version of Biopython (1.80):
-biopython_version_print = importlib.metadata.version('biopython')
-biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)[:2]]
-if biopython_version[0:2] < [1, 80]:
-    sys.exit(f'HybPiper requires Biopython version 1.80 or above. You are using version {biopython_version_print}. '
-             f'Please update your Biopython for the Python installation used to run HybPiper!')
+import pebble
+import psutil
 
 # Import HybPiper modules:
 from hybpiper.version import __version__
@@ -129,271 +27,10 @@ from hybpiper import distribute_reads_to_targets
 from hybpiper import distribute_targets
 from hybpiper import spades_runner
 from hybpiper import exonerate_hits
-from hybpiper import hybpiper_stats
-from hybpiper import retrieve_sequences
-from hybpiper import paralog_retriever
-from hybpiper import gene_recovery_heatmap
-from hybpiper import fix_targetfile
-from hybpiper import filter_by_length
-from hybpiper import hybpiper_subparsers
 from hybpiper import utils
-from hybpiper.utils import log_or_print
 
-
-########################################################################################################################
-# Define functions
-########################################################################################################################
-
-def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.DEBUG,
-                 logger_object_level=logging.DEBUG):
-    """
-    Function to create a logger instance.
-
-    By default, logs level DEBUG and above to file.
-    By default, logs level INFO and above to stderr and file.
-
-    :param str name: name for the logger instance
-    :param str log_file: filename for log file
-    :param str console_level: logger level for logging to console
-    :param str file_level: logger level for logging to file
-    :param str logger_object_level: logger level for logger object
-    :return: logging.Logger: logger object
-    """
-
-    # Get date and time string for log filename:
-    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
-
-    # Log to file:
-    file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log', mode='w')
-    file_handler.setLevel(file_level)
-    file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
-                                    'message)s')
-    file_handler.setFormatter(file_format)
-
-    # Log to Terminal (stderr):
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setLevel(console_level)
-    console_format = logging.Formatter('%(message)s')
-    console_handler.setFormatter(console_format)
-
-    # Setup logger:
-    logger_object = logging.getLogger(name)
-    logger_object.setLevel(logger_object_level)  # Default level is 'WARNING'
-
-    # Add handlers to the logger
-    logger_object.addHandler(console_handler)
-    logger_object.addHandler(file_handler)
-
-    return logger_object
-
-
-def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
-    """
-    - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
-    - Checks for duplicate gene names in the targetfile.
-    - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
-
-    :param str targetfile: path to the targetfile
-    :param logging.Logger logger: a logger object
-    :return:
-    """
-
-    log_or_print(f'{"[INFO]:":10} Checking target file FASTA header formatting...', logger=logger)
-
-    gene_lists = defaultdict(list)
-    with open(targetfile, 'r') as target_file_handle:
-        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
-        incorrectly_formatted_fasta_headers = set()
-        check_for_duplicate_genes_dict = {}
-        for seq in seqs:
-            if seq.name in check_for_duplicate_genes_dict:
-                check_for_duplicate_genes_dict[seq.name] += 1
-            else:
-                check_for_duplicate_genes_dict[seq.name] = 1
-            if not re.match('.+-[^-]+$', seq.name):
-                incorrectly_formatted_fasta_headers.add(seq.name)
-            if re.search('\"|\'', seq.name):
-                incorrectly_formatted_fasta_headers.add(seq.name)
-            gene_id = re.split('-', seq.name)[-1]
-            gene_lists[gene_id].append(seq)
-
-    if incorrectly_formatted_fasta_headers:
-        seq_list = ' '.join(incorrectly_formatted_fasta_headers)
-        log_or_print(f'{"[ERROR!]:":10} The following sequences in your target file have incorrectly formatted fasta '
-                     f'headers:\n', logger=logger, logger_level='error')
-        fill = textwrap.fill(f'{seq_list}')
-        log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger)
-        log_or_print('', logger=logger)
-        fill = textwrap.fill(f'Please see target file formatting requirements here: '
-                             f'https://github.com/mossmatters/HybPiper/wiki#12-target-file')
-        log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger)
-        log_or_print('', logger=logger)
-        sys.exit(1)  # target file fasta header formatting should be fixed!
-    else:
-        log_or_print(f'{"[INFO]:":10} The target file FASTA header formatting looks good!', logger=logger)
-
-    # Check for duplicated gene names:
-    duplicated_genes = []
-    for gene, gene_count in check_for_duplicate_genes_dict.items():
-        if gene_count > 1:
-            duplicated_genes.append(gene)
-    if duplicated_genes:
-        gene_list = ' '.join(duplicated_genes)
-        log_or_print(f'{"[ERROR!]:":10} The following sequences in your target file occur more than once:\n',
-                     logger=logger, logger_level='error')
-        fill = textwrap.fill(f'{gene_list}')
-        log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger)
-        log_or_print(f'\nPlease remove duplicate genes before running HybPiper!', logger=logger, logger_level='error')
-        sys.exit(1)  # duplicate genes in target file should be removed!
-
-    # Report the number of unique genes represented in the target file:
-    log_or_print(f'{"[INFO]:":10} The target file contains at least one sequence for {len(gene_lists)} '
-                 f'unique genes.', logger=logger)
-
-
-def check_target_file_stop_codons_and_multiple_of_three(targetfile,
-                                                        no_terminal_stop_codons=False,
-                                                        translate_target_file=False,
-                                                        logger=None):
-    """
-    Takes a nucleotide target file and checks for unexpected stop codons when seqs are translated in the first
-    forward frame. Also checks whether a seq is a multiple of three (i.e. whole codons only).
-
-    :param str targetfile: path to the targetfile
-    :param bool no_terminal_stop_codons: if True, do not allow a single stop codon at C-terminal end of protein
-    :param bool translate_target_file: if True, nucleotide targetfile will be translated
-    :param logging.Logger logger: a logger object
-    :return:
-    """
-
-    with open(targetfile, 'r') as target_file_handle:
-        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
-
-    translated_seqs_to_write = []
-    seqs_needed_padding_dict = defaultdict(list)
-    seqs_with_stop_codons_dict = defaultdict(list)
-    seqs_with_terminal_stop_codon_dict = defaultdict(list)
-
-    if translate_target_file:
-        for seq in seqs:
-            gene_name = seq.name.split('-')[-1]
-            sequence, needed_padding = utils.pad_seq(seq)
-            translated_seq = sequence.seq.translate()
-            if translate_target_file:
-                record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
-                translated_seqs_to_write.append(record)
-            num_stop_codons = translated_seq.count('*')
-
-            if needed_padding:
-                seqs_needed_padding_dict[gene_name].append(seq)
-
-            if num_stop_codons == 0 or \
-                    (num_stop_codons == 1 and
-                     re.search('[*]', str(translated_seq)[-1]) and not
-                     no_terminal_stop_codons):
-                seqs_with_terminal_stop_codon_dict[gene_name].append(seq)
-
-            elif num_stop_codons >= 1:
-                seqs_with_stop_codons_dict[gene_name].append(seq)
-
-        if seqs_with_terminal_stop_codon_dict:
-            seq_list = [seq.name for gene_name, target_file_sequence_list in
-                        seqs_with_terminal_stop_codon_dict.items() for seq in target_file_sequence_list]
-            fill = textwrap.fill(
-                f'{"[INFO]:":10} There are {len(seq_list)} sequences in your target file that contain a single '
-                f'terminal stop codon. Sequence names can be found in the sample log file (if running "hybpiper '
-                f'assemble") or printed below (if running "hybpiper check_targetfile"). ',
-                width=90, subsequent_indent=' ' * 11)
-            log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
-            fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
-                                 subsequent_indent=' ' * 11, break_on_hyphens=False)
-            log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
-
-        if seqs_with_stop_codons_dict:
-            seq_list = [seq.name for gene_name, target_file_sequence_list in seqs_with_stop_codons_dict.items() for seq
-                        in target_file_sequence_list]
-            fill = textwrap.fill(
-                f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that contain unexpected '
-                f'stop codons when translated in the first forwards frame. If your target file contains only '
-                f'protein-coding sequences, please check these sequences, and/or run "hybpiper fix_targetfile". '
-                f'Sequence names can be found in the sample log file (if running "hybpiper assemble") or printed '
-                f'below (if running "hybpiper check_targetfile").',
-                width=90, subsequent_indent=' ' * 11)
-            log_or_print(f'{fill}\n', logger=logger)
-            fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
-                                 subsequent_indent=' ' * 11, break_on_hyphens=False)
-            log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
-
-        if seqs_needed_padding_dict:
-            seq_list = [seq.name for gene_name, target_file_sequence_list in seqs_needed_padding_dict.items() for seq
-                        in target_file_sequence_list]
-            fill = textwrap.fill(
-                f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not multiples of '
-                f'three. If your target file contains only protein-coding sequences, please check these sequences, '
-                f'and/or run "hybpiper fix_targetfile". Sequence names can be found in the sample log file (if '
-                f'running "hybpiper assemble") or printed below (if running "hybpiper check_targetfile").',
-                width=90, subsequent_indent=' ' * 11)
-            log_or_print(f'{fill}\n', logger=logger)
-            fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
-                                 subsequent_indent=' ' * 11, break_on_hyphens=False)
-            log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
-
-    return translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict
-
-
-def check_targetfile(targetfile, targetfile_type, using_bwa, full_sample_directory, logger=None):
-    """
-    - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
-    - Checks for duplicate gene names in the targetfile.
-    - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
-    - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
-      three, no unexpected stop codons), and logs a warning if not.
-    - If targetfile is DNA but using_bwa is False, translate the targetfile, write it to the sample directory with
-      name 'translated_target_file.fasta', and return the path
-
-    :param str targetfile: path to the targetfile
-    :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
-    :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
-    :param path full_sample_directory: path to the sample directory
-    :param logging.Logger logger: a logger object
-    :return: None, str: NoneType or path to the translated targetfile
-    """
-
-    # Check target file header and duplicate gene names:
-    check_target_file_headers_and_duplicate_names(targetfile, logger=logger)
-
-    # Detect whether the target file is DNA or amino-acid:
-    translate_target_file = False
-    if using_bwa and targetfile_type == 'protein':
-        sys.exit(f'{"[ERROR]:":10} You have specified that your target file contains protein sequences but provided '
-                 f'the flag --bwa. You need a nucleotide target file to use BWA for read mapping!')
-    elif not using_bwa and targetfile_type == 'DNA':
-        fill = textwrap.fill(f'{"[WARNING]:":10} You have specified that your target file contains DNA sequences, '
-                             f'but BLASTx or DIAMOND has been selected for read mapping. Translating the target '
-                             f'file...', width=90, subsequent_indent=' ' * 11)
-        logger.info(f'{fill}')
-        translate_target_file = True
-
-    # Check that seqs in target file can be translated from the first codon position in the forwards frame:
-    if using_bwa or translate_target_file:  # i.e. it's not a protein file
-        translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict = \
-            check_target_file_stop_codons_and_multiple_of_three(targetfile,
-                                                                translate_target_file=True,  # Set manually
-                                                                logger=logger)
-
-        if translate_target_file:
-            translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
-            fill = utils.fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-                                            f' {translated_target_file}', width=90, subsequent_indent=' ' * 11,
-                                            break_long_words=False, break_on_forward_slash=True)
-            logger.info(f'{fill}')
-
-            with open(f'{translated_target_file}', 'w') as translated_handle:
-                SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-
-            targetfile = 'translated_target_file.fasta'  # i.e. use translated file name for return value
-
-    return targetfile
+# Create logger:
+logger = logging.getLogger(f'hybpiper.hybpiper_main.{__name__}')
 
 
 def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
@@ -942,7 +579,7 @@ def exonerate(gene_name,
                      f"reference for gene {gene_name}, error is {e}")
         with lock:
             counter.value += 1
-            sys.stderr.write(f'\r{"[INFO]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+            sys.stdout.write(f'\r{"[INFO]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                              f'/{genes_to_process}')
 
         end = time.time()
@@ -1007,7 +644,7 @@ def exonerate(gene_name,
 
     with lock:
         counter.value += 1
-        sys.stderr.write(f'\r{"[INFO]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
+        sys.stdout.write(f'\r{"[INFO]:":10} Finished running Exonerate for gene {gene_name}, {counter.value}'
                          f'/{genes_to_process}')
 
     if not exonerate_text_output or not exonerate_result or not exonerate_result.stitched_contig_seqrecord:
@@ -1096,7 +733,7 @@ def exonerate_multiprocessing(genes,
     genes_to_process = len(genes)
 
     try:
-        with pebble.ProcessPool(max_workers=pool_threads) as pool:
+        with pebble.ProcessPool(max_workers=pool_threads, context=multiprocessing.get_context('fork')) as pool:
             genes_cancelled_due_to_timeout = []
             genes_cancelled_due_to_errors = []
             future_results_dict = defaultdict()
@@ -1245,11 +882,11 @@ def exonerate_multiprocessing(genes,
         sys.exit(1)
 
 
-def assemble(args):
+def main(args):
     """
-    Assemble gene, intron, supercontig and paralog sequences via assemble.py
+    Assemble gene, intron, supercontig and paralog sequences.
 
-    :param argparse.Namespace args: argparse namespace with subparser options for function assemble()
+    :param argparse.Namespace args: argparse namespace with subparser options for function main()
     :return None: no return value specified; default is None
     """
 
@@ -1273,7 +910,7 @@ def assemble(args):
     full_sample_directory = os.path.join(parent_dir, sample_dir)
 
     # Create logger:
-    logger = setup_logger(__name__, f'{full_sample_directory}/{sample_dir}_hybpiper_assemble')
+    logger = utils.setup_logger(__name__, f'{full_sample_directory}/{sample_dir}_hybpiper_assemble')
 
     # Log command line and default parameters:
     logger.info(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
@@ -1296,8 +933,8 @@ def assemble(args):
         cpu = args.cpu
         logger.info(f'{"[INFO]:":10} Using {cpu} cpus/threads.')
     else:
-        cpu = multiprocessing.cpu_count()  # i.e. use all cpus.
-        logger.info(f'{"[INFO]:":10} Number of cpus/threads not specified, using all available ({cpu}).')
+        cpu = multiprocessing.cpu_count() - 1  # i.e. use all cpus.
+        logger.info(f'{"[INFO]:":10} Number of cpus/threads not specified, using all available cpus minus 1 ({cpu}).')
 
     logger.debug(f'args.start_from is: {args.start_from}')
 
@@ -1379,12 +1016,14 @@ def assemble(args):
 
     # Check that the target file is formatted correctly and translates correctly. If it contains DNA sequences but
     # arg.bwa is false, translate and return a list of translated sequences instead of file path:
-    targetfile = check_targetfile(targetfile,
-                                  targetfile_type,
-                                  args.bwa,
-                                  full_sample_directory,
-                                  logger=logger)
+    targetfile = utils.check_targetfile(targetfile,
+                                        targetfile_type,
+                                        full_sample_directory=full_sample_directory,
+                                        using_bwa=args.bwa,
+                                        logger=logger)
 
+
+    sys.exit()
     ####################################################################################################################
     # Check manually provided targets if provided via the parameter --target
     ####################################################################################################################
@@ -1686,270 +1325,3 @@ def assemble(args):
                 f' {paralog_warnings_short_true} genes!')
 
     logger.info(f'\nFinished running "hybpiper assemble" for sample {sample_dir}!\n')
-
-
-def hybpiper_stats_main(args):
-    """
-    Calls the function main() from module hybpiper_stats
-
-    :param args: argparse namespace with subparser options for function get_seq_lengths_main()
-    :return: None: no return value specified; default is None
-    """
-
-    hybpiper_stats.main(args)
-
-
-def retrieve_sequences_main(args):
-    """
-    Calls the function main() from module retrieve_sequences
-
-    :param args: argparse namespace with subparser options for function retrieve_sequences_main()
-    :return: None: no return value specified; default is None
-    """
-
-    retrieve_sequences.main(args)
-
-
-def paralog_retriever_main(args):
-    """
-    Calls the function main() from module paralog_retriever
-
-    :param args: argparse namespace with subparser options for function paralog_retriever_main()
-    :return: None: no return value specified; default is None
-    """
-
-    paralog_retriever.main(args)
-
-
-def gene_recovery_heatmap_main(args):
-    """
-    Calls the function main() from module gene_recovery_heatmap
-
-    :param args: argparse namespace with subparser options for function gene_recovery_heatmap_main()
-    :return: None: no return value specified; default is None
-    """
-
-    gene_recovery_heatmap.main(args)
-
-
-def check_dependencies(args):
-    """
-    # Calls the function check_dependencies() from module utils
-
-    :param args: argparse namespace with subparser options for function check_dependencies()
-    :return: None: no return value specified; default is None
-    """
-
-    utils.check_dependencies(logger=args.logger)
-
-
-def check_targetfile_standalone(args):
-    """
-    Performs targetfile checks. Does not translate a DNA file; low-complexity checks are performed on the target file
-    as provided.
-
-    :param args: argparse namespace with subparser options for function check_targetfile_standalone()
-    :return: None: no return value specified; default is None
-    """
-
-    print(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
-    fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
-                         break_on_hyphens=False)
-    print(f'{fill}\n')
-
-    # Set target file type and path:
-    if args.targetfile_dna:
-        targetfile = args.targetfile_dna
-        targetfile_type = 'DNA'
-        translate_target_file = True
-    elif args.targetfile_aa:
-        targetfile = args.targetfile_aa
-        targetfile_type = 'protein'
-        translate_target_file = False
-
-    # Check targetfile header and duplicate gene names:
-    check_target_file_headers_and_duplicate_names(targetfile, logger=args.logger)
-
-    # Check that seqs in target file can be translated from the first codon position in the forwards frame:
-    translated_seqs_to_write, seqs_with_stop_codons_dict, seqs_needed_padding_dict = \
-        check_target_file_stop_codons_and_multiple_of_three(targetfile,
-                                                            no_terminal_stop_codons=args.no_terminal_stop_codons,
-                                                            translate_target_file=translate_target_file,
-                                                            logger=None)
-    low_complexity_sequences = None
-
-    if targetfile_type == 'DNA':
-        fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing DNA '
-                             f'sequences. These DNA sequences will be checked for low-complexity regions. NOTE: the '
-                             f'sequences flagged as having low-complexity regions can sometimes differ between a DNA '
-                             f'target file and the corresponding translated protein target file. If you translate '
-                             f'your target file to run "hybpiper assemble" with BLASTx/DIAMOND, we recommend '
-                             f're-checking the translated sequences for low-complexity regions.',
-                             width=90,
-                             subsequent_indent=" " * 11)
-        print(fill)
-
-        low_complexity_sequences, window_size, entropy_value = \
-            utils.low_complexity_check(targetfile,
-                                       targetfile_type,
-                                       translate_target_file=False,
-                                       window_size=args.sliding_window_size,
-                                       entropy_value=args.complexity_minimum_threshold,
-                                       logger=args.logger)
-    elif targetfile_type == 'protein':
-        fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing protein '
-                             f'sequences. These protein sequences will be checked for low-complexity regions', width=90,
-                             subsequent_indent=" " * 11)
-        print(fill)
-
-        low_complexity_sequences, window_size, entropy_value = \
-            utils.low_complexity_check(targetfile,
-                                       targetfile_type,
-                                       translate_target_file=False,
-                                       window_size=args.sliding_window_size,
-                                       entropy_value=args.complexity_minimum_threshold,
-                                       logger=args.logger)
-
-    if low_complexity_sequences:
-        fill_1 = textwrap.fill(f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
-                               f'sequences with low-complexity regions. The sequence names are printed below. These '
-                               f'sequences can cause problems when running HybPiper, '
-                               f'see https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
-                               f'-and-recommendations#12-target-files-with-low-complexity-sequences-troubleshooting. '
-                               f'We recommend one of the following approaches:', width=90,
-                               subsequent_indent=" " * 11)
-
-        fill_2 = textwrap.fill(f'1) Remove these sequence from your target file, ensuring that your file still '
-                               f'contains other representative sequences for the corresponding genes. This can be '
-                               f'done manually, or via the command "hybpiper fix_targetfile"'
-                               f' (https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
-                               f'-and-recommendations#14-fixing-and-filtering-your-target-file).', width=90,
-                               initial_indent=" " * 11, subsequent_indent=" " * 14)
-
-        fill_3 = textwrap.fill(f'2) Start the run using the parameter "--timeout_assemble" (e.g. "--timeout_assemble '
-                               f'200"). See '
-                               f'https://github.com/mossmatters/HybPiper/wiki/Full-pipeline-parameters#10-hybpiper'
-                               f'-assemble for details.',
-                               width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
-
-        print(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
-        print(f'\n{" " * 10} Sequences with low complexity regions are:\n')
-
-        for sequence in low_complexity_sequences:
-            print(f'{" " * 10} {sequence}')
-
-    else:
-        print(f'{"[INFO]:":10} No sequences with low-complexity regions found.')
-
-    # Write a control file with current settings and any low-complexity sequence names; used as input to `hybpiper
-    # fix_targetfile`:
-    utils.write_fix_targetfile_controlfile(targetfile_type,
-                                           translate_target_file,
-                                           args.no_terminal_stop_codons,
-                                           low_complexity_sequences,
-                                           window_size,
-                                           entropy_value)
-
-
-def fix_targetfile_standalone(args):
-    """
-    Calls the function main() from module fix_targetfile
-
-    :param args: argparse namespace with subparser options for function fix_targetfile_standalone()
-    :return: None: no return value specified; default is None
-    """
-
-    fix_targetfile.main(args)
-
-
-def filter_by_length_standalone(args):
-    """
-    Calls the function main() from module filter_by_length
-
-    :param args: argparse namespace with subparser options for function filter_by_length_standalone()
-    :return: None: no return value specified; default is None
-    """
-
-    filter_by_length.main(args)
-
-
-def parse_arguments():
-    """
-    Creates main parser and add subparsers. Parses command line arguments
-
-    :return argparse.Namespace arguments: arguments for the given command/subcommand
-    """
-
-    parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
-                                     formatter_class=argparse.RawTextHelpFormatter,
-                                     epilog='To view parameters and help for a subcommand, use e.g. "assemble '
-                                            '--help"')
-    group_1 = parser.add_mutually_exclusive_group(required=False)
-    group_1.add_argument('--version', '-v',
-                         dest='version',
-                         action='version',
-                         version=f'hybpiper {__version__}',
-                         help='Print the HybPiper version number.')
-
-    # Add subparsers:
-    subparsers = parser.add_subparsers(title='Subcommands for HybPiper', metavar='')
-    parser_assemble = hybpiper_subparsers.add_assemble_parser(subparsers)
-    parser_stats = hybpiper_subparsers.add_stats_parser(subparsers)
-    parser_retrieve_sequences = hybpiper_subparsers.add_retrieve_sequences_parser(subparsers)
-    parser_paralog_retriever = hybpiper_subparsers.add_paralog_retriever_parser(subparsers)
-    parser_gene_recovery_heatmap = hybpiper_subparsers.add_gene_recovery_heatmap_parser(subparsers)
-    parser_check_dependencies = hybpiper_subparsers.add_check_dependencies_parser(subparsers)
-    parser_check_targetfile = hybpiper_subparsers.add_check_targetfile_parser(subparsers)
-    parser_fix_targetfile = hybpiper_subparsers.add_fix_targetfile_parser(subparsers)
-    parser_filter_by_length = hybpiper_subparsers.add_filter_by_length_parser(subparsers)
-
-    # Set functions for subparsers:
-    parser_assemble.set_defaults(func=assemble)
-    parser_stats.set_defaults(func=hybpiper_stats_main)
-    parser_retrieve_sequences.set_defaults(func=retrieve_sequences_main)
-    parser_paralog_retriever.set_defaults(func=paralog_retriever_main)
-    parser_gene_recovery_heatmap.set_defaults(func=gene_recovery_heatmap_main)
-    parser_check_dependencies.set_defaults(func=check_dependencies)
-    parser_check_targetfile.set_defaults(func=check_targetfile_standalone)
-    parser_fix_targetfile.set_defaults(func=fix_targetfile_standalone)
-    parser_filter_by_length.set_defaults(func=filter_by_length_standalone)
-
-    # Parse and return all arguments:
-    arguments = parser.parse_args()
-
-    # Get the run directory containing the assemble.py module:
-    run_dir = os.path.realpath(os.path.split(sys.argv[0])[0])
-
-    return arguments
-
-
-def main():
-
-    if len(sys.argv) == 1:
-        print(__doc__)
-        sys.exit(1)
-
-    # Parse arguments for the command/subcommand used:
-    args = parse_arguments()
-
-    # Run the function associated with the subcommand, with or without cProfile:
-    if args.run_profiler:
-        profiler = cProfile.Profile()
-        profiler.enable()
-        args.func(args)
-        profiler.disable()
-        csv = utils.cprofile_to_csv(profiler)
-
-        with open(f'{sys.argv[1]}_cprofile.csv', 'w+') as cprofile_handle:
-            cprofile_handle.write(csv)
-    else:
-        args.func(args)
-
-
-########################################################################################################################
-# Run the script
-#######################################################################################################################
-if __name__ == '__main__':
-    main()
-
-################################################## END OF SCRIPT #######################################################

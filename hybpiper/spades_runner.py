@@ -24,7 +24,7 @@ logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
 def make_spades_cmd_file(genelist, cov_cutoff=8, paired=True, kvals=None, unpaired=False, merged=False,
                          single_cell_mode=False):
     """
-    Generates a file with gene-specific commands for running SPAdes via GNU parallel. The commands differs depending
+    Generates a file with gene-specific commands for running SPAdes via GNU parallel. The commands differ depending
     on options (--unpaired, --merged) and read files present for each gene.
 
     :param genelist: path to file containing the name of each gene that has reads distributed to its directory

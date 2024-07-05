@@ -11,7 +11,7 @@ with open('hybpiper/version.py') as fp:
 hybpiper_scripts = ['hybpiper']
 hybpiper_description = 'Recovery of target gene sequences from bait-capture data'
 hybpiper_url = 'https://github.com/mossmatters/HybPiper'
-hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.assemble:main']}
+hybpiper_entry_points = {'console_scripts': ['hybpiper = hybpiper.hybpiper_main:main']}
 
 setuptools.setup(name='hybpiper',
                  version=version['__version__'],

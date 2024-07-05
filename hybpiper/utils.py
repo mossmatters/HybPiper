@@ -11,6 +11,7 @@ import collections
 import scipy
 import textwrap
 from Bio import SeqIO
+from Bio import SeqRecord
 from Bio.Seq import Seq
 import subprocess
 import datetime
@@ -23,6 +24,9 @@ import platform
 import resource
 import argparse
 import progressbar
+from collections import defaultdict
+
+from hybpiper.version import __version__
 
 
 def log_or_print(string, logger=None, logger_level='info'):
@@ -244,20 +248,20 @@ def low_complexity_check(targetfile, targetfile_type, translate_target_file, win
     log_or_print(fill_4, logger=logger)
 
     total_seqs = [seq for seq in SeqIO.parse(targetfile, "fasta")]
-    # for seq in SeqIO.parse(targetfile, "fasta"):
-    #     total_number_of_seqs += 1
 
     low_entropy_seqs = set()
     for sequence in progressbar.progressbar(total_seqs, max_value=len(total_seqs), min_poll_interval=30,
                                             widgets=widgets):
 
-    # for seq in SeqIO.parse(targetfile, "fasta"):
         for i in range(0, len(sequence.seq) - (window_size - 1)):
             window_seq = str(sequence.seq[i:i + window_size])
             window_shannon_entropy = shannon_entropy(window_seq)
             if window_shannon_entropy <= entropy_value:
                 low_entropy_seqs.add(sequence.name)
                 break
+
+    if len(low_entropy_seqs) == 0:
+        log_or_print(f'{"[INFO]:":10} No sequences with low-complexity regions found.', logger=logger)
 
     return low_entropy_seqs, window_size, entropy_value
 
@@ -324,8 +328,8 @@ def check_dependencies(logger=None):
                 if version not in ['2.4.0']:
                     everything_is_awesome = False
 
-                    log_or_print(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please update '
-                                 f'your Exonerate version!\n', logger=logger)
+                    log_or_print(f'\n{exe} version 2.4.0 is required, but your version is {version}. Please '
+                                 f'update your Exonerate version!\n', logger=logger)
         else:
             log_or_print(f'{exe:20} not found in your $PATH!', logger=logger)
             everything_is_awesome = False
@@ -556,3 +560,455 @@ def get_ulimit_info(logger=None):
         except ValueError:
             logger.info(f'Specified resource {name} not found!')
 
+
+def check_target_file_headers_and_duplicate_names(targetfile, logger=None):
+    """
+    - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
+    - Checks for duplicate gene names in the targetfile.
+    - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
+
+    :param str targetfile: path to the targetfile
+    :param logging.Logger logger: a logger object
+    :return: incorrectly_formatted_fasta_headers, duplicated_gene_names, gene_lists
+    """
+
+    gene_lists = defaultdict(list)
+    with open(targetfile, 'r') as target_file_handle:
+        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
+        incorrectly_formatted_fasta_headers = set()
+        check_for_duplicate_genes_dict = {}
+        for seq in seqs:
+            if seq.name in check_for_duplicate_genes_dict:
+                check_for_duplicate_genes_dict[seq.name] += 1
+            else:
+                check_for_duplicate_genes_dict[seq.name] = 1
+            if not re.match('.+-[^-]+$', seq.name):
+                incorrectly_formatted_fasta_headers.add(seq.name)
+            if re.search('\"|\'', seq.name):
+                incorrectly_formatted_fasta_headers.add(seq.name)
+            gene_id = re.split('-', seq.name)[-1]
+            gene_lists[gene_id].append(seq)
+
+    if len(incorrectly_formatted_fasta_headers) == 0:
+        log_or_print(f'{"[INFO]:":10} The target file FASTA header formatting looks good!', logger=logger)
+
+    # Check for duplicated gene names:
+    duplicated_gene_names = []
+    for gene, gene_count in check_for_duplicate_genes_dict.items():
+        if gene_count > 1:
+            duplicated_gene_names.append(gene)
+
+    # Report the number of unique genes represented in the target file:
+    # log_or_print(f'{"[INFO]:":10} The target file contains at least one sequence for {len(gene_lists)} '
+    #              f'unique genes.', logger=logger)
+
+    return incorrectly_formatted_fasta_headers, duplicated_gene_names, gene_lists
+
+
+def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.DEBUG,
+                 logger_object_level=logging.DEBUG):
+    """
+    Function to create a logger instance.
+
+    By default, logs level DEBUG and above to file.
+    By default, logs level INFO and above to stdout and file.
+
+    :param str name: name for the logger instance
+    :param str log_file: filename for log file
+    :param str console_level: logger level for logging to console
+    :param str file_level: logger level for logging to file
+    :param str logger_object_level: logger level for logger object
+    :return: logging.Logger: logger object
+    """
+
+    # Get date and time string for log filename:
+    date_and_time = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+
+    # Log to file:
+    file_handler = logging.FileHandler(f'{log_file}_{date_and_time}.log', mode='w')
+    file_handler.setLevel(file_level)
+    file_format = logging.Formatter('%(asctime)s - %(filename)s - %(name)s - %(funcName)s - %(levelname)s - %('
+                                    'message)s')
+    file_handler.setFormatter(file_format)
+
+    # Log to Terminal (stderr):
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(console_level)
+    console_format = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_format)
+
+    # Setup logger:
+    logger_object = logging.getLogger(name)
+    logger_object.setLevel(logger_object_level)  # Default level is 'WARNING'
+
+    # Add handlers to the logger
+    logger_object.addHandler(console_handler)
+    logger_object.addHandler(file_handler)
+
+    return logger_object
+
+
+def check_target_file_stop_codons_and_multiple_of_three(targetfile,
+                                                        no_terminal_stop_codons=False,
+                                                        translate_target_file=False,
+                                                        logger=None):
+    """
+    Takes a nucleotide target file and checks for unexpected stop codons when seqs are translated in the first
+    forward frame. Also checks whether a seq is a multiple of three (i.e. whole codons only).
+
+    :param str targetfile: targetfile filename
+    :param bool no_terminal_stop_codons: if True, do not allow a single stop codon at C-terminal end of protein
+    :param bool translate_target_file: if True, nucleotide targetfile will be translated
+    :param logging.Logger logger: a logger object
+    :return:
+    """
+
+    with open(targetfile, 'r') as target_file_handle:
+        seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
+
+    translated_seqs_to_write = []
+    seqs_needed_padding_dict = defaultdict(list)
+    seqs_with_stop_codons_dict = defaultdict(list)
+    seqs_with_terminal_stop_codon_dict = defaultdict(list)
+
+    if translate_target_file:
+        for seq in seqs:
+            gene_name = seq.name.split('-')[-1]
+            sequence, needed_padding = pad_seq(seq)
+            translated_seq = sequence.seq.translate()
+            if translate_target_file:
+                record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
+                translated_seqs_to_write.append(record)
+            num_stop_codons = translated_seq.count('*')
+
+            if needed_padding:
+                seqs_needed_padding_dict[gene_name].append(seq)
+
+            if num_stop_codons == 0 or \
+                    (num_stop_codons == 1 and
+                     re.search('[*]', str(translated_seq)[-1]) and not
+                     no_terminal_stop_codons):
+                seqs_with_terminal_stop_codon_dict[gene_name].append(seq)
+
+            elif num_stop_codons >= 1:
+                seqs_with_stop_codons_dict[gene_name].append(seq)
+
+        # if seqs_with_terminal_stop_codon_dict:
+        #     seq_list = [seq.name for gene_name, target_file_sequence_list in
+        #                 seqs_with_terminal_stop_codon_dict.items() for seq in target_file_sequence_list]
+        #     fill = textwrap.fill(
+        #         f'{"[INFO]:":10} There are {len(seq_list)} sequences in your target file that contain a single '
+        #         f'terminal stop codon. Sequence names can be found in the sample log file (if running "hybpiper '
+        #         f'assemble") or printed below (if running "hybpiper check_targetfile"). ',
+        #         width=90, subsequent_indent=' ' * 11)
+        #     log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
+        #     fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
+        #                          subsequent_indent=' ' * 11, break_on_hyphens=False)
+        #     log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
+
+        # if seqs_with_stop_codons_dict:
+        #     seq_list = [seq.name for gene_name, target_file_sequence_list in seqs_with_stop_codons_dict.items() for seq
+        #                 in target_file_sequence_list]
+        #     fill = textwrap.fill(
+        #         f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that contain unexpected '
+        #         f'stop codons when translated in the first forwards frame. If your target file contains only '
+        #         f'protein-coding sequences, please check these sequences, and/or run "hybpiper fix_targetfile". '
+        #         f'Sequence names can be found in the sample log file (if running "hybpiper assemble") or printed '
+        #         f'below (if running "hybpiper check_targetfile").',
+        #         width=90, subsequent_indent=' ' * 11)
+        #     log_or_print(f'{fill}\n', logger=logger)
+        #     fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
+        #                          subsequent_indent=' ' * 11, break_on_hyphens=False)
+        #     log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
+
+        # if seqs_needed_padding_dict:
+        #     seq_list = [seq.name for gene_name, target_file_sequence_list in seqs_needed_padding_dict.items() for seq
+        #                 in target_file_sequence_list]
+        #     fill = textwrap.fill(
+        #         f'{"[WARNING]:":10} There are {len(seq_list)} sequences in your target file that are not multiples of '
+        #         f'three. If your target file contains only protein-coding sequences, please check these sequences, '
+        #         f'and/or run "hybpiper fix_targetfile". Sequence names can be found in the sample log file (if '
+        #         f'running "hybpiper assemble") or printed below (if running "hybpiper check_targetfile").',
+        #         width=90, subsequent_indent=' ' * 11)
+        #     log_or_print(f'{fill}\n', logger=logger)
+        #     fill = textwrap.fill(f'{", ".join(seq_list)}', width=90, initial_indent=' ' * 11,
+        #                          subsequent_indent=' ' * 11, break_on_hyphens=False)
+        #     log_or_print(f'{fill}\n', logger=logger, logger_level='debug')
+
+    return (seqs_with_terminal_stop_codon_dict,
+            translated_seqs_to_write,
+            seqs_with_stop_codons_dict,
+            seqs_needed_padding_dict)
+
+
+def check_targetfile(targetfile,
+                     targetfile_type,
+                     full_sample_directory=None,
+                     using_bwa=False,
+                     no_terminal_stop_codons=False,
+                     sliding_window_size=0,
+                     complexity_minimum_threshold=0.0,
+                     # sample_output_folder=None,
+                     run_profiler=False,
+                     running_as_subcommand=False,
+                     logger=None):
+    """
+    - Checks target-file fasta header formatting ("taxon*-unique_gene_ID").
+    - Checks for duplicate gene names in the targetfile.
+    - Reports the number of unique genes (each can have multiple representatives) in the targetfile.
+    - Checks that seqs in target file can be translated from the first codon position in the forwards frame (multiple of
+      three, no unexpected stop codons), and logs a warning if not.
+    - If not running_as_subcommand: if targetfile is DNA but using_bwa is False, translate the targetfile, write it
+      to the sample directory with name 'translated_target_file.fasta', and return the path
+
+    :param str targetfile: path to the targetfile
+    :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
+    :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
+    :param path full_sample_directory: path to the sample directory
+    :param bool running_as_subcommand: if True, XXXX
+    :param logging.Logger logger: a logger object
+    :return: None, str: NoneType or path to the translated targetfile
+    """
+
+    error_with_targetfile = False
+    translate_target_file_write = False
+
+    # Determine whether a translation check is needed:
+    if targetfile_type == 'DNA':
+        translate_target_file = True
+    elif targetfile_type == 'protein':
+        translate_target_file = False
+
+    if running_as_subcommand:
+        print(f'{"[INFO]:":10} HybPiper version {__version__} was called with these arguments:')
+        fill = textwrap.fill(' '.join(sys.argv[1:]), width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11,
+                             break_on_hyphens=False)
+        print(f'{fill}\n')
+
+    else:
+        if using_bwa and targetfile_type == 'protein':
+            fill = textwrap.fill(f'{"[ERROR]:":10} You have specified that your target file contains protein '
+                                 f'sequences but provided the flag --bwa. You need a nucleotide target file to use BWA '
+                                 f'for read mapping!',
+                                 width=90, subsequent_indent=" " * 11)
+            log_or_print(fill, logger=logger, logger_level='error')
+            sys.exit(1)
+
+        elif not using_bwa and targetfile_type == 'DNA':
+            fill = textwrap.fill(f'{"[WARNING]:":10} You have specified that your target file contains DNA '
+                                 f'sequences, but BLASTx or DIAMOND has been selected for read mapping. Your '
+                                 f'target file will be translated!', width=90, subsequent_indent=' ' * 11)
+            logger.info(f'{fill}')
+            translate_target_file_write = True
+
+    log_or_print(f'{"[INFO]:":10} Checking target file for issues...', logger=logger)
+
+    # Set directory and file name for targetfile check report:
+    targetfile_path = os.path.abspath(targetfile)
+    parent_dir = os.path.dirname(targetfile_path)
+    target_file_basename = os.path.basename(targetfile_path)
+    fn, ext = os.path.splitext(target_file_basename)
+
+    if running_as_subcommand:
+        outfile_check_report = f'{parent_dir}/check_targetfile_report_{fn}.txt'
+    else:
+        outfile_check_report = f'{full_sample_directory}/check_targetfile_report_{fn}.txt'
+
+    # Check that seqs in target file can be translated from the first codon position in the forwards frame:
+    (seqs_with_terminal_stop_codon_dict,
+     translated_seqs_to_write,
+     seqs_with_stop_codons_dict,
+     seqs_needed_padding_dict) = \
+        check_target_file_stop_codons_and_multiple_of_three(targetfile,
+                                                            no_terminal_stop_codons=no_terminal_stop_codons,
+                                                            translate_target_file=translate_target_file,
+                                                            logger=logger)
+
+    if translate_target_file_write:
+        translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
+        fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                  f' {translated_target_file}',
+                                  width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                  break_on_forward_slash=True)
+        logger.info(f'{fill}')
+
+        with open(f'{translated_target_file}', 'w') as translated_handle:
+            SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+
+        targetfile = translated_target_file  # i.e. use translated file path for return value
+    else:
+        targetfile = targetfile_path
+
+    # Check targetfile header and duplicate gene names:
+    (incorrectly_formatted_fasta_headers,
+     duplicated_gene_names,
+     gene_lists) = check_target_file_headers_and_duplicate_names(targetfile)
+
+    # Check  for low-complexity sequences only when running check_targetfile as a subcommand:
+    low_complexity_sequences = None
+
+    if running_as_subcommand:
+        if targetfile_type == 'DNA':
+            fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing '
+                                 f'DNA sequences. These DNA sequences will be checked for low-complexity regions. '
+                                 f'NOTE: the sequences flagged as having low-complexity regions can sometimes differ '
+                                 f'between a DNA target file and the corresponding translated protein target file. If '
+                                 f'you translate your target file to run "hybpiper assemble" with BLASTx/DIAMOND, we '
+                                 f'recommend re-checking the translated sequences for low-complexity regions.',
+                                 width=90,
+                                 subsequent_indent=" " * 11)
+
+            log_or_print(fill, logger=logger)
+
+            (low_complexity_sequences,
+             window_size,
+             entropy_value) = \
+                low_complexity_check(targetfile,
+                                     targetfile_type,
+                                     translate_target_file=False,
+                                     window_size=sliding_window_size,
+                                     entropy_value=complexity_minimum_threshold,
+                                     logger=logger)
+
+        elif targetfile_type == 'protein':
+            fill = textwrap.fill(f'{"[INFO]:":10} The target file {targetfile} has been specified as containing '
+                                 f'protein sequences. These protein sequences will be checked for low-complexity '
+                                 f'regions',
+                                 width=90, subsequent_indent=" " * 11)
+            log_or_print(fill, logger=logger)
+
+            (low_complexity_sequences,
+             window_size,
+             entropy_value0) = \
+                low_complexity_check(targetfile,
+                                     targetfile_type,
+                                     translate_target_file=False,
+                                     window_size=sliding_window_size,
+                                     entropy_value=complexity_minimum_threshold,
+                                     logger=logger)
+
+        # Write a control file with current settings and any low-complexity sequence names; used as input to `hybpiper
+        # fix_targetfile`:
+        write_fix_targetfile_controlfile(targetfile_type,
+                                         translate_target_file,
+                                         no_terminal_stop_codons,
+                                         low_complexity_sequences,
+                                         window_size,
+                                         entropy_value)
+
+    # Check for issues, log and write report:
+    with open(outfile_check_report, 'w') as report_handle:
+
+        # Fasta header formatting:
+        report_handle.write('[Sequences with incorrectly formatted fasta headers]\n\n')
+        if len(incorrectly_formatted_fasta_headers) != 0:
+            error_with_targetfile = True
+
+            fill = textwrap.fill(f'{"[ERROR!]:":10} Some sequences in your target file have incorrectly formatted '
+                                 f'fasta headers. Sequence names have been written to a report file.',
+                                 width=90, subsequent_indent=' ' * 11)
+            log_or_print(fill, logger=logger, logger_level='error')
+            fill = textwrap.fill(f'Please see target file formatting requirements here: '
+                                 f'https://github.com/mossmatters/HybPiper/wiki#12-target-file')
+            log_or_print(textwrap.indent(fill, ' ' * 11), logger=logger, logger_level='error')
+            log_or_print('', logger=logger, logger_level='error')
+
+            # Write to file:
+            for seq_name in incorrectly_formatted_fasta_headers:
+                report_handle.write(f'{seq_name}\n')
+                report_handle.write(f'\n')
+                report_handle.write(f'Please see target file formatting requirements here:\n'
+                                    f'https://github.com/mossmatters/HybPiper/wiki#12-target-file\n')
+                report_handle.write(f'\n')
+        else:
+            report_handle.write(f'None\n')
+            report_handle.write(f'\n')
+
+        # Duplicated sequence names:
+        report_handle.write('[Sequences with duplicated fasta headers]\n\n')
+        if len(duplicated_gene_names) != 0:
+            error_with_targetfile = True
+
+            fill = textwrap.fill(f'{"[ERROR!]:":10} Some sequence names in your target file occur more than once. '
+                                 f'Please remove duplicate genes before running HybPiper! Sequence names have been '
+                                 f'written to a report file.',
+                                 width=90, subsequent_indent=' ' * 11)
+            log_or_print(fill, logger=logger, logger_level='error')
+            log_or_print(f'', logger=logger, logger_level='error')
+
+            # Write to file:
+            for seq_name in duplicated_gene_names:
+                report_handle.write(f'{seq_name}\n')
+                report_handle.write(f'\n')
+        else:
+            report_handle.write(f'None\n')
+            report_handle.write(f'\n')
+
+        log_or_print('Fix HERE', logger_level='error')
+        (seqs_with_terminal_stop_codon_dict,
+        translated_seqs_to_write,
+        seqs_with_stop_codons_dict,
+        seqs_needed_padding_dict)
+
+        # Low complexity sequences:
+        if running_as_subcommand:
+            report_handle.write('[Sequences with low complexity regions]\n\n')
+
+            if low_complexity_sequences:
+
+                fill_1 = textwrap.fill(
+                    f'{"[WARNING]:":10} The target file provided ({os.path.basename(targetfile)}) contains '
+                    f'sequences with low-complexity regions. The sequence names are printed below. These sequences can '
+                    f'cause problems when running HybPiper, see '
+                    f'https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,-and-recommendations#12-target-files-with-low-complexity-sequences-troubleshooting. '
+                    f'We recommend one of the following approaches:', width=90,
+                    subsequent_indent=" " * 11)
+
+                fill_2 = textwrap.fill(
+                    f'1) Remove these sequence from your target file, ensuring that your file still '
+                     f'contains other representative sequences for the corresponding genes. This can be '
+                     f'done manually, or via the command "hybpiper fix_targetfile"'
+                     f' (https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,-and-recommendations#14-fixing-and-filtering-your-target-file).', width=90,
+                     initial_indent=" " * 11, subsequent_indent=" " * 14)
+
+                fill_3 = textwrap.fill(
+                    f'2) Start the run using the parameter "--timeout_assemble" (e.g. "--timeout_assemble '
+                    f'200"). See '
+                    f'https://github.com/mossmatters/HybPiper/wiki/Full-pipeline-parameters#10-hybpiper-assemble for details.',
+                    width=90, initial_indent=" " * 11, subsequent_indent=" " * 14, break_on_hyphens=False)
+
+                log_or_print(f'{fill_1}\n\n{fill_2}\n\n{fill_3}\n')
+
+                # Write to file:
+                for seq_name in low_complexity_sequences:
+                    report_handle.write(f'{seq_name}\n')
+                    report_handle.write(f'\n')
+            else:
+                report_handle.write(f'None\n')
+                report_handle.write(f'\n')
+
+    if not error_with_targetfile and not low_complexity_sequences:
+        log_or_print(f'{"[INFO]:":10} No issues found in target file!', logger=logger)
+
+    log_or_print(f'{"[INFO]:":10} A target file report has been written to:', logger=logger)
+    log_or_print(f'{" " * 10} {outfile_check_report}')
+
+    if error_with_targetfile:
+        sys.exit(1)
+
+    # if translate_target_file_write:
+    #     translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
+    #     fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+    #                               f' {translated_target_file}',
+    #                               width=90, subsequent_indent=' ' * 11, break_long_words=False,
+    #                               break_on_forward_slash=True)
+    #     logger.info(f'{fill}')
+    #
+    #     with open(f'{translated_target_file}', 'w') as translated_handle:
+    #         SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+    #
+    #     targetfile = translated_target_file  # i.e. use translated file path for return value
+    # else:
+    #     targetfile = targetfile_path
+
+    return targetfile

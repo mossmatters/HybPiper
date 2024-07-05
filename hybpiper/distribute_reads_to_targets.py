@@ -33,7 +33,6 @@ widgets = [' ' * 11,
            progressbar.Bar(),
            progressbar.ETA()]
 
-
 def mkdir_p(path):
     """
     Creates a directory corresponding to the given path, if it doesn't already exist.
@@ -323,8 +322,10 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
             iterator2 = FastqGeneralIterator(open(readfiles[1]))
 
         try:
-            for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1, max_value=num_reads_in_readfile,
-                                                                 min_poll_interval=30, widgets=widgets):
+            for ID1_long, Seq1, Qual1 in progressbar.progressbar(iterator1,
+                                                                 max_value=num_reads_in_readfile,
+                                                                 min_poll_interval=30,
+                                                                 widgets=widgets):
                 ID2_long, Seq2, Qual2 = next(iterator2)
                 ID1 = ID1_long.split()[0]
                 if ID1.endswith('/1') or ID1.endswith('/2'):

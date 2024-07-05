@@ -738,13 +738,14 @@ class Exonerate(object):
 
             for filtered_hsp in filtered_hsps_by_similarity:
                 hsp = filtered_hsp[0]
-                if len(set(hsp.hit_frame_all)) > 1:
-                    self.logger.debug(f'{hsp.hit_id} hsp.hit_frame_all: {hsp.hit_frame_all}')
-                else:
-                    filtered_hsps.append(filtered_hsp)
+                for span in hsp.hit_inter_spans:
+                    if int(span) < 3:
+                        self.logger.debug(f'{hsp.hit_id} hsp.hit_inter_spans: {hsp.hit_inter_spans}')
+                        break
+                    else:
+                        filtered_hsps.append(filtered_hsp)
 
             self.logger.debug(f'Number of HSPs after filtering out hits with frameshifts: {len(filtered_hsps)}')
-            self.logger.info(f'Number of HSPs after filtering out hits with frameshifts: {len(filtered_hsps)}')
 
             if len(filtered_hsps) == 0:
                 self.logger.debug(f'Number of HSPs after out hits with frameshifts is zero')
@@ -1309,6 +1310,8 @@ class Exonerate(object):
         if len(self.hits_subsumed_hits_removed_dict) == 1:  # i.e. single hit remaining from previous filtering
             for key, value in self.hits_subsumed_hits_removed_dict.items():
                 value['hit_sequence'].description = f'Single hit after filtering: N/A'
+                seq_stripped = ''.join([base for base in value['hit_sequence'].seq if base not in ['-']])
+                value['hit_sequence'].seq = Seq(seq_stripped)
             return self.hits_subsumed_hits_removed_dict
 
         # Don't overwrite self.hits_subsumed_hits_removed_dict:
@@ -1331,7 +1334,7 @@ class Exonerate(object):
                     assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
                     assert len(seq_to_keep) >= 3
 
-                    seq_to_keep_stripped = ''.join([base for base in seq_to_keep.seq if base not in ['-']])
+                    seq_to_keep_stripped = ''.join([base for base in seq_to_keep.seq if base not in ['-']])  # just use replace()?
                     seq_to_trim_stripped = ''.join([base for base in seq_to_trim.seq if base not in ['-']])
 
                     pair[0]['hit_sequence'].seq = Seq(seq_to_keep_stripped)
@@ -1340,10 +1343,13 @@ class Exonerate(object):
 
                 else:  # if no overlap, add left hit unmodified (3' padded with Ns if gap before next hit):
                     bases_in_gap_between_hits = (right_seq_query_range[0] - left_seq_query_range[1]) * 3
+                    seq_stripped = ''.join([base for base in pair[0]['hit_sequence'].seq if base not in ['-']])
 
                     if self.stitched_contig_pad_n:
-                        pair[0]['hit_sequence'].seq = Seq(f"{pair[0]['hit_sequence'].seq}"
+                        pair[0]['hit_sequence'].seq = Seq(f"{seq_stripped}"
                                                           f"{'N' * bases_in_gap_between_hits}")
+                    else:
+                        pair[0]['hit_sequence'].seq = Seq(seq_stripped)
 
                     pair[0]['hit_sequence'].description = f'No overlap: N/A'
                     exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
@@ -1351,6 +1357,8 @@ class Exonerate(object):
             else:  # process final unpaired left hit
                 left_seq_hit_name = pair[0]['hit_sequence'].id
                 pair[0]['hit_sequence'].description = f'No overlap: N/A'
+                seq_stripped = ''.join([base for base in pair[0]['hit_sequence'].seq if base not in ['-']])
+                pair[0]['hit_sequence'].seq = Seq(seq_stripped)
                 exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
 
         return exonerate_hits_subsumed_and_trimmed_dict
@@ -2215,6 +2223,12 @@ def standalone():
                         action="store_false",
                         dest='stitched_contig_pad_n',
                         default=True)
+    parser.add_argument('--chimeric_stitched_contig_check',
+                        help='Attempt to determine whether a stitched contig is a potential chimera of contigs from '
+                             'multiple paralogs. Default is %(default)s.',
+                        action='store_true',
+                        dest='chimera_check',
+                        default=False)
     parser.add_argument("--no_intronerate",
                         help="Do no run intronerate to recover fasta files for supercontig with introns (if present), "
                              "and introns-only", action="store_true", dest='no_intronerate', default=False)

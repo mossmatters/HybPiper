@@ -8,6 +8,12 @@
 - Add option `--no_pad_stitched_contig_gaps_with_n`. If provided, when constructing stitched contigs, do not pad any gaps between hits (with respect to the "best" protein reference) with a number of Ns corresponding to the reference gap multiplied by 3. Default behaviour in HybPiper v2.1.9 is to pad gaps with Ns; previous versions did this automatically.
 - Fixed a bug in `exonerate_hits.py` that could (rarely) result in a duplicated region in the output `*.FNA` sequence.
 - Added `tests` folder containing initial unit tests. Some tests require python package [`pyfakefs`](https://github.com/pytest-dev/pyfakefs) to run. 
+- refactor hybpiper_main.py, moving functions to utils
+- Write to stdout rather than stderr
+- Write new file check targetfile report rather than logging to main log
+- If no cpus specified, now uses all availanle -1
+- add --force_overwrite flag
+- FIX THE FRAMESHIFT DETECTION - cehck for more than two # in any exonerate alignment
 
 **2.1.8** *25th June, 2024*
 
