@@ -23,7 +23,7 @@ followed by a subcommand to run different parts of the pipeline. The available s
 To view available parameters and help for any subcommand, simply type e.g. 'hybpiper assemble -h'.
 
 ==> NOTE <==
-The script 'read_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
+The script 'reads_first.py' no longer exists, and has been replaced by the subcommand 'assemble'. So,
 if you had previously run 'reads_first.py' on a sample using the command e.g.:
 
     python /<path_to>/reads_first.py -b test_targets.fasta -r NZ281_R*_test.fastq --prefix NZ281 --bwa
@@ -52,29 +52,11 @@ https://github.com/mossmatters/HybPiper/blob/master/change_log.md.
 """
 
 import argparse
-import os
 import sys
-import shutil
-import subprocess
-import glob
-import logging
-import logging.handlers
-from collections import defaultdict
 import re
 import textwrap
-import datetime
-import multiprocessing
-from multiprocessing import Manager
-from concurrent.futures import wait, as_completed, TimeoutError, CancelledError
 import importlib.metadata
-import time
-import signal
 import cProfile
-import platform
-import traceback
-
-# f-strings will produce a 'SyntaxError: invalid syntax' error if not supported by Python version:
-f'HybPiper requires Python 3.7 or higher.'
 
 # Import non-standard-library modules:
 unsuccessful_imports = []
@@ -134,15 +116,6 @@ from hybpiper import fix_targetfile
 from hybpiper import filter_by_length
 from hybpiper import hybpiper_subparsers
 from hybpiper import utils
-from hybpiper.utils import log_or_print
-from hybpiper.utils import setup_logger
-
-# Check that user has the minimum required version of Biopython (1.80):
-biopython_version_print = importlib.metadata.version('biopython')
-biopython_version = [int(value) for value in re.split('[.]', biopython_version_print)[:2]]
-if biopython_version[0:2] < [1, 80]:
-    sys.exit(f'HybPiper requires Biopython version 1.80 or above. You are using version {biopython_version_print}. '
-             f'Please update your Biopython for the Python installation used to run HybPiper!')
 
 
 ########################################################################################################################
