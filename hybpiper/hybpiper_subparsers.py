@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 
 """
-Contains argument subparsers
+Contains subparsers used in hybpiper_main.py
 """
 
-import textwrap
 import logging
-import sys
-
 from hybpiper import utils
 
 # Create logger:
-logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
+logger = logging.getLogger(f'hybpiper.hybpiper_main.{__name__}')
 
 
 def add_assemble_parser(subparsers):
@@ -68,6 +65,11 @@ def add_assemble_parser(subparsers):
                                  help='End the pipeline at the given step. Default is: %(default)s',
                                  dest='end_with',
                                  default='exonerate_contigs')
+    parser_assemble.add_argument('--force_overwrite',
+                                 action='store_true',
+                                 help='Overwrite any output from a previous run for pipeline steps >= --start_from '
+                                      'and <= --end_with. Default is: %(default)s',
+                                 default=False)
     parser_assemble.add_argument('--cpu',
                                  type=int,
                                  default=0,

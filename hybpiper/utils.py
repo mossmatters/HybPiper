@@ -3,7 +3,7 @@
 """
 This module contains some general functions and classes.
 """
-
+import copy
 import re
 from textwrap import TextWrapper
 import os
@@ -25,6 +25,7 @@ import resource
 import argparse
 import progressbar
 from collections import defaultdict
+import glob
 
 from hybpiper.version import __version__
 
@@ -748,8 +749,6 @@ def check_targetfile(targetfile,
                      no_terminal_stop_codons=False,
                      sliding_window_size=0,
                      complexity_minimum_threshold=0.0,
-                     # sample_output_folder=None,
-                     run_profiler=False,
                      running_as_subcommand=False,
                      logger=None):
     """
@@ -761,7 +760,7 @@ def check_targetfile(targetfile,
     - If not running_as_subcommand: if targetfile is DNA but using_bwa is False, translate the targetfile, write it
       to the sample directory with name 'translated_target_file.fasta', and return the path
 
-    :param str targetfile: path to the targetfile
+    :param str targetfile: full path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
     :param path full_sample_directory: path to the sample directory
@@ -770,6 +769,9 @@ def check_targetfile(targetfile,
     :return: None, str: NoneType or path to the translated targetfile
     """
 
+    print(f'targetfile: {targetfile}')
+
+    # Set defaults:
     error_with_targetfile = False
     translate_target_file_write = False
 
@@ -803,14 +805,16 @@ def check_targetfile(targetfile,
 
     log_or_print(f'{"[INFO]:":10} Checking target file for issues...', logger=logger)
 
-    # Set directory and file name for targetfile check report:
-    targetfile_path = os.path.abspath(targetfile)
-    parent_dir = os.path.dirname(targetfile_path)
-    target_file_basename = os.path.basename(targetfile_path)
+    # Set directory and file name for targetfile report:
+    parent_dir = os.path.dirname(targetfile)
+    print(f'parent_dir: {parent_dir}')
+    target_file_basename = os.path.basename(targetfile)
     fn, ext = os.path.splitext(target_file_basename)
 
-    if running_as_subcommand:
-        outfile_check_report = f'{parent_dir}/check_targetfile_report_{fn}.txt'
+    if running_as_subcommand:  # i.e. no sample directory - write report to current working directory
+        cwd = os.getcwd()
+        # outfile_check_report = f'{parent_dir}/check_targetfile_report_{fn}.txt'
+        outfile_check_report = f'{cwd}/check_targetfile_report_{fn}.txt'
     else:
         outfile_check_report = f'{full_sample_directory}/check_targetfile_report_{fn}.txt'
 
@@ -824,7 +828,7 @@ def check_targetfile(targetfile,
                                                             translate_target_file=translate_target_file,
                                                             logger=logger)
 
-    if translate_target_file_write:
+    if translate_target_file_write:  # Can only be True when not running as subcommand
         translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
         fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
                                   f' {translated_target_file}',
@@ -835,9 +839,9 @@ def check_targetfile(targetfile,
         with open(f'{translated_target_file}', 'w') as translated_handle:
             SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
 
-        targetfile = translated_target_file  # i.e. use translated file path for return value
+        targetfile_to_return = translated_target_file # i.e. use translated file path for return value
     else:
-        targetfile = targetfile_path
+        targetfile_to_return = targetfile  # input target file path
 
     # Check targetfile header and duplicate gene names:
     (incorrectly_formatted_fasta_headers,
@@ -996,19 +1000,62 @@ def check_targetfile(targetfile,
     if error_with_targetfile:
         sys.exit(1)
 
-    # if translate_target_file_write:
-    #     translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
-    #     fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
-    #                               f' {translated_target_file}',
-    #                               width=90, subsequent_indent=' ' * 11, break_long_words=False,
-    #                               break_on_forward_slash=True)
-    #     logger.info(f'{fill}')
-    #
-    #     with open(f'{translated_target_file}', 'w') as translated_handle:
-    #         SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
-    #
-    #     targetfile = translated_target_file  # i.e. use translated file path for return value
-    # else:
-    #     targetfile = targetfile_path
+    return targetfile_to_return
 
-    return targetfile
+
+def check_for_previous_run_output(full_sample_directory,
+                                  start_from,
+                                  end_with,
+                                  assemble_stages_dict):
+    """
+    Checks for output files from a previous run.
+
+    :param path full_sample_directory: full path to the sample directory
+    :param str start_from: pipeline step to start from
+    :param str end_with: pipeline step to end with
+    :param dict assemble_stages_dict: dict of assembly stages and correspond integer
+
+    :return dict previous_files_dict: dictionary of previous files for each pipeline step >= start_from and <= end_with
+    """
+
+    previous_files_dict = defaultdict(list)
+
+    # Search for files from step map_reads:
+    bam = glob.glob(f'{full_sample_directory}/*.bam')
+    blastx = glob.glob(f'{full_sample_directory}/*.blastx')
+
+    # Search for files from step distribute_reads:
+    pre_existing_fastas = glob.glob(f'{full_sample_directory}/*/*_interleaved.fasta') + \
+                          glob.glob(f'{full_sample_directory}/*/*_unpaired.fasta')
+
+    # Search for files from step assemble_reads:
+    pre_existing_assemblies = glob.glob(f'{full_sample_directory}/*/*_contigs.fasta')
+
+    # Search for files from step exonerate_contigs:
+    fna_sequences = glob.glob(f'{full_sample_directory}/*/*/sequences/FNA/*.FNA')
+
+    # Populate dictionary with any files found for each pipeline step:
+    if bam:
+        previous_files_dict['map_reads'].append(bam)
+    if blastx:
+        previous_files_dict['map_reads'].append(blastx)
+    if pre_existing_fastas:
+        previous_files_dict['distribute_reads'].append(pre_existing_fastas)
+    if pre_existing_assemblies:
+        previous_files_dict['assemble_reads'].append(pre_existing_assemblies)
+    if fna_sequences:
+        previous_files_dict['exonerate_contigs'].append(pre_existing_assemblies)
+
+    # Filter the dict to retain only pipeline selected pipeline steps:
+    start_from_int = assemble_stages_dict[start_from]
+    end_with_int = assemble_stages_dict[end_with]
+
+    previous_files_dict_filtered = copy.deepcopy(previous_files_dict)
+
+    for key in previous_files_dict.keys():
+        if assemble_stages_dict[key] not in range(start_from_int, end_with_int):
+            del previous_files_dict_filtered[key]
+
+    return previous_files_dict_filtered
+
+

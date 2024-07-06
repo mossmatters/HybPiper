@@ -8,12 +8,17 @@
 - Add option `--no_pad_stitched_contig_gaps_with_n`. If provided, when constructing stitched contigs, do not pad any gaps between hits (with respect to the "best" protein reference) with a number of Ns corresponding to the reference gap multiplied by 3. Default behaviour in HybPiper v2.1.9 is to pad gaps with Ns; previous versions did this automatically.
 - Fixed a bug in `exonerate_hits.py` that could (rarely) result in a duplicated region in the output `*.FNA` sequence.
 - Added `tests` folder containing initial unit tests. Some tests require python package [`pyfakefs`](https://github.com/pytest-dev/pyfakefs) to run. 
-- refactor hybpiper_main.py, moving functions to utils
-- Write to stdout rather than stderr
-- Write new file check targetfile report rather than logging to main log
-- If no cpus specified, now uses all availanle -1
-- add --force_overwrite flag
-- FIX THE FRAMESHIFT DETECTION - cehck for more than two # in any exonerate alignment
+- Refactor of hybpiper package. New module `hybpiper_main.py` with entry point (moved from `assemble.py`), `some assemble.py` function moved to `utils.py`. 
+- HybPiper now logs to `stdout` rather than `stderr`.
+- Commands `hybpiper check_targetfile` and `hybpiper assemble` now write a report file when checking the target file (`check_targetfile_report_<target file name>.txt`), rather than logging details to the main sample log. Command `hybpiper check_targefile` writes the report to the current working directory, whereas command `hybpiper assemble` writes it to the sample directory.
+- If the option `--cpu` is not specified for `hybpiper assemble`, HybPiper will now use all available CPUs minus one, rather than all available CPUs.
+- Command `hybpiper assemble` now checks for output from previous runs for the pipelines steps selected via `--start_from` and `end_with` (default is to select all steps). If previous output is found, HybPiper will exit with an error unless the option `--force_overwrite` is provided.
+
+############################################################
+- FIX THE FRAMESHIFT DETECTION - check for more than two # in any exonerate alignment
+- Check it works when target file in another directory
+- Add intronerate test to unit tests
+############################################################
 
 **2.1.8** *25th June, 2024*
 

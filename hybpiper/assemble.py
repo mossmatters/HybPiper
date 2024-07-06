@@ -39,7 +39,6 @@ def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
 
     :param str/list readfiles: list one or more read files used as input to the pipeline, or path to unpaired read file
     :param str targetfile: path to targetfile (i.e. the target file)
-    # :param str basename: directory name for sample
     :param str sample_dir: directory name for sample
     :param int cpu: number of threads/cpus to use for BWA mapping
     :param bool unpaired: True if an unpaired file has been provided, False if not
@@ -851,8 +850,8 @@ def exonerate_multiprocessing(genes,
                 logger.info(f'{" " * 11}{gene}')
 
             fill = textwrap.fill(f'{"[INFO]:":10} This is most likely caused by many low-complexity reads mapping to '
-                                 f'the corresponding gene sequences in the target file, resulting in SPAdes assembly '
-                                 f'many (i.e. hundreds) repetitive and low-complexity contigs. Subsequently, '
+                                 f'the corresponding gene sequences in the target file, resulting in a SPAdes assembly '
+                                 f'with many (i.e. hundreds) of repetitive and low-complexity contigs. Subsequently, '
                                  f'Exonerate searches of these many low-complexity contigs can take a long time. We '
                                  f'strongly recommend removing such low-complexity sequences from your target file. '
                                  f'The command "hybpiper check_targetfile" can assist in identifying these '
@@ -1022,8 +1021,6 @@ def main(args):
                                         using_bwa=args.bwa,
                                         logger=logger)
 
-
-    sys.exit()
     ####################################################################################################################
     # Check manually provided targets if provided via the parameter --target
     ####################################################################################################################
@@ -1039,6 +1036,38 @@ def main(args):
             target = args.target
     else:
         target = None
+
+    ####################################################################################################################
+    # Check if files exist from a previous run and require --force_overwrite of so:
+    ####################################################################################################################
+    files_from_previous_run_dict = utils.check_for_previous_run_output(full_sample_directory,
+                                                                       args.start_from,
+                                                                       args.end_with,
+                                                                       assemble_stages_dict)
+
+    if len(files_from_previous_run_dict) != 0:
+        fill = textwrap.fill(f'{"[WARNING]:":10} Output files from a previous run have been detected for the '
+                             f'selected pipeline steps ("--start_from {args.start_from}" to "--end_with '
+                             f'{args.end_with}"). Steps with existing output files are:',
+                             width=90, subsequent_indent=' ' * 11)
+        logger.info(fill)
+        logger.info('')
+        for step in files_from_previous_run_dict.keys():
+            logger.info(f'{" " * 10} {step}')
+        logger.info('')
+
+        if args.force_overwrite:
+            fill = textwrap.fill(f'{"[WARNING]:":10} Option "--force_overwrite" provided - overwriting all '
+                                 f'existing output files for selected pipelines steps "{args.start_from}" to '
+                                 f'"{args.end_with}"!',
+                                 width=90, subsequent_indent=' ' * 11)
+            logger.info(fill)
+        else:
+            fill = textwrap.fill(f'{"[ERROR]:":10} Please provide option "--force_overwrite" if you want to '
+                                 f'overwrite all existing output files for selected pipelines steps!',
+                                 width=90, subsequent_indent=' ' * 11)
+            logger.info(fill)
+            sys.exit()
 
     # Log output folder:
     logger.info(f'{"[INFO]:":10} Output will be written to the directory: {full_sample_directory}')
@@ -1082,8 +1111,8 @@ def main(args):
             # Note that readfiles is a list of one (single-end) or two (paired-end) paths to read files:
             bamfile = bwa(readfiles, targetfile, sample_dir, cpu=cpu, logger=logger)
             if not bamfile:
-                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the '
-                             f'hybpiper_assemble.log file for sample {sample_dir}!')
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the BWA step, exiting. Check the log file for '
+                             f'sample {sample_dir}!')
                 return
             logger.debug(f'bamfile is: {bamfile}')
 
@@ -1098,8 +1127,8 @@ def main(args):
                                        diamond_sensitivity=args.diamond_sensitivity)
 
             if not blastx_outputfile:
-                logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the '
-                             f'hybpiper_assemble.log file for sample {sample_dir}!')
+                logger.error(f'{"[ERROR]:":10} Something went wrong with the Blastx step, exiting. Check the log file '
+                             f'for sample {sample_dir}!')
                 return
         else:
             sys.exit(f'Can not determine whether BWA or BLASTx option is supplied, exiting...')
@@ -1297,6 +1326,7 @@ def main(args):
             with open(report_file, 'r') as report_handle:
                 lines = report_handle.readlines()
                 genes_with_chimeras_handle.write('\n'.join(lines))
+
 
     ####################################################################################################################
     # Report paralog warnings and write paralog warning files
