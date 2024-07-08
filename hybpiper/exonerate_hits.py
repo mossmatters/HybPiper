@@ -157,7 +157,6 @@ def intronerate(exonerate_object,
         spades_contig_2_exonerate_hits_dict[spades_name_only].append(hit_data_dict)
 
     count = Counter(all_exonerate_hit_contig_names_in_order)
-    print(f'count: {count}')
     contigs_with_more_than_one_exonerate_hit = [key for key, value in count.items() if value >= 2]
     if verbose_logging:
         logger.debug(count)
@@ -232,10 +231,6 @@ def intronerate(exonerate_object,
         trimmed_hit_ranges_all = hit_data_dict['hit_range_all']
         inter_ranges_all = hit_data_dict['hit_inter_ranges']
         three_prime_bases_trimmed = hit_data_dict['hit_sequence'].description.split(':')[-1].strip()
-
-        print(f'trimmed_hit_ranges_all: {trimmed_hit_ranges_all}')
-        print(f'inter_ranges_all: {inter_ranges_all}')
-        print(f'three_prime_bases_trimmed: {three_prime_bases_trimmed}')
 
         # If no trimming has been performed for a SPAdes contig, or the overlap between adjacent Exonerate contig
         # hits is <= 3 amino acids, add the whole contig:
