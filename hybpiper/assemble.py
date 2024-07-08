@@ -60,13 +60,18 @@ def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
                     shutil.copy(targetfile, '.')
             db_file = os.path.split(targetfile)[1]
             make_bwa_index_cmd = f'bwa index {db_file}'
-            fill = textwrap.fill(f'{"[CMD]:":10} {make_bwa_index_cmd}', width=90, subsequent_indent=' ' * 11,
-                                 break_long_words=False, break_on_hyphens=False)
+            fill = textwrap.fill(f'{"[CMD]:":10} {make_bwa_index_cmd}',
+                                 width=90, subsequent_indent=' ' * 11, break_long_words=False, break_on_hyphens=False)
             logger.info(f'{fill}')
 
             try:
-                result = subprocess.run(make_bwa_index_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True, check=True)
+                result = subprocess.run(make_bwa_index_cmd,
+                                        shell=True,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        universal_newlines=True,
+                                        check=True)
+
                 logger.debug(f'BWA index check_returncode() is: {result.check_returncode()}')
                 logger.debug(f'BWA index stdout is: {result.stdout}')
                 logger.debug(f'BWA index stderr is: {result.stderr}')
@@ -94,13 +99,19 @@ def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
     else:
         bwa_commands.append(f'{sample_dir}.bam')
     full_command = ' '.join(bwa_commands)
-    fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                                    break_long_words=False, break_on_forward_slash=True)
+    fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}',
+                                    width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                    break_on_forward_slash=True)
     logger.info(f'{fill}')
 
     try:
-        result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True, check=True)
+        result = subprocess.run(full_command,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                universal_newlines=True,
+                                check=True)
+
         logger.debug(f'BWA mapping check_returncode() is: {result.check_returncode()}')
         logger.debug(f'BWA mapping stdout is: {result.stdout}')
         logger.debug(f'BWA mapping stderr is: {result.stderr}')
@@ -167,8 +178,13 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             logger.info(f'{fill}')
 
             try:
-                result = subprocess.run(makeblastdb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True, check=True)
+                result = subprocess.run(makeblastdb_cmd,
+                                        shell=True,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        universal_newlines=True,
+                                        check=True)
+
                 logger.debug(f'makeblastdb check_returncode() is: {result.check_returncode()}')
                 logger.debug(f'makeblastdb stdout is: {result.stdout}')
                 logger.debug(f'makeblastdb stderr is: {result.stderr}')
@@ -213,13 +229,19 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         else:
             full_command = f"{blastx_command} >> {basename}_unpaired.blastx"
 
-        fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                                        break_long_words=False, break_on_forward_slash=True)
+        fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}',
+                                        width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                        break_on_forward_slash=True)
         logger.info(f'{fill}')
 
         try:
-            result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True, check=True)
+            result = subprocess.run(full_command,
+                                    shell=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    universal_newlines=True,
+                                    check=True)
+
             logger.debug(f'blastx unpaired check_returncode() is: {result.check_returncode()}')
             logger.debug(f'blastx unpaired stdout is: {result.stdout}')
             logger.debug(f'blastx unpaired stderr is: {result.stderr}')
@@ -259,13 +281,19 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
             else:
                 full_command = f"{blastx_command} >> {basename}.blastx"
 
-            fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}', width=90, subsequent_indent=' ' * 11,
-                                            break_long_words=False, break_on_forward_slash=True)
+            fill = utils.fill_forward_slash(f'{"[CMD]:":10} {full_command}',
+                                            width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                            break_on_forward_slash=True)
             logger.info(f'{fill}')
 
             try:
-                result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=True, check=True)
+                result = subprocess.run(full_command,
+                                        shell=True,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        universal_newlines=True,
+                                        check=True)
+
                 logger.debug(f'blastx paired check_returncode() is: {result.check_returncode()}')
                 logger.debug(f'blastx paired stdout is: {result.stdout}')
                 logger.debug(f'blastx paired stderr is: {result.stderr}')
@@ -311,7 +339,10 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     else:
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
-    distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
+    distribute_reads_to_targets.distribute_reads(readfiles,
+                                                 read_hit_dict,
+                                                 merged=merged,
+                                                 single_end=single_end,
                                                  low_mem=low_mem)
 
     if unpaired_readfile:
@@ -319,8 +350,11 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting_blastx(up_blastx_outputfile)
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
-        distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem)
+
+        distribute_reads_to_targets.distribute_reads([unpaired_readfile],
+                                                     read_hit_dict_unpaired,
+                                                     unpaired_readfile=unpaired_readfile,
+                                                     low_mem=low_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:
@@ -336,8 +370,14 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
     else:
         exclude_string = None
 
-    besthits = distribute_targets.tailored_target_blast(blastx_outputfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=False,
+    besthits = distribute_targets.tailored_target_blast(blastx_outputfile,
+                                                        unpaired_bool,
+                                                        exclude_string)
+
+    distribute_targets.distribute_targets(targetfile,
+                                          delim='-',
+                                          besthits=besthits,
+                                          translate=False,
                                           target=target_string)
     return None
 
@@ -371,6 +411,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict) * 2} reads from the paired-end read files '
                     f'will be distributed to gene directories')
         single_end = False
+
     elif len(readfiles) == 1:
         logger.info(f'{"[INFO":10} In total, {len(read_hit_dict)} reads from the single-end read file will '
                     f'be distributed to gene directories')
@@ -378,7 +419,10 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     else:
         raise ValueError(f'Can not determine whether single-end or pair-end reads were provided!')
 
-    distribute_reads_to_targets.distribute_reads(readfiles, read_hit_dict, merged=merged, single_end=single_end,
+    distribute_reads_to_targets.distribute_reads(readfiles,
+                                                 read_hit_dict,
+                                                 merged=merged,
+                                                 single_end=single_end,
                                                  low_mem=low_mem)
 
     if unpaired_readfile:
@@ -386,8 +430,11 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         read_hit_dict_unpaired = distribute_reads_to_targets.read_sorting_bwa(up_bamfile)
         logger.info(f'{"[INFO]:":10} In total, {len(read_hit_dict_unpaired)} reads from the unpaired read file will be '
                     f'distributed to gene directories')
-        distribute_reads_to_targets.distribute_reads([unpaired_readfile], read_hit_dict_unpaired,
-                                                     unpaired_readfile=unpaired_readfile, low_mem=low_mem)
+
+        distribute_reads_to_targets.distribute_reads([unpaired_readfile],
+                                                     read_hit_dict_unpaired,
+                                                     unpaired_readfile=unpaired_readfile,
+                                                     low_mem=low_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
     if target:  # i.e. a target name or file of name is specified manually
@@ -403,8 +450,14 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     else:
         exclude_string = None
 
-    besthits = distribute_targets.tailored_target_bwa(bamfile, unpaired_bool, exclude_string)
-    distribute_targets.distribute_targets(targetfile, delim='-', besthits=besthits, translate=True,
+    besthits = distribute_targets.tailored_target_bwa(bamfile,
+                                                      unpaired_bool,
+                                                      exclude_string)
+
+    distribute_targets.distribute_targets(targetfile,
+                                          delim='-',
+                                          besthits=besthits,
+                                          translate=True,
                                           target=target_string)
     return None
 
@@ -439,15 +492,25 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     logger.debug(f'args.merged is: {merged}')
     logger.debug(f'args.unpaired is: {unpaired}')
 
-    spades_failed = spades_runner.spades_initial('spades_genelist.txt', cov_cutoff=cov_cutoff, cpu=cpu,
-                                                 kvals=kvals, paired=paired, timeout=timeout, unpaired=unpaired,
-                                                 merged=merged, single_cell_mode=single_cell_mode)
+    spades_failed = spades_runner.spades_initial('spades_genelist.txt',
+                                                 cov_cutoff=cov_cutoff,
+                                                 cpu=cpu,
+                                                 kvals=kvals,
+                                                 paired=paired,
+                                                 timeout=timeout,
+                                                 unpaired=unpaired,
+                                                 merged=merged,
+                                                 single_cell_mode=single_cell_mode)
+
     logger.info(f'{"[INFO]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
     if len(spades_failed) > 0:
         with open('failed_spades.txt', 'w') as failed_spadefile:
             failed_spadefile.write('\n'.join(spades_failed))
 
-        spades_duds = spades_runner.rerun_spades('failed_spades.txt', cov_cutoff=cov_cutoff, cpu=cpu)
+        spades_duds = spades_runner.rerun_spades('failed_spades.txt',
+                                                 cov_cutoff=cov_cutoff,
+                                                 cpu=cpu)
+
         logger.info(f'{"[INFO]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
                     f'assemblies!')
 
@@ -470,6 +533,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
     with open('exonerate_genelist.txt', 'w') as genefile:
         genefile.write('\n'.join(spades_genelist) + '\n')
+
     return spades_genelist
 
 
@@ -935,8 +999,6 @@ def main(args):
         cpu = multiprocessing.cpu_count() - 1  # i.e. use all cpus.
         logger.info(f'{"[INFO]:":10} Number of cpus/threads not specified, using all available cpus minus 1 ({cpu}).')
 
-    logger.debug(f'args.start_from is: {args.start_from}')
-
     ####################################################################################################################
     # Check dependencies
     ####################################################################################################################
@@ -989,6 +1051,7 @@ def main(args):
             logger.debug(f'Input read file {read_file} exists and is not empty, proceeding...')
         else:
             sys.exit(f'Input read file {read_file} does not exist or is empty!')
+
     if args.unpaired:
         unpaired_readfile = os.path.abspath(args.unpaired)
         if os.path.isfile(unpaired_readfile) and not os.path.getsize(unpaired_readfile) == 0:
@@ -1047,8 +1110,8 @@ def main(args):
 
     if len(files_from_previous_run_dict) != 0:
         fill = textwrap.fill(f'{"[WARNING]:":10} Output files from a previous run have been detected for the '
-                             f'selected pipeline steps ("--start_from {args.start_from}" to "--end_with '
-                             f'{args.end_with}"). Steps with existing output files are:',
+                             f'selected pipeline steps: "--start_from {args.start_from}" to "--end_with '
+                             f'{args.end_with}". Selected steps with existing output files are:',
                              width=90, subsequent_indent=' ' * 11)
         logger.info(fill)
         logger.info('')
@@ -1058,7 +1121,7 @@ def main(args):
 
         if args.force_overwrite:
             fill = textwrap.fill(f'{"[WARNING]:":10} Option "--force_overwrite" provided - overwriting all '
-                                 f'existing output files for selected pipelines steps "{args.start_from}" to '
+                                 f'existing output files for selected pipelines steps: "{args.start_from}" to '
                                  f'"{args.end_with}"!',
                                  width=90, subsequent_indent=' ' * 11)
             logger.info(fill)
@@ -1089,7 +1152,8 @@ def main(args):
                 fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided '
                                      f'together with "--bwa", but no existing BWA bamfile with filename "{bamfile}" '
                                      f'can be found. Are you sure you have run the pipeline mapping step already for '
-                                     f'this sample?', width=90, subsequent_indent=' ' * 11)
+                                     f'this sample?',
+                                     width=90, subsequent_indent=' ' * 11)
                 logger.info(fill)
                 sys.exit(1)
         elif args.blast:
@@ -1099,8 +1163,8 @@ def main(args):
                 fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided '
                                      f' and BLASTx/DIAMOND is used for read mapping, but no existing *.blastx output '
                                      f'file with filename "{blastx_outputfile}" can be found. Are you sure you have '
-                                     f'run the pipeline mapping step already for this sample?', width=90,
-                                     subsequent_indent=' ' * 11)
+                                     f'run the pipeline mapping step already for this sample?',
+                                     width=90, subsequent_indent=' ' * 11)
                 logger.info(fill)
                 sys.exit(1)
     else:
@@ -1146,11 +1210,11 @@ def main(args):
                     f'distribution step!')
         pre_existing_fastas = glob.glob('./*/*_interleaved.fasta') + glob.glob('./*/*_unpaired.fasta')
         if len(pre_existing_fastas) == 0:
-            fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been provided but '
-                                 f'no distributed reads (*_interleaved.fasta and/or *_unpaired.fasta) can be found '
-                                 f'for any gene. Are you sure you have run the pipeline read distribution step '
-                                 f'already for this sample?', width=90,
-                                 subsequent_indent=' ' * 11)
+            fill = textwrap.fill(f'{"[ERROR]:":10} The parameter "--start_from {args.start_from}" has been '
+                                 f'provided but no distributed reads (*_interleaved.fasta and/or *_unpaired.fasta) can '
+                                 f'be found for any gene. Are you sure you have run the pipeline read distribution '
+                                 f'step already for this sample?',
+                                 width=90, subsequent_indent=' ' * 11)
             logger.info(fill)
             sys.exit(1)
     else:
