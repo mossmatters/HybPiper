@@ -195,11 +195,11 @@ def add_assemble_parser(subparsers):
                                       'trimming termini of Exonerate hits. Default is %(default)s.',
                                  default=55,
                                  type=int)
-    parser_assemble.add_argument('--exonerate_allow_hits_with_frameshifts',
-                                 help='Allow Exonerate hits where the SPAdes sequence contains a frameshift. Default '
+    parser_assemble.add_argument('--exonerate_skip_hits_with_frameshifts',
+                                 help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. Default '
                                       'is %(default)s.',
                                  action='store_true',
-                                 dest='allow_frameshifts',
+                                 dest='skip_frameshifts',
                                  default=False)
     parser_assemble.add_argument('--merged',
                                  help='For assembly with both merged and unmerged (interleaved) reads.',
