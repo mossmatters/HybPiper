@@ -560,7 +560,7 @@ def exonerate(gene_name,
               keep_intermediate_files=False,
               exonerate_hit_sliding_window_size=3,
               exonerate_hit_sliding_window_thresh=55,
-              exonerate_allow_frameshifts=False,
+              exonerate_skip_frameshifts=False,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -590,7 +590,7 @@ def exonerate(gene_name,
     of Exonerate hits
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
-    :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
+    :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -679,7 +679,7 @@ def exonerate(gene_name,
             keep_intermediate_files=keep_intermediate_files,
             exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
             exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
-            exonerate_allow_frameshifts=exonerate_allow_frameshifts,
+            exonerate_skip_frameshifts=exonerate_skip_frameshifts,
             verbose_logging=verbose_logging)
 
         if not no_intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
@@ -748,7 +748,7 @@ def exonerate_multiprocessing(genes,
                               exonerate_contigs_timeout=None,
                               exonerate_hit_sliding_window_size=3,
                               exonerate_hit_sliding_window_thresh=55,
-                              exonerate_allow_frameshifts=False,
+                              exonerate_skip_frameshifts=False,
                               verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
@@ -778,7 +778,7 @@ def exonerate_multiprocessing(genes,
     of Exonerate hits
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
-    :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
+    :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
@@ -787,7 +787,7 @@ def exonerate_multiprocessing(genes,
     logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
     logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
     logger.debug(f'exonerate_hit_sliding_window_thresh is: {exonerate_hit_sliding_window_thresh}')
-    logger.debug(f'exonerate_allow_frameshifts is: {exonerate_allow_frameshifts}')
+    logger.debug(f'exonerate_skip_frameshifts is: {exonerate_skip_frameshifts}')
     logger.debug(f'chimera_check is: {chimera_check}')
     logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
@@ -825,7 +825,7 @@ def exonerate_multiprocessing(genes,
                                    "keep_intermediate_files": keep_intermediate_files,
                                    "exonerate_hit_sliding_window_size": exonerate_hit_sliding_window_size,
                                    "exonerate_hit_sliding_window_thresh": exonerate_hit_sliding_window_thresh,
-                                   "exonerate_allow_frameshifts": exonerate_allow_frameshifts,
+                                   "exonerate_skip_frameshifts": exonerate_skip_frameshifts,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1354,7 +1354,7 @@ def main(args):
                               exonerate_contigs_timeout=args.timeout_exonerate_contigs,
                               exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
                               exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
-                              exonerate_allow_frameshifts=args.allow_frameshifts,
+                              exonerate_skip_frameshifts=args.skip_frameshifts,
                               verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
@@ -1364,15 +1364,16 @@ def main(args):
     num_genes_with_stop_codons = len(open(f'{sample_dir}_genes_with_non_terminal_stop_codons.txt').readlines())
 
     if num_genes_with_stop_codons:
-        fill = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. See '
-                             f'file "{sample_dir}_genes_with_non_terminal_stop_codons.txt" for a list of gene names, '
-                             f'and visit the wiki at the following link to view troubleshooting recommendations.\n'
-                             f'https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
-                             f'-and-recommendations#31-sequences-containing-stop-codons\n',
-                             width=90, subsequent_indent=" " * 11)
+        fill_1 = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. '
+                               f'See file "{sample_dir}_genes_with_non_terminal_stop_codons.txt" for a list of gene '
+                               f'names, and visit the wiki at the following link to view troubleshooting '
+                               f'recommendations:',
+                               width=90, subsequent_indent=" " * 11)
 
-        logger.warning('')
-        logger.warning(fill)
+        fill_2 = (f'{" " * 10} https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
+                  f'-and-recommendations#31-sequences-containing-stop-codons')
+
+        logger.warning(f'{fill_1}\n{fill_2}')
 
     # Stitched contigs:
     collate_stitched_contig_reports = [x for x in glob.glob(f'*/{sample_dir}/genes_with_stitched_contig.csv')]
