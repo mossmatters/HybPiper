@@ -132,7 +132,7 @@ def setup_logger(name, log_file, console_level=logging.INFO, file_level=logging.
     file_handler.setFormatter(file_format)
 
     # Log to Terminal (stdout):
-    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(console_level)
     console_format = logging.Formatter('%(message)s')
     console_handler.setFormatter(console_format)
