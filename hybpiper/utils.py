@@ -1079,8 +1079,13 @@ def check_for_previous_run_output(full_sample_directory,
 
     previous_files_dict_filtered = copy.deepcopy(previous_files_dict)
 
-    for key in previous_files_dict.keys():
-        if assemble_stages_dict[key] not in range(start_from_int, end_with_int):
-            del previous_files_dict_filtered[key]
+    if start_from_int == start_from_int:  # i.e. only running a single step
+        for key in previous_files_dict.keys():
+            if assemble_stages_dict[key] != start_from_int:
+                del previous_files_dict_filtered[key]
+    else:
+        for key in previous_files_dict.keys():
+            if assemble_stages_dict[key] not in range(start_from_int, end_with_int):
+                del previous_files_dict_filtered[key]
 
     return previous_files_dict_filtered
