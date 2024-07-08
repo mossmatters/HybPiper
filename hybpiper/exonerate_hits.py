@@ -221,7 +221,6 @@ def intronerate(exonerate_object,
         hit_name = hit_data_dict['hit_sequence'].name
         hit_id = hit_data_dict['hit_sequence'].id
         hit_description = hit_data_dict['hit_sequence'].description
-        print(f'hit_name: {hit_name}')
 
         hit_length = len(hit_data_dict['hit_sequence'])
         raw_spades_contig = spades_contig_dict[spades_name_only]
@@ -491,7 +490,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             keep_intermediate_files,
                                             exonerate_hit_sliding_window_size,
                                             exonerate_hit_sliding_window_thresh,
-                                            exonerate_allow_frameshifts,
+                                            exonerate_skip_frameshifts,
                                             verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -522,7 +521,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     of Exonerate hits
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
-    :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
+    :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool verbose_logging: if True, log additional information to file
 
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
@@ -560,7 +559,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  keep_intermediate_files=keep_intermediate_files,
                                  exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
                                  exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
-                                 exonerate_allow_frameshifts=exonerate_allow_frameshifts,
+                                 exonerate_skip_frameshifts=exonerate_skip_frameshifts,
                                  verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -610,7 +609,7 @@ class Exonerate(object):
                  keep_intermediate_files=False,
                  exonerate_hit_sliding_window_size=3,
                  exonerate_hit_sliding_window_thresh=55,
-                 exonerate_allow_frameshifts=False,
+                 exonerate_skip_frameshifts=False,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -637,7 +636,7 @@ class Exonerate(object):
         termini of Exonerate hits
         :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
         in amino-acids) when trimming termini of Exonerate hits
-        :param bool exonerate_allow_frameshifts: allow Exonerate hits where SPAdes sequence contains frameshifts
+        :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
         :param bool verbose_logging: if True, log additional information to file
         """
 
@@ -650,7 +649,7 @@ class Exonerate(object):
         self.similarity_threshold = thresh
         self.sliding_window_size = exonerate_hit_sliding_window_size
         self.sliding_window_thresh = exonerate_hit_sliding_window_thresh
-        self.allow_frameshifts = exonerate_allow_frameshifts
+        self.skip_frameshifts = exonerate_skip_frameshifts
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
@@ -732,20 +731,25 @@ class Exonerate(object):
             return None
 
         # If not self.allow_frameshifts, remove any hits with a frameshift in the SPAdes sequence:
-        self.logger.debug(f'self.allow_frameshifts: {self.allow_frameshifts}')
-
-        if not self.allow_frameshifts:
+        if self.skip_frameshifts:
             filtered_hsps_by_similarity = copy.deepcopy(filtered_hsps)
             filtered_hsps = []
 
             for filtered_hsp in filtered_hsps_by_similarity:
                 hsp = filtered_hsp[0]
+                frameshift_detected = False
                 for span in hsp.hit_inter_spans:
-                    if int(span) < 3:
-                        self.logger.debug(f'{hsp.hit_id} hsp.hit_inter_spans: {hsp.hit_inter_spans}')
-                        break
-                    else:
-                        filtered_hsps.append(filtered_hsp)
+                    if span < 15:  # Exonerate doesn't detect introns this small by default?
+                        if span % 3 != 0:  # i.e. the span introduces a frameshift
+                            self.logger.debug(f'{hsp.hit_id} FRAMESHIFT! span: {span}, hsp.hit_inter_spans:'
+                                              f' {hsp.hit_inter_spans}')
+                            frameshift_detected = True
+                            break
+                        else:
+                            self.logger.debug(f'{hsp.hit_id} UNDETERMINED SPAN! span: {span}, hsp.hit_inter_spans:'
+                                              f' {hsp.hit_inter_spans}')
+                if not frameshift_detected:
+                    filtered_hsps.append(filtered_hsp)
 
             self.logger.debug(f'Number of HSPs after filtering out hits with frameshifts: {len(filtered_hsps)}')
 
@@ -2254,11 +2258,11 @@ def standalone():
                              'termini of Exonerate hits. Default is %(default)s.',
                         default=55,
                         type=int)
-    parser.add_argument('--exonerate_allow_hits_with_frameshifts',
-                        help='Allow Exonerate hits where the SPAdes sequence contains a frameshift. Default is '
+    parser.add_argument('--exonerate_skip_hits_with_frameshifts',
+                        help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. Default is '
                              '%(default)s.',
                         action='store_true',
-                        dest='allow_frameshifts',
+                        dest='skip_frameshifts',
                         default=False)
     parser.add_argument('--verbose_logging',
                         help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
@@ -2330,7 +2334,7 @@ def main(args):
         keep_intermediate_files=args.keep_intermediate_files,
         exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
         exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
-        exonerate_allow_frameshifts=args.allow_frameshifts,
+        exonerate_skip_frameshifts=args.skip_frameshifts,
         verbose_logging=args.verbose_logging)
 
     if not exonerate_result.stitched_contig_seqrecord:
