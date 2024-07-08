@@ -572,7 +572,9 @@ def add_check_targetfile_parser(subparsers):
                          default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
                               'must follow the naming convention: >TaxonID-geneName')
-    parser_check_target_file.add_argument('--no_terminal_stop_codons', action='store_true', default=False,
+    parser_check_target_file.add_argument('--no_terminal_stop_codons',
+                                          action='store_true',
+                                          default=False,
                                           help='When testing for open reading frames, do not allow a translated frame '
                                                'to have a single stop codon at the C-terminus of the translated '
                                                'protein sequence. Default is False.')
