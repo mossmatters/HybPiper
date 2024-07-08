@@ -55,7 +55,7 @@ class ExonerateClass(TestCase):
         # Get the target file protein query fasta file:
         proteinfile = os.path.join('..', TEST_DIR_TARGET, '4527_target.fasta')
 
-        # Get the SPAdes contigs fata file:
+        # Get the SPAdes contigs fasta file:
         assemblyfile = os.path.join('..', TEST_DIR_SPADES, '4527_contigs.fasta')
 
         # Get the interleaved read file:
