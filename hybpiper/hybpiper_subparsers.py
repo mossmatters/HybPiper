@@ -466,7 +466,7 @@ def add_gene_recovery_heatmap_parser(subparsers):
     """
 
     parser_gene_recovery_heatmap = subparsers.add_parser('recovery_heatmap',
-1                                                         help='Create a gene recovery heatmap for the HybPiper run(s)')
+                                                         help='Create a gene recovery heatmap for the HybPiper run(s)')
     parser_gene_recovery_heatmap.add_argument('seq_lengths_file',
                                               help="Filename for the seq_lengths file (output of the 'hybpiper "
                                                    "stats' command)")
