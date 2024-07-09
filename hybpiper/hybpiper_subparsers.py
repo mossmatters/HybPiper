@@ -201,6 +201,15 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  dest='skip_frameshifts',
                                  default=False)
+    parser_assemble.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
+                                 help='Skip Exonerate hits where the SPAdes sequence contains an internal in-frame '
+                                      'stop codon. '
+                                      'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
+                                      '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.\n'
+                                      'Default is %(default)s.',
+                                 action='store_true',
+                                 dest='skip_internal_stops',
+                                 default=False)
     parser_assemble.add_argument('--merged',
                                  help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true',
