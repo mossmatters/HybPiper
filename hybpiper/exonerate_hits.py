@@ -272,7 +272,6 @@ def intronerate(exonerate_object,
 
         elif multi_exon_hit:
             logger.debug(f'multi_exon_hit: {multi_exon_hit} for contig {spades_name_only}')
-            print(f'multi_exon_hit: {multi_exon_hit} for contig {spades_name_only}')
             slice_found = False
 
             if hit_data_dict['hit_strand'] == -1:
@@ -290,33 +289,25 @@ def intronerate(exonerate_object,
             #  Exonerate hit.
             cumulative_hit_span = 0
             # Check location of 3' trimmed hit end in hit ranges:
-
-            # print(f'hit_length: {hit_length}')
             for hit_range in trimmed_hit_ranges_all:
                 logger.debug(f'hit_range: {hit_range}')
-                # print(f'hit_range: {hit_range}')
                 # Get value for hit_length_adjusted; needs adjusting for hit location within a contig containing
                 # introns as well as exons:
                 hit_length_adjusted = hit_range[0] + (hit_length - cumulative_hit_span)
                 logger.debug(f'Hit_length_adjusted: {hit_length_adjusted}')
-                # print(f'Hit_length_adjusted: {hit_length_adjusted}')
                 hit_span = hit_range[1] - hit_range[0]
                 if hit_length_adjusted not in range(hit_range[0], hit_range[1]):  # i.e. 3' end of hit not in range
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} -'
                                  f' {hit_range[1]}; the 3prime end of the stitched contig does not occur in this exon!')
-                    # print(f'hit_length_adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} -'
-                    #       f' {hit_range[1]}; the 3prime end of the stitched contig does not occur in this exon!')
                     cumulative_hit_span += hit_span  # keep track of stitched contig length covered by previous ranges
-                    # print(f'cumulative_hit_span: {cumulative_hit_span}')
                 else:
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
                                  f' {hit_range[1]}. The 3prime end of the stitched contig occurs in this exon!')
-                    # print(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
-                    #       f' {hit_range[1]}. The 3prime end of the stitched contig occurs in this exon!')
                     slice_coordinate = hit_length_adjusted
                     spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
                     slice_found = True
                     break
+
             if not slice_found:
                 raise ValueError(f'Slice coordinate not found for hit {hit}')
 
@@ -694,12 +685,7 @@ class Exonerate(object):
         self.stitched_contig_seqrecord = self._create_stitched_contig()
         self.stop_codons_in_seqrecord_bool = self._check_stop_codons_in_seqrecord()
         self.stitched_contig_hit_ranges = self._get_stitched_contig_hit_ranges()
-
-        # only generate a no_stitched_contig_seqrecord (and write report) if no_stitched_contig is True:
-        if self.no_stitched_contig:
-            self.no_stitched_contig_seqrecord = self._no_stitched_contig()
-        else:
-            self.no_stitched_contig_seqrecord = None
+        self.no_stitched_contig_seqrecord = self._no_stitched_contig() if self.no_stitched_contig else None
 
         # If chimera_check is True, only perform chimera test if stitched contigs are being created AND
         # interleaved_fasta_file is not None AND a multi-hit stitched contig has been created:
@@ -1028,184 +1014,6 @@ class Exonerate(object):
 
         return filtered_by_similarity_hsps_dict_sorted
 
-    def _recover_long_paralogs(self):
-        """
-        Determines whether there are multiple Exonerate hits that are >75% the length of the query protein. If so,
-        the 'main' sequence is selected based first on SPAdes contig depth, then (if not definitive) based on
-        similarity to the query sequence.
-
-        :return None, collections.defaultdict: paralog_dicts_by_depth OR paralog_dicts_by_percent_similarity
-        """
-
-        if not self.hits_filtered_by_pct_similarity_dict or len(self.hits_filtered_by_pct_similarity_dict) == 1:  # i.e.
-            # only one hit, so no paralogs
-            return None
-
-        paralog_dicts = defaultdict(dict)
-        for hit_dict_key, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
-            total_hit_vs_query_coverage_length = 0
-            for query_range in hit_dict_values['query_range_all']:
-                assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
-                hit_vs_query_coverage = query_range[1] - query_range[0]
-                total_hit_vs_query_coverage_length += hit_vs_query_coverage
-
-            # Check if hit is longer than threshold:
-            if total_hit_vs_query_coverage_length / self.query_length > \
-                    self.paralog_warning_by_contig_length_pct:
-                paralog_dicts[hit_dict_key] = copy.deepcopy(hit_dict_values)
-
-        if len(paralog_dicts) <= 1:  # i.e. multiple long paralogs not found
-            return None
-
-        # Assign '*.main' seq via depth or else percent similarity (written to SeqRecord description):
-        paralog_dicts_by_depth = self._best_long_paralog_by_depth(paralog_dicts)
-        if paralog_dicts_by_depth:
-            return paralog_dicts_by_depth
-        paralog_dicts_by_percent_similarity = self._best_long_paralog_by_percent_similarity(paralog_dicts)
-        if paralog_dicts_by_percent_similarity:
-            return paralog_dicts_by_percent_similarity
-        else:
-            raise ValueError(f'Issue naming paralogs, please check!')
-
-    def _best_long_paralog_by_depth(self, paralog_dicts):
-        """
-        Checks if one of the paralogs in the dict paralog_dicts has a SPAdes coverage value >=10 times (default) all
-        other paralogs. If so, annotates the high-depth paralog SeqRecord description. If not, returns None.
-
-        :param collections.defaultdict paralog_dicts: dictionary of dictionaries; hitname: {key:value hit data}
-        :return NoneType, collections.defaultdict: paralog_dicts with seq.description 'paralog_main_by_depth'
-        """
-
-        all_names_and_depths = []
-        for paralog_name, paralog_data_dict in paralog_dicts.items():
-            all_names_and_depths.append((paralog_name, paralog_data_dict['hit_spades_contig_depth']))
-        all_names_and_depths.sort(reverse=True, key=itemgetter(1))
-        max_depth_paralog_name = all_names_and_depths[0][0]
-        max_depth = all_names_and_depths[0][1]  # single float
-        remaining_depths = [item[1] for item in all_names_and_depths[1:]]  # list of one or more floats
-        if len(remaining_depths) == 0:  # i.e. there's only one paralog sequence
-            paralog_dicts[max_depth_paralog_name]['hit_sequence'].description = 'paralog_main_by_default'
-            return paralog_dicts
-
-        depth_threshold = max_depth / self.depth_multiplier  # default depth_multiplier is 10
-        try:
-            assert all(depth <= depth_threshold for depth in remaining_depths)
-            paralog_dicts[max_depth_paralog_name]['hit_sequence'].description = 'paralog_main_by_depth'
-            return paralog_dicts
-        except AssertionError:
-            return None
-
-    @staticmethod
-    def _best_long_paralog_by_percent_similarity(paralog_dicts):
-        """
-        Checks which of the paralogs in the dict paralog_dicts has the highest percentage similarity to the query
-        sequence, and annotates the high-similarity paralog SeqRecord description. If there are multiple paralogs
-        with an equal high similarity percentage, the annotated paralog will be the first in the list return by Python's
-        list.sort() method.
-
-        :param collections.defaultdict paralog_dicts: dictionary of dictionaries; hitname: {key:value hit data}
-        :return collections.defaultdict: paralog_dicts, with highest similarity paralog annotated in seq.description
-        """
-
-        all_names_and_percent_ids = []
-        for paralog_name, paralog_data_dict in paralog_dicts.items():
-            all_names_and_percent_ids.append((paralog_name, paralog_data_dict['hit_similarity']))
-        all_names_and_percent_ids.sort(reverse=True, key=itemgetter(1))
-        max_percent_similarity_paralog_name = all_names_and_percent_ids[0][0]
-        paralog_dicts[max_percent_similarity_paralog_name]['hit_sequence'].description = 'paralog_main_by_percent_id'
-        return paralog_dicts
-
-    def write_long_paralogs_and_warnings_to_file(self):
-        """
-        => Renames long paralog sequences for writing to fasta file, using the suffix'.main' for the 'main' selected
-        paralog, and then incrementing suffixes for the remaining paralogs ('*.0', '*.1', ...).
-        => Writes a fasta file of long paralog sequences.
-        => Writes a *.txt file with paralog warnings for long paralogs.
-
-        :return NoneType: no explicit return
-        """
-
-        # Create a folder to write long paralog fasta files:
-        sample_name = os.path.split(self.prefix)[-1]
-        gene_name = os.path.split(self.prefix)[-2]
-        paralogs_folder = f'{self.prefix}/paralogs'
-
-        paralog_count = 0
-        paralog_seqs_to_write = []
-        paralog_warning_strings = []
-
-        if self.long_paralogs_dict:
-            if not os.path.exists(paralogs_folder):  # only make directory if long paralogs are present
-                os.mkdir(paralogs_folder)
-
-            for paralog_name, paralog_data_dict in self.long_paralogs_dict.items():
-                paralog_warning_strings.append(f'{self.query_id}\t{paralog_name}')
-
-                # Rename paralog sequences for writing to fasta file:
-                if re.search('main', paralog_data_dict['hit_sequence'].description):
-                    paralog_name_to_write = f'{sample_name}.main'
-                    paralog_data_dict['hit_sequence'].name = paralog_name_to_write
-                    paralog_data_dict['hit_sequence'].id = paralog_name_to_write
-                    paralog_data_dict['hit_sequence'].description = paralog_name  # i.e. original SPAdes name
-                    paralog_seqs_to_write.append(paralog_data_dict['hit_sequence'])
-                else:
-                    paralog_name_to_write = f'{sample_name}.{paralog_count}'
-                    paralog_data_dict['hit_sequence'].name = paralog_name_to_write
-                    paralog_data_dict['hit_sequence'].id = paralog_name_to_write
-                    paralog_data_dict['hit_sequence'].description = paralog_name
-                    paralog_seqs_to_write.append(paralog_data_dict['hit_sequence'])
-                    paralog_count += 1
-
-            # Write fasta file of long paralog sequences:
-            with open(f'{paralogs_folder}/{gene_name}_paralogs.fasta', 'w') as paralogs_fasta_handle:
-                SeqIO.write(paralog_seqs_to_write, paralogs_fasta_handle, 'fasta')
-
-            # Write *.txt file with paralog warnings for long paralogs
-            with open(f'{self.prefix}/paralog_warning_long.txt', 'w') as paralogs_warning_long_handle:
-                for warning_string in paralog_warning_strings:
-                    paralogs_warning_long_handle.write(f'{warning_string}\n')
-
-        # Write *.txt file with paralog warnings based on contig depth across query:
-        with open(f'{self.prefix}/paralog_warning_by_contig_depth.txt', 'w') as paralogs_warning_short_handle:
-            paralogs_warning_short_handle.write(f'Sample {sample_name}, gene {gene_name}, paralog warning via contig '
-                                                f'depth across query protein,'
-                                                f' {self._paralog_warning_by_contig_depth()}\n')
-
-    def _paralog_warning_by_contig_depth(self):
-        """
-        Takes a dictionary of hits filtered by percent ID, and calculates contig coverage across the length of the
-        query protein. If coverage is >1 for a given percentage threshold of the query length, return True.
-
-        :return bool: True if hit coverage is >1 for a given percentage length of the query
-        """
-
-        if not self.hits_filtered_by_pct_similarity_dict:
-            return None
-
-        # Get tuples of the query ranges for all similarity-filtered hits:
-        hit_vs_query_ranges_all = []
-        for hit, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
-            for query_range in hit_dict_values['query_range_all']:
-                assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
-                hit_vs_query_range = (query_range[0], query_range[1])
-                hit_vs_query_ranges_all.append(hit_vs_query_range)
-
-        # Get a count of hit coverage for each position in the query sequence:
-        query_coverage = []
-        for position in range(0, self.query_length):
-            coverage = 0
-            for hit_vs_query_range in hit_vs_query_ranges_all:
-                if position in range(hit_vs_query_range[0], hit_vs_query_range[1]):
-                    coverage += 1
-            query_coverage.append(coverage)
-
-        # If the hit coverage is >1 for a given percentage length of the query, return True:
-        pct_query_cov_greater_than_one = len([depth for depth in query_coverage if depth > 1]) / len(query_coverage)
-        if pct_query_cov_greater_than_one > self.paralog_warning_by_contig_length_pct:
-            return True
-        else:
-            return False
-
     def _remove_hits_with_frameshifts(self):
         """
         Takes a dictionary of hits that have been filtered via similarity to the query, and removes any hit that
@@ -1402,8 +1210,8 @@ class Exonerate(object):
         if len(self.hits_subsumed_hits_removed_dict) == 1:  # i.e. single hit remaining from previous filtering
             for key, value in self.hits_subsumed_hits_removed_dict.items():
                 value['hit_sequence'].description = f'Single hit after filtering: N/A'
-                seq_stripped = ''.join([base for base in value['hit_sequence'].seq if base not in ['-']])
-                value['hit_sequence'].seq = Seq(seq_stripped)
+                seq_no_gaps = value['hit_sequence'].seq.replace('-', '')
+                value['hit_sequence'].seq = seq_no_gaps
             return self.hits_subsumed_hits_removed_dict
 
         # Don't overwrite self.hits_subsumed_hits_removed_dict:
@@ -1426,22 +1234,21 @@ class Exonerate(object):
                     assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
                     assert len(seq_to_keep) >= 3
 
-                    seq_to_keep_stripped = ''.join([base for base in seq_to_keep.seq if base not in ['-']])  # just use replace()?
-                    seq_to_trim_stripped = ''.join([base for base in seq_to_trim.seq if base not in ['-']])
+                    seq_to_keep_no_gaps = seq_to_keep.seq.replace('-', '')
+                    seq_to_trim_no_gaps = seq_to_trim.seq.replace('-', '')
 
-                    pair[0]['hit_sequence'].seq = Seq(seq_to_keep_stripped)
-                    pair[0]['hit_sequence'].description = f'3prime overlap trimmed by: {len(seq_to_trim_stripped)}'
+                    pair[0]['hit_sequence'].seq = Seq(seq_to_keep_no_gaps)
+                    pair[0]['hit_sequence'].description = f'3prime overlap trimmed by: {len(seq_to_trim_no_gaps)}'
                     exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
 
                 else:  # if no overlap, add left hit unmodified (3' padded with Ns if gap before next hit):
                     bases_in_gap_between_hits = (right_seq_query_range[0] - left_seq_query_range[1]) * 3
-                    seq_stripped = ''.join([base for base in pair[0]['hit_sequence'].seq if base not in ['-']])
+                    seq_no_gaps = pair[0]['hit_sequence'].seq.replace('-', '')
 
                     if self.stitched_contig_pad_n:
-                        pair[0]['hit_sequence'].seq = Seq(f"{seq_stripped}"
-                                                          f"{'N' * bases_in_gap_between_hits}")
+                        pair[0]['hit_sequence'].seq = Seq(f"{seq_no_gaps}{'N' * bases_in_gap_between_hits}")
                     else:
-                        pair[0]['hit_sequence'].seq = Seq(seq_stripped)
+                        pair[0]['hit_sequence'].seq = seq_no_gaps
 
                     pair[0]['hit_sequence'].description = f'No overlap: N/A'
                     exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
@@ -1449,11 +1256,34 @@ class Exonerate(object):
             else:  # process final unpaired left hit
                 left_seq_hit_name = pair[0]['hit_sequence'].id
                 pair[0]['hit_sequence'].description = f'No overlap: N/A'
-                seq_stripped = ''.join([base for base in pair[0]['hit_sequence'].seq if base not in ['-']])
-                pair[0]['hit_sequence'].seq = Seq(seq_stripped)
+                seq_no_gaps = pair[0]['hit_sequence'].seq.replace('-', '')
+                pair[0]['hit_sequence'].seq = seq_no_gaps
                 exonerate_hits_subsumed_and_trimmed_dict[left_seq_hit_name] = pair[0]
 
         return exonerate_hits_subsumed_and_trimmed_dict
+
+    def write_trimmed_stitched_contig_hits_to_file(self):
+        """
+        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the filtered, sorted and trimmed
+        Exonerate hits to fasta file. Used for debugging.
+
+        :return NoneType: no explicit return
+        """
+
+        # Write DNA seqs
+        with open(f'{self.prefix}/exonerate_hits_trimmed.FNA', 'w') as fasta_handle_nucl:
+            for key, value in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
+                SeqIO.write(value['hit_sequence'], fasta_handle_nucl, 'fasta')
+
+        # Write amino-acid seqs
+        with open(f'{self.prefix}/exonerate_hits_trimmed.FAA', 'w') as fasta_handle_amino:
+            for key, value in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
+                seq_id = value['hit_sequence'].id
+                name = value['hit_sequence'].name
+                description = value['hit_sequence'].description
+                translated_seq = value['hit_sequence'].seq.translate()
+                translated_seq_seqrecord = SeqRecord(seq=translated_seq, id=seq_id, name=name, description=description)
+                SeqIO.write(translated_seq_seqrecord, fasta_handle_amino, 'fasta')
 
     def _create_stitched_contig(self):  # Here we're not dealing with intron sequence at all
         """
@@ -1500,6 +1330,45 @@ class Exonerate(object):
 
         return stitched_contig_seqrecord
 
+    def _no_stitched_contig(self):
+        """
+        Identifies the single longest Exonerate hit; does not attempt to stitch multiple hits together into a
+        stitched contig.
+
+        :return Bio.SeqRecord.SeqRecord: SeqRecord for the single longest Exonerate hit.
+        """
+
+        # if not self.hits_filtered_by_pct_similarity_dict:
+        #     return None
+
+        if not self.hits_subsumed_hits_removed_dict:
+            return None
+
+        sample_name = os.path.split(self.prefix)[-1]
+        gene_name = os.path.split(self.prefix)[-2]
+
+        # Don't overwrite self.hits_subsumed_hits_removed_dict:
+        exonerate_hits_subsumed_hits_removed_copy = copy.deepcopy(self.hits_subsumed_hits_removed_dict)
+
+        sorted_by_hit_length = sorted(exonerate_hits_subsumed_hits_removed_copy.values(),
+                                      key=lambda x: len(x['hit_sequence']), reverse=True)
+
+        if len(sorted_by_hit_length) == 0:
+            raise ValueError(f'The list sorted_by_hit_length for gene {gene_name} is empty!')
+
+        sorted_by_hit_length[0]['hit_sequence'].description = f'Flag no_stitched_contig used. Single longest hit ' \
+                                                              f'{sorted_by_hit_length[0]["hit_sequence"].id}'
+        sorted_by_hit_length[0]['hit_sequence'].id = sample_name
+        sorted_by_hit_length[0]['hit_sequence'].name = sample_name
+
+        # Write report file:
+        log_entry = f'{sample_name},{gene_name}, Stitched contig step skipped (user provided the ' \
+                    f'--no_stitched_contig flag to hybpiper assemble). Gene sequence contains the longest Exonerate ' \
+                    f'hit sequence only.'
+        self._write_genes_with_stitched_contig(log_entry)
+
+        return sorted_by_hit_length[0]['hit_sequence']
+
     def _check_stop_codons_in_seqrecord(self):
         """
         Translates the final seqrecord (stitched contig or single hit) and check for stop codons ('*'). If found,
@@ -1523,124 +1392,208 @@ class Exonerate(object):
                 self.logger.debug(f'seqrecord for {self.prefix} contains non-terminal stop codons!')
             return True
 
-    @staticmethod
-    def convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
+    def write_stitched_contig_to_file(self):
         """
-        This function takes a list of Exonerate SearchIO hit range tuples for a hit on the negative strand,
-        and converts them so that they are consistent with those from a hit on the positive strand. The
-        reverse-complemented SPAdes contig can then be processed with the approach used for positive strand
-        hits.
-
-        => e.g. for SPAdes contig with length 873 and hit range list [(284, 377), (2, 119)]:
-        [(284, 377), (2, 119)] -> [(496, 589), (754, 871)]
-
-        :param list list_of_range_tuples: list of Exonerate SearchIO hit range tuples
-        :param int raw_spades_contig_length: integer corresponding to the length of the SPAdes contig
-        :return list converted_list: list of hit range tuples converted to positive strand coordinates
-        """
-
-        range_tuples_reversed = [tuple(reversed(revcomp_hit_range)) for revcomp_hit_range in
-                                 list_of_range_tuples]
-        converted_list = [(raw_spades_contig_length - revcomp_hit_range[0], raw_spades_contig_length -
-                           revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
-        return converted_list
-
-    def _get_stitched_contig_hit_ranges(self):
-        """
-        Returns a dictionary of hit_id:exon coordinates for the full exon-only stitched contig fasta sequence (i.e.
-        starting at nucleotide zero and with introns removed).
-
-        :return dict hit_ranges_dict: a dictionary of hit_id: exon coordinates
-        """
-
-        if not self.hits_subsumed_hits_removed_overlaps_trimmed_dict:
-            return None
-
-        hit_ranges_dict = defaultdict(list)
-
-        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only stitched contig sequence
-        for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
-            if self.verbose_logging:
-                self.logger.debug(f'hit is: {hit}')
-            spades_name = hit.split(',')[0]
-            raw_spades_contig_length = len(self.spades_assembly_dict[spades_name])
-            hit_exonerate_sequence_length = len(hit_dict_values['hit_sequence'].seq)
-            hit_range_all = hit_dict_values['hit_range_all']
-            hit_inter_ranges = hit_dict_values['hit_inter_ranges']
-
-            if len(hit_inter_ranges) == 0:  # i.e. no introns
-                if self.verbose_logging:
-                    self.logger.debug(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
-                hit_ranges_dict[hit].append('no introns')
-                cumulative_hit_length += hit_exonerate_sequence_length
-            else:
-                if hit_dict_values['hit_strand'] == -1:  # Convert ranges so that they apply to the revcomp contig
-                    if self.verbose_logging:
-                        self.logger.debug(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
-                    hit_inter_ranges = self.convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
-                    if self.verbose_logging:
-                        self.logger.debug(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
-                        self.logger.debug(f'hit_range_all before conversion is: {hit_range_all}')
-                    hit_range_all = self.convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
-                    if self.verbose_logging:
-                        self.logger.debug(f'hit_range_all after conversion is: {hit_range_all}')
-                else:
-                    if self.verbose_logging:
-                        self.logger.debug(f'hit_inter_ranges is: {hit_inter_ranges}')
-                        self.logger.debug(f'hit_range_all is: {hit_range_all}')
-
-                # Adjust range coordinates so that they start at zero (i.e. first nucleotide position of the Exonerate
-                # fasta sequence for this hit:
-                hit_start_coordinate = hit_range_all[0][0]
-                hit_range_all_start_at_zero = [(item[0] - hit_start_coordinate, item[1] - hit_start_coordinate)
-                                               for item in hit_range_all]
-                if self.verbose_logging:
-                    self.logger.debug(f'hit_range_all_start_at_zero is: {hit_range_all_start_at_zero}')
-
-                # Adjust range coordinates to remove intron lengths:
-                cumulative_intron_length = 0
-                hit_ranges_dict[hit].append(hit_range_all_start_at_zero[0])  # add the first exon
-                for pair in list(pairwise_longest(hit_range_all_start_at_zero)):
-                    if pair[1] is not None:  # as pairwise_longest() will pad a range tuple without a pair with 'None'
-                        intron_length = pair[1][0] - pair[0][1]
-                        cumulative_intron_length += intron_length
-                        no_intron_coordinates = (pair[1][0] - cumulative_intron_length,
-                                                 pair[1][1] - cumulative_intron_length)
-                        no_intron_coordinates = tuple(no_intron_coordinates)
-                        hit_ranges_dict[hit].append(no_intron_coordinates)
-
-                # Adjust hit ranges to account for previous contigs in the stitched_contig:
-                hit_ranges_adjusted = [(int(item[0]) + cumulative_hit_length, int(item[1]) + cumulative_hit_length) for
-                                       item in hit_ranges_dict[hit]]
-                hit_ranges_dict[hit] = hit_ranges_adjusted  # replace with adjusted values
-
-        if self.verbose_logging:
-            self.logger.debug(f'hit_ranges_dict is: {hit_ranges_dict}')
-
-        return hit_ranges_dict
-
-    def write_trimmed_stitched_contig_hits_to_file(self):
-        """
-        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the filtered, sorted and trimmed
-        Exonerate hits to fasta file. Used for debugging.
+        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the stitched_contig (or single remaining
+        hit sequence) to fasta file.
 
         :return NoneType: no explicit return
         """
 
-        # Write DNA seqs
-        with open(f'{self.prefix}/exonerate_hits_trimmed.FNA', 'w') as fasta_handle_nucl:
-            for key, value in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
-                SeqIO.write(value['hit_sequence'], fasta_handle_nucl, 'fasta')
+        gene_name = os.path.split(self.prefix)[-2]
+        hit_id = self.stitched_contig_seqrecord.id
+        name = self.stitched_contig_seqrecord.name
+        description = self.stitched_contig_seqrecord.description
 
-        # Write amino-acid seqs
-        with open(f'{self.prefix}/exonerate_hits_trimmed.FAA', 'w') as fasta_handle_amino:
-            for key, value in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
-                seq_id = value['hit_sequence'].id
-                name = value['hit_sequence'].name
-                description = value['hit_sequence'].description
-                translated_seq = value['hit_sequence'].seq.translate()
-                translated_seq_seqrecord = SeqRecord(seq=translated_seq, id=seq_id, name=name, description=description)
-                SeqIO.write(translated_seq_seqrecord, fasta_handle_amino, 'fasta')
+        dna_seqrecord_to_write = self.stitched_contig_seqrecord
+        amino_acid_seq_to_write = self.stitched_contig_seqrecord.seq.translate()
+        amino_acid_seqrecord_to_write = SeqRecord(seq=amino_acid_seq_to_write, id=hit_id, name=name,
+                                                  description=description)  # as seq.translate() creates 'unknown'
+
+        with open(f'{self.prefix}/sequences/FNA/{gene_name}.FNA', 'w') as fna_handle:
+            SeqIO.write(dna_seqrecord_to_write, fna_handle, 'fasta')
+
+        with open(f'{self.prefix}/sequences/FAA/{gene_name}.FAA', 'w') as faa_handle:
+            SeqIO.write(amino_acid_seqrecord_to_write, faa_handle, 'fasta')
+
+    def _recover_long_paralogs(self):
+        """
+        Determines whether there are multiple Exonerate hits that are >75% the length of the query protein. If so,
+        the 'main' sequence is selected based first on SPAdes contig depth, then (if not definitive) based on
+        similarity to the query sequence.
+
+        :return None, collections.defaultdict: paralog_dicts_by_depth OR paralog_dicts_by_percent_similarity
+        """
+
+        if not self.hits_filtered_by_pct_similarity_dict or len(self.hits_filtered_by_pct_similarity_dict) == 1:  # i.e.
+            # only one hit, so no paralogs
+            return None
+
+        paralog_dicts = defaultdict(dict)
+        for hit_dict_key, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
+            total_hit_vs_query_coverage_length = 0
+            for query_range in hit_dict_values['query_range_all']:
+                assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
+                hit_vs_query_coverage = query_range[1] - query_range[0]
+                total_hit_vs_query_coverage_length += hit_vs_query_coverage
+
+            # Check if hit is longer than threshold:
+            if total_hit_vs_query_coverage_length / self.query_length > \
+                    self.paralog_warning_by_contig_length_pct:
+                paralog_dicts[hit_dict_key] = copy.deepcopy(hit_dict_values)
+
+        if len(paralog_dicts) <= 1:  # i.e. multiple long paralogs not found
+            return None
+
+        # Assign '*.main' seq via depth or else percent similarity (written to SeqRecord description):
+        paralog_dicts_by_depth = self._best_long_paralog_by_depth(paralog_dicts)
+        if paralog_dicts_by_depth:
+            return paralog_dicts_by_depth
+        paralog_dicts_by_percent_similarity = self._best_long_paralog_by_percent_similarity(paralog_dicts)
+        if paralog_dicts_by_percent_similarity:
+            return paralog_dicts_by_percent_similarity
+        else:
+            raise ValueError(f'Issue naming paralogs, please check!')
+
+    def _best_long_paralog_by_depth(self, paralog_dicts):
+        """
+        Checks if one of the paralogs in the dict paralog_dicts has a SPAdes coverage value >=10 times (default) all
+        other paralogs. If so, annotates the high-depth paralog SeqRecord description. If not, returns None.
+
+        :param collections.defaultdict paralog_dicts: dictionary of dictionaries; hitname: {key:value hit data}
+        :return NoneType, collections.defaultdict: paralog_dicts with seq.description 'paralog_main_by_depth'
+        """
+
+        all_names_and_depths = []
+        for paralog_name, paralog_data_dict in paralog_dicts.items():
+            all_names_and_depths.append((paralog_name, paralog_data_dict['hit_spades_contig_depth']))
+        all_names_and_depths.sort(reverse=True, key=itemgetter(1))
+        max_depth_paralog_name = all_names_and_depths[0][0]
+        max_depth = all_names_and_depths[0][1]  # single float
+        remaining_depths = [item[1] for item in all_names_and_depths[1:]]  # list of one or more floats
+        if len(remaining_depths) == 0:  # i.e. there's only one paralog sequence
+            paralog_dicts[max_depth_paralog_name]['hit_sequence'].description = 'paralog_main_by_default'
+            return paralog_dicts
+
+        depth_threshold = max_depth / self.depth_multiplier  # default depth_multiplier is 10
+        try:
+            assert all(depth <= depth_threshold for depth in remaining_depths)
+            paralog_dicts[max_depth_paralog_name]['hit_sequence'].description = 'paralog_main_by_depth'
+            return paralog_dicts
+        except AssertionError:
+            return None
+
+    @staticmethod
+    def _best_long_paralog_by_percent_similarity(paralog_dicts):
+        """
+        Checks which of the paralogs in the dict paralog_dicts has the highest percentage similarity to the query
+        sequence, and annotates the high-similarity paralog SeqRecord description. If there are multiple paralogs
+        with an equal high similarity percentage, the annotated paralog will be the first in the list returned by
+        Python's list.sort() method.
+
+        :param collections.defaultdict paralog_dicts: dictionary of dictionaries; hitname: {key:value hit data}
+        :return collections.defaultdict: paralog_dicts, with the highest similarity paralog annotated in seq.description
+        """
+
+        all_names_and_percent_ids = []
+        for paralog_name, paralog_data_dict in paralog_dicts.items():
+            all_names_and_percent_ids.append((paralog_name, paralog_data_dict['hit_similarity']))
+        all_names_and_percent_ids.sort(reverse=True, key=itemgetter(1))
+        max_percent_similarity_paralog_name = all_names_and_percent_ids[0][0]
+        paralog_dicts[max_percent_similarity_paralog_name]['hit_sequence'].description = 'paralog_main_by_percent_id'
+        return paralog_dicts
+
+    def write_long_paralogs_and_warnings_to_file(self):
+        """
+        => Renames long paralog sequences for writing to fasta file, using the suffix'.main' for the 'main' selected
+        paralog, and then incrementing suffixes for the remaining paralogs ('*.0', '*.1', ...).
+        => Writes a fasta file of long paralog sequences.
+        => Writes a *.txt file with paralog warnings for long paralogs.
+
+        :return NoneType: no explicit return
+        """
+
+        # Create a folder to write long paralog fasta files:
+        sample_name = os.path.split(self.prefix)[-1]
+        gene_name = os.path.split(self.prefix)[-2]
+        paralogs_folder = f'{self.prefix}/paralogs'
+
+        paralog_count = 0
+        paralog_seqs_to_write = []
+        paralog_warning_strings = []
+
+        if self.long_paralogs_dict:
+            if not os.path.exists(paralogs_folder):  # only make directory if long paralogs are present
+                os.mkdir(paralogs_folder)
+
+            for paralog_name, paralog_data_dict in self.long_paralogs_dict.items():
+                paralog_warning_strings.append(f'{self.query_id}\t{paralog_name}')
+
+                # Rename paralog sequences for writing to fasta file:
+                if re.search('main', paralog_data_dict['hit_sequence'].description):
+                    paralog_name_to_write = f'{sample_name}.main'
+                    paralog_data_dict['hit_sequence'].name = paralog_name_to_write
+                    paralog_data_dict['hit_sequence'].id = paralog_name_to_write
+                    paralog_data_dict['hit_sequence'].description = paralog_name  # i.e. original SPAdes name
+                    paralog_seqs_to_write.append(paralog_data_dict['hit_sequence'])
+                else:
+                    paralog_name_to_write = f'{sample_name}.{paralog_count}'
+                    paralog_data_dict['hit_sequence'].name = paralog_name_to_write
+                    paralog_data_dict['hit_sequence'].id = paralog_name_to_write
+                    paralog_data_dict['hit_sequence'].description = paralog_name
+                    paralog_seqs_to_write.append(paralog_data_dict['hit_sequence'])
+                    paralog_count += 1
+
+            # Write fasta file of long paralog sequences:
+            with open(f'{paralogs_folder}/{gene_name}_paralogs.fasta', 'w') as paralogs_fasta_handle:
+                SeqIO.write(paralog_seqs_to_write, paralogs_fasta_handle, 'fasta')
+
+            # Write *.txt file with paralog warnings for long paralogs
+            with open(f'{self.prefix}/paralog_warning_long.txt', 'w') as paralogs_warning_long_handle:
+                for warning_string in paralog_warning_strings:
+                    paralogs_warning_long_handle.write(f'{warning_string}\n')
+
+        # Write *.txt file with paralog warnings based on contig depth across query:
+        with open(f'{self.prefix}/paralog_warning_by_contig_depth.txt', 'w') as paralogs_warning_short_handle:
+            paralogs_warning_short_handle.write(f'Sample {sample_name}, gene {gene_name}, paralog warning via contig '
+                                                f'depth across query protein,'
+                                                f' {self._paralog_warning_by_contig_depth()}\n')
+
+    def _paralog_warning_by_contig_depth(self):
+        """
+        Takes a dictionary of hits filtered by percent ID, and calculates contig coverage across the length of the
+        query protein. If coverage is >1 for a given percentage threshold of the query length, return True.
+
+        :return bool: True if hit coverage is >1 for a given percentage length of the query
+        """
+
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
+
+        # Get tuples of the query ranges for all similarity-filtered hits:
+        hit_vs_query_ranges_all = []
+        for hit, hit_dict_values in self.hits_filtered_by_pct_similarity_dict.items():
+            for query_range in hit_dict_values['query_range_all']:
+                assert query_range[1] >= query_range[0]  # >= required as frameshift can result in e.g. (95, 95)
+                hit_vs_query_range = (query_range[0], query_range[1])
+                hit_vs_query_ranges_all.append(hit_vs_query_range)
+
+        # Get a count of hit coverage for each position in the query sequence:
+        query_coverage = []
+        for position in range(0, self.query_length):
+            coverage = 0
+            for hit_vs_query_range in hit_vs_query_ranges_all:
+                if position in range(hit_vs_query_range[0], hit_vs_query_range[1]):
+                    coverage += 1
+            query_coverage.append(coverage)
+
+        # If the hit coverage is >1 for a given percentage length of the query, return True:
+        pct_query_cov_greater_than_one = len([depth for depth in query_coverage if depth > 1]) / len(query_coverage)
+        if pct_query_cov_greater_than_one > self.paralog_warning_by_contig_length_pct:
+            return True
+        else:
+            return False
+
 
     def write_exonerate_stats_file(self):
         """
@@ -1758,6 +1711,10 @@ class Exonerate(object):
                                                       f"\t{value['hit_range_all_original']}"
                                                       f"\t{value['hit_range_all']}"
                                                       f"\tN/A\n"))
+            else:
+                exonerate_stats_handle.write(f"Hits filtered to remove hits with frameshifts"
+                                             f"\tNot performed"
+                                             f"\t\t\t\t\t\t\t\t\t\t\t\t\t\n")
 
             # Write stats for hits filtered to remove hits with internal stop codons (optional):
             if self.skip_internal_stops:
@@ -1799,6 +1756,10 @@ class Exonerate(object):
                                                       f"\t{value['hit_range_all_original']}"
                                                       f"\t{value['hit_range_all']}"
                                                       f"\tN/A\n"))
+            else:
+                exonerate_stats_handle.write(f"Hits filtered to remove hits with internal stop codons"
+                                             f"\tNot performed"
+                                             f"\t\t\t\t\t\t\t\t\t\t\t\t\t\n")
 
             # Write stats for hits filtered by similarity and with subsumed hits removed:
             nested_dict_iter = nested_dict_iterator(self.hits_subsumed_hits_removed_dict)
@@ -1838,7 +1799,7 @@ class Exonerate(object):
             nested_dict_iter = nested_dict_iterator(self.hits_subsumed_hits_removed_overlaps_trimmed_dict)
             first_hit_dict_key, first_hit_dict_value = next(nested_dict_iter)  # get first line
             trimmed_bases = first_hit_dict_value['hit_sequence'].description.split(':')[-1].strip()
-            exonerate_stats_handle.write((f"Hits with subsumed hits removed and trimmed"
+            exonerate_stats_handle.write((f"Hits with subsumed hits removed and overlaps trimmed"
                                           f"\t{self.query_id}"
                                           f"\t{self.query_length}"
                                           f"\t{str(first_hit_dict_key.split(',')[0])}"
@@ -1906,29 +1867,101 @@ class Exonerate(object):
                                                   f"\t{value['hit_range_all']}"
                                                   f"\tN/A\n"))
 
-    def write_stitched_contig_to_file(self):
+    @staticmethod
+    def convert_coords_revcomp(list_of_range_tuples, raw_spades_contig_length):
         """
-        Writes DNA (suffix '.FNA') and amino-acid (suffix '.FAA') sequences for the stitched_contig (or single remaining
-        hit sequence) to fasta file.
+        This function takes a list of Exonerate SearchIO hit range tuples for a hit on the negative strand,
+        and converts them so that they are consistent with those from a hit on the positive strand. The
+        reverse-complemented SPAdes contig can then be processed with the approach used for positive strand
+        hits.
 
-        :return NoneType: no explicit return
+        => e.g. for SPAdes contig with length 873 and hit range list [(284, 377), (2, 119)]:
+        [(284, 377), (2, 119)] -> [(496, 589), (754, 871)]
+
+        :param list list_of_range_tuples: list of Exonerate SearchIO hit range tuples
+        :param int raw_spades_contig_length: integer corresponding to the length of the SPAdes contig
+        :return list converted_list: list of hit range tuples converted to positive strand coordinates
         """
 
-        gene_name = os.path.split(self.prefix)[-2]
-        hit_id = self.stitched_contig_seqrecord.id
-        name = self.stitched_contig_seqrecord.name
-        description = self.stitched_contig_seqrecord.description
+        range_tuples_reversed = [tuple(reversed(revcomp_hit_range)) for revcomp_hit_range in
+                                 list_of_range_tuples]
+        converted_list = [(raw_spades_contig_length - revcomp_hit_range[0], raw_spades_contig_length -
+                           revcomp_hit_range[1]) for revcomp_hit_range in range_tuples_reversed]
+        return converted_list
 
-        dna_seqrecord_to_write = self.stitched_contig_seqrecord
-        amino_acid_seq_to_write = self.stitched_contig_seqrecord.seq.translate()
-        amino_acid_seqrecord_to_write = SeqRecord(seq=amino_acid_seq_to_write, id=hit_id, name=name,
-                                                  description=description)  # as seq.translate() creates 'unknown'
+    def _get_stitched_contig_hit_ranges(self):
+        """
+        Returns a dictionary of hit_id:exon coordinates for the full exon-only stitched contig fasta sequence (i.e.
+        starting at nucleotide zero and with introns removed).
 
-        with open(f'{self.prefix}/sequences/FNA/{gene_name}.FNA', 'w') as fna_handle:
-            SeqIO.write(dna_seqrecord_to_write, fna_handle, 'fasta')
+        :return dict hit_ranges_dict: a dictionary of hit_id: exon coordinates
+        """
 
-        with open(f'{self.prefix}/sequences/FAA/{gene_name}.FAA', 'w') as faa_handle:
-            SeqIO.write(amino_acid_seqrecord_to_write, faa_handle, 'fasta')
+        if not self.hits_subsumed_hits_removed_overlaps_trimmed_dict:
+            return None
+
+        hit_ranges_dict = defaultdict(list)
+
+        cumulative_hit_length = 0  # track to adjust coordinates of hits to match exon-only stitched contig sequence
+        for hit, hit_dict_values in self.hits_subsumed_hits_removed_overlaps_trimmed_dict.items():
+            if self.verbose_logging:
+                self.logger.debug(f'hit is: {hit}')
+            spades_name = hit.split(',')[0]
+            raw_spades_contig_length = len(self.spades_assembly_dict[spades_name])
+            hit_exonerate_sequence_length = len(hit_dict_values['hit_sequence'].seq)
+            hit_range_all = hit_dict_values['hit_range_all']
+            hit_inter_ranges = hit_dict_values['hit_inter_ranges']
+
+            if len(hit_inter_ranges) == 0:  # i.e. no introns
+                if self.verbose_logging:
+                    self.logger.debug(f'len(hit_inter_ranges) for hit {hit} is 0, no intron coordinates for chimera test')
+                hit_ranges_dict[hit].append('no introns')
+                cumulative_hit_length += hit_exonerate_sequence_length
+            else:
+                if hit_dict_values['hit_strand'] == -1:  # Convert ranges so that they apply to the revcomp contig
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_inter_ranges before conversion is: {hit_inter_ranges}')
+                    hit_inter_ranges = self.convert_coords_revcomp(hit_inter_ranges, raw_spades_contig_length)
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_inter_ranges after conversion is: {hit_inter_ranges}')
+                        self.logger.debug(f'hit_range_all before conversion is: {hit_range_all}')
+                    hit_range_all = self.convert_coords_revcomp(hit_range_all, raw_spades_contig_length)
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_range_all after conversion is: {hit_range_all}')
+                else:
+                    if self.verbose_logging:
+                        self.logger.debug(f'hit_inter_ranges is: {hit_inter_ranges}')
+                        self.logger.debug(f'hit_range_all is: {hit_range_all}')
+
+                # Adjust range coordinates so that they start at zero (i.e. first nucleotide position of the Exonerate
+                # fasta sequence for this hit:
+                hit_start_coordinate = hit_range_all[0][0]
+                hit_range_all_start_at_zero = [(item[0] - hit_start_coordinate, item[1] - hit_start_coordinate)
+                                               for item in hit_range_all]
+                if self.verbose_logging:
+                    self.logger.debug(f'hit_range_all_start_at_zero is: {hit_range_all_start_at_zero}')
+
+                # Adjust range coordinates to remove intron lengths:
+                cumulative_intron_length = 0
+                hit_ranges_dict[hit].append(hit_range_all_start_at_zero[0])  # add the first exon
+                for pair in list(pairwise_longest(hit_range_all_start_at_zero)):
+                    if pair[1] is not None:  # as pairwise_longest() will pad a range tuple without a pair with 'None'
+                        intron_length = pair[1][0] - pair[0][1]
+                        cumulative_intron_length += intron_length
+                        no_intron_coordinates = (pair[1][0] - cumulative_intron_length,
+                                                 pair[1][1] - cumulative_intron_length)
+                        no_intron_coordinates = tuple(no_intron_coordinates)
+                        hit_ranges_dict[hit].append(no_intron_coordinates)
+
+                # Adjust hit ranges to account for previous contigs in the stitched_contig:
+                hit_ranges_adjusted = [(int(item[0]) + cumulative_hit_length, int(item[1]) + cumulative_hit_length) for
+                                       item in hit_ranges_dict[hit]]
+                hit_ranges_dict[hit] = hit_ranges_adjusted  # replace with adjusted values
+
+        if self.verbose_logging:
+            self.logger.debug(f'hit_ranges_dict is: {hit_ranges_dict}')
+
+        return hit_ranges_dict
 
     def _stitched_contig_chimera_warning(self):
         """
@@ -2152,41 +2185,7 @@ class Exonerate(object):
         with open(f'{self.prefix}/genes_with_stitched_contig.csv', 'w') as stitched_contig_reportfile:
             stitched_contig_reportfile.write(f'{data}\n')
 
-    def _no_stitched_contig(self):
-        """
-        Identifies the single longest Exonerate hit; does not attempt to stitch multiple hits together into a
-        stitched contig.
 
-        :return Bio.SeqRecord.SeqRecord: SeqRecord for the single longest Exonerate hit.
-        """
-
-        if not self.hits_filtered_by_pct_similarity_dict:
-            return None
-
-        sample_name = os.path.split(self.prefix)[-1]
-        gene_name = os.path.split(self.prefix)[-2]
-
-        # Don't overwrite self.hits_subsumed_hits_removed_dict:
-        exonerate_hits_subsumed_hits_removed_copy = copy.deepcopy(self.hits_subsumed_hits_removed_dict)
-
-        sorted_by_hit_length = sorted(exonerate_hits_subsumed_hits_removed_copy.values(),
-                                      key=lambda x: len(x['hit_sequence']), reverse=True)
-
-        if len(sorted_by_hit_length) == 0:
-            raise ValueError(f'The list sorted_by_hit_length for gene {gene_name} is empty!')
-
-        sorted_by_hit_length[0]['hit_sequence'].description = f'Flag no_stitched_contig used. Single longest hit ' \
-                                                              f'{sorted_by_hit_length[0]["hit_sequence"].id}'
-        sorted_by_hit_length[0]['hit_sequence'].id = sample_name
-        sorted_by_hit_length[0]['hit_sequence'].name = sample_name
-
-        # Write report file:
-        log_entry = f'{sample_name},{gene_name}, Stitched contig step skipped (user provided the ' \
-                    f'--no_stitched_contig flag to hybpiper assemble). Gene sequence contains the longest Exonerate ' \
-                    f'hit sequence only.'
-        self._write_genes_with_stitched_contig(log_entry)
-
-        return sorted_by_hit_length[0]['hit_sequence']
 
     def write_no_stitched_contig(self):
         """
