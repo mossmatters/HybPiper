@@ -124,7 +124,11 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     parallel_cmd = ' '.join(parallel_cmd_list)
 
     try:
-        result = subprocess.run(parallel_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True, check=True)
+        result = subprocess.run(parallel_cmd,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                universal_newlines=True, check=True)
+
         logger.debug(f'spades_cmd check_returncode() is: {result.check_returncode()}')
         logger.debug(f'spades_cmd stdout is: {result.stdout}')
 
@@ -207,8 +211,12 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     logger.info(f'{fill}')
 
     try:
-        result = subprocess.run(redo_spades_cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True,
+        result = subprocess.run(redo_spades_cmd,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                universal_newlines=True,
                                 check=True)
+
         logger.debug(f'redo_spades_cmd check_returncode() is: {result.check_returncode()}')
         logger.debug(f'redo_spades_cmd stdout is: {result.stdout}')
 
