@@ -272,7 +272,8 @@ def intronerate(exonerate_object,
                 spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
 
         elif multi_exon_hit:
-            logger.debug(f'multi_exon_hit: {multi_exon_hit}')
+            logger.debug(f'multi_exon_hit: {multi_exon_hit} for contig {spades_name_only}')
+            print(f'multi_exon_hit: {multi_exon_hit} for contig {spades_name_only}')
             slice_found = False
 
             if hit_data_dict['hit_strand'] == -1:
@@ -290,20 +291,29 @@ def intronerate(exonerate_object,
             #  Exonerate hit.
             cumulative_hit_span = 0
             # Check location of 3' trimmed hit end in hit ranges:
+
+            # print(f'hit_length: {hit_length}')
             for hit_range in trimmed_hit_ranges_all:
                 logger.debug(f'hit_range: {hit_range}')
+                # print(f'hit_range: {hit_range}')
                 # Get value for hit_length_adjusted; needs adjusting for hit location within a contig containing
                 # introns as well as exons:
                 hit_length_adjusted = hit_range[0] + (hit_length - cumulative_hit_span)
                 logger.debug(f'Hit_length_adjusted: {hit_length_adjusted}')
+                # print(f'Hit_length_adjusted: {hit_length_adjusted}')
                 hit_span = hit_range[1] - hit_range[0]
                 if hit_length_adjusted not in range(hit_range[0], hit_range[1]):  # i.e. 3' end of hit not in range
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} -'
                                  f' {hit_range[1]}; the 3prime end of the stitched contig does not occur in this exon!')
+                    # print(f'hit_length_adjusted {hit_length_adjusted} is NOT in range {hit_range[0]} -'
+                    #       f' {hit_range[1]}; the 3prime end of the stitched contig does not occur in this exon!')
                     cumulative_hit_span += hit_span  # keep track of stitched contig length covered by previous ranges
+                    # print(f'cumulative_hit_span: {cumulative_hit_span}')
                 else:
                     logger.debug(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
                                  f' {hit_range[1]}. The 3prime end of the stitched contig occurs in this exon!')
+                    # print(f'hit_length_adjusted {hit_length_adjusted} is FOUND in range {hit_range[0]} -'
+                    #       f' {hit_range[1]}. The 3prime end of the stitched contig occurs in this exon!')
                     slice_coordinate = hit_length_adjusted
                     spades_contigs_for_intronerate_supercontig.append(raw_spades_contig[:slice_coordinate])
                     slice_found = True
@@ -491,6 +501,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             exonerate_hit_sliding_window_size,
                                             exonerate_hit_sliding_window_thresh,
                                             exonerate_skip_frameshifts,
+                                            exonerate_skip_internal_stops,
                                             verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -522,6 +533,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
+    :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
     :param bool verbose_logging: if True, log additional information to file
 
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
@@ -560,6 +572,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
                                  exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
                                  exonerate_skip_frameshifts=exonerate_skip_frameshifts,
+                                 exonerate_skip_internal_stops=exonerate_skip_internal_stops,
                                  verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -610,6 +623,7 @@ class Exonerate(object):
                  exonerate_hit_sliding_window_size=3,
                  exonerate_hit_sliding_window_thresh=55,
                  exonerate_skip_frameshifts=False,
+                 exonerate_skip_internal_stops=False,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -637,6 +651,7 @@ class Exonerate(object):
         :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
         in amino-acids) when trimming termini of Exonerate hits
         :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
+        :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
         :param bool verbose_logging: if True, log additional information to file
         """
 
@@ -650,6 +665,7 @@ class Exonerate(object):
         self.sliding_window_size = exonerate_hit_sliding_window_size
         self.sliding_window_thresh = exonerate_hit_sliding_window_thresh
         self.skip_frameshifts = exonerate_skip_frameshifts
+        self.skip_internal_stops = exonerate_skip_internal_stops
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
@@ -1023,6 +1039,36 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_spades_contig_depth'] = spades_contig_depth
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_original'] = filtered_hsp[1]
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
+
+        # If exonerate_skip_internal_stops is True, remove any such hits:
+        if self.skip_internal_stops:
+            filtered_by_similarity_hsps_dict_no_internal_stops = copy.deepcopy(filtered_by_similarity_hsps_dict)
+
+            # self.logger.debug(f'Number of HSPs before filtering out hits with internal stop codons: '
+            #                  f'{len(filtered_by_similarity_hsps_dict)}')
+
+            for unique_hit_name, data_dict in filtered_by_similarity_hsps_dict.items():
+                seq = data_dict['hit_sequence']
+                translated_seq = seq.seq.replace('-', '').translate()
+                num_stop_codons = translated_seq.count('*')
+
+                if num_stop_codons == 0:
+                    pass
+                elif num_stop_codons == 1 and re.search('[*]', str(translated_seq)[-1]):
+                    self.logger.debug(f'Single terminal stop codon for Exonerate hit {unique_hit_name}, allowing hit.')
+                else:  # remove the hit
+                    self.logger.debug(f'{num_stop_codons} internal in-frame stop codon(s) for Exonerate hit '
+                                      f'{unique_hit_name}. Removing hit.')
+                    del filtered_by_similarity_hsps_dict_no_internal_stops[unique_hit_name]
+
+            self.logger.debug(f'Number of HSPs after filtering out hits with internal stop codons: '
+                              f'{len(filtered_by_similarity_hsps_dict_no_internal_stops)}')
+
+            filtered_by_similarity_hsps_dict = filtered_by_similarity_hsps_dict_no_internal_stops  # reassign dict
+
+            if len(filtered_by_similarity_hsps_dict) == 0:
+                self.logger.debug(f'Number of HSPs after filtering out hits with internal stops is zero')
+                return None
 
         # The sliding window trim filter can change the query start/end order of hits, so re-sort the dictionary:
         filtered_by_similarity_hsps_dict_sorted = \
@@ -2264,6 +2310,14 @@ def standalone():
                         action='store_true',
                         dest='skip_frameshifts',
                         default=False)
+    parser.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
+                        help='Skip Exonerate hits where the SPAdes sequence contains an internal in-frame stop codon. '
+                             'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
+                             '-and-recommendations#31-sequences-containing-stop-codons.\nDefault is '
+                             '%(default)s.',
+                        action='store_true',
+                        dest='skip_internal_stops',
+                        default=False)
     parser.add_argument('--verbose_logging',
                         help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
                              'files by an order of magnitude.',
@@ -2335,6 +2389,7 @@ def main(args):
         exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
         exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
         exonerate_skip_frameshifts=args.skip_frameshifts,
+        exonerate_skip_internal_stops=args.skip_internal_stops,
         verbose_logging=args.verbose_logging)
 
     if not exonerate_result.stitched_contig_seqrecord:
