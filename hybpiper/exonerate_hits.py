@@ -139,7 +139,6 @@ def intronerate(exonerate_object,
         os.mkdir(intronerate_sequence_directory)
 
     trimmed_hits_dict = exonerate_object.hits_subsumed_hits_removed_overlaps_trimmed_dict
-    # print(f'trimmed_hits_dict: {trimmed_hits_dict}')
     sample_name = os.path.split(exonerate_object.prefix)[-1]
     if verbose_logging:
         logger.debug(f'sample_name: {sample_name}')
@@ -578,7 +577,9 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     if verbose_logging:
         logger.debug(exonerate_result)
 
-    if not exonerate_result.hits_filtered_by_pct_similarity_dict:  # i.e. no hits left after filtering via pct ID
+    exonerate_result.write_exonerate_stats_file()
+
+    if not exonerate_result.hits_subsumed_hits_removed_dict:  # i.e. no hits left after filtering
         return None
 
     # if exonerate_result.long_paralogs_dict:  # i.e. there are long paralogs recovered
@@ -591,7 +592,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
 
     if keep_intermediate_files:
         exonerate_result.write_trimmed_stitched_contig_hits_to_file()
-    exonerate_result.write_exonerate_stats_file()
+
+    # exonerate_result.write_exonerate_stats_file()
 
     return exonerate_result
 
@@ -682,6 +684,9 @@ class Exonerate(object):
         self.keep_intermediate_files = keep_intermediate_files
         self.verbose_logging = verbose_logging
         self.hits_filtered_by_pct_similarity_dict = self._parse_searchio_object()
+        self.hits_frameshifts_removed = self._remove_hits_with_frameshifts() if self.skip_frameshifts else None
+        self.hits_internal_stops_removed = \
+            self._remove_hits_with_internal_stop_codons() if self.skip_internal_stops else None
         self.hits_subsumed_hits_removed_dict = self._remove_subsumed_hits()
         self.hits_subsumed_hits_removed_overlaps_trimmed_dict = self._trim_overlapping_hits()
         self.long_paralogs_dict = self._recover_long_paralogs()
@@ -745,33 +750,6 @@ class Exonerate(object):
         if len(filtered_hsps) == 0:
             self.logger.debug(f'Number of HSPs after filtering via percent_similarity is zero')
             return None
-
-        # If not self.allow_frameshifts, remove any hits with a frameshift in the SPAdes sequence:
-        if self.skip_frameshifts:
-            filtered_hsps_by_similarity = copy.deepcopy(filtered_hsps)
-            filtered_hsps = []
-
-            for filtered_hsp in filtered_hsps_by_similarity:
-                hsp = filtered_hsp[0]
-                frameshift_detected = False
-                for span in hsp.hit_inter_spans:
-                    if span < 15:  # Exonerate doesn't detect introns this small by default?
-                        if span % 3 != 0:  # i.e. the span introduces a frameshift
-                            self.logger.debug(f'{hsp.hit_id} FRAMESHIFT! span: {span}, hsp.hit_inter_spans:'
-                                              f' {hsp.hit_inter_spans}')
-                            frameshift_detected = True
-                            break
-                        else:
-                            self.logger.debug(f'{hsp.hit_id} UNDETERMINED SPAN! span: {span}, hsp.hit_inter_spans:'
-                                              f' {hsp.hit_inter_spans}')
-                if not frameshift_detected:
-                    filtered_hsps.append(filtered_hsp)
-
-            self.logger.debug(f'Number of HSPs after filtering out hits with frameshifts: {len(filtered_hsps)}')
-
-            if len(filtered_hsps) == 0:
-                self.logger.debug(f'Number of HSPs after out hits with frameshifts is zero')
-                return None
 
         filtered_by_similarity_hsps_dict = defaultdict(dict)  # dict of dicts for each filtered hsp
 
@@ -978,6 +956,7 @@ class Exonerate(object):
                            round((query_range_original[1] - (three_prime_slice / 3))))
             query_range_all = filtered_hsp[0].query_range_all
             hit_inter_ranges = filtered_hsp[0].hit_inter_ranges
+            hit_inter_spans = filtered_hsp[0].hit_inter_spans
             hsp_hit_strand_all = filtered_hsp[0].hit_strand_all
             assert len(set(hsp_hit_strand_all)) == 1  # Check that all HSP fragments are on the same strand
             hsp_hit_strand = next(iter(set(hsp_hit_strand_all)))
@@ -1014,8 +993,7 @@ class Exonerate(object):
                 concatenated_hsp_alignment_seqs.append(alignment_seq)
 
             # Note that the seq below does _not_ include any frameshift bases:
-            # seq = Seq(''.join(concatenated_hsp_alignment_seqs)).replace('-', '')
-            seq = Seq(''.join(concatenated_hsp_alignment_seqs))
+            seq = Seq(''.join(concatenated_hsp_alignment_seqs))  # Do _not_ strip gaps
 
             # Trim/slice the seq if required:
             if not three_prime_slice:
@@ -1034,41 +1012,12 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_all_original'] = hit_range_all_original
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_range_all'] = hit_range_all
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_inter_ranges'] = hit_inter_ranges
+            filtered_by_similarity_hsps_dict[unique_hit_name]['hit_inter_spans'] = hit_inter_spans
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_strand'] = hsp_hit_strand
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_sequence'] = hit_seq
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_spades_contig_depth'] = spades_contig_depth
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_original'] = filtered_hsp[1]
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
-
-        # If exonerate_skip_internal_stops is True, remove any such hits:
-        if self.skip_internal_stops:
-            filtered_by_similarity_hsps_dict_no_internal_stops = copy.deepcopy(filtered_by_similarity_hsps_dict)
-
-            # self.logger.debug(f'Number of HSPs before filtering out hits with internal stop codons: '
-            #                  f'{len(filtered_by_similarity_hsps_dict)}')
-
-            for unique_hit_name, data_dict in filtered_by_similarity_hsps_dict.items():
-                seq = data_dict['hit_sequence']
-                translated_seq = seq.seq.replace('-', '').translate()
-                num_stop_codons = translated_seq.count('*')
-
-                if num_stop_codons == 0:
-                    pass
-                elif num_stop_codons == 1 and re.search('[*]', str(translated_seq)[-1]):
-                    self.logger.debug(f'Single terminal stop codon for Exonerate hit {unique_hit_name}, allowing hit.')
-                else:  # remove the hit
-                    self.logger.debug(f'{num_stop_codons} internal in-frame stop codon(s) for Exonerate hit '
-                                      f'{unique_hit_name}. Removing hit.')
-                    del filtered_by_similarity_hsps_dict_no_internal_stops[unique_hit_name]
-
-            self.logger.debug(f'Number of HSPs after filtering out hits with internal stop codons: '
-                              f'{len(filtered_by_similarity_hsps_dict_no_internal_stops)}')
-
-            filtered_by_similarity_hsps_dict = filtered_by_similarity_hsps_dict_no_internal_stops  # reassign dict
-
-            if len(filtered_by_similarity_hsps_dict) == 0:
-                self.logger.debug(f'Number of HSPs after filtering out hits with internal stops is zero')
-                return None
 
         # The sliding window trim filter can change the query start/end order of hits, so re-sort the dictionary:
         filtered_by_similarity_hsps_dict_sorted = \
@@ -1257,6 +1206,86 @@ class Exonerate(object):
         else:
             return False
 
+    def _remove_hits_with_frameshifts(self):
+        """
+        Takes a dictionary of hits that have been filtered via similarity to the query, and removes any hit that
+        contains a frameshift.
+
+        :return collections.defaultdict: hits_filtered_by_pct_similarity_no_frameshifts_dict
+        """
+
+        # This is the first filtering step after similarity filtering, so:
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return None
+
+        hits_filtered_by_pct_similarity_no_frameshifts_dict = copy.deepcopy(self.hits_filtered_by_pct_similarity_dict)
+
+        for unique_hit_name, data_dict in self.hits_filtered_by_pct_similarity_dict.items():
+
+            frameshift_detected = False
+            for span in data_dict['hit_inter_spans']:
+                if span < 15:  # Exonerate doesn't detect introns this small by default?
+                    if span % 3 != 0:  # i.e. the span introduces a frameshift
+                        self.logger.debug(f'{unique_hit_name} contains a FRAMESHIFT. span: {span}, hsp.hit_inter_spans:'
+                                          f' {data_dict["hit_inter_spans"]}. Hit removed')
+                        frameshift_detected = True
+                        break
+                    else:
+                        self.logger.debug(f'{unique_hit_name} contains an UNDETERMINED SPAN! span: {span}, '
+                                          f'hsp.hit_inter_spans: {data_dict["hit_inter_spans"]}')
+            if frameshift_detected:
+                del hits_filtered_by_pct_similarity_no_frameshifts_dict[unique_hit_name]
+
+        self.logger.debug(f'Number of HSPs after filtering out hits with frameshifts: '
+                          f'{len(hits_filtered_by_pct_similarity_no_frameshifts_dict)}')
+
+        if len(hits_filtered_by_pct_similarity_no_frameshifts_dict) == 0:
+            self.logger.debug(f'Number of HSPs after out hits with frameshifts is zero')
+            return None
+        else:
+            return hits_filtered_by_pct_similarity_no_frameshifts_dict
+
+    def _remove_hits_with_internal_stop_codons(self):
+        """
+        Takes a dictionary of hits that have been filtered via similarity to the query, _optionally_ filtered to remove
+        hits with frameshift, and removes any hit that contains an internal stop codon.
+
+        :return collections.defaultdict: exonerate_hits_filtered_no_frameshifts
+        """
+
+        if self.skip_frameshifts:
+            dict_to_filter = self.hits_frameshifts_removed
+        else:
+            dict_to_filter = self.hits_filtered_by_pct_similarity_dict
+
+        if not dict_to_filter:
+            return None
+
+        dict_to_filter_no_internal_stops = copy.deepcopy(dict_to_filter)
+
+        for unique_hit_name, data_dict in dict_to_filter.items():
+            seq = data_dict['hit_sequence']
+            translated_seq = seq.seq.replace('-', '').translate()
+            num_stop_codons = translated_seq.count('*')
+
+            if num_stop_codons == 0:
+                pass
+            elif num_stop_codons == 1 and re.search('[*]', str(translated_seq)[-1]):
+                self.logger.debug(f'Single terminal stop codon for Exonerate hit {unique_hit_name}, allowing hit.')
+            else:  # remove the hit
+                self.logger.debug(f'{num_stop_codons} internal in-frame stop codon(s) for Exonerate hit '
+                                  f'{unique_hit_name}. Removing hit.')
+                del dict_to_filter_no_internal_stops[unique_hit_name]
+
+        self.logger.debug(f'Number of HSPs after filtering out hits with internal stop codons: '
+                          f'{len(dict_to_filter_no_internal_stops)}')
+
+        if len(dict_to_filter_no_internal_stops) == 0:
+            self.logger.debug(f'Number of HSPs after filtering out hits with internal stops is zero')
+            return None
+        else:
+            return dict_to_filter_no_internal_stops
+
     def _remove_subsumed_hits(self):
         """
         Takes a dictionary of hits that have been filtered via similarity to the query, and removes any hit that has
@@ -1266,21 +1295,30 @@ class Exonerate(object):
         :return collections.defaultdict: exonerate_hits_filtered_no_subsumed
         """
 
-        if not self.hits_filtered_by_pct_similarity_dict:
+        if self.skip_frameshifts and self.skip_internal_stops:
+            dict_to_filter = self.hits_internal_stops_removed
+        elif self.skip_frameshifts:
+            dict_to_filter = self.hits_frameshifts_removed
+        elif self.skip_internal_stops:
+            dict_to_filter = self.hits_internal_stops_removed
+        else:
+            dict_to_filter = self.hits_filtered_by_pct_similarity_dict
+
+        if not dict_to_filter:
             return None
 
-        exonerate_hits_filtered_no_subsumed = copy.deepcopy(self.hits_filtered_by_pct_similarity_dict)
-        hit_comparisons = itertools.permutations(self.hits_filtered_by_pct_similarity_dict, 2)
+        exonerate_hits_filtered_no_subsumed = copy.deepcopy(dict_to_filter)
+        hit_comparisons = itertools.permutations(dict_to_filter, 2)
 
         seqs_removed = []  # Use to avoid trying combinations with previously removed hits
         hits_with_identical_range_and_similarity_dict = defaultdict(set)
         for hit_pair in hit_comparisons:
             to_remove = None
 
-            hit_1_query_range = self.hits_filtered_by_pct_similarity_dict[hit_pair[0]]['query_range']
-            hit_1_similarity = self.hits_filtered_by_pct_similarity_dict[hit_pair[0]]['hit_similarity']
-            hit_2_query_range = self.hits_filtered_by_pct_similarity_dict[hit_pair[1]]['query_range']
-            hit_2_similarity = self.hits_filtered_by_pct_similarity_dict[hit_pair[1]]['hit_similarity']
+            hit_1_query_range = dict_to_filter[hit_pair[0]]['query_range']
+            hit_1_similarity = dict_to_filter[hit_pair[0]]['hit_similarity']
+            hit_2_query_range = dict_to_filter[hit_pair[1]]['query_range']
+            hit_2_similarity = dict_to_filter[hit_pair[1]]['hit_similarity']
 
             if hit_1_query_range[0] < hit_2_query_range[0] and hit_1_query_range[1] > hit_2_query_range[1]:
                 to_remove = hit_pair[1]
@@ -1342,9 +1380,11 @@ class Exonerate(object):
 
         return exonerate_hits_filtered_no_subsumed
 
-    def _trim_overlapping_hits(self):  # for constructing the coding-seq-only stitched contig via
-        # _create_stitched_contig()
+    def _trim_overlapping_hits(self):
+
         """
+        For constructing the coding-seq-only stitched contig via _create_stitched_contig()
+
         => Takes a dictionary of hits that has been filtered via hit similarity to the query, and has had subsumed hits
         removed. If any of the remaining hits have overlaps in query ranges, the 3' end of the left hit is trimmed to
         remove overlap sequence.
@@ -1356,7 +1396,7 @@ class Exonerate(object):
         :return collections.defaultdict: exonerate_hits_subsumed_and_trimmed_dict
         """
 
-        if not self.hits_filtered_by_pct_similarity_dict:
+        if not self.hits_subsumed_hits_removed_dict:
             return None
 
         if len(self.hits_subsumed_hits_removed_dict) == 1:  # i.e. single hit remaining from previous filtering
@@ -1423,7 +1463,7 @@ class Exonerate(object):
         :return Bio.SeqRecord.SeqRecord: no_stitched_contig or stitched_contig, depending on number of hits
         """
 
-        if not self.hits_filtered_by_pct_similarity_dict:
+        if not self.hits_subsumed_hits_removed_overlaps_trimmed_dict:
             return None
 
         sample_name = os.path.split(self.prefix)[-1]
@@ -1513,7 +1553,7 @@ class Exonerate(object):
         :return dict hit_ranges_dict: a dictionary of hit_id: exon coordinates
         """
 
-        if not self.hits_filtered_by_pct_similarity_dict:
+        if not self.hits_subsumed_hits_removed_overlaps_trimmed_dict:
             return None
 
         hit_ranges_dict = defaultdict(list)
@@ -1604,19 +1644,11 @@ class Exonerate(object):
 
     def write_exonerate_stats_file(self):
         """
-        Write a *.csv file with stats from the initial Exonerate run following filtering by similarity,
+        Write a *.tsv file with stats from the initial Exonerate run following filtering by similarity,
         and stats for subsequent filtering/trimming steps.
 
         :return NoneType: no explicit return
         """
-
-        if not self.hits_filtered_by_pct_similarity_dict:
-            self.logger.info(f'There are no Exonerate hits remaining after filtering with a '
-                             f'{self.similarity_threshold} percent similarity threshold!')
-            return
-
-        sample_name = os.path.split(self.prefix)[-1]
-        gene_name = os.path.split(self.prefix)[-2]
 
         headers = ['query_id',
                    'query_length',
@@ -1632,6 +1664,9 @@ class Exonerate(object):
                    'hit_HSPFragment_ranges_original',
                    'hit_HSPFragment_ranges_trimmed',
                    '3-prime_bases_trimmed']
+
+        if not self.hits_filtered_by_pct_similarity_dict:
+            return
 
         def nested_dict_iterator(nested_dict):
             """
@@ -1682,6 +1717,88 @@ class Exonerate(object):
                                               f"\t{value['hit_range_all_original']}"
                                               f"\t{value['hit_range_all']}"
                                               f"\tN/A\n"))
+
+            # Write stats for hits filtered to remove hits with frameshifts (optional):
+            if self.skip_frameshifts:
+                if not self.hits_frameshifts_removed:
+                    exonerate_stats_handle.write(f"Hits filtered to remove hits with frameshifts"
+                                                 f"\tNo Hits remaining"
+                                                 f"\t\t\t\t\t\t\t\t\t\t\t\t\t\n")
+                    return
+                else:
+                    nested_dict_iter = nested_dict_iterator(self.hits_frameshifts_removed)
+                    first_hit_dict_key, first_hit_dict_value = next(nested_dict_iter)  # get first line
+                    exonerate_stats_handle.write((f"Hits filtered to remove hits with frameshifts"
+                                                  f"\t{self.query_id}"
+                                                  f"\t{self.query_length}"
+                                                  f"\t{str(first_hit_dict_key.split(',')[0])}"
+                                                  f"\t{first_hit_dict_value['query_range_original']}"
+                                                  f"\t{first_hit_dict_value['query_range']}"
+                                                  f"\t{first_hit_dict_value['query_range_all']}"
+                                                  f"\t{first_hit_dict_value['hit_similarity_original']}"
+                                                  f"\t{first_hit_dict_value['hit_similarity']}"
+                                                  f"\t{first_hit_dict_value['hit_strand']}"
+                                                  f"\t{first_hit_dict_value['hit_range_original']}"
+                                                  f"\t{first_hit_dict_value['hit_range']}"
+                                                  f"\t{first_hit_dict_value['hit_range_all_original']}"
+                                                  f"\t{first_hit_dict_value['hit_range_all']}"
+                                                  f"\tN/A\n"))  # as no trimming performed yet
+                    for key, value in nested_dict_iter:  # Write remaining lines
+                        exonerate_stats_handle.write((f"\t{self.query_id}"
+                                                      f"\t{self.query_length}"
+                                                      f"\t{str(key.split(',')[0])}"
+                                                      f"\t{value['query_range_original']}"
+                                                      f"\t{value['query_range']}"
+                                                      f"\t{value['query_range_all']}"
+                                                      f"\t{value['hit_similarity_original']}"
+                                                      f"\t{value['hit_similarity']}"
+                                                      f"\t{value['hit_strand']}"
+                                                      f"\t{value['hit_range_original']}"
+                                                      f"\t{value['hit_range']}"
+                                                      f"\t{value['hit_range_all_original']}"
+                                                      f"\t{value['hit_range_all']}"
+                                                      f"\tN/A\n"))
+
+            # Write stats for hits filtered to remove hits with internal stop codons (optional):
+            if self.skip_internal_stops:
+                if not self.hits_internal_stops_removed:
+                    exonerate_stats_handle.write(f"Hits filtered to remove hits with internal stop codons"
+                                                 f"\tNo hits remaining"
+                                                 f"\t\t\t\t\t\t\t\t\t\t\t\t\t\n")
+                    return
+                else:
+                    nested_dict_iter = nested_dict_iterator(self.hits_internal_stops_removed)
+                    first_hit_dict_key, first_hit_dict_value = next(nested_dict_iter)  # get first line
+                    exonerate_stats_handle.write((f"Hits filtered to remove hits with internal stop codons"
+                                                  f"\t{self.query_id}"
+                                                  f"\t{self.query_length}"
+                                                  f"\t{str(first_hit_dict_key.split(',')[0])}"
+                                                  f"\t{first_hit_dict_value['query_range_original']}"
+                                                  f"\t{first_hit_dict_value['query_range']}"
+                                                  f"\t{first_hit_dict_value['query_range_all']}"
+                                                  f"\t{first_hit_dict_value['hit_similarity_original']}"
+                                                  f"\t{first_hit_dict_value['hit_similarity']}"
+                                                  f"\t{first_hit_dict_value['hit_strand']}"
+                                                  f"\t{first_hit_dict_value['hit_range_original']}"
+                                                  f"\t{first_hit_dict_value['hit_range']}"
+                                                  f"\t{first_hit_dict_value['hit_range_all_original']}"
+                                                  f"\t{first_hit_dict_value['hit_range_all']}"
+                                                  f"\tN/A\n"))  # as no trimming performed yet
+                    for key, value in nested_dict_iter:  # Write remaining lines
+                        exonerate_stats_handle.write((f"\t{self.query_id}"
+                                                      f"\t{self.query_length}"
+                                                      f"\t{str(key.split(',')[0])}"
+                                                      f"\t{value['query_range_original']}"
+                                                      f"\t{value['query_range']}"
+                                                      f"\t{value['query_range_all']}"
+                                                      f"\t{value['hit_similarity_original']}"
+                                                      f"\t{value['hit_similarity']}"
+                                                      f"\t{value['hit_strand']}"
+                                                      f"\t{value['hit_range_original']}"
+                                                      f"\t{value['hit_range']}"
+                                                      f"\t{value['hit_range_all_original']}"
+                                                      f"\t{value['hit_range_all']}"
+                                                      f"\tN/A\n"))
 
             # Write stats for hits filtered by similarity and with subsumed hits removed:
             nested_dict_iter = nested_dict_iterator(self.hits_subsumed_hits_removed_dict)
