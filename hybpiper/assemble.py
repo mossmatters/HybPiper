@@ -562,6 +562,7 @@ def exonerate(gene_name,
               exonerate_hit_sliding_window_thresh=55,
               exonerate_skip_frameshifts=False,
               exonerate_skip_internal_stops=False,
+              exonerate_skip_terminal_stops=False,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -593,6 +594,7 @@ def exonerate(gene_name,
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
+    :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -683,6 +685,7 @@ def exonerate(gene_name,
             exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
             exonerate_skip_frameshifts=exonerate_skip_frameshifts,
             exonerate_skip_internal_stops=exonerate_skip_internal_stops,
+            exonerate_skip_terminal_stops=exonerate_skip_terminal_stops,
             verbose_logging=verbose_logging)
 
         if not no_intronerate and exonerate_result and exonerate_result.hits_filtered_by_pct_similarity_dict:
@@ -753,6 +756,7 @@ def exonerate_multiprocessing(genes,
                               exonerate_hit_sliding_window_thresh=55,
                               exonerate_skip_frameshifts=False,
                               exonerate_skip_internal_stops=False,
+                              exonerate_skip_terminal_stops=False,
                               verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
@@ -784,6 +788,7 @@ def exonerate_multiprocessing(genes,
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
+    :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
@@ -793,7 +798,8 @@ def exonerate_multiprocessing(genes,
     logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
     logger.debug(f'exonerate_hit_sliding_window_thresh is: {exonerate_hit_sliding_window_thresh}')
     logger.debug(f'exonerate_skip_frameshifts is: {exonerate_skip_frameshifts}')
-    logger.debug(f'exonerate_skip_internal_stops is: {exonerate_skip_frameshifts}')
+    logger.debug(f'exonerate_skip_internal_stops is: {exonerate_skip_internal_stops}')
+    logger.debug(f'exonerate_skip_terminal_stops is: {exonerate_skip_terminal_stops}')
     logger.debug(f'chimera_check is: {chimera_check}')
     logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
@@ -833,6 +839,7 @@ def exonerate_multiprocessing(genes,
                                    "exonerate_hit_sliding_window_thresh": exonerate_hit_sliding_window_thresh,
                                    "exonerate_skip_frameshifts": exonerate_skip_frameshifts,
                                    "exonerate_skip_internal_stops": exonerate_skip_internal_stops,
+                                   "exonerate_skip_terminal_stops": exonerate_skip_terminal_stops,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1089,6 +1096,7 @@ def main(args):
                                         targetfile_type,
                                         full_sample_directory=full_sample_directory,
                                         using_bwa=args.bwa,
+                                        skip_targetfile_checks=args.skip_targetfile_checks,
                                         logger=logger)
 
     ####################################################################################################################
@@ -1363,6 +1371,7 @@ def main(args):
                               exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
                               exonerate_skip_frameshifts=args.skip_frameshifts,
                               exonerate_skip_internal_stops=args.skip_internal_stops,
+                              exonerate_skip_terminal_stops=args.skip_terminal_stops,
                               verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
