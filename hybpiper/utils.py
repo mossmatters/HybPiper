@@ -47,6 +47,8 @@ def log_or_print(string, logger=None, logger_level='info'):
             logger.debug(string)
         elif logger_level == 'error':
             logger.error(string)
+        elif logger_level == 'warning':
+            logger.warning(string)
     else:
         print(string)
 
@@ -704,6 +706,7 @@ def check_targetfile(targetfile,
                      targetfile_type,
                      full_sample_directory=None,
                      using_bwa=False,
+                     skip_targetfile_checks=False,
                      no_terminal_stop_codons=False,
                      sliding_window_size=0,
                      complexity_minimum_threshold=0.0,
@@ -721,6 +724,7 @@ def check_targetfile(targetfile,
     :param str targetfile: full path to the targetfile
     :param str targetfile_type: string describing target file sequence type i.e 'DNA' or 'protein'
     :param bool using_bwa: True if the --bwa flag is used; a nucleotide target file is expected in this case
+    :param bool skip_targetfile_checks: if True, skip checks (but translate DNA file if necessary)
     :param bool no_terminal_stop_codons: when testing for open reading frames, do not allow a translated frame to have
      a single stop codon at the C-terminus of the translated protein sequence. Default is False. Applies to '
      hybpiper check_targetfile' only
@@ -770,7 +774,37 @@ def check_targetfile(targetfile,
             logger.info(f'{fill}')
             translate_target_file_write = True
 
-    log_or_print(f'{"[INFO]:":10} Checking target file for issues...', logger=logger)
+    if skip_targetfile_checks:
+        log_or_print(f'{"[WARNING]:":10} Skipping target file checks!', logger=logger,
+                     logger_level='warning')
+
+        if translate_target_file_write:  # Can only be True when not running as subcommand
+            translated_target_file = f'{full_sample_directory}/translated_target_file.fasta'
+            fill = fill_forward_slash(f'{"[INFO]:":10} Writing a translated target file to:'
+                                      f' {translated_target_file}',
+                                      width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                      break_on_forward_slash=True)
+            logger.info(f'{fill}')
+
+            translated_seqs_to_write = []
+            with open(targetfile, 'r') as target_file_handle:
+                seqs = list(SeqIO.parse(target_file_handle, 'fasta'))
+
+                for seq in seqs:
+                    sequence, needed_padding = pad_seq(seq)
+                    translated_seq = sequence.seq.translate()
+                    record = SeqRecord.SeqRecord(translated_seq, id=seq.id, description='')
+                    translated_seqs_to_write.append(record)
+
+            # Write the translated target file to the sample directory:
+            with open(f'{translated_target_file}', 'w') as translated_handle:
+                SeqIO.write(translated_seqs_to_write, translated_handle, 'fasta')
+
+            return translated_target_file  # i.e. use translated file path for return value
+        else:
+            return targetfile
+    else:
+        log_or_print(f'{"[INFO]:":10} Checking target file for issues...', logger=logger)
 
     # Set directory and file name for targetfile report:
     parent_dir = os.path.dirname(targetfile)
