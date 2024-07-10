@@ -54,7 +54,7 @@ def make_spades_cmd_file(genelist, cov_cutoff=8, paired=True, kvals=None, unpair
 
     # Create a file of gene-specific spades commands based on options provided and read files present:
     with open(genelist, 'r') as genes_for_spades_handle:
-        genes_for_spades = [gene.strip() for gene in genes_for_spades_handle]
+        genes_for_spades = sorted([gene.strip() for gene in genes_for_spades_handle])
 
     spades_initial_commands_file = 'spades_initial_commands.txt'
     with open(spades_initial_commands_file, 'w') as initial_spades_handle:
