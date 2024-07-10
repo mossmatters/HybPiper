@@ -492,6 +492,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             exonerate_hit_sliding_window_thresh,
                                             exonerate_skip_frameshifts,
                                             exonerate_skip_internal_stops,
+                                            exonerate_skip_terminal_stops,
                                             verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -524,6 +525,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
+    :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
     :param bool verbose_logging: if True, log additional information to file
 
     :return __main__.Exonerate: instance of the class Exonerate for a given gene
@@ -563,6 +565,7 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
                                  exonerate_skip_frameshifts=exonerate_skip_frameshifts,
                                  exonerate_skip_internal_stops=exonerate_skip_internal_stops,
+                                 exonerate_skip_terminal_stops=exonerate_skip_terminal_stops,
                                  verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -617,6 +620,7 @@ class Exonerate(object):
                  exonerate_hit_sliding_window_thresh=55,
                  exonerate_skip_frameshifts=False,
                  exonerate_skip_internal_stops=False,
+                 exonerate_skip_terminal_stops=False,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -645,6 +649,7 @@ class Exonerate(object):
         in amino-acids) when trimming termini of Exonerate hits
         :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
         :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
+        :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
         :param bool verbose_logging: if True, log additional information to file
         """
 
@@ -659,6 +664,7 @@ class Exonerate(object):
         self.sliding_window_thresh = exonerate_hit_sliding_window_thresh
         self.skip_frameshifts = exonerate_skip_frameshifts
         self.skip_internal_stops = exonerate_skip_internal_stops
+        self.skip_terminal_stops = exonerate_skip_terminal_stops
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
@@ -1056,7 +1062,8 @@ class Exonerate(object):
     def _remove_hits_with_internal_stop_codons(self):
         """
         Takes a dictionary of hits that have been filtered via similarity to the query, _optionally_ filtered to remove
-        hits with frameshift, and removes any hit that contains an internal stop codon.
+        hits with frameshift, and removes any hit that contains an internal in-frame stop codon (and, optionally, hits
+        with a single terminal stop codon).
 
         :return collections.defaultdict: exonerate_hits_filtered_no_frameshifts
         """
@@ -1079,17 +1086,22 @@ class Exonerate(object):
             if num_stop_codons == 0:
                 pass
             elif num_stop_codons == 1 and re.search('[*]', str(translated_seq)[-1]):
-                self.logger.debug(f'Single terminal stop codon for Exonerate hit {unique_hit_name}, allowing hit.')
+                if self.skip_terminal_stops:
+                    self.logger.debug(f'Single terminal stop codon for Exonerate hit {unique_hit_name}. Option '
+                                      f'"--exonerate_skip_hits_with_terminal_stop_codons" provided - Removing hit.')
+                    del dict_to_filter_no_internal_stops[unique_hit_name]
+                else:
+                    self.logger.debug(f'Single terminal stop codon for Exonerate hit {unique_hit_name}, allowing hit.')
             else:  # remove the hit
                 self.logger.debug(f'{num_stop_codons} internal in-frame stop codon(s) for Exonerate hit '
                                   f'{unique_hit_name}. Removing hit.')
                 del dict_to_filter_no_internal_stops[unique_hit_name]
 
-        self.logger.debug(f'Number of HSPs after filtering out hits with internal stop codons: '
+        self.logger.debug(f'Number of HSPs after filtering out hits with in-frame stop codons: '
                           f'{len(dict_to_filter_no_internal_stops)}')
 
         if len(dict_to_filter_no_internal_stops) == 0:
-            self.logger.debug(f'Number of HSPs after filtering out hits with internal stops is zero')
+            self.logger.debug(f'Number of HSPs after filtering out hits with in-frame stops is zero')
             return None
         else:
             return dict_to_filter_no_internal_stops
@@ -1177,14 +1189,16 @@ class Exonerate(object):
             if self.verbose_logging:
                 self.logger.debug(f'Dictionary hits_with_identical_range_and_similarity_dict is:'
                                   f' {hits_with_identical_range_and_similarity_dict}')
+
             for query_range, hits in hits_with_identical_range_and_similarity_dict.items():
-                to_remove = list(hits)[0]  # arbitrarily remove first hit if range and similarity are the same
-                try:
-                    del exonerate_hits_filtered_no_subsumed[to_remove]
-                except KeyError:
-                    if self.verbose_logging:
-                        self.logger.debug(f'hit {to_remove} already removed from dict')
-                    pass
+                to_remove = list(hits)[1:]  # arbitrarily retain first hit if range and similarity are the same
+                for hit_to_remove in to_remove:
+                    try:
+                        del exonerate_hits_filtered_no_subsumed[hit_to_remove]
+                    except KeyError:
+                        if self.verbose_logging:
+                            self.logger.debug(f'hit {hit_to_remove} already removed from dict')
+                        pass
 
         return exonerate_hits_filtered_no_subsumed
 
@@ -1232,7 +1246,9 @@ class Exonerate(object):
                     seq_to_trim = left_seq_seq[-num_amino_acid_overlap * 3:]
 
                     assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
-                    assert len(seq_to_keep) >= 3
+
+                    assert len(seq_to_keep) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
+                                                   f'right_seq_hit_name: {right_seq_hit_name}')
 
                     seq_to_keep_no_gaps = seq_to_keep.seq.replace('-', '')
                     seq_to_trim_no_gaps = seq_to_trim.seq.replace('-', '')
@@ -1719,14 +1735,14 @@ class Exonerate(object):
             # Write stats for hits filtered to remove hits with internal stop codons (optional):
             if self.skip_internal_stops:
                 if not self.hits_internal_stops_removed:
-                    exonerate_stats_handle.write(f"Hits filtered to remove hits with internal stop codons"
+                    exonerate_stats_handle.write(f"Hits filtered to remove hits with in-frame stop codons"
                                                  f"\tNo hits remaining"
                                                  f"\t\t\t\t\t\t\t\t\t\t\t\t\t\n")
                     return
                 else:
                     nested_dict_iter = nested_dict_iterator(self.hits_internal_stops_removed)
                     first_hit_dict_key, first_hit_dict_value = next(nested_dict_iter)  # get first line
-                    exonerate_stats_handle.write((f"Hits filtered to remove hits with internal stop codons"
+                    exonerate_stats_handle.write((f"Hits filtered to remove hits with in-frame stop codons"
                                                   f"\t{self.query_id}"
                                                   f"\t{self.query_length}"
                                                   f"\t{str(first_hit_dict_key.split(',')[0])}"
@@ -1757,7 +1773,7 @@ class Exonerate(object):
                                                       f"\t{value['hit_range_all']}"
                                                       f"\tN/A\n"))
             else:
-                exonerate_stats_handle.write(f"Hits filtered to remove hits with internal stop codons"
+                exonerate_stats_handle.write(f"Hits filtered to remove hits with in-frame stop codons"
                                              f"\tNot performed"
                                              f"\t\t\t\t\t\t\t\t\t\t\t\t\t\n")
 
@@ -2429,10 +2445,20 @@ def standalone():
     parser.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
                         help='Skip Exonerate hits where the SPAdes sequence contains an internal in-frame stop codon. '
                              'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
-                             '-and-recommendations#31-sequences-containing-stop-codons.\nDefault is '
-                             '%(default)s.',
+                             '-and-recommendations#31-sequences-containing-stop-codons.\n A single terminal stop codon '
+                             'is allowed, but see option "--exonerate_skip_hits_with_terminal_stop_codons" below. '
+                             'Default is %(default)s.',
                         action='store_true',
                         dest='skip_internal_stops',
+                        default=False)
+    parser.add_argument('--exonerate_skip_hits_with_terminal_stop_codons',
+                        help='Skip Exonerate hits where the SPAdes sequence contains a single terminal stop codon. '
+                             'Only applies when option "--exonerate_skip_hits_with_internal_stop_codons" is also '
+                             'provided. Only use this flag if your target file exclusively contains protein-coding '
+                             'genes with no stop codons included, and you would like to prevent any in-frame stop '
+                             'codons in the output sequences. Default is %(default)s.',
+                        action='store_true',
+                        dest='skip_terminal_stops',
                         default=False)
     parser.add_argument('--verbose_logging',
                         help='If supplied, enable verbose login. NOTE: this can increase the size of the log '
@@ -2506,6 +2532,7 @@ def main(args):
         exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
         exonerate_skip_frameshifts=args.skip_frameshifts,
         exonerate_skip_internal_stops=args.skip_internal_stops,
+        exonerate_skip_terminal_stops=args.skip_terminal_stops,
         verbose_logging=args.verbose_logging)
 
     if not exonerate_result.stitched_contig_seqrecord:
