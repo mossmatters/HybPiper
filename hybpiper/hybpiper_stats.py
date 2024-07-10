@@ -32,7 +32,7 @@ from hybpiper.version import __version__
 # Create a custom logger
 
 # Log to Terminal (stderr):
-console_handler = logging.StreamHandler(sys.stderr)
+console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 
 # Setup logger:
