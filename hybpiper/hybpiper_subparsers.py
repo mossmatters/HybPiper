@@ -23,9 +23,9 @@ def add_assemble_parser(subparsers):
                                             help='Assemble gene, intron, and supercontig sequences for a sample')
     parser_assemble.add_argument('--readfiles', '-r',
                                  nargs='+',
+                                 required=True,
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
-                                      'will assume it is paired Illumina reads.',
-                                 required=True)
+                                      'will assume it is paired Illumina reads.')
     group_1 = parser_assemble.add_mutually_exclusive_group(required=True)
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
@@ -41,53 +41,59 @@ def add_assemble_parser(subparsers):
     group_2.add_argument('--bwa',
                          dest='bwa',
                          action='store_true',
+                         default=False,
                          help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
-                              'nucleotides!',
-                         default=False)
+                              'nucleotides! Default is: %(default)s')
     group_2.add_argument('--diamond',
                          dest='diamond',
                          action='store_true',
-                         help='Use DIAMOND instead of BLASTx.',
-                         default=False)
+                         default=False,
+                         help='Use DIAMOND instead of BLASTx. Default is: %(default)s')
     parser_assemble.add_argument('--diamond_sensitivity',
                                  choices=['mid-sensitive', 'sensitive', 'more-sensitive', 'very-sensitive',
                                           'ultra-sensitive'],
-                                 help='Use the provided sensitivity for DIAMOND searches.',
-                                 default=False)
+                                 default=False,
+                                 help='Use the provided sensitivity for DIAMOND searches.')
     parser_assemble.add_argument('--start_from',
                                  choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
+                                 dest='start_from',
+                                 default='map_reads',
                                  help='Start the pipeline from the given step. Note that this relies on the presence '
                                       'of output files for previous steps, produced by a previous run attempt. '
-                                      'Default is: %(default)s',
-                                 dest='start_from',
-                                 default='map_reads')
+                                      'Default is: %(default)s')
     parser_assemble.add_argument('--end_with',
                                  choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
-                                 help='End the pipeline at the given step. Default is: %(default)s',
                                  dest='end_with',
-                                 default='exonerate_contigs')
+                                 default='exonerate_contigs',
+                                 help='End the pipeline at the given step. Default is: %(default)s')
     parser_assemble.add_argument('--force_overwrite',
                                  action='store_true',
+                                 default=False,
                                  help='Overwrite any output from a previous run for pipeline steps >= --start_from '
-                                      'and <= --end_with. Default is: %(default)s',
-                                 default=False)
+                                      'and <= --end_with. Default is: %(default)s')
     parser_assemble.add_argument('--cpu',
                                  type=int,
-                                 default=0,
-                                 help='Limit the number of CPUs. Default is to use all cores available.')
+                                 help='Limit the number of CPUs. Default is to use all cores available minus one.')
+    parser_assemble.add_argument('--skip_targetfile_checks',
+                                 action='store_true',
+                                 default=False,
+                                 help='Skip the target file checks. Can be used if you are confident that your target '
+                                      'file has no issues (e.g. if you have previously run "hybpiper '
+                                      'check_targetfile". Default is: %(default)s'),
     parser_assemble.add_argument('--distribute_low_mem',
                                  action='store_true',
                                  default=False,
                                  help='Distributing and writing reads to individual gene directories will be 40-50 '
-                                      'percent slower, but can use less memory/RAM with large input files (see wiki)')
+                                      'percent slower, but can use less memory/RAM with large input files (see wiki).'
+                                      'Default is: %(default)s')
     parser_assemble.add_argument('--evalue',
                                  type=float,
                                  default=1e-4,
-                                 help='e-value threshold for blastx hits, default: %(default)s')
+                                 help='e-value threshold for blastx hits. Default is: %(default)s')
     parser_assemble.add_argument('--max_target_seqs',
                                  type=int,
                                  default=10,
-                                 help='Max target seqs to save in BLASTx search, default: %(default)s')
+                                 help='Max target seqs to save in BLASTx search. Default is: %(default)s')
     parser_assemble.add_argument('--cov_cutoff',
                                  default=8,
                                  help='Coverage cutoff for SPAdes. Default is: %(default)s')
@@ -95,11 +101,11 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  dest='spades_single_cell',
                                  default=False,
-                                 help='Run SPAdes assemblies in MDA (single-cell) mode. Default is False')
+                                 help='Run SPAdes assemblies in MDA (single-cell) mode. Default is: %(default)s')
     parser_assemble.add_argument('--kvals', nargs='+',
+                                 default=None,
                                  help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
-                                      'larger k-values! Default is auto-detection by SPAdes.',
-                                 default=None)
+                                      'larger k-values! Default is auto-detection by SPAdes.')
     parser_assemble.add_argument('--thresh',
                                  type=int,
                                  default=55,
@@ -109,146 +115,163 @@ def add_assemble_parser(subparsers):
                                  default=0.75,
                                  type=float,
                                  help='Minimum length percentage of a contig Exonerate hit vs reference protein '
-                                      'length for a paralog warning and sequence to be generated. Default is %('
-                                      'default)s')
+                                      'length for a paralog warning and sequence to be generated. Default is: '
+                                      '%(default)s')
     parser_assemble.add_argument('--depth_multiplier',
+                                 default=10,
+                                 type=int,
                                  help='Assign a long paralog as the "main" sequence if it has a coverage depth '
                                       '<depth_multiplier> times all other long paralogs. Set to zero to not use '
-                                      'depth. Default is %(default)s',
-                                 default=10,
-                                 type=int)
+                                      'depth. Default is: %(default)s')
     parser_assemble.add_argument('--prefix',
-                                 help='Directory name for pipeline output, default is to use the FASTQ file name.',
-                                 default=None)
+                                 default=None,
+                                 help='Directory name for pipeline output, default is to use the FASTQ file name.')
     parser_assemble.add_argument('--timeout_assemble',
-                                 help='Kill long-running gene assemblies if they take longer than X percent of '
-                                      'average.',
                                  default=0,
-                                 type=int)
+                                 type=int,
+                                 help='Kill long-running gene assemblies if they take longer than X percent of '
+                                      'average.')
     parser_assemble.add_argument('--timeout_exonerate_contigs',
-                                 help='Kill long-running processes if they take longer than X seconds. Default is %('
-                                      'default)s',
                                  default=120,
-                                 type=int)
+                                 type=int,
+                                 help='Kill long-running processes if they take longer than X seconds. Default is: '
+                                      '%(default)s')
     parser_assemble.add_argument('--target',
+                                 default=None,
                                  help='Use the target file sequence with this taxon name in Exonerate searches for '
                                       'each gene. Other targets for that gene will be used only for read sorting. Can '
                                       'be a tab-delimited file (one <gene>\\t<taxon_name> per line) or a single taxon '
-                                      'name.',
-                                 default=None)
+                                      'name.')
     parser_assemble.add_argument('--exclude',
+                                 default=None,
                                  help='Do not use any sequence with the specified taxon name string in Exonerate '
-                                      'searches. Sequenced from this taxon will still be used for read sorting.',
-                                 default=None)
+                                      'searches. Sequenced from this taxon will still be used for read sorting.')
     parser_assemble.add_argument('--unpaired',
+                                 default=False,
                                  help='Include a single FASTQ file with unpaired reads along with two paired read '
-                                      'files',
-                                 default=False)
-    parser_assemble.add_argument('--no_stitched_contig', dest='no_stitched_contig', action='store_true',
+                                      'files')
+    parser_assemble.add_argument('--no_stitched_contig',
+                                 dest='no_stitched_contig',
+                                 action='store_true',
+                                 default=False,
                                  help='Do not create any stitched contigs. The longest single Exonerate hit will be '
-                                      'used.',
-                                 default=False)
+                                      'used. Default is: %(default)s.')
     parser_assemble.add_argument('--no_pad_stitched_contig_gaps_with_n',
-                                 help='When constructing stitched contigs, do not pad any gaps between hits (with '
-                                      'respect to the "best" protein reference) with a number of Ns corresponding to '
-                                      'the reference gap multiplied by 3. Default is %(default)s.',
                                  action="store_false",
                                  dest='stitched_contig_pad_n',
-                                 default=True)
+                                 default=True,
+                                 help='When constructing stitched contigs, do not pad any gaps between hits (with '
+                                      'respect to the "best" protein reference) with a number of Ns corresponding to '
+                                      'the reference gap multiplied by 3. Default is: %(default)s.')
     parser_assemble.add_argument('--chimeric_stitched_contig_check',
-                                 help='Attempt to determine whether a stitched contig is a potential '
-                                      'chimera of contigs from multiple paralogs. Default is %(default)s.',
                                  action='store_true',
                                  dest='chimera_check',
-                                 default=False)
+                                 default=False,
+                                 help='Attempt to determine whether a stitched contig is a potential '
+                                      'chimera of contigs from multiple paralogs. Default is: %(default)s.')
     parser_assemble.add_argument('--bbmap_memory',
                                  default=1000,
                                  type=int,
-                                 help='MB memory (RAM) to use for bbmap.sh with exonerate_hits.py. Default is %('
-                                      'default)s.')
+                                 help='MB memory (RAM) to use for bbmap.sh with exonerate_hits.py. Default: is '
+                                      '%(default)s.')
     parser_assemble.add_argument('--bbmap_subfilter',
                                  default=7,
                                  type=int,
-                                 help='Ban alignments with more than this many substitutions. Default is %(default)s.')
+                                 help='Ban alignments with more than this many substitutions. Default is: %(default)s.')
     parser_assemble.add_argument('--bbmap_threads',
                                  default=1,
                                  type=int,
                                  help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
-                                      'Default is %(default)s.')
+                                      'Default is: %(default)s.')
     parser_assemble.add_argument('--chimeric_stitched_contig_edit_distance',
+                                 default=5,
+                                 type=int,
                                  help='Minimum number of differences between one read of a read pair vs the '
-                                      'stitched contig reference for a read pair to be flagged as discordant.',
-                                 default=5,
-                                 type=int)
+                                      'stitched contig reference for a read pair to be flagged as discordant. Default '
+                                      'is: %(default)s.')
     parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
-                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as '
-                                      'a potential chimera of contigs from multiple paralogs',
                                  default=5,
-                                 type=int)
+                                 type=int,
+                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as '
+                                      'a potential chimera of contigs from multiple paralogs. Default is %(default)s.')
     parser_assemble.add_argument('--exonerate_hit_sliding_window_size',
-                                 help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
-                                      'hits. Default is %(default)s.',
                                  default=3,
-                                 type=int)
+                                 type=int,
+                                 help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
+                                      'hits. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_hit_sliding_window_thresh',
-                                 help='Percentage similarity threshold for the sliding window (in amino-acids) when '
-                                      'trimming termini of Exonerate hits. Default is %(default)s.',
                                  default=55,
-                                 type=int)
+                                 type=int,
+                                 help='Percentage similarity threshold for the sliding window (in amino-acids) when '
+                                      'trimming termini of Exonerate hits. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_skip_hits_with_frameshifts',
-                                 help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. Default '
-                                      'is %(default)s.',
                                  action='store_true',
                                  dest='skip_frameshifts',
-                                 default=False)
+                                 default=False,
+                                 help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. Default '
+                                      'is: %(default)s.')
     parser_assemble.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
+                                 action='store_true',
+                                 dest='skip_internal_stops',
+                                 default=False,
                                  help='Skip Exonerate hits where the SPAdes sequence contains an internal in-frame '
                                       'stop codon. '
                                       'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
                                       '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.\n'
-                                      'Default is %(default)s.',
+                                      'A single terminal stop codon is allowed, but see option '
+                                      '"--exonerate_skip_hits_with_terminal_stop_codons" below. Default is: '
+                                      '%(default)s.')
+    parser_assemble.add_argument('--exonerate_skip_hits_with_terminal_stop_codons',
                                  action='store_true',
-                                 dest='skip_internal_stops',
-                                 default=False)
+                                 dest='skip_terminal_stops',
+                                 default=False,
+                                 help='Skip Exonerate hits where the SPAdes sequence contains a single terminal stop '
+                                      'codon. Only applies when option '
+                                      '"--exonerate_skip_hits_with_internal_stop_codons" is also provided. Only use '
+                                      'this flag if your target file exclusively contains protein-coding genes with no '
+                                      'stop codons included, and you would like to prevent any in-frame stop codons in '
+                                      'the output sequences. Default is: %(default)s.')
     parser_assemble.add_argument('--merged',
-                                 help='For assembly with both merged and unmerged (interleaved) reads.',
                                  action='store_true',
-                                 default=False)
+                                 default=False,
+                                 help='For assembly with both merged and unmerged (interleaved) reads. Default is: '
+                                      '%(default)s.')
     parser_assemble.add_argument('--no_intronerate',
-                                 help='Do not run intronerate to recover fasta files for supercontigs with introns (if '
-                                      'present), and introns-only.',
                                  action='store_true',
                                  dest='no_intronerate',
-                                 default=False)
+                                 default=False,
+                                 help='Do not run intronerate to recover fasta files for supercontigs with introns (if '
+                                      'present), and introns-only. Default is: %(default)s.')
     parser_assemble.add_argument('--keep_intermediate_files',
-                                 help='Keep all intermediate files and logs, which can be useful for '
-                                      'debugging. Default action is to delete them, which greatly reduces the total '
-                                      'file number.',
                                  action='store_true',
                                  dest='keep_intermediate_files',
-                                 default=False)
+                                 default=False,
+                                 help='Keep all intermediate files and logs, which can be useful for '
+                                      'debugging. Default action is to delete them, which greatly reduces the total '
+                                      'file number. Default is: %(default)s.')
     parser_assemble.add_argument('--no_padding_supercontigs',
-                                 help='If Intronerate is run, and a supercontig is created by concatenating multiple '
-                                      'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
-                                      'Ns will be added.',
                                  action='store_true',
                                  dest='no_padding_supercontigs',
-                                 default=False)
+                                 default=False,
+                                 help='If Intronerate is run, and a supercontig is created by concatenating multiple '
+                                      'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
+                                      'Ns will be added. Default is: %(default)s.')
     parser_assemble.add_argument('--verbose_logging',
-                                 help='If supplied, enable verbose logging. NOTE: this can increase the size of the '
-                                      'log files by an order of magnitude.',
                                  action='store_true',
                                  dest='verbose_logging',
-                                 default=False)
+                                 default=False,
+                                 help='If supplied, enable verbose logging. NOTE: this can increase the size of the '
+                                      'log files by an order of magnitude. Default is: %(default)s.')
     parser_assemble.add_argument('--hybpiper_output', '-o',
                                  dest='output_folder',
                                  help='Folder for HybPiper output. Default is %(default)s.',
                                  default=None)
     parser_assemble.add_argument('--run_profiler',
-                                 help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
                                  action='store_true',
                                  dest='run_profiler',
-                                 default=False)
+                                 default=False,
+                                 help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results. '
+                                      'Default is: %(default)s.')
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(blast=True)
@@ -276,22 +299,22 @@ def add_stats_parser(subparsers):
                          default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
                               'must follow the naming convention: >TaxonID-geneName')
-    parser_stats.add_argument("sequence_type",
-                              help="Sequence type (gene or supercontig) to recover lengths for",
-                              choices=["gene", "GENE", "supercontig", "SUPERCONTIG"])
+    parser_stats.add_argument('sequence_type',
+                              choices=['gene', 'GENE', 'supercontig', 'SUPERCONTIG'],
+                              help='Sequence type (gene or supercontig) to recover lengths for.')
     parser_stats.add_argument('namelist',
-                              help="Text file with names of HybPiper output directories, one per line")
-    parser_stats.add_argument("--seq_lengths_filename",
-                              help="File name for the sequence lengths *.tsv file. Default is <seq_lengths.tsv>.",
-                              default='seq_lengths')
-    parser_stats.add_argument("--stats_filename",
-                              help="File name for the stats *.tsv file. Default is= <hybpiper_stats.tsv>",
-                              default='hybpiper_stats')
+                              help="Text file with names of HybPiper output directories, one per line.")
+    parser_stats.add_argument('--seq_lengths_filename',
+                              default='seq_lengths',
+                              help='File name for the sequence lengths *.tsv file. Default is <seq_lengths.tsv>.')
+    parser_stats.add_argument('--stats_filename',
+                              default='hybpiper_stats',
+                              help='File name for the stats *.tsv file. Default is: <hybpiper_stats.tsv>')
     parser_stats.add_argument('--run_profiler',
-                              help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results',
                               action='store_true',
                               dest='run_profiler',
-                              default=False)
+                              default=False,
+                              help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results')
 
     return parser_stats
 
@@ -318,30 +341,30 @@ def add_retrieve_sequences_parser(subparsers):
                          help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
                               'must follow the naming convention: >TaxonID-geneName')
     parser_retrieve_sequences.add_argument('--sample_names',
+                                           default=None,
                                            help='Directory containing Hybpiper output OR a file containing HybPiper '
-                                                'output names, one per line',
-                                           default=None)
+                                                'output names, one per line.')
     parser_retrieve_sequences.add_argument('--single_sample_name',
-                                           help='A single sample name to recover sequences for',
-                                           default=None)
+                                           default=None,
+                                           help='A single sample name to recover sequences for.')
     parser_retrieve_sequences.add_argument('sequence_type',
-                                           help='Type of sequence to extract',
-                                           choices=["dna", "aa", "intron", "supercontig"])
-    parser_retrieve_sequences.add_argument("--hybpiper_dir",
+                                           choices=['dna', 'aa', 'intron', 'supercontig'],
+                                           help='Type of sequence to extract.')
+    parser_retrieve_sequences.add_argument('--hybpiper_dir',
                                            default=None,
-                                           help='Specify directory containing HybPiper output')
-    parser_retrieve_sequences.add_argument("--fasta_dir",
+                                           help='Specify directory containing HybPiper output.')
+    parser_retrieve_sequences.add_argument('--fasta_dir',
                                            default=None,
-                                           help='Specify directory for output FASTA files')
+                                           help='Specify directory for output FASTA files.')
     parser_retrieve_sequences.add_argument('--skip_chimeric_genes',
                                            action='store_true',
                                            dest='skip_chimeric',
-                                           help='Do not recover sequences for putative chimeric genes',
-                                           default=False)
+                                           default=False,
+                                           help='Do not recover sequences for putative chimeric genes.')
     parser_retrieve_sequences.add_argument('--stats_file',
+                                           default=None,
                                            help='Stats file produced by "hybpiper stats", required for selective '
-                                                'filtering of retrieved sequences',
-                                           default=None)
+                                                'filtering of retrieved sequences.')
     parser_retrieve_sequences.add_argument('--filter_by',
                                            action='append',
                                            nargs=3,
@@ -352,11 +375,11 @@ def add_retrieve_sequences_parser(subparsers):
                                                 'analysis). This parameter can be supplied more than once to filter '
                                                 'by multiple criteria.')
     parser_retrieve_sequences.add_argument('--run_profiler',
-                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
-                                                'of results',
                                            action='store_true',
                                            dest='run_profiler',
-                                           default=False)
+                                           default=False,
+                                           help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                                'of results.')
 
     return parser_retrieve_sequences
 
@@ -388,80 +411,84 @@ def add_paralog_retriever_parser(subparsers):
                               'unique gene names for paralog recovery. The fasta headers must follow the naming '
                               'convention: >TaxonID-geneName')
     parser_paralog_retriever.add_argument('--fasta_dir_all',
-                                          help='Specify directory for output FASTA files (ALL). Default is '
-                                               '"paralogs_all".',
-                                          default='paralogs_all')
+                                          default='paralogs_all',
+                                          help='Specify directory for output FASTA files (ALL). Default is: '
+                                               '%(default)s.')
     parser_paralog_retriever.add_argument('--fasta_dir_no_chimeras',
+                                          default='paralogs_no_chimeras',
                                           help='Specify directory for output FASTA files (no putative chimeric '
-                                               'sequences). Default is "paralogs_no_chimeras".',
-                                          default='paralogs_no_chimeras')
+                                               'sequences). Default is: %(default)s.')
     parser_paralog_retriever.add_argument('--paralog_report_filename',
-                                          help='Specify the filename for the paralog *.tsv report table',
-                                          default='paralog_report')
+                                          default='paralog_report',
+                                          help='Specify the filename for the paralog *.tsv report table. Default is: '
+                                               '%(default)s.')
     parser_paralog_retriever.add_argument('--paralogs_above_threshold_report_filename',
+                                          default='paralogs_above_threshold_report',
                                           help='Specify the filename for the *.txt list of genes with paralogs in '
-                                               '<paralogs_list_threshold_percentage> number of samples',
-                                          default='paralogs_above_threshold_report')
+                                               '<paralogs_list_threshold_percentage> number of samples. Default is: '
+                                               '%(default)s.')
     parser_paralog_retriever.add_argument('--paralogs_list_threshold_percentage',
+                                          type=float,
+                                          default=0.0,
                                           help='Percent of total number of samples and genes that must have paralog '
                                                'warnings to be reported in the <genes_with_paralogs.txt> report file. '
-                                               'The default is 0.0, meaning that all genes and samples with at least '
-                                               'one paralog warning will be reported',
-                                          type=float,
-                                          default=0.0)
+                                               'The default is %(default)s, meaning that all genes and samples with '
+                                               'at least one paralog warning will be reported')
     parser_paralog_retriever.add_argument('--no_heatmap',
                                           action='store_true',
                                           default=False,
-                                          help='If supplied, do not create a heatmap figure')
+                                          help='If supplied, do not create a heatmap figure. Default is: %(default)s.')
     parser_paralog_retriever.add_argument('--heatmap_filename',
+                                          default='paralog_heatmap',
                                           help='Filename for the output heatmap, saved by default as a *.png file. '
-                                               'Defaults to "paralog_heatmap"',
-                                          default='paralog_heatmap')
+                                               'Default is: %(default)s.')
     parser_paralog_retriever.add_argument('--figure_length',
                                           type=int,
+                                          default=None,
                                           help='Length dimension (in inches) for the output heatmap file. Default is '
-                                               'automatically calculated based on the number of genes',
-                                          default=None)
+                                               'automatically calculated based on the number of genes.')
     parser_paralog_retriever.add_argument('--figure_height',
                                           type=int,
+                                          default=None,
                                           help='Height dimension (in inches) for the output heatmap file. Default is '
-                                               'automatically calculated based on the number of samples',
-                                          default=None)
+                                               'automatically calculated based on the number of samples.')
     parser_paralog_retriever.add_argument('--sample_text_size',
                                           type=int,
+                                          default=None,
                                           help='Size (in points) for the sample text labels in the output heatmap '
                                                'file. Default is automatically calculated based on the number of '
-                                               'samples',
-                                          default=None)
+                                               'samples.')
     parser_paralog_retriever.add_argument('--gene_text_size',
                                           type=int,
+                                          default=None,
                                           help='Size (in points) for the gene text labels in the output heatmap file. '
-                                               'Default is automatically calculated based on the number of genes',
-                                          default=None)
+                                               'Default is automatically calculated based on the number of genes.')
     parser_paralog_retriever.add_argument('--heatmap_filetype',
                                           choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
-                                          help='File type to save the output heatmap image as. Default is png',
-                                          default='png')
+                                          default='png',
+                                          help='File type to save the output heatmap image as. Default is: '
+                                               '%(default)s.')
     parser_paralog_retriever.add_argument('--heatmap_dpi',
                                           type=int,
-                                          help='Dots per inch (DPI) for the output heatmap image. Default is 300',
-                                          default=100)
+                                          default=100,
+                                          help='Dots per inch (DPI) for the output heatmap image. Default is: '
+                                               '%(default)s.')
     parser_paralog_retriever.add_argument('--no_xlabels',
                                           action='store_true',
                                           default=False,
                                           help='If supplied, do not render labels for x-axis (loci) in the saved '
-                                               'heatmap figure')
+                                               'heatmap figure. Default is: %(default)s.')
     parser_paralog_retriever.add_argument('--no_ylabels',
                                           action='store_true',
                                           default=False,
                                           help='If supplied, do not render labels for y-axis (samples) in the '
-                                               'saved heatmap figure')
+                                               'saved heatmap figure. Default is: %(default)s.')
     parser_paralog_retriever.add_argument('--run_profiler',
-                                          help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
-                                               'of results',
                                           action='store_true',
                                           dest='run_profiler',
-                                          default=False)
+                                          default=False,
+                                          help='If supplied, run the subcommand using cProfile. Saves a *.csv file '
+                                               'of results. Default is: %(default)s.')
 
     return parser_paralog_retriever
 
