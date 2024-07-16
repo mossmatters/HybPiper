@@ -1150,7 +1150,15 @@ def main(args):
             logger.info(fill)
             sys.exit()
 
-    # Log output folder:
+    # Write '<prefix>_chimera_check_performed.txt' file containing True or False; used by `hybpiper retrieve_sequences`
+    # and `hybpiper paralog_retriever`:
+    with open(f'{full_sample_directory}/{args.prefix}_chimera_check_performed.txt', 'w') as chimera_check_handle:
+        if args.chimera_check:
+            chimera_check_handle.write('True')
+        else:
+            chimera_check_handle.write('False')
+
+    # Log the full sample directory:
     logger.info(f'{"[INFO]:":10} Output will be written to the directory: {full_sample_directory}')
 
     # Move in to the sample directory:
@@ -1405,8 +1413,9 @@ def main(args):
 
     # Putative chimeras:
     collate_putative_chimeras_reports = [x for x in glob.glob(f'*/{sample_dir}/putative_chimeric_stitched_contig.csv')]
-    with open(f'{sample_dir}_genes_derived_from_putative_chimeric_stitched_contig.csv',
-              'w') as genes_with_chimeras_handle:
+    with (open(f'{sample_dir}_genes_derived_from_putative_chimeric_stitched_contig.csv', 'w') as
+          genes_with_chimeras_handle):
+
         for report_file in collate_putative_chimeras_reports:
             with open(report_file, 'r') as report_handle:
                 lines = report_handle.readlines()
