@@ -1042,6 +1042,11 @@ def check_targetfile(targetfile,
             else:
                 report_handle.write(f'None\n\n')
 
+        else:
+            report_handle.write('[Sequences with low complexity regions]\n\n')
+            report_handle.write('Check not performed. Please run `hybpiper check_targetfile` if you would like to '
+                                'perform this check (recommended).\n')
+
     if not error_with_targetfile and not potential_issue_with_targetfile:
         log_or_print(f'{"[INFO]:":10} No problems found in target file!', logger=logger)
 
@@ -1113,13 +1118,13 @@ def check_for_previous_run_output(full_sample_directory,
 
     previous_files_dict_filtered = copy.deepcopy(previous_files_dict)
 
-    if start_from_int == start_from_int:  # i.e. only running a single step
+    if start_from_int == end_with_int:  # i.e. only running a single step
         for key in previous_files_dict.keys():
             if assemble_stages_dict[key] != start_from_int:
                 del previous_files_dict_filtered[key]
     else:
         for key in previous_files_dict.keys():
-            if assemble_stages_dict[key] not in range(start_from_int, end_with_int):
+            if assemble_stages_dict[key] not in range(start_from_int, end_with_int +1):
                 del previous_files_dict_filtered[key]
 
     return previous_files_dict_filtered
