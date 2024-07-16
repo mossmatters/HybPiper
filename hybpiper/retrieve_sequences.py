@@ -37,22 +37,23 @@ logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 
-def get_chimeric_genes_for_sample(sample_directory_name):
+def get_chimeric_genes_for_sample(sample_directory_name, sample_name):
     """
     Returns a list of putative chimeric gene sequences for a given sample
 
     :param str sample_directory_name: directory name for the sample
+    :param str sample_name: name of the sample
     :return list chimeric_genes_to_skip: a list of putative chimeric gene sequences for the sample
     """
 
     chimeric_genes_to_skip = []
     try:
-        with open(f'{sample_directory_name}/'
-                  f'{sample_directory_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
+        with open(f'{sample_directory_name}/{sample_name}/'
+                  f'{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
             lines = chimeric.readlines()
             for line in lines:
                 chimeric_genes_to_skip.append(line.split(',')[1])
-    except FileNotFoundError:  # This file will only be written in assemble.py even if sequences were generated
+    except FileNotFoundError:
         fill = textwrap.fill(f'{"[WARNING]:":10} No chimeric stitched contig summary file found for sample  '
                              f'{sample_directory_name}. This usually occurs when no gene sequences were produced for '
                              f'this sample.', width=90, subsequent_indent=" " * 11)
@@ -66,7 +67,7 @@ def get_samples_to_recover(filter_by, stats_df, target_genes):
     """
     Recovers a list of sample names that pass the filtering options requested. Returns the list
 
-    :param str stats_df: pandas dataframe from the stats file
+    :param Dataframe stats_df: pandas dataframe from the stats file
     :param list filter_by: a list of stats columns, 'greater'/'smaller' operators, and thresholds for filtering
     :param list target_genes: a list of unique target gene names in the targetfile
     :return list sample_to_retain: a list of sample names to retain after filtering
@@ -145,8 +146,8 @@ def recover_sequences_from_all_samples(seq_dir,
         logger.info(f'{"[INFO]:":10} The following parent directory was provided using the parameter --sample_names:'
                     f' "{sample_names}". HybPiper will search for sample directories within this parent directory')
         sampledir = sample_names
-        sample_names = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir, x)) and not
-                        x.startswith('.')]
+        sample_names_list = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir, x)) and not
+                             x.startswith('.')]
     else:
         logger.info(f'{"[INFO]:":10} The following file of sample names was provided using the parameter '
                     f'--sample_names: "{sample_names}".')
@@ -159,8 +160,8 @@ def recover_sequences_from_all_samples(seq_dir,
 
         for sample in sample_names_list:
             if re.search('/', sample):
-                sys.exit(f'{"[ERROR]:":10} A sample name must not contain '
-                         f'forward slashes. The file {sample_names} contains: {sample}')
+                sys.exit(f'{"[ERROR]:":10} A sample name must not contain forward slashes. The file {sample_names} '
+                         f'contains: {sample}')
 
         # Search within a user-supplied directory for the given sample directories, or the current directory if not:
         if hybpiper_dir:
@@ -180,6 +181,8 @@ def recover_sequences_from_all_samples(seq_dir,
         logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(samples_to_recover)} samples')
     else:
         logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(sample_names_list)} samples')
+
+    samples_with_no_chimera_check_performed = set()
     for gene in target_genes:
         numSeqs = 0
 
@@ -197,12 +200,27 @@ def recover_sequences_from_all_samples(seq_dir,
                     # print(f'Sample {sample} did not pass filtering criteria, skipping recovery...')
                     continue
 
-                # Recover a list of putative chimeric genes for the sample, and skip gene if in list:
-                if skip_chimeric:
-                    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sample)
-                    # print(f'chimeric_genes_to_skip is: {chimeric_genes_to_skip}')
+                # Check if a chimera check was performed for this sample during 'hybpiper assemble':
+                with open(f'{sampledir}/{sample}/{sample}_chimera_check_performed.txt', 'r') as chimera_check_handle:
+                    chimera_check_bool = chimera_check_handle.read()
+
+                    if chimera_check_bool == 'True':
+                        chimera_check_performed_for_sample = True
+                    elif chimera_check_bool == 'False':
+                        chimera_check_performed_for_sample = False
+                    else:
+                        raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample}')
+
+                # Recover a list of putative chimeric genes for the sample (if a chimera check was performed), and
+                # skip gene if in list:
+                if not chimera_check_performed_for_sample:
+                    samples_with_no_chimera_check_performed.add(sample)
+                elif skip_chimeric:
+                    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir, sample)
+
                     if gene in chimeric_genes_to_skip:
-                        logger.info(f'Skipping putative chimeric stitched contig sequence for {gene}, sample {sample}')
+                        logger.info(f'{"[INFO]:":10} Skipping putative chimeric stitched contig sequence for {gene}, '
+                                    f'sample {sample}')
                         continue
 
                 # Get path to the gene/intron/supercontig sequence:
@@ -222,6 +240,17 @@ def recover_sequences_from_all_samples(seq_dir,
                         numSeqs += 1
 
         logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}')
+
+    if skip_chimeric and len(samples_with_no_chimera_check_performed) != 0:
+        fill = textwrap.fill(f'{"[WARNING]:":10} Option "--skip_chimeric_genes" was provided but a chimera check was '
+                             f'not performed for the following samples during "hybpiper assemble":',
+                             width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
+        logger.warning(f'\n{fill}\n')
+
+        for sample in sorted(list(samples_with_no_chimera_check_performed)):
+            logger.warning(f'{" " * 10} {sample}')
+
+        logger.warning(f'\nNo putative chimeric sequences were skipped for these samples!')
 
 
 def recover_sequences_from_one_sample(seq_dir,
@@ -275,12 +304,34 @@ def recover_sequences_from_one_sample(seq_dir,
         outfilename = f'{single_sample_name}_{filename}.fasta'
     else:
         outfilename = f'{single_sample_name}_{seq_dir}.fasta'
+
+    # Check if a chimera check was performed for this sample during 'hybpiper assemble':
+    with (open(f'{sampledir}/{single_sample_name}/{single_sample_name}_chimera_check_performed.txt', 'r') as
+          chimera_check_handle):
+        chimera_check_bool = chimera_check_handle.read()
+
+        if chimera_check_bool == 'True':
+            chimera_check_performed_for_sample = True
+        elif chimera_check_bool == 'False':
+            chimera_check_performed_for_sample = False
+        else:
+            raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {single_sample_name}')
+
+    if skip_chimeric and not chimera_check_performed_for_sample:
+        fill = textwrap.fill(f'{"[WARNING]:":10} Option "--skip_chimeric_genes" was provided but a chimera check '
+                             f'was not performed for sample {single_sample_name} during "hybpiper assemble". No '
+                             f'putative chimeric sequences will be skipped for this sample!',
+                             width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
+        logger.warning(f'\n{fill}\n')
+
     for gene in target_genes:
         numSeqs = 0
-        # Recover a list of putative chimeric genes for the sample, and skip gene if in list:
+
+        # Recover a list of putative chimeric genes for the sample (if a chimera check was performed), and skip gene
+        # if in list:
         if skip_chimeric:
-            chimeric_genes_to_skip = get_chimeric_genes_for_sample(single_sample_name)
-            # print(f'chimeric_genes_to_skip is: {chimeric_genes_to_skip}')
+            chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir, single_sample_name)
+
             if gene in chimeric_genes_to_skip:
                 logger.info(f'{"[INFO]:":10} Skipping putative chimeric stitched contig sequence for {gene}, sample'
                             f' {single_sample_name}')
@@ -339,7 +390,9 @@ def standalone():
     parser.add_argument('--skip_chimeric_genes',
                         action='store_true',
                         dest='skip_chimeric',
-                        help='Do not recover sequences for putative chimeric genes',
+                        help='Do not recover sequences for putative chimeric genes. This only has an effect for a '
+                             'given sample if the option "--chimeric_stitched_contig_check" was provided to command '
+                             '"hybpiper assemble".',
                         default=False)
     parser.add_argument('--stats_file', default=None,
                         help='Stats file produced by "hybpiper stats", required for selective filtering of retrieved '
