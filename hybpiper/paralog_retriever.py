@@ -115,9 +115,13 @@ def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_direct
 
     # Now skip any putative chimeric stitched contig sequences:
     if gene in chimeric_genes_to_skip:
-        pass
-        # logger.info(f'Skipping gene {gene} for sample {sample_directory_name}'
-        #             f' - putative chimeric stitched contig sequence!')
+        if os.path.isfile(paralog_fasta_file_path):
+            if os.path.getsize(paralog_fasta_file_path) == 0:
+                logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
+            else:
+                seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
+        else:  # i.e. there is no paralog file, which contains single-contig hits only (so no chimeras)
+            pass  # don't get the *.FNA sequence for this sample/gene combination
     else:
         if os.path.isfile(paralog_fasta_file_path):
             if os.path.getsize(paralog_fasta_file_path) == 0:
