@@ -250,7 +250,7 @@ def recover_sequences_from_all_samples(seq_dir,
         for sample in sorted(list(samples_with_no_chimera_check_performed)):
             logger.warning(f'{" " * 10} {sample}')
 
-        logger.warning(f'\nNo putative chimeric sequences were skipped for these samples!')
+        logger.warning(f'\n{" " * 10} No putative chimeric sequences were skipped for these samples!')
 
 
 def recover_sequences_from_one_sample(seq_dir,
