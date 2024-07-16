@@ -197,10 +197,9 @@ def recover_sequences_from_all_samples(seq_dir,
 
                 # Filter samples:
                 if samples_to_recover and sample not in samples_to_recover:
-                    # print(f'Sample {sample} did not pass filtering criteria, skipping recovery...')
                     continue
 
-                # Check if a chimera check was performed for this sample during 'hybpiper assemble':
+                # Determine whether a chimera check was performed for this sample during 'hybpiper assemble':
                 with open(f'{sampledir}/{sample}/{sample}_chimera_check_performed.txt', 'r') as chimera_check_handle:
                     chimera_check_bool = chimera_check_handle.read()
 
@@ -212,7 +211,7 @@ def recover_sequences_from_all_samples(seq_dir,
                         raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample}')
 
                 # Recover a list of putative chimeric genes for the sample (if a chimera check was performed), and
-                # skip gene if in list:
+                # skip gene if in the list:
                 if not chimera_check_performed_for_sample:
                     samples_with_no_chimera_check_performed.add(sample)
                 elif skip_chimeric:
@@ -241,9 +240,10 @@ def recover_sequences_from_all_samples(seq_dir,
 
         logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}')
 
+    # Warn user if --skip_chimeric_genes was provided but some samples didn't have a chimera check performed:
     if skip_chimeric and len(samples_with_no_chimera_check_performed) != 0:
-        fill = textwrap.fill(f'{"[WARNING]:":10} Option "--skip_chimeric_genes" was provided but a chimera check was '
-                             f'not performed for the following samples during "hybpiper assemble":',
+        fill = textwrap.fill(f'{"[WARNING]:":10} Option "--skip_chimeric_genes" was provided but a chimera check '
+                             f'was not performed during "hybpiper assemble" for the following samples:',
                              width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
         logger.warning(f'\n{fill}\n')
 
@@ -319,7 +319,7 @@ def recover_sequences_from_one_sample(seq_dir,
 
     if skip_chimeric and not chimera_check_performed_for_sample:
         fill = textwrap.fill(f'{"[WARNING]:":10} Option "--skip_chimeric_genes" was provided but a chimera check '
-                             f'was not performed for sample {single_sample_name} during "hybpiper assemble". No '
+                             f'was not performed during "hybpiper assemble" for sample {single_sample_name}. No '
                              f'putative chimeric sequences will be skipped for this sample!',
                              width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
         logger.warning(f'\n{fill}\n')
