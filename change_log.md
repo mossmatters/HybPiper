@@ -1,24 +1,24 @@
 # Changelog
 
-**2.1.9** *3rd July, 2024*
+**2.2.0** *17th July, 2024*
 
 - Add option `--end_with` to command `hybpiper assemble`. Allows the user to end the assembly pipeline at a chosen step (map_reads, distribute_reads, assemble_reads, exonerate_contigs).
-- Add option `--exonerate_allow_hits_with_frameshifts` to command `hybpiper assemble`. If provided, allow Exonerate hits where the SPAdes contig contains frameshifts to be considered for assembly of an `*.FNA` sequence. Default behaviour in HybPiper v2.1.9 is to skip these hits; previous versions allowed them.
-- Add option `--chimeric_stitched_contig_check` to command `hybpiper assemble`. If provided, HybPiper will attempt to determine whether a stitched contig is a potential chimera of contigs from multiple paralogs. Default behaviour in HybPiper v2.1.9 is to skip this check; previous versions performed the check automatically.
-- Add option `--no_pad_stitched_contig_gaps_with_n`. If provided, when constructing stitched contigs, do not pad any gaps between hits (with respect to the "best" protein reference) with a number of Ns corresponding to the reference gap multiplied by 3. Default behaviour in HybPiper v2.1.9 is to pad gaps with Ns; previous versions did this automatically.
+- Add option `--exonerate_skip_hits_with_frameshifts` to command `hybpiper assemble`. If provided, skip Exonerate hits where the SPAdes contig contains frameshifts when considering hits for assembly of an `*.FNA` sequence. Default behaviour in HybPiper v2.1.9 is to include these hits; previous versions allowed them automatically.
+- Add option `--exonerate_skip_hits_with_internal_stop_codons` to command `hybpiper assemble`. If provided, skip Exonerate hits where the SPAdes contig contains internal in-frame stop codon(s) when considering hits for assembly of an `*.FNA` sequence. A single terminal stop codon is allowed. Default behaviour in HybPiper v2.1.9 is to include these hits; previous versions allowed them automatically.  
+- Add option `--exonerate_skip_hits_with_terminal_stop_codons` to command `hybpiper assemble`. If provided, skip Exonerate hits where the SPAdes sequence contains a single terminal stop codon. Only applies when option "--exonerate_skip_hits_with_internal_stop_codons" is also provided. Only use this flag if your target file exclusively contains protein-coding genes with no stop codons included, and you would like to prevent any in-frame stop codons in the output sequences. Default behaviour in HybPiper v2.1.9 is to include these hits; previous versions allowed them automatically.
+- Add option `--chimeric_stitched_contig_check` to command `hybpiper assemble`. If provided, HybPiper will attempt to determine whether a stitched contig is a potential chimera of contigs from multiple paralogs. Default behaviour in HybPiper v2.1.9 is to skip this check; previous versions performed the check automatically. Skipping this check speeds up the final 'exonerate_contigs' step of the pipeline, significantly.
+- Add option `--no_pad_stitched_contig_gaps_with_n` to command `hybpiper assemble`. If provided, when constructing stitched contigs, do not pad any gaps between hits (with respect to the "best" protein reference) with a number of Ns corresponding to the reference gap multiplied by 3. Default behaviour in HybPiper v2.1.9 is to pad gaps with Ns; previous versions did this automatically.
+- Add option `--skip_targetfile_checks` to command `hybpiper assemble`. Skip the target file checks. Can be used if you are confident that your target file has no issues (e.g. if you have previously run `hybpiper check_targetfile`).
 - Fixed a bug in `exonerate_hits.py` that could (rarely) result in a duplicated region in the output `*.FNA` sequence.
+- Fixed a bug in `exonerate_hits.py` that occurred when more than two Exonerate hits had identical query ranges and similarity scores; this could result in a sequence not being returned for the given gene.
 - Added `tests` folder containing initial unit tests. Some tests require python package [`pyfakefs`](https://github.com/pytest-dev/pyfakefs) to run. 
-- Refactor of hybpiper package. New module `hybpiper_main.py` with entry point (moved from `assemble.py`), `some assemble.py` function moved to `utils.py`. 
+- Refactor of the hybpiper package. New module `hybpiper_main.py` with entry point (moved from `assemble.py`), and some `assemble.py` functions moved to `utils.py`. Target file checking functionality has been consolidated.
 - HybPiper now logs to `stdout` rather than `stderr`.
-- Commands `hybpiper check_targetfile` and `hybpiper assemble` now write a report file when checking the target file (`check_targetfile_report_<target file name>.txt`), rather than logging details to the main sample log. Command `hybpiper check_targefile` writes the report to the current working directory, whereas command `hybpiper assemble` writes it to the sample directory.
+- Commands `hybpiper check_targetfile` and `hybpiper assemble` now write a report file when checking the target file (`check_targetfile_report-<target file name>.txt`), rather than logging details to the main sample log. Command `hybpiper check_targefile` writes the report to the current working directory, whereas command `hybpiper assemble` writes it to the sample directory.
 - If the option `--cpu` is not specified for `hybpiper assemble`, HybPiper will now use all available CPUs minus one, rather than all available CPUs.
-- Command `hybpiper assemble` now checks for output from previous runs for the pipelines steps selected via `--start_from` and `end_with` (default is to select all steps). If previous output is found, HybPiper will exit with an error unless the option `--force_overwrite` is provided.
-
-############################################################
-- FIX THE FRAMESHIFT DETECTION - check for more than two # in any exonerate alignment
-- Check it works when target file in another directory
-- Add intronerate test to unit tests
-############################################################
+- Command `hybpiper assemble` now checks for output from previous runs for the pipeline steps selected via `--start_from` and `--end_with` (default is to select all steps). If previous output is found, HybPiper will exit with an error unless the option `--force_overwrite` is provided.
+- Corrected the reading frame of sequence `Artocarpus-gene660` in the test dataset target file.
+- Command `hybpiper assemble` now writes the file `<prefix>_chimera_check_performed.txt` to the sample directory. This is a text file containing 'True' or 'False' depending on whether the option `--skip_chimeric_genes` was provided to command `hybpiper assemble`. Used by `hybpiper retrieve_sequences` and `hybpiper paralog_retriever`.
 
 **2.1.8** *25th June, 2024*
 
@@ -40,7 +40,7 @@
 - Fixed a bug in `exonerate_hits.py` that meant that hits were not always trimmed to start with the first amino-acid with full alignment identity. This bug could potentially have had an effect on output sequences only if the values for `--exonerate_hit_sliding_window_size` and/or `--exonerate_hit_sliding_window_thresh` were changed from default values.
 - Use `importlib.metadata` rather than `pkg_resources` for module version checks, due to deprecation of the latter. 
 
-**2.1.6* * *19th July, 2023*
+**2.1.6** *19th July, 2023*
 
 - **Intronerate is now run by default**. The flag `--run_intronerate` for subcommand `hybpiper assemble` has been changed to `--no_intronerate`. 
 - If Intronerate fails, failed genes and errors will be printed and logged; the exonerate_contigs step of the pipeline will continue.
