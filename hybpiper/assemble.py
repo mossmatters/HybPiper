@@ -163,7 +163,10 @@ def blastx(readfiles, targetfile, evalue, basename, cpu=None, max_target_seqs=10
         else:
             logger.info(f'{"[INFO]:":10} Making protein blastdb in current directory.')
             if os.path.split(targetfile)[0]:
-                shutil.copy(targetfile, '.')
+                try:
+                    shutil.copy(targetfile, '.')
+                except shutil.SameFileError:
+                    logger.debug(f'File {targetfile} already in sample directory.')
             db_file = os.path.split(targetfile)[1]
             if diamond:
                 logger.info(f'{"[INFO]:":10} Using DIAMOND instead of BLASTx!')
