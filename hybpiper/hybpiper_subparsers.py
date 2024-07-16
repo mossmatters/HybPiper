@@ -360,7 +360,10 @@ def add_retrieve_sequences_parser(subparsers):
                                            action='store_true',
                                            dest='skip_chimeric',
                                            default=False,
-                                           help='Do not recover sequences for putative chimeric genes.')
+                                           help='Do not recover sequences for putative chimeric genes. This only has '
+                                                'an effect for a given sample if the option '
+                                                '"--chimeric_stitched_contig_check" was provided to command '
+                                                '"hybpiper assemble" .')
     parser_retrieve_sequences.add_argument('--stats_file',
                                            default=None,
                                            help='Stats file produced by "hybpiper stats", required for selective '
