@@ -5,7 +5,7 @@ This script will retrieve paralog nucleotide (CDS) sequences for a specified gen
 namelist.txt. It writes the unaligned sequences to folders, which can be user specified; defaults are 'paralogs_all'
 and 'paralogs_no_chimeras'.
 
-If a sample does not have paralogs for that gene, the sequence in the FNA directory is retrieved instead.
+If a sample does not have paralogs detected for that gene, the sequence in the FNA directory is retrieved instead.
 """
 
 import os
@@ -16,6 +16,7 @@ import logging
 from collections import defaultdict
 import progressbar
 import textwrap
+import re
 
 from hybpiper.gene_recovery_heatmap import get_figure_dimensions
 from hybpiper.retrieve_sequences import get_chimeric_genes_for_sample
@@ -58,19 +59,23 @@ widgets = [' ' * 11,
            progressbar.ETA()]
 
 
-def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_directory_name, gene):
+def retrieve_gene_paralogs_from_sample(sample_name,
+                                       gene,
+                                       chimera_check_performed):
     """
-    Iterates over a list of gene name for a given sample, and for each gene produces two *.fasta files:  1) all
+    Takes a gene name for a given sample, and for each gene produces two *.fasta files:  1) all
     paralog sequences (or *.FNA if no paralogs) from all samples; 2)  all paralog sequences (or non-chimeric *.FNA if
-    no paralogs) from all samples.
+    no paralogs) from all samples; the latter is only written if a chimera check was performed for the sample during
+    'hybpiper assemble'.
 
-    :param str sample_base_directory_path: path to the parent directory of the sample folder
-    :param str sample_directory_name: name of the sample directory
+    :param str sample_name: name (and expected path relative to cwd) of the sample
     :param str gene: name of the gene to recover sequences for
+    :param bool chimera_check_performed: True is a chimera check was performed for this sample
     :return list stats_for_report, genes_with_paralogs: lists of sequence counts and gene names for writing reports
     """
 
-    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sample_directory_name)
+    if chimera_check_performed:
+        chimeric_genes_to_skip = get_chimeric_genes_for_sample('.', sample_name)
 
     # Normal recovery of all sequences:
     seqs_to_write_all = []
@@ -79,17 +84,15 @@ def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_direct
     has_paralogs = False
 
     # Get paths to paralogs file (might not be present if no paralogs) and *.FNA file:
-    paralog_fasta_file_path = os.path.join(sample_base_directory_path,
-                                           sample_directory_name,
+    paralog_fasta_file_path = os.path.join(sample_name,
                                            gene,
-                                           sample_directory_name,
+                                           sample_name,
                                            'paralogs',
                                            f'{gene}_paralogs.fasta')
 
-    fna_fasta_file_path = os.path.join(sample_base_directory_path,
-                                       sample_directory_name,
+    fna_fasta_file_path = os.path.join(sample_name,
                                        gene,
-                                       sample_directory_name,
+                                       sample_name,
                                        'sequences',
                                        'FNA',
                                        f'{gene}.FNA')
@@ -113,26 +116,27 @@ def retrieve_gene_paralogs_from_sample(sample_base_directory_path, sample_direct
             seqs_to_write_all.append(seqs_to_write)
             num_seqs = 1
 
-    # Now skip any putative chimeric stitched contig sequences:
-    if gene in chimeric_genes_to_skip:
-        if os.path.isfile(paralog_fasta_file_path):
-            if os.path.getsize(paralog_fasta_file_path) == 0:
-                logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
-            else:
-                seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
-        else:  # i.e. there is no paralog file, which contains single-contig hits only (so no chimeras)
-            pass  # don't get the *.FNA sequence for this sample/gene combination
-    else:
-        if os.path.isfile(paralog_fasta_file_path):
-            if os.path.getsize(paralog_fasta_file_path) == 0:
-                logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
-            else:
-                seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
-        elif os.path.isfile(fna_fasta_file_path):
-            if os.path.getsize(fna_fasta_file_path) == 0:
-                logger.warning(f'{"[WARNING]:":10} File {fna_fasta_file_path} exists, but is empty!\n')
-            else:
-                seqs_to_write_no_chimeras.append(SeqIO.read(fna_fasta_file_path, 'fasta'))
+    # Now skip any putative chimeric stitched contig sequences (if chimera check was performed for this sample):
+    if chimera_check_performed:
+        if gene in chimeric_genes_to_skip:
+            if os.path.isfile(paralog_fasta_file_path):
+                if os.path.getsize(paralog_fasta_file_path) == 0:
+                    logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
+                else:
+                    seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
+            else:  # i.e. there is no paralog file, which contains single-contig hits only (so no chimeras)
+                pass  # don't get the *.FNA sequence for this sample/gene combination
+        else:
+            if os.path.isfile(paralog_fasta_file_path):
+                if os.path.getsize(paralog_fasta_file_path) == 0:
+                    logger.warning(f'{"[WARNING]:":10} File {paralog_fasta_file_path} exists, but is empty!\n')
+                else:
+                    seqs_to_write_no_chimeras.extend([x for x in SeqIO.parse(paralog_fasta_file_path, 'fasta')])
+            elif os.path.isfile(fna_fasta_file_path):
+                if os.path.getsize(fna_fasta_file_path) == 0:
+                    logger.warning(f'{"[WARNING]:":10} File {fna_fasta_file_path} exists, but is empty!\n')
+                else:
+                    seqs_to_write_no_chimeras.append(SeqIO.read(fna_fasta_file_path, 'fasta'))
 
     return num_seqs, has_paralogs, seqs_to_write_all, seqs_to_write_no_chimeras
 
@@ -401,21 +405,63 @@ def main(args):
     elif args.targetfile_aa:
         targetfile = args.targetfile_aa
 
+    # Get a list of sample names:
+    namelist = [x.rstrip() for x in open(args.namelist) if x.rstrip()]
+
+    for sample in namelist:
+        if re.search('/', sample):
+            sys.exit(f'{"[ERROR]:":10} A sample name must not contain forward slashes. The file {args.namelist} '
+                     f'contains: {sample}')
+
+    # Check if a chimera check was performed for all samples during 'hybpiper assemble':
+    chimera_check_samples_dict = dict()
+    for sample in namelist:
+        with (open(f'{sample}/{sample}_chimera_check_performed.txt', 'r') as chimera_check_handle):
+            chimera_check_bool = chimera_check_handle.read()
+
+            if chimera_check_bool == 'True':
+                chimera_check_samples_dict[sample] = True
+            elif chimera_check_bool == 'False':
+                chimera_check_samples_dict[sample] = False
+            else:
+                raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample}')
+
+    # Check is at least one sample had a chimera check performed:
+    chimera_check_performed_for_at_least_one_sample = False
+    for sample in chimera_check_samples_dict:
+        if chimera_check_samples_dict[sample]:
+            chimera_check_performed_for_at_least_one_sample = True
+            break
+
     # Make output directories:
+    if chimera_check_performed_for_at_least_one_sample:
+        logger.info(f'{"[INFO]:":10} Creating directory: {args.fasta_dir_no_chimeras}')
+        if not os.path.isdir(args.fasta_dir_no_chimeras):
+            os.mkdir(args.fasta_dir_no_chimeras)
+
     logger.info(f'{"[INFO]:":10} Creating directory: {args.fasta_dir_all}')
-    logger.info(f'{"[INFO]:":10} Creating directory: {args.fasta_dir_no_chimeras}')
     if not os.path.isdir(args.fasta_dir_all):
         os.mkdir(args.fasta_dir_all)
-    if not os.path.isdir(args.fasta_dir_no_chimeras):
-        os.mkdir(args.fasta_dir_no_chimeras)
 
     # Get a list of genes to recover, parsed from the target file:
     target_genes = sorted(list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')])))
 
-    # Get a list of sample names:
-    namelist = [x.rstrip() for x in open(args.namelist) if x.rstrip()]
-
     logger.info(f'{"[INFO]:":10} Searching for paralogs for {len(namelist)} samples, {len(target_genes)} genes...')
+
+    # Warn if some samples didn't have a chimera check performed during `hybpiper assemble`:
+    samples_with_no_chimera_check_performed = [sample for sample in chimera_check_samples_dict if not
+                                               chimera_check_samples_dict[sample]]
+
+    if chimera_check_performed_for_at_least_one_sample:  # else don't warn - chimera-filtered output folder not present
+        fill = textwrap.fill(f'{"[WARNING]:":10} A chimera check was not performed during "hybpiper assemble" for '
+                             f'the following samples:',
+                             width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
+        logger.warning(f'\n{fill}\n')
+
+        for sample in samples_with_no_chimera_check_performed:
+            logger.warning(f'{" " * 10} {sample}')
+
+        logger.warning(f'\n{" " * 10} No putative chimeric sequences will be skipped for these samples!\n')
 
     # Create dictionaries to capture data for reports/heatmap:
     sample_to_gene_paralog_count_dict = defaultdict(dict)
@@ -427,14 +473,15 @@ def main(args):
         sequences_to_write_all = []
         sequences_to_write_no_chimeras = []
         for sample in namelist:  # iterate over all samples
-            sample_base_directory_path, sample_directory_name = os.path.split(sample)
-            if not sample_directory_name:
-                sample_base_directory_path, sample_folder_name = os.path.split(sample_base_directory_path)
 
-            num_seqs, has_paralogs, seqs_to_write_all, seqs_to_write_no_chimeras = retrieve_gene_paralogs_from_sample(
-                sample_base_directory_path,
-                sample_directory_name,
-                gene)
+            chimera_check_performed = chimera_check_samples_dict[sample]
+
+            (num_seqs,
+             has_paralogs,
+             seqs_to_write_all,
+             seqs_to_write_no_chimeras) = retrieve_gene_paralogs_from_sample(sample,
+                                                                             gene,
+                                                                             chimera_check_performed)
 
             # Add the number of sequences for this gene to the sample in the sample_to_gene_paralog_count_dict:
             sample_to_gene_paralog_count_dict[sample][gene] = num_seqs
@@ -452,8 +499,9 @@ def main(args):
         with open(f'{args.fasta_dir_all}/{gene}_paralogs_all.fasta', 'w') as all_seqs_handle:
             SeqIO.write(sequences_to_write_all, all_seqs_handle, 'fasta')
 
-        with open(f'{args.fasta_dir_no_chimeras}/{gene}_paralogs_no_chimeras.fasta', 'w') as no_chimera_seqs_handle:
-            SeqIO.write(sequences_to_write_no_chimeras, no_chimera_seqs_handle, 'fasta')
+        if chimera_check_performed_for_at_least_one_sample:  # chimera-filtered output folder will be present
+            with open(f'{args.fasta_dir_no_chimeras}/{gene}_paralogs_no_chimeras.fasta', 'w') as no_chimera_seqs_handle:
+                SeqIO.write(sequences_to_write_no_chimeras, no_chimera_seqs_handle, 'fasta')
 
     # Write a *.tsv report, i.e. a matrix of sample names vs gene name with sequence counts:
     with open(f'{args.paralog_report_filename}.tsv', 'w') as paralog_report_handle:
