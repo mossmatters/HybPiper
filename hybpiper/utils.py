@@ -363,7 +363,9 @@ def make_basename(readfiles, prefix=None, output_folder=None):
     :return str parent directory, directory name
     """
 
-    parent_dir = output_folder if output_folder else '.'
+    cwd = os.getcwd()
+    output_folder_absolute_path = os.path.abspath(output_folder) if output_folder else None
+    parent_dir = output_folder_absolute_path if output_folder else cwd
 
     if prefix:
         full_output_folder = os.path.join(parent_dir, prefix)
