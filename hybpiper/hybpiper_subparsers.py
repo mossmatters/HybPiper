@@ -208,8 +208,10 @@ def add_assemble_parser(subparsers):
                                  action='store_true',
                                  dest='skip_frameshifts',
                                  default=False,
-                                 help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. Default '
-                                      'is: %(default)s.')
+                                 help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. '
+                                      'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting-common'
+                                      '-issues,-and-recommendations#42-hits-where-the-spades-contig-contains'
+                                      '-frameshifts\n. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
                                  action='store_true',
                                  dest='skip_internal_stops',
