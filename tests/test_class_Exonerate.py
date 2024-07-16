@@ -232,6 +232,3 @@ class ExonerateClass(TestCase):
                          'GAAGAAGCGAGAACAAGGGCTTATGATGCAGTTGAAGCAATCGACTGGCCTGAAGGATTC\n'
                          'TATAGGCATGATATTGGCTGGAGAGCA\n',
                          fasta_seq)
-
-
-
