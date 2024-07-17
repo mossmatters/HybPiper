@@ -67,10 +67,10 @@ def filter_fastas(deny_dict,
 
     # Search within a user-supplied directory for the given fasta sequence files, or the current directory if not:
     if sequence_dir:
-        logger.info(f'{"[INFO]:":10} Parsing inpout sequences in directory: {sequence_dir}')
+        logger.info(f'{"[INFO]:":10} Parsing input sequences in directory: {sequence_dir}')
     else:
         sequence_dir = cwd
-        logger.info(f'{"[INFO]:":10} Parsing inpout sequences in directory: {cwd}')
+        logger.info(f'{"[INFO]:":10} Parsing input sequences in directory: {cwd}')
 
     # Set output directory:
     if filtered_dir:
@@ -166,8 +166,8 @@ def filter_seqs(gene_lengths_dict,
                 deny_dict[gene].append(sample_name)
                 total_deny += 1
 
-    logger.info(f'{"[INFO]:":10} Filtered out {total_deny} total sequences for {len(deny_dict)} genes based on the'
-                f'parameters provided.')
+    logger.info(f'{"[INFO]:":10} {total_deny} total sequences for {len(deny_dict)} genes will be filtered out based on '
+                f'the parameters provided.')
 
     return deny_dict
 
@@ -317,6 +317,10 @@ def main(args):
                   args.sequence_type,
                   args.sequence_dir,
                   args.filtered_dir)
+
+    outdir = args.filtered_dir if args.filtered_dir else cwd
+
+    logger.info(f'{"[INFO]:":10} Filtered sequences have been written to directory: {outdir} ')
 
 
 ########################################################################################################################
