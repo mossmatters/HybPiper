@@ -465,8 +465,18 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     return None
 
 
-def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
-           merged=False, logger=None, keep_folder=False, single_cell_mode=False):
+def spades(genes,
+           cov_cutoff=8,
+           cpu=None,
+           paired=True,
+           kvals=None,
+           timeout=None,
+           unpaired=False,
+           merged=False,
+           logger=None,
+           keep_folder=False,
+           single_cell_mode=False,
+           no_spades_eta=False):
     """
     Run SPAdes on each gene separately using GNU parallel.
 
@@ -481,6 +491,7 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
     :param logging.Logger logger: a logger object
     :param bool keep_folder: if True, don't delete the SPAdes assembly folder after contig recovery
     :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
+    :param bool no_spades_eta: if True, don't use flag --eta for GNU parallel
     :return: list spades_genelist: a list of gene names that had successful SPAdes assemblies (contigs.fasta produced)
     """
 
@@ -503,7 +514,8 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
                                                  timeout=timeout,
                                                  unpaired=unpaired,
                                                  merged=merged,
-                                                 single_cell_mode=single_cell_mode)
+                                                 single_cell_mode=single_cell_mode,
+                                                 no_spades_eta=no_spades_eta)
 
     logger.info(f'{"[INFO]:":10} Finished running initial SPAdes assemblies for all genes with reads!')
     if len(spades_failed) > 0:
@@ -512,7 +524,8 @@ def spades(genes, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None,
 
         spades_duds = spades_runner.rerun_spades('failed_spades.txt',
                                                  cov_cutoff=cov_cutoff,
-                                                 cpu=cpu)
+                                                 cpu=cpu,
+                                                 no_spades_eta=no_spades_eta)
 
         logger.info(f'{"[INFO]:":10} Finished re-running SPAdes assemblies for genes with unsuccessful initial '
                     f'assemblies!')
@@ -1317,7 +1330,8 @@ def main(args):
                                      timeout=args.timeout_assemble,
                                      logger=logger,
                                      keep_folder=args.keep_intermediate_files,
-                                     single_cell_mode=args.spades_single_cell)
+                                     single_cell_mode=args.spades_single_cell,
+                                     no_spades_eta=args.no_spades_eta)
         elif len(readfiles) == 2:
             unpaired = True if unpaired_readfile else False
             spades_genelist = spades(genes,
@@ -1330,7 +1344,8 @@ def main(args):
                                      unpaired=unpaired,
                                      logger=logger,
                                      keep_folder=args.keep_intermediate_files,
-                                     single_cell_mode=args.spades_single_cell)
+                                     single_cell_mode=args.spades_single_cell,
+                                     no_spades_eta=args.no_spades_eta)
 
         else:
             logger.error('ERROR: Please specify either one (unpaired) or two (paired) read files! Exiting!')
