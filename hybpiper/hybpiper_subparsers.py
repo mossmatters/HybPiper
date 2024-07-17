@@ -266,8 +266,15 @@ def add_assemble_parser(subparsers):
                                       'log files by an order of magnitude. Default is: %(default)s.')
     parser_assemble.add_argument('--hybpiper_output', '-o',
                                  dest='output_folder',
-                                 help='Folder for HybPiper output. Default is %(default)s.',
-                                 default=None)
+                                 default=None,
+                                 help='Folder for HybPiper output. Default is %(default)s.')
+    parser_assemble.add_argument('--no_spades_eta',
+                                 action='store_true',
+                                 default=False,
+                                 help='When SPAdes is run concurrently using GNU parallel, the "--eta" flag can '
+                                      'result in many "sh: /dev/tty: Device not configured" errors written to stderr. '
+                                      'Using this option removes the "--eta" flag to GNU parallel. Default is '
+                                      '%(default)s.')
     parser_assemble.add_argument('--run_profiler',
                                  action='store_true',
                                  dest='run_profiler',
