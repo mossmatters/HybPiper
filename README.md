@@ -1,7 +1,7 @@
 # HybPiper
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/hybpiper/README.html)
 
-Current version: 2.1.9 (July 2024). See the change_log.md [here](https://github.com/mossmatters/HybPiper/blob/master/change_log.md)
+Current version: 2.2.0 (July 2024). See the change_log.md [here](https://github.com/mossmatters/HybPiper/blob/master/change_log.md)
 
 [![DOI](https://zenodo.org/badge/6513/mossmatters/HybPiper.svg)](https://zenodo.org/badge/latestdoi/6513/mossmatters/HybPiper)
 
