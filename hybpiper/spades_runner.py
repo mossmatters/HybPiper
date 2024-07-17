@@ -80,8 +80,16 @@ def make_spades_cmd_file(genelist, cov_cutoff=8, paired=True, kvals=None, unpair
     return spades_initial_commands_file
 
 
-def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, timeout=None, unpaired=False,
-                   merged=False, single_cell_mode=False):
+def spades_initial(genelist,
+                   cov_cutoff=8,
+                   cpu=None,
+                   paired=True,
+                   kvals=None,
+                   timeout=None,
+                   unpaired=False,
+                   merged=False,
+                   single_cell_mode=False,
+                   no_spades_eta=False):
     """
     Run SPAdes on each gene separately using GNU parallel. Returns a list of genes for which the SPAdes assemblies
     failed.
@@ -95,6 +103,7 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     :param bool unpaired: True is an unpaired readfile has been provided for the sample
     :param bool merged: True if parameter --merged is used
     :param bool single_cell_mode: if True, run SPAdes assemblies in MDA (single-cell) mode
+    :param bool no_spades_eta: if True, don't use flag --eta for GNU parallel
     :return: list spades_failed: list of genes for which the SPAdes assemblies failed.
     """
 
@@ -114,7 +123,10 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
 
     logger.info(f'{"[INFO]:":10} See file "{spades_initial_commands_file}" for a list of SPAdes commands')
 
-    parallel_cmd_list = ['parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
+    if no_spades_eta:
+        parallel_cmd_list = ['parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt']
+    else:
+        parallel_cmd_list = ['parallel', f'-j {cpu}', '--joblog', 'gnu_parallel_log.txt', '--eta']
 
     if timeout:
         parallel_cmd_list.append(f'--timeout {timeout}%')
@@ -161,7 +173,10 @@ def spades_initial(genelist, cov_cutoff=8, cpu=None, paired=True, kvals=None, ti
     return spades_failed
 
 
-def rerun_spades(genelist, cov_cutoff=8, cpu=None):
+def rerun_spades(genelist,
+                 cov_cutoff=8,
+                 cpu=None,
+                 no_spades_eta=False):
     """
     Re-run SPAdes assemblies for genes that failed in the first round, removing the largest Kmer size for the failed
     run.
@@ -169,6 +184,7 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
     :param str genelist: path to file with list of genes with failed SPAdes assemblies
     :param int cov_cutoff: coverage cutoff for SPAdes assembler
     :param int cpu: number of threads/cpus to use for GNU Parallel
+    :param bool no_spades_eta: if True, don't use flag --eta for GNU parallel
     :return: list spades_duds: spades_duds is a list of genes with failed SPAdes redo assemblies.
     """
 
@@ -204,7 +220,11 @@ def rerun_spades(genelist, cov_cutoff=8, cpu=None):
                 f'not be re-run')
 
     redo_cmds_file.close()
-    redo_spades_cmd = f'parallel -j {cpu} --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
+
+    if no_spades_eta:
+        redo_spades_cmd = f'parallel -j {cpu} --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
+    else:
+        redo_spades_cmd = f'parallel -j {cpu} --eta --timeout 400% :::: redo_spades_commands.txt > spades_redo.log'
 
     fill = textwrap.fill(f'{"[CMD]:":10} {redo_spades_cmd}', width=90, subsequent_indent=' ' * 11,
                          break_long_words=False, break_on_hyphens=False)
