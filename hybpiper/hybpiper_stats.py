@@ -198,6 +198,7 @@ def file_len(fname):
 
 
 def enrich_efficiency_blastx(sample_name,
+                             sampledir_parent,
                              blastxfilename,
                              compressed_sample_bool=False,
                              blastxfile_unpaired_exists=False,
@@ -208,6 +209,7 @@ def enrich_efficiency_blastx(sample_name,
     Parse BLASTX results to calculate enrichment efficiency
 
     :param str sample_name: name of a given sample
+    :param path sampledir_parent:
     :param str blastxfilename: path to the *.tsv BLASTx output filename for a given sample
     :param bool compressed_sample_bool: True if sample directory is a compressed tarball
     :param bool blastxfile_unpaired_exists: True if an unpaired BLASTX exists for this sample
@@ -217,17 +219,19 @@ def enrich_efficiency_blastx(sample_name,
     :return str, str, str: values for input reads, mapped reads, and percent mapped reads
     """
 
+    # Set expected file paths with sample folder as root:
     unpaired_blastx_file = blastxfilename.replace(".blastx", "_unpaired.blastx")
     total_input_reads_paired = f'{sample_name}/total_input_reads_paired.txt'
     total_input_reads_single = f'{sample_name}/total_input_reads_single.txt'
     total_input_reads_unpaired = f'{sample_name}/total_input_reads_unpaired.txt'
 
-    # Process stats from the main BLAST file:
+    # Process stats from the 'main' BLAST file:
     if compressed_sample_bool:
         blastx_lines = utils.get_compressed_file_lines(sample_name,
+                                                       sampledir_parent,
                                                        blastxfilename)
     else:
-        blastx_handle = open(blastxfilename, 'r')
+        blastx_handle = open(f'{sampledir_parent}/{blastxfilename}', 'r')
         blastx_lines = blastx_handle.readlines()
 
     reads_with_hits = [x.split('\t')[0] for x in blastx_lines if x]
@@ -239,9 +243,10 @@ def enrich_efficiency_blastx(sample_name,
     if blastxfile_unpaired_exists:
         if compressed_sample_bool:
             blastx_unpaired_lines = utils.get_compressed_file_lines(sample_name,
+                                                                    sampledir_parent,
                                                                     unpaired_blastx_file)
         else:
-            blastx_unpaired_handle = open(unpaired_blastx_file, 'r')
+            blastx_unpaired_handle = open(f'{sampledir_parent}/{unpaired_blastx_file}', 'r')
             blastx_unpaired_lines = blastx_unpaired_handle.readlines()
 
         reads_with_hits += [x.split('\t')[0] for x in blastx_unpaired_lines if x]
@@ -256,20 +261,22 @@ def enrich_efficiency_blastx(sample_name,
 
         if compressed_sample_bool:
             total_input_reads_paired_lines = utils.get_compressed_file_lines(sample_name,
+                                                                             sampledir_parent,
                                                                              total_input_reads_paired)
             total_input_reads = int(total_input_reads_paired_lines[0].rstrip())
         else:
-            with open(total_input_reads_paired, 'r') as paired_number:
+            with open(f'{sampledir_parent}/{total_input_reads_paired}', 'r') as paired_number:
                 total_input_reads = int(paired_number.read().rstrip())
 
     elif total_input_reads_single_exists:
 
         if compressed_sample_bool:
             total_input_reads_single_lines = utils.get_compressed_file_lines(sample_name,
+                                                                             sampledir_parent,
                                                                              total_input_reads_single)
             total_input_reads = int(total_input_reads_single_lines[0].rstrip())
         else:
-            with open(total_input_reads_single, 'r') as single_number:
+            with open(f'{sampledir_parent}/{total_input_reads_single}', 'r') as single_number:
                 total_input_reads = int(single_number.read().rstrip())
     else:
         fill = utils.fill_forward_slash(
@@ -283,14 +290,16 @@ def enrich_efficiency_blastx(sample_name,
         logger.warning(f'{fill}')
         sys.exit()
 
-    if blastxfile_unpaired_exists:
+    if blastxfile_unpaired_exists and total_input_reads_unpaired_exists:
 
         if compressed_sample_bool:
             total_input_reads_unpaired_lines = utils.get_compressed_file_lines(sample_name,
+                                                                               sampledir_parent,
                                                                                total_input_reads_unpaired)
+
             total_input_reads = total_input_reads + int(total_input_reads_unpaired_lines[0].rstrip())
         else:
-            with open(total_input_reads_unpaired, 'r') as unpaired_number:
+            with open(f'{sampledir_parent}/{total_input_reads_unpaired}', 'r') as unpaired_number:
                 total_input_reads = total_input_reads + int(unpaired_number.read().rstrip())
 
     try:
@@ -301,30 +310,36 @@ def enrich_efficiency_blastx(sample_name,
     return str(total_input_reads), str(mapped_reads), "{0:.1f}".format(pct_mapped)
 
 
-def enrich_efficiency_bwa(name,
+def enrich_efficiency_bwa(sample_name,
+                          sampledir_parent,
                           compressed_sample_bool=False,
                           bam_file_unpaired_exists=False):
     """
     Run and parse samtools flagstat output, return number of reads and number on target. Calculate percentage of
     reads mapped.
 
-    :param str name: sample name
+    :param str sample_name: sample name
+    :param path sampledir_parent: sampledir_parent name
     :param bool compressed_sample_bool: True if sample directory is a compressed tarball
     :param bool bam_file_unpaired_exists: True if an unpaired bamfile exists for this sample
     :return str, str, str: values for input reads, mapped reads, and percent mapped reads:
     """
 
-    bam_flagstats_tsv_file = f'{name}/{name}_bam_flagstat.tsv'
-    unpaired_bam_flagstats_tsv_file = f'{name}/{name}_unpaired_bam_flagstat.tsv'
+    # Set expected file paths with sample folder as root:
+    bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_bam_flagstat.tsv'
+    unpaired_bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_unpaired_bam_flagstat.tsv'
+
+    # Initialise count at zero:
     num_reads = 0
     mapped_reads = 0
 
-    # Process stats from the main bam file:
+    # Process stats from the 'main' bam file:
     if compressed_sample_bool:
-        bam_flagstat_lines = utils.get_compressed_file_lines(name,
+        bam_flagstat_lines = utils.get_compressed_file_lines(sample_name,
+                                                             sampledir_parent,
                                                              bam_flagstats_tsv_file)
     else:
-        bam_flagstat_handle = open(bam_flagstats_tsv_file, 'r')
+        bam_flagstat_handle = open(f'{sampledir_parent}/{bam_flagstats_tsv_file}', 'r')
         bam_flagstat_lines = bam_flagstat_handle.readlines()
 
     for line in bam_flagstat_lines:
@@ -339,10 +354,11 @@ def enrich_efficiency_bwa(name,
     # If an unpaired bam exists for this sample, process stats:
     if bam_file_unpaired_exists:
         if compressed_sample_bool:
-            bam_flagstat_unpaired_lines = utils.get_compressed_file_lines(name,
+            bam_flagstat_unpaired_lines = utils.get_compressed_file_lines(sample_name,
+                                                                          sampledir_parent,
                                                                           unpaired_bam_flagstats_tsv_file)
         else:
-            bam_flagstat_unpaired_handle = open(unpaired_bam_flagstats_tsv_file, 'r')
+            bam_flagstat_unpaired_handle = open(f'{sampledir_parent}/{unpaired_bam_flagstats_tsv_file}', 'r')
             bam_flagstat_unpaired_lines = bam_flagstat_unpaired_handle.readlines()
 
         for line in bam_flagstat_unpaired_lines:
@@ -541,9 +557,7 @@ def main(args):
                                                         compressed_sample_dict,
                                                         sampledir_parent)
 
-    print(sample_name_to_total_bases_dict)
-
-    sys.exit()
+    seq_length_dict = seq_length_calc(seq_lengths_file_path)
 
     lines_for_stats_report = []
 
@@ -571,232 +585,246 @@ def main(args):
     categories_for_printing = '\t'.join(categories)
     lines_for_stats_report.append(categories_for_printing)
 
-    seq_length_dict = seq_length_calc(seq_lengths_file_path)
+    # Iterate over sample names and populate stats_dict:
     stats_dict = {}
+    for sample_name in list_of_sample_names:
 
-    for line in open(args.namelist):  # iterate over samples
-        sample_name = line.rstrip()
-        if sample_name:
-            stats_dict[sample_name] = []
+        # Check is the sample directory is a compressed tarball:
+        compressed_sample_bool = False
+        if sample_name in compressed_sample_dict:
+            compressed_sample_bool = True
 
-            # Check is the sample directory is a compressed tarball:
-            compressed_sample_bool = False
-            if sample_name in compressed_sample_dict:
-                compressed_sample_bool = True
+        stats_dict[sample_name] = []
 
-            # Enrichment Efficiency
-            bamfile = f'{sample_name}/{sample_name}.bam'
-            bamfile_unpaired = f'{sample_name}/{sample_name}_unpaired.bam'
-            blastxfile = f'{sample_name}/{sample_name}.blastx'
-            blastxfile_unpaired = f'{sample_name}/{sample_name}_unpaired.blastx'
-            total_input_reads_paired = f'{sample_name}/total_input_reads_paired.txt'
-            total_input_reads_single = f'{sample_name}/total_input_reads_single.txt'
-            total_input_reads_unpaired = f'{sample_name}/total_input_reads_unpaired.txt'
+        # Enrichment Efficiency
 
-            if compressed_sample_bool:
+        # Set expected paths with sample folder as root:
+        bamfile = f'{sample_name}/{sample_name}.bam'
+        bamfile_unpaired = f'{sample_name}/{sample_name}_unpaired.bam'
+        blastxfile = f'{sample_name}/{sample_name}.blastx'
+        blastxfile_unpaired = f'{sample_name}/{sample_name}_unpaired.blastx'
+        total_input_reads_paired = f'{sample_name}/total_input_reads_paired.txt'
+        total_input_reads_single = f'{sample_name}/total_input_reads_single.txt'
+        total_input_reads_unpaired = f'{sample_name}/total_input_reads_unpaired.txt'
 
-                # Check if files are present in the compressed folder:
-                bam_file_exists = True if bamfile in compressed_sample_dict[sample_name] else False
-                bam_file_unpaired_exists = True if bamfile_unpaired in compressed_sample_dict[sample_name] else False
-                blastxfile_exists = True if blastxfile in compressed_sample_dict[sample_name] else False
-                blastxfile_unpaired_exists = True if blastxfile_unpaired in compressed_sample_dict[sample_name] else False
-                total_input_reads_paired_exists = \
-                    True if total_input_reads_paired in compressed_sample_dict[sample_name] else False
-                total_input_reads_single_exists = \
-                    True if total_input_reads_single in compressed_sample_dict[sample_name] else False
-                total_input_reads_unpaired_exists = \
-                    True if total_input_reads_unpaired in compressed_sample_dict[sample_name] else False
+        if compressed_sample_bool:
 
-                if not bam_file_exists and not blastxfile_exists:
-                    fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for '
-                                                    f'{sample_name}. No statistics will be recovered. Please check the log '
-                                                    f'file for this sample!',
-                                                    width=90, subsequent_indent=' ' * 11, break_long_words=False,
-                                                    break_on_forward_slash=True)
-                    logger.warning(f'{fill}')
-                    continue
+            # Check if files are present in the compressed folder:
+            bam_file_exists = True if bamfile in compressed_sample_dict[sample_name] else False
+            bam_file_unpaired_exists = True if bamfile_unpaired in compressed_sample_dict[sample_name] else False
+            blastxfile_exists = True if blastxfile in compressed_sample_dict[sample_name] else False
+            blastxfile_unpaired_exists = True if blastxfile_unpaired in compressed_sample_dict[sample_name] else False
 
-                if bam_file_exists:
-                    stats_dict[sample_name] += enrich_efficiency_bwa(sample_name,
-                                                              compressed_sample_bool=compressed_sample_bool,
-                                                              bam_file_unpaired_exists=bam_file_unpaired_exists)
-                else:
-                    stats_dict[sample_name] += enrich_efficiency_blastx(
-                        sample_name,
-                        blastxfile,
-                        compressed_sample_bool=compressed_sample_bool,
-                        blastxfile_unpaired_exists=blastxfile_unpaired_exists,
-                        total_input_reads_paired_exists=total_input_reads_paired_exists,
-                        total_input_reads_single_exists=total_input_reads_single_exists,
-                        total_input_reads_unpaired_exists=total_input_reads_unpaired_exists
-                    )
+            total_input_reads_paired_exists = \
+                True if total_input_reads_paired in compressed_sample_dict[sample_name] else False
+            total_input_reads_single_exists = \
+                True if total_input_reads_single in compressed_sample_dict[sample_name] else False
+            total_input_reads_unpaired_exists = \
+                True if total_input_reads_unpaired in compressed_sample_dict[sample_name] else False
 
-            else:
-                bam_file_exists = True if os.path.isfile(bamfile) else False
-                bam_file_unpaired_exists = True if os.path.isfile(bamfile_unpaired) else False
-                blastxfile_exists = True if os.path.isfile(blastxfile) else False
-                blastxfile_unpaired_exists = True if os.path.isfile(blastxfile_unpaired) else False
-                total_input_reads_paired_exists = True if os.path.isfile(total_input_reads_paired) else False
-                total_input_reads_single_exists = True if os.path.isfile(total_input_reads_single) else False
-                total_input_reads_unpaired_exists = True if os.path.isfile(total_input_reads_unpaired) else False
-
-                if not bam_file_exists and not blastxfile_exists:
-                    fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for '
-                                                    f'{sample_name}. No statistics will be recovered. Please check the log '
-                                                    f'file for this sample!',
-                                                    width=90, subsequent_indent=' ' * 11, break_long_words=False,
-                                                    break_on_forward_slash=True)
-                    logger.warning(f'{fill}')
-                    continue
-
-                if bam_file_exists:
-                    stats_dict[sample_name] += enrich_efficiency_bwa(sample_name,
-                                                              bam_file_unpaired_exists=bam_file_unpaired_exists)
-
-                else:
-                    stats_dict[sample_name] += enrich_efficiency_blastx(
-                        sample_name,
-                        blastxfile,
-                        blastxfile_unpaired_exists=blastxfile_unpaired_exists,
-                        total_input_reads_paired_exists=total_input_reads_paired_exists,
-                        total_input_reads_single_exists=total_input_reads_single_exists,
-                        total_input_reads_unpaired_exists=total_input_reads_unpaired_exists
-                    )
-
-            # Recovery Efficiency
-            stats_dict[sample_name] += recovery_efficiency(sample_name,
-                                                    compressed_sample_bool,
-                                                    compressed_sample_dict)
-
-            stats_dict[sample_name] += seq_length_dict[sample_name]
-
-            # Paralogs - long:
-            long_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_long_paralog_warnings.txt'
-
-            if compressed_sample_bool:
-                if long_paralog_warnings_file in compressed_sample_dict[sample_name]:
-                    long_paralog_warnings_file_lines = utils.get_compressed_file_lines(sample_name,
-                                                                                       long_paralog_warnings_file)
-                    paralog_warns = len(long_paralog_warnings_file_lines)
-                    stats_dict[sample_name].append(str(paralog_warns))
-                else:
-                    stats_dict[sample_name].append("0")
-            else:
-                if os.path.isfile(long_paralog_warnings_file):
-                    paralog_warns = file_len(long_paralog_warnings_file)
-                    stats_dict[sample_name].append(str(paralog_warns))
-                else:
-                    stats_dict[sample_name].append("0")
-
-            # Paralogs - by contig depth across query protein:
-            depth_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'
-
-            if compressed_sample_bool:
-                num_genes_paralog_warning_by_depth = 0
-
-                if depth_paralog_warnings_file in compressed_sample_dict[sample_name]:
-                    depth_paralog_warnings_file_lines = utils.get_compressed_file_lines(sample_name,
-                                                                                        depth_paralog_warnings_file)
-                    for gene_stats in depth_paralog_warnings_file_lines:
-                        stat = gene_stats.split(',')[3].strip()
-                        if stat == 'True':
-                            num_genes_paralog_warning_by_depth += 1
-
-                stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
-
-            else:
-                num_genes_paralog_warning_by_depth = 0
-                if os.path.isfile(f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'):
-                    with open(f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
-                        lines = paralogs_by_depth.readlines()
-                        for gene_stats in lines:
-                            stat = gene_stats.split(',')[3].strip()
-                            if stat == 'True':
-                                num_genes_paralog_warning_by_depth += 1
-
-                stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
-
-            # Stitched contig information:
-            stitched_contig_produced = 0
-            no_stitched_contig = 0
-            stitched_contig_skipped = 0
-
-            genes_with_stitched_contig_file = f'{sample_name}/{sample_name}_genes_with_stitched_contig.csv'
-
-            if compressed_sample_bool:
-
-                if genes_with_stitched_contig_file in compressed_sample_dict[sample_name]:
-                    lines = utils.get_compressed_file_lines(sample_name,
-                                                            genes_with_stitched_contig_file)
-                    for gene_stats in lines:
-                        stat = gene_stats.split(',')[2]
-                        if re.search('single Exonerate hit', stat):
-                            no_stitched_contig += 1
-                        elif re.search('Stitched contig produced', stat):
-                            stitched_contig_produced += 1
-                        elif re.search('Stitched contig step skipped', stat):
-                            stitched_contig_skipped += 1
-
-            else:
-                if os.path.isfile(genes_with_stitched_contig_file):
-                    with open(f'{sample_name}/{sample_name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
-                        lines = stitched_contig_stats.readlines()
-                        for gene_stats in lines:
-                            stat = gene_stats.split(',')[2]
-                            if re.search('single Exonerate hit', stat):
-                                no_stitched_contig += 1
-                            elif re.search('Stitched contig produced', stat):
-                                stitched_contig_produced += 1
-                            elif re.search('Stitched contig step skipped', stat):
-                                stitched_contig_skipped += 1
-
-            stitched_contigs_produced_total = stitched_contig_produced
-            stats_dict[sample_name].append(str(no_stitched_contig))
-            stats_dict[sample_name].append(str(stitched_contigs_produced_total))
-            stats_dict[sample_name].append(str(stitched_contig_skipped))
-
-            chimeric_stitched_contigs = 0
-            genes_derived_from_putative_chimeric_stitched_contig_file = \
-                f'{sample_name}/{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
-
-            if compressed_sample_bool:
-
-                if genes_derived_from_putative_chimeric_stitched_contig_file in compressed_sample_dict[sample_name]:
-                    lines = utils.get_compressed_file_lines(sample_name,
-                                                            genes_derived_from_putative_chimeric_stitched_contig_file)
-                    for gene_stats in lines:
-                        stat = gene_stats.split(',')[2]
-                        if re.search(' Chimera WARNING for stitched contig.', stat):
-                            chimeric_stitched_contigs += 1
-
-            else:
-                if os.path.isfile(genes_derived_from_putative_chimeric_stitched_contig_file):
-                    with open(genes_derived_from_putative_chimeric_stitched_contig_file) as \
-                            chimeric_stitched_contig_stats:
-
-                        lines = chimeric_stitched_contig_stats.readlines()
-                        for gene_stats in lines:
-                            stat = gene_stats.split(',')[2]
-                            if re.search(' Chimera WARNING for stitched contig.', stat):
-                                chimeric_stitched_contigs += 1
-
-            stats_dict[sample_name].append(str(chimeric_stitched_contigs))
-
-            # Total bases recovered (not counting N characters):
-            stats_dict[sample_name].append(str(sample_name_to_total_bases_dict[sample_name]))
-
-    # SeqLengths:
-    for sample_name in stats_dict:
-        stats_dict_for_printing = '\t'.join(stats_dict[sample_name])
-        lines_for_stats_report.append(f'{sample_name}\t{stats_dict_for_printing}')
-
-    with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
-        for item in lines_for_stats_report:
-            if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
+            if not bam_file_exists and not blastxfile_exists:
+                fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for '
+                                                f'{sample_name}. No statistics will be recovered. Please check the log '
+                                                f'file for this sample!',
+                                                width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                                break_on_forward_slash=True)
+                logger.warning(f'{fill}')
                 continue
-            hybpiper_stats_handle.write(f'{item}\n')
 
-    logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
+            if bam_file_exists:
+                stats_dict[sample_name] += enrich_efficiency_bwa(
+                    sample_name,
+                    sampledir_parent,
+                    compressed_sample_bool=compressed_sample_bool,
+                    bam_file_unpaired_exists=bam_file_unpaired_exists
+                )
+
+            else:
+                stats_dict[sample_name] += enrich_efficiency_blastx(
+                    sample_name,
+                    sampledir_parent,
+                    blastxfile,
+                    compressed_sample_bool=compressed_sample_bool,
+                    blastxfile_unpaired_exists=blastxfile_unpaired_exists,
+                    total_input_reads_paired_exists=total_input_reads_paired_exists,
+                    total_input_reads_single_exists=total_input_reads_single_exists,
+                    total_input_reads_unpaired_exists=total_input_reads_unpaired_exists
+                )
+
+        else:  # i.e. uncompressed sample folder
+            bam_file_exists = True if os.path.isfile(f'{sampledir_parent}/{bamfile}') else False
+            bam_file_unpaired_exists = True if os.path.isfile(f'{sampledir_parent}/{bamfile_unpaired}') else False
+            blastxfile_exists = True if os.path.isfile(f'{sampledir_parent}/{blastxfile}') else False
+            blastxfile_unpaired_exists = True if os.path.isfile(f'{sampledir_parent}/{blastxfile_unpaired}') else False
+
+            total_input_reads_paired_exists = \
+                True if os.path.isfile(f'{sampledir_parent}/{total_input_reads_paired}') else False
+            total_input_reads_single_exists = \
+                True if os.path.isfile(f'{sampledir_parent}/{total_input_reads_single}') else False
+            total_input_reads_unpaired_exists = \
+                True if os.path.isfile(f'{sampledir_parent}/{total_input_reads_unpaired}') else False
+
+            if not bam_file_exists and not blastxfile_exists:
+                fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for '
+                                                f'{sample_name}. No statistics will be recovered. Please check the log '
+                                                f'file for this sample!',
+                                                width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                                break_on_forward_slash=True)
+                logger.warning(f'{fill}')
+                continue
+
+            if bam_file_exists:
+                stats_dict[sample_name] += enrich_efficiency_bwa(sample_name,
+                                                                 sampledir_parent,
+                                                                 bam_file_unpaired_exists=bam_file_unpaired_exists)
+
+            else:
+                stats_dict[sample_name] += enrich_efficiency_blastx(
+                    sample_name,
+                    sampledir_parent,
+                    blastxfile,
+                    blastxfile_unpaired_exists=blastxfile_unpaired_exists,
+                    total_input_reads_paired_exists=total_input_reads_paired_exists,
+                    total_input_reads_single_exists=total_input_reads_single_exists,
+                    total_input_reads_unpaired_exists=total_input_reads_unpaired_exists
+                )
+
+        print(stats_dict[sample_name])
+
+    #     # Recovery Efficiency
+    #     stats_dict[sample_name] += recovery_efficiency(sample_name,
+    #                                             compressed_sample_bool,
+    #                                             compressed_sample_dict)
+    #
+    #     stats_dict[sample_name] += seq_length_dict[sample_name]
+    #
+    #     # Paralogs - long:
+    #     long_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_long_paralog_warnings.txt'
+    #
+    #     if compressed_sample_bool:
+    #         if long_paralog_warnings_file in compressed_sample_dict[sample_name]:
+    #             long_paralog_warnings_file_lines = utils.get_compressed_file_lines(sample_name,
+    #                                                                                long_paralog_warnings_file)
+    #             paralog_warns = len(long_paralog_warnings_file_lines)
+    #             stats_dict[sample_name].append(str(paralog_warns))
+    #         else:
+    #             stats_dict[sample_name].append("0")
+    #     else:
+    #         if os.path.isfile(long_paralog_warnings_file):
+    #             paralog_warns = file_len(long_paralog_warnings_file)
+    #             stats_dict[sample_name].append(str(paralog_warns))
+    #         else:
+    #             stats_dict[sample_name].append("0")
+    #
+    #     # Paralogs - by contig depth across query protein:
+    #     depth_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'
+    #
+    #     if compressed_sample_bool:
+    #         num_genes_paralog_warning_by_depth = 0
+    #
+    #         if depth_paralog_warnings_file in compressed_sample_dict[sample_name]:
+    #             depth_paralog_warnings_file_lines = utils.get_compressed_file_lines(sample_name,
+    #                                                                                 depth_paralog_warnings_file)
+    #             for gene_stats in depth_paralog_warnings_file_lines:
+    #                 stat = gene_stats.split(',')[3].strip()
+    #                 if stat == 'True':
+    #                     num_genes_paralog_warning_by_depth += 1
+    #
+    #         stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
+    #
+    #     else:
+    #         num_genes_paralog_warning_by_depth = 0
+    #         if os.path.isfile(f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'):
+    #             with open(f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
+    #                 lines = paralogs_by_depth.readlines()
+    #                 for gene_stats in lines:
+    #                     stat = gene_stats.split(',')[3].strip()
+    #                     if stat == 'True':
+    #                         num_genes_paralog_warning_by_depth += 1
+    #
+    #         stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
+    #
+    #     # Stitched contig information:
+    #     stitched_contig_produced = 0
+    #     no_stitched_contig = 0
+    #     stitched_contig_skipped = 0
+    #
+    #     genes_with_stitched_contig_file = f'{sample_name}/{sample_name}_genes_with_stitched_contig.csv'
+    #
+    #     if compressed_sample_bool:
+    #
+    #         if genes_with_stitched_contig_file in compressed_sample_dict[sample_name]:
+    #             lines = utils.get_compressed_file_lines(sample_name,
+    #                                                     genes_with_stitched_contig_file)
+    #             for gene_stats in lines:
+    #                 stat = gene_stats.split(',')[2]
+    #                 if re.search('single Exonerate hit', stat):
+    #                     no_stitched_contig += 1
+    #                 elif re.search('Stitched contig produced', stat):
+    #                     stitched_contig_produced += 1
+    #                 elif re.search('Stitched contig step skipped', stat):
+    #                     stitched_contig_skipped += 1
+    #
+    #     else:
+    #         if os.path.isfile(genes_with_stitched_contig_file):
+    #             with open(f'{sample_name}/{sample_name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
+    #                 lines = stitched_contig_stats.readlines()
+    #                 for gene_stats in lines:
+    #                     stat = gene_stats.split(',')[2]
+    #                     if re.search('single Exonerate hit', stat):
+    #                         no_stitched_contig += 1
+    #                     elif re.search('Stitched contig produced', stat):
+    #                         stitched_contig_produced += 1
+    #                     elif re.search('Stitched contig step skipped', stat):
+    #                         stitched_contig_skipped += 1
+    #
+    #     stitched_contigs_produced_total = stitched_contig_produced
+    #     stats_dict[sample_name].append(str(no_stitched_contig))
+    #     stats_dict[sample_name].append(str(stitched_contigs_produced_total))
+    #     stats_dict[sample_name].append(str(stitched_contig_skipped))
+    #
+    #     chimeric_stitched_contigs = 0
+    #     genes_derived_from_putative_chimeric_stitched_contig_file = \
+    #         f'{sample_name}/{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
+    #
+    #     if compressed_sample_bool:
+    #
+    #         if genes_derived_from_putative_chimeric_stitched_contig_file in compressed_sample_dict[sample_name]:
+    #             lines = utils.get_compressed_file_lines(sample_name,
+    #                                                     genes_derived_from_putative_chimeric_stitched_contig_file)
+    #             for gene_stats in lines:
+    #                 stat = gene_stats.split(',')[2]
+    #                 if re.search(' Chimera WARNING for stitched contig.', stat):
+    #                     chimeric_stitched_contigs += 1
+    #
+    #     else:
+    #         if os.path.isfile(genes_derived_from_putative_chimeric_stitched_contig_file):
+    #             with open(genes_derived_from_putative_chimeric_stitched_contig_file) as \
+    #                     chimeric_stitched_contig_stats:
+    #
+    #                 lines = chimeric_stitched_contig_stats.readlines()
+    #                 for gene_stats in lines:
+    #                     stat = gene_stats.split(',')[2]
+    #                     if re.search(' Chimera WARNING for stitched contig.', stat):
+    #                         chimeric_stitched_contigs += 1
+    #
+    #     stats_dict[sample_name].append(str(chimeric_stitched_contigs))
+    #
+    #     # Total bases recovered (not counting N characters):
+    #     stats_dict[sample_name].append(str(sample_name_to_total_bases_dict[sample_name]))
+    #
+    # # SeqLengths:
+    # for sample_name in stats_dict:
+    #     stats_dict_for_printing = '\t'.join(stats_dict[sample_name])
+    #     lines_for_stats_report.append(f'{sample_name}\t{stats_dict_for_printing}')
+    #
+    # with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
+    #     for item in lines_for_stats_report:
+    #         if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
+    #             continue
+    #         hybpiper_stats_handle.write(f'{item}\n')
+    #
+    # logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
 
 
 if __name__ == "__main__":

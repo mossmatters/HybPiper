@@ -1174,15 +1174,17 @@ def get_compressed_seqrecord(sample_name,
 
 
 def get_compressed_file_lines(sample_name,
+                              sampledir_parent,
                               member_name):
     """
 
     :param sample_name:
+    :param sampledir_parent:
     :param member_name:
     :return:
     """
 
-    with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
 
         tarinfo = tarfile_handle.getmember(member_name)
         extracted_file = tarfile_handle.extractfile(tarinfo)
