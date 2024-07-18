@@ -496,7 +496,7 @@ def main(args):
 
     # Get sequence lengths for recovered genes, and write them to file, along with total bases recovered:
     (seq_lengths_file_path,
-     sample_name_2_total_bases_dict) = get_seq_lengths(targetfile,
+     sample_name_to_total_bases_dict) = get_seq_lengths(targetfile,
                                                        args.namelist,
                                                        targetfile_type,
                                                        args.sequence_type,
@@ -535,7 +535,6 @@ def main(args):
     for line in open(args.namelist):  # iterate over samples
         name = line.rstrip()
         if name:
-            print(f'name: {name}')
             stats_dict[name] = []
 
             # Check is the sample directory is a compressed tarball:
@@ -620,19 +619,12 @@ def main(args):
                         total_input_reads_unpaired_exists=total_input_reads_unpaired_exists
                     )
 
-            # print(stats_dict[name])
-
             # Recovery Efficiency
-            # spades_genelist = f'{name}/spades_genelist.txt'
-            # exonerate_genelist = f'{name}/exonerate_genelist.txt'
-            # genes_with_seqs = f'{name}/genes_with_seqs.txt'
-
             stats_dict[name] += recovery_efficiency(name,
                                                     compressed_sample_bool,
                                                     compressed_sample_dict)
-            print(stats_dict[name])
+
             stats_dict[name] += seq_length_dict[name]
-            print(stats_dict[name])
 
             # Paralogs - long:
             long_paralog_warnings_file = f'{name}/{name}_genes_with_long_paralog_warnings.txt'
@@ -651,8 +643,6 @@ def main(args):
                     stats_dict[name].append(str(paralog_warns))
                 else:
                     stats_dict[name].append("0")
-
-            print(stats_dict[name])
 
             # Paralogs - by contig depth across query protein:
             depth_paralog_warnings_file = f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'
@@ -682,59 +672,87 @@ def main(args):
 
                 stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
 
-            print(stats_dict[name])
-
             # Stitched contig information:
             stitched_contig_produced = 0
             no_stitched_contig = 0
             stitched_contig_skipped = 0
 
+            genes_with_stitched_contig_file = f'{name}/{name}_genes_with_stitched_contig.csv'
 
-    #         if os.path.isfile(f'{name}/{name}_genes_with_stitched_contig.csv'):
-    #             with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
-    #                 lines = stitched_contig_stats.readlines()
-    #                 for gene_stats in lines:
-    #                     stat = gene_stats.split(',')[2]
-    #                     if re.search('single Exonerate hit', stat):
-    #                         no_stitched_contig += 1
-    #                     elif re.search('Stitched contig produced', stat):
-    #                         stitched_contig_produced += 1
-    #                     elif re.search('Stitched contig step skipped', stat):
-    #                         stitched_contig_skipped += 1
-    #
-    #         stitched_contigs_produced_total = stitched_contig_produced
-    #         stats_dict[name].append(str(no_stitched_contig))
-    #         stats_dict[name].append(str(stitched_contigs_produced_total))
-    #         stats_dict[name].append(str(stitched_contig_skipped))
-    #
-    #         chimeric_stitched_contigs = 0
-    #         if os.path.isfile(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'):
-    #             with open(f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as \
-    #                     chimeric_stitched_contig_stats:
-    #
-    #                 lines = chimeric_stitched_contig_stats.readlines()
-    #                 for gene_stats in lines:
-    #                     stat = gene_stats.split(',')[2]
-    #                     if re.search(' Chimera WARNING for stitched contig.', stat):
-    #                         chimeric_stitched_contigs += 1
-    #
-    #         stats_dict[name].append(str(chimeric_stitched_contigs))
-    #
-    #         # Total bases recovered (not counting N characters):
-    #         stats_dict[name].append(str(sample_name_2_total_bases_dict[name]))
-    #
-    # # SeqLengths
-    # for name in stats_dict:
-    #     stats_dict_for_printing = '\t'.join(stats_dict[name])
-    #     lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
-    #
-    # with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
-    #     for item in lines_for_stats_report:
-    #         if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
-    #             continue
-    #         hybpiper_stats_handle.write(f'{item}\n')
-    #
-    # logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
+            if compressed_sample_bool:
+
+                if genes_with_stitched_contig_file in compressed_sample_dict[name]:
+                    lines = utils.get_compressed_file_lines(name,
+                                                            genes_with_stitched_contig_file)
+                    for gene_stats in lines:
+                        stat = gene_stats.split(',')[2]
+                        if re.search('single Exonerate hit', stat):
+                            no_stitched_contig += 1
+                        elif re.search('Stitched contig produced', stat):
+                            stitched_contig_produced += 1
+                        elif re.search('Stitched contig step skipped', stat):
+                            stitched_contig_skipped += 1
+
+            else:
+                if os.path.isfile(genes_with_stitched_contig_file):
+                    with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
+                        lines = stitched_contig_stats.readlines()
+                        for gene_stats in lines:
+                            stat = gene_stats.split(',')[2]
+                            if re.search('single Exonerate hit', stat):
+                                no_stitched_contig += 1
+                            elif re.search('Stitched contig produced', stat):
+                                stitched_contig_produced += 1
+                            elif re.search('Stitched contig step skipped', stat):
+                                stitched_contig_skipped += 1
+
+            stitched_contigs_produced_total = stitched_contig_produced
+            stats_dict[name].append(str(no_stitched_contig))
+            stats_dict[name].append(str(stitched_contigs_produced_total))
+            stats_dict[name].append(str(stitched_contig_skipped))
+
+            chimeric_stitched_contigs = 0
+            genes_derived_from_putative_chimeric_stitched_contig_file = \
+                f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
+
+            if compressed_sample_bool:
+
+                if genes_derived_from_putative_chimeric_stitched_contig_file in compressed_sample_dict[name]:
+                    lines = utils.get_compressed_file_lines(name,
+                                                            genes_derived_from_putative_chimeric_stitched_contig_file)
+                    for gene_stats in lines:
+                        stat = gene_stats.split(',')[2]
+                        if re.search(' Chimera WARNING for stitched contig.', stat):
+                            chimeric_stitched_contigs += 1
+
+            else:
+                if os.path.isfile(genes_derived_from_putative_chimeric_stitched_contig_file):
+                    with open(genes_derived_from_putative_chimeric_stitched_contig_file) as \
+                            chimeric_stitched_contig_stats:
+
+                        lines = chimeric_stitched_contig_stats.readlines()
+                        for gene_stats in lines:
+                            stat = gene_stats.split(',')[2]
+                            if re.search(' Chimera WARNING for stitched contig.', stat):
+                                chimeric_stitched_contigs += 1
+
+            stats_dict[name].append(str(chimeric_stitched_contigs))
+
+            # Total bases recovered (not counting N characters):
+            stats_dict[name].append(str(sample_name_to_total_bases_dict[name]))
+
+    # SeqLengths:
+    for name in stats_dict:
+        stats_dict_for_printing = '\t'.join(stats_dict[name])
+        lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
+
+    with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
+        for item in lines_for_stats_report:
+            if len([item for item in item.split('\t')]) == 2:  # i.e. no bam file and no stats
+                continue
+            hybpiper_stats_handle.write(f'{item}\n')
+
+    logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
 
 
 if __name__ == "__main__":
