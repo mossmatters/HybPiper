@@ -268,6 +268,11 @@ def add_assemble_parser(subparsers):
                                  dest='output_folder',
                                  default=None,
                                  help='Folder for HybPiper output. Default is %(default)s.')
+    parser_assemble.add_argument('--compress_sample_folder',
+                                 action='store_true',
+                                 default=False,
+                                 help='Tarball and compress the sample folder after assembly has completed '
+                                      '(<sample_name>.tar.gz). Default is %(default)s.')
     parser_assemble.add_argument('--no_spades_eta',
                                  action='store_true',
                                  default=False,

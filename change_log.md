@@ -1,5 +1,11 @@
 # Changelog
 
+**2.3.0** *18th July 2024*
+
+- Add option `--compress_sample_folder` to command `hybpiper assemble`. Tarball and compress the sample folder after assembly has completed (<sample_name>.tar.gz).
+
+# Deal with scenario where user runs hybpiper assemble on existing sample folder tarball - uncompress and removed compressed file.
+
 **2.2.0** *17th July, 2024*
 
 - Add option `--end_with` to command `hybpiper assemble`. Allows the user to end the assembly pipeline at a chosen step (map_reads, distribute_reads, assemble_reads, exonerate_contigs).

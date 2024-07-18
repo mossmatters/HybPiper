@@ -26,6 +26,7 @@ import argparse
 import progressbar
 from collections import defaultdict
 import glob
+import tarfile
 
 from hybpiper.version import __version__
 
@@ -1130,3 +1131,102 @@ def check_for_previous_run_output(full_sample_directory,
                 del previous_files_dict_filtered[key]
 
     return previous_files_dict_filtered
+
+
+def parse_compressed_sample(compressed_sample):
+    """
+    Parses a *.tar.gz compressed tarball sample directory and return a list of all folder and files within the tarball.
+
+    :param str compressed_sample: e.g. <sample_name>.tar.gz
+    :return list member_names: a list of all contents of the <sample_id>.tar.gz
+    """
+
+    with tarfile.open(compressed_sample, 'r:gz') as tarfile_handle:
+
+        member_name_and_size_dict = dict()
+
+        for tarinfo in tarfile_handle.getmembers():
+            member_name_and_size_dict[tarinfo.name] = tarinfo.size
+
+    return member_name_and_size_dict
+
+
+def get_compressed_seq_length(sample_name,
+                              member_name):
+    """
+    Returns the length of a fasta sequence within a compressed tarball of a given sample directory.
+
+    :param sample_name:
+    :param member_name:
+    :return:
+    """
+
+    with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+        read_file = tarfile_handle.getmember(member_name)
+        extracted_file = tarfile_handle.extractfile(read_file)
+        lines = extracted_file.read().decode('utf-8', errors='ignore')
+        seq_io = io.StringIO(lines)
+        seqrecord = SeqIO.read(seq_io, 'fasta')
+
+    return len(seqrecord.seq.replace('N', ''))
+
+
+# def get_bam_flagstat_io(sample_name,
+#                         member_name):
+#     """
+#
+#     :param sample_name:
+#     :param member_name:
+#     :return:
+#     """
+#
+#     with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+#
+#         bam_flagstat_tsv = tarfile_handle.getmember(member_name)
+#         extracted_file = tarfile_handle.extractfile(bam_flagstat_tsv)
+#         lines = extracted_file.read().decode('utf-8', errors='ignore')
+#         lines = lines.split('\n')
+#
+#     return lines
+#
+#
+# def get_blastx_lines(sample_name,
+#                      member_name):
+#     """
+#
+#     :param sample_name:
+#     :param member_name:
+#     :return:
+#     """
+#
+#     with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+#
+#         blastx_flagstat_tsv = tarfile_handle.getmember(member_name)
+#         extracted_file = tarfile_handle.extractfile(blastx_flagstat_tsv)
+#         lines = extracted_file.read().decode('utf-8', errors='ignore')
+#         lines = lines.split('\n')
+#
+#     return lines
+
+
+def get_compressed_file_lines(sample_name,
+                              member_name):
+    """
+
+    :param sample_name:
+    :param member_name:
+    :return:
+    """
+
+    with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+
+        tarinfo = tarfile_handle.getmember(member_name)
+        extracted_file = tarfile_handle.extractfile(tarinfo)
+        lines = extracted_file.read().decode('utf-8', errors='ignore')
+        lines = lines.split('\n')
+
+    return lines
+
+
+
+

@@ -20,6 +20,7 @@ import platform
 import traceback
 import pebble
 import psutil
+import tarfile
 
 # Import HybPiper modules:
 from hybpiper.version import __version__
@@ -35,7 +36,8 @@ logger = logging.getLogger(f'hybpiper.hybpiper_main.{__name__}')
 
 def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
     """
-    Conduct a BWA search of input reads against the targetfile.
+    Conduct a BWA search of input reads against the targetfile. Runs `samtools flagstat` on the resulting *.bam and
+    write results to a file in the sample directory.
 
     :param str/list readfiles: list one or more read files used as input to the pipeline, or path to unpaired read file
     :param str targetfile: path to targetfile (i.e. the target file)
@@ -124,6 +126,33 @@ def bwa(readfiles, targetfile, sample_dir, cpu, unpaired=False, logger=None):
             os.remove(f'{sample_dir}_unpaired.bam')
         else:
             os.remove(f'{sample_dir}.bam')
+        return None
+
+    # Run `samtools flagstat` and write results to file:
+    if unpaired:
+        samtools_cmd = (f'samtools flagstat --output-fmt tsv {sample_dir}_unpaired.bam >'
+                        f' {sample_dir}_unpaired_bam_flagstat.tsv')
+    else:
+        samtools_cmd = f'samtools flagstat --output-fmt tsv {sample_dir}.bam > {sample_dir}_bam_flagstat.tsv'
+
+    logger.debug(samtools_cmd)
+
+    try:
+        result = subprocess.run(samtools_cmd,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                universal_newlines=True,
+                                check=True)
+
+        logger.debug(f'samtools flagstat check_returncode() is: {result.check_returncode()}')
+        logger.debug(f'samtools flagstat mapping stdout is: {result.stdout}')
+        logger.debug(f'samtools flagstat mapping stderr is: {result.stderr}')
+
+    except subprocess.CalledProcessError as exc:
+        logger.error(f'samtools flagstat mapping FAILED. Output is: {exc}')
+        logger.error(f'samtools flagstat mapping stdout is: {exc.stdout}')
+        logger.error(f'samtools flagstat mapping stderr is: {exc.stderr}')
         return None
 
     return f'{sample_dir}.bam'  # No return for {basename}_unpaired.bam?
@@ -1462,5 +1491,22 @@ def main(args):
                 depth_paralogs_handle.write(report_line)
     logger.info(f'{"[WARNING]:":10} Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
+
+    if args.compress_sample_folder:
+        fill = textwrap.fill(f'{"[INFO]:":10} Option "--compress_sample_folder" provided. Sample directory will '
+                               f'be tarballed and compressed with gzip!',
+                               width=90, subsequent_indent=" " * 11)
+        logger.info(fill)
+
+        logger.debug(f'os.getcwd(): {os.getcwd()}')
+        logger.debug(f'Changing to directory: {parent_dir}')
+        os.chdir(parent_dir)
+        logger.debug(f'os.getcwd(): {os.getcwd()}')
+
+        with tarfile.open(f'{sample_dir}.tar.gz', 'w:gz') as tarfile_handle:
+            tarfile_handle.add(sample_dir)
+
+        # Remove original sample directory:
+        shutil.rmtree(sample_dir)
 
     logger.info(f'\nFinished running "hybpiper assemble" for sample {sample_dir}!\n')
