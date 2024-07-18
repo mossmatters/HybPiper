@@ -652,6 +652,8 @@ def main(args):
                 )
 
         else:  # i.e. uncompressed sample folder
+
+            # Check if files are present in the un-compressed folder:
             bam_file_exists = True if os.path.isfile(f'{sampledir_parent}/{bamfile}') else False
             bam_file_unpaired_exists = True if os.path.isfile(f'{sampledir_parent}/{bamfile_unpaired}') else False
             blastxfile_exists = True if os.path.isfile(f'{sampledir_parent}/{blastxfile}') else False
