@@ -20,6 +20,8 @@ import logging
 import pandas
 import textwrap
 import re
+
+from hybpiper import utils
 from hybpiper.version import __version__
 
 
@@ -142,32 +144,54 @@ def recover_sequences_from_all_samples(seq_dir,
         samples_to_recover = False
 
     # Recover sample names from directory names or names in text file provided:
-    if os.path.isdir(sample_names):
-        logger.info(f'{"[INFO]:":10} The following parent directory was provided using the parameter --sample_names:'
-                    f' "{sample_names}". HybPiper will search for sample directories within this parent directory')
-        sampledir = sample_names
-        sample_names_list = [x for x in os.listdir(sampledir) if os.path.isdir(os.path.join(sampledir, x)) and not
-                             x.startswith('.')]
+    # if os.path.isdir(sample_names):
+    #     logger.info(f'{"[INFO]:":10} The following parent directory was provided using the parameter --sample_names:'
+    #                 f' "{sample_names}". HybPiper will search for sample directories within this parent directory')
+    #     sampledir_parent = sample_names
+    #     # sample_names_list = [x for x in os.listdir(sampledir_parent) if os.path.isdir(os.path.join(sampledir_parent, x)) and not
+    #     #                      x.startswith('.')]
+    #
+    #     sample_names_list = [x for x in os.listdir(sampledir_parent) if os.path.isdir(os.path.join(sampledir_parent, x)) or
+    #                          x.endswith('.tar.gz') and not x.startswith('.')]
+    #     print(sample_names_list)
+    # else:
+
+    logger.info(f'{"[INFO]:":10} The following file of sample names was provided using the parameter '
+                f'--sample_names: "{sample_names}".')
+
+    if not os.path.isfile(sample_names):
+        sys.exit(f'{"[ERROR]:":10} Can not find either a directory or a file with the name "{sample_names}", '
+                 f'exiting...')
+
+    sample_names_list = [x.rstrip() for x in open(sample_names) if x.rstrip()]
+
+    for sample in sample_names_list:
+        if re.search('/', sample):
+            sys.exit(f'{"[ERROR]:":10} A sample name must not contain forward slashes. The file {sample_names} '
+                     f'contains: {sample}')
+
+    # Search within a user-supplied directory for the given sample directories, or the current directory if not:
+    if hybpiper_dir:
+        sampledir_parent = hybpiper_dir
     else:
-        logger.info(f'{"[INFO]:":10} The following file of sample names was provided using the parameter '
-                    f'--sample_names: "{sample_names}".')
+        sampledir_parent = '.'
 
-        if not os.path.isfile(sample_names):
-            sys.exit(f'{"[ERROR]:":10} Can not find either a directory or a file with the name "{sample_names}", '
-                     f'exiting...')
+    # Parse sample_names_list and parse any *.tar.gz samples:
+    compressed_sample_dict = dict()
 
-        sample_names_list = [x.rstrip() for x in open(sample_names) if x.rstrip()]
+    for line in sample_names_list:
+        name = line.rstrip()
+        if name:
+            compressed_sample = f'{sampledir_parent}/{name}.tar.gz'
+            uncompressed_sample = f'{sampledir_parent}/{name}'
 
-        for sample in sample_names_list:
-            if re.search('/', sample):
-                sys.exit(f'{"[ERROR]:":10} A sample name must not contain forward slashes. The file {sample_names} '
-                         f'contains: {sample}')
+            if os.path.isfile(compressed_sample):
+                compressed_sample_dict[name] = utils.parse_compressed_sample(compressed_sample)
 
-        # Search within a user-supplied directory for the given sample directories, or the current directory if not:
-        if hybpiper_dir:
-            sampledir = hybpiper_dir
-        else:
-            sampledir = '.'
+                # Check for an uncompressed folder as well:
+                if os.path.isfile(uncompressed_sample):
+                    sys.exit(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found '
+                             f'for sample {name}. Please remove one!')
 
     # Set output directory:
     if fasta_dir:
@@ -199,35 +223,50 @@ def recover_sequences_from_all_samples(seq_dir,
                 if samples_to_recover and sample not in samples_to_recover:
                     continue
 
-                # Determine whether a chimera check was performed for this sample during 'hybpiper assemble':
-                with open(f'{sampledir}/{sample}/{sample}_chimera_check_performed.txt', 'r') as chimera_check_handle:
-                    chimera_check_bool = chimera_check_handle.read()
+                # Check is the sample directory is a compressed tarball:
+                compressed_sample_bool = False
+                if sample in compressed_sample_dict:
+                    compressed_sample_bool = True
 
-                    if chimera_check_bool == 'True':
-                        chimera_check_performed_for_sample = True
-                    elif chimera_check_bool == 'False':
-                        chimera_check_performed_for_sample = False
-                    else:
-                        raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample}')
+                # Determine whether a chimera check was performed for this sample during 'hybpiper assemble':
+                chimera_check_performed_file = f'{sample}/{sample}_chimera_check_performed.txt'
+
+                if compressed_sample_bool:
+                    compressed_sample_bool_lines = utils.get_compressed_file_lines(sample,
+                                                                                   chimera_check_performed_file)
+                    chimera_check_bool = compressed_sample_bool_lines[0]
+
+                else:
+                    with open(chimera_check_performed_file, 'r') as chimera_check_handle:
+                        chimera_check_bool = chimera_check_handle.read()
+
+                if chimera_check_bool == 'True':
+                    chimera_check_performed_for_sample = True
+                elif chimera_check_bool == 'False':
+                    chimera_check_performed_for_sample = False
+                else:
+                    raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample}')
 
                 # Recover a list of putative chimeric genes for the sample (if a chimera check was performed), and
                 # skip gene if in the list:
                 if not chimera_check_performed_for_sample:
                     samples_with_no_chimera_check_performed.add(sample)
                 elif skip_chimeric:
-                    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir, sample)
+                    chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir_parent, sample)
 
                     if gene in chimeric_genes_to_skip:
                         logger.info(f'{"[INFO]:":10} Skipping putative chimeric stitched contig sequence for {gene}, '
                                     f'sample {sample}')
                         continue
 
+                sys.exit()
+
                 # Get path to the gene/intron/supercontig sequence:
                 if seq_dir == 'intron':
-                    sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir,
+                    sample_path = os.path.join(sampledir_parent, sample, gene, sample, 'sequences', seq_dir,
                                                f'{gene}_{filename}.fasta')
                 else:
-                    sample_path = os.path.join(sampledir, sample, gene, sample, 'sequences', seq_dir,
+                    sample_path = os.path.join(sampledir_parent, sample, gene, sample, 'sequences', seq_dir,
                                                f'{gene}.{seq_dir}')
 
                 if os.path.isfile(sample_path):
@@ -409,7 +448,7 @@ def standalone():
 
 def main(args):
     """
-    Entry point for the assemble.py module.
+    Entry point for the hybpiper_main.py module.
 
     :param argparse.Namespace args:
     """
@@ -477,10 +516,8 @@ def main(args):
 
     if args.sequence_type == 'dna':
         seq_dir = "FNA"
-        # filename = None
     elif args.sequence_type == 'aa':
         seq_dir = "FAA"
-        # filename = None
     elif args.sequence_type == 'intron':
         seq_dir = 'intron'
         filename = 'introns'

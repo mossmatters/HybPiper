@@ -1151,24 +1151,26 @@ def parse_compressed_sample(compressed_sample):
     return member_name_and_size_dict
 
 
-def get_compressed_seq_length(sample_name,
-                              member_name):
+def get_compressed_seqrecord(sample_name,
+                             sampledir_parent,
+                             member_name):
     """
-    Returns the length of a fasta sequence within a compressed tarball of a given sample directory.
+    Returns the seqrecord of a fasta sequence within a compressed tarball of a given sample directory.
 
     :param sample_name:
+    :param sampledir_parent:
     :param member_name:
     :return:
     """
 
-    with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
         read_file = tarfile_handle.getmember(member_name)
         extracted_file = tarfile_handle.extractfile(read_file)
         lines = extracted_file.read().decode('utf-8', errors='ignore')
         seq_io = io.StringIO(lines)
         seqrecord = SeqIO.read(seq_io, 'fasta')
 
-    return len(seqrecord.seq.replace('N', ''))
+    return seqrecord
 
 
 def get_compressed_file_lines(sample_name,

@@ -44,11 +44,12 @@ logger.setLevel(logging.DEBUG)  # Default level is 'WARNING'
 
 
 def get_seq_lengths(targetfile,
-                    namelist,
                     targetfile_sequence_type,
+                    list_of_sample_names,
                     sequence_type_to_calculate_stats_for,
                     seq_lengths_filename,
-                    compressed_sample_dict):
+                    compressed_sample_dict,
+                    sampledir_parent):
     """
     Recover the sequence length of each target file gene (calculated as mean length if a representative sequence from
     more than one taxon is provided for a given gene). Calculate the percentage length recovery for each gene,
@@ -56,11 +57,12 @@ def get_seq_lengths(targetfile,
     (i.e. amino-acids x 3).
 
     :param str targetfile: path to the targetfile
-    :param str namelist: path to the text file containing sample names
     :param str targetfile_sequence_type: sequence type in the target file ('DNA' or 'protein')
+    :param list list_of_sample_names: a list of sample names
     :param str sequence_type_to_calculate_stats_for: gene (in nucleotides) or supercontig (in nucleotides)
     :param str seq_lengths_filename: optional filename for seq_lengths file. Default is seq_lengths.tsv
     :param dict compressed_sample_dict: dictionary containing *.tar.gz contents for compressed sample directories
+    :param path sampledir_parent: path to the parent directory containing the sample directories
     :return str seq_lengths_report_filename: path to the sequence length report file written by this function
     """
 
@@ -73,16 +75,6 @@ def get_seq_lengths(targetfile,
     elif sequence_type_to_calculate_stats_for.upper() == "SUPERCONTIG":
         filetype = 'supercontig'
     assert filetype
-
-    if not os.path.isfile(targetfile):
-        logger.error(f'{"[ERROR]:":10} Target file {targetfile} not found!')
-        sys.exit()
-
-    if not os.path.isfile(namelist):
-        logger.error(f'{"[ERROR]:":10} Name list file {namelist} not found!')
-        sys.exit()
-
-    namelist_parsed = [n.rstrip() for n in open(namelist).readlines() if n.rstrip()]
 
     # Get the names and lengths for each sequence in the target file:
     gene_names = []
@@ -105,67 +97,89 @@ def get_seq_lengths(targetfile,
     lines_for_report.append(f'MeanLength\t{avg_ref_lengths_to_write}')
 
     # Get seq lengths for sample gene sequences (FNA or supercontigs):
-    sample_name_2_total_bases_dict = defaultdict(int)
+    sample_name_to_total_bases_dict = defaultdict(int)
 
-    for name in namelist_parsed:  # iterate over samples
+    for sample_name in list_of_sample_names:  # iterate over sample names
 
         # Check is the sample directory is a compressed tarball:
         compressed_sample = False
-        if name in compressed_sample_dict:
+        if sample_name in compressed_sample_dict:
             compressed_sample = True
 
         name_lengths = []  # lengths of sequences in nucleotides
         for gene in range(len(unique_names)):  # iterate over genes
 
-            # Reconstruct path to the sequence:
+            # Reconstruct path to the sequence with sample directory as root:
             if filetype == 'supercontig':
-                read_file = os.path.join(name, unique_names[gene], name, 'sequences', 'intron',
-                                         f'{unique_names[gene]}_supercontig.fasta')
+                seq_file = os.path.join(sample_name, unique_names[gene], sample_name, 'sequences', 'intron',
+                                        f'{unique_names[gene]}_supercontig.fasta')
             else:
-                read_file = os.path.join(name, unique_names[gene], name, "sequences", filetype,
-                                         f'{unique_names[gene]}.{filetype}')
+                seq_file = os.path.join(sample_name, unique_names[gene], sample_name, "sequences", filetype,
+                                        f'{unique_names[gene]}.{filetype}')
 
-            # Get sequence details depending on compressed vs non-compressed:
+            # Get full path to seq_file:
+            seq_file_full_path = f'{sampledir_parent}/{seq_file}'
+
+            # Get sequence details depending on compressed vs non-compressed sample directory:
             seq_length = None
 
             if compressed_sample:
-                file_exists = True if read_file in compressed_sample_dict[name] else False
-                size = compressed_sample_dict[name][read_file] if read_file in compressed_sample_dict[name] else 0
-                if file_exists and size > 0:
-                    seq_length = utils.get_compressed_seq_length(name,
-                                                                 read_file)
+                seq_file_exists = True if seq_file in compressed_sample_dict[sample_name] else False
+                seq_file_size = compressed_sample_dict[sample_name][seq_file] \
+                    if seq_file in compressed_sample_dict[sample_name] else 0
 
-            else:
-                file_exists = True if os.path.isfile(read_file) else False
-                size = os.path.getsize(read_file) if os.path.isfile(read_file) else 0
-                if file_exists and size > 0:
-                    seq_length = len(SeqIO.read(read_file, 'fasta').seq.replace('N', ''))
+                if seq_file_exists:
+                    if seq_file_size == 0:
+                        logger.warning(f'{"[WARNING]:":10} File {seq_file_full_path} exists, but is empty! A length of '
+                                       f'zero will be recorded for this sequence.\n')
+                        name_lengths.append("0")
+                    else:
+                        seqrecord = utils.get_compressed_seqrecord(sample_name,
+                                                                   sampledir_parent,
+                                                                   seq_file)
+                        seq_length = len(seqrecord.seq.replace('N', ''))
+                        if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
+                            logger.warning(f'{"[WARNING]:":10} Sequence length for {sample_name} is more than 50% '
+                                           f'longer than {unique_names[gene]} reference!\n')
 
-            if file_exists:
-                if size == 0:
-                    logger.warning(f'{"[WARNING]:":10} File {read_file} exists, but is empty! A length of zero will be '
-                                   f'recorded for this sequence.\n')
-                    name_lengths.append("0")
+                        name_lengths.append(str(seq_length))
+                        sample_name_to_total_bases_dict[sample_name] += seq_length
                 else:
-                    if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
-                        logger.warning(f'{"[WARNING]:":10} Sequence length for {name} is more than 50% longer than'
-                                       f' {unique_names[gene]} reference!\n')
-                    name_lengths.append(str(seq_length))
-                    sample_name_2_total_bases_dict[name] += seq_length
-            else:
-                name_lengths.append("0")
+                    name_lengths.append("0")
+
+            else:  # i.e. uncompressed sample folder
+
+                seq_file_exists = True if os.path.isfile(seq_file_full_path) else False
+                seq_file_size = os.path.getsize(seq_file_full_path) if os.path.isfile(seq_file_full_path) else 0
+
+                if seq_file_exists:
+                    if seq_file_size == 0:
+                        logger.warning(f'{"[WARNING]:":10} File {seq_file_full_path} exists, but is empty! A length of '
+                                       f'zero will be recorded for this sequence.\n')
+                        name_lengths.append("0")
+                    else:
+                        seq_length = len(SeqIO.read(seq_file_full_path, 'fasta').seq.replace('N', ''))
+                        if seq_length > 1.5 * avg_ref_lengths[gene] and filetype != 'supercontig':
+                            logger.warning(f'{"[WARNING]:":10} Sequence length for {sample_name} is more than 50% '
+                                           f'longer than {unique_names[gene]} reference!\n')
+
+                        name_lengths.append(str(seq_length))
+                        sample_name_to_total_bases_dict[sample_name] += seq_length
+                else:
+                    name_lengths.append("0")
 
         lengths_to_write = '\t'.join(name_lengths)
-        lines_for_report.append(f'{name}\t{lengths_to_write}')
+        lines_for_report.append(f'{sample_name}\t{lengths_to_write}')
 
     # Write report file "seq_lengths.tsv"
     seq_lengths_report_filename = f'{seq_lengths_filename}.tsv'
     with open(seq_lengths_report_filename, 'w') as seq_lengths_handle:
         for item in lines_for_report:
             seq_lengths_handle.write(f'{item}\n')
+
     logger.info(f'{"[INFO]:":10} A sequence length table has been written to file: {seq_lengths_filename}.tsv')
 
-    return seq_lengths_report_filename, sample_name_2_total_bases_dict
+    return seq_lengths_report_filename, sample_name_to_total_bases_dict
 
 
 def file_len(fname):
@@ -456,7 +470,7 @@ def standalone():
 
 def main(args):
     """
-    Entry point for the assemble.py module.
+    Entry point for the hybpiper_main.py module.
 
     :param argparse.Namespace args:
     """
@@ -480,28 +494,56 @@ def main(args):
     assert targetfile
     assert targetfile_type
 
+    logger.info(f'{"[INFO]:":10} The following file of sample names was provided: "{args.namelist}".')
+
+    if not utils.file_exists_and_not_empty(args.namelist):
+        sys.exit(f'{"[ERROR]:":10} File {args.namelist} is missing or empty, exiting!')
+
+    if not utils.file_exists_and_not_empty(targetfile):
+        sys.exit(f'{"[ERROR]:":10} File {targetfile} is missing or empty, exiting!')
+
+    # Search within a user-supplied directory for the given sample directories, or the current directory if not:
+    if args.hybpiper_dir:
+        sampledir_parent = os.path.abspath(args.hybpiper_dir)
+    else:
+        sampledir_parent = os.getcwd()
+
     # Parse namelist and parse any *.tar.gz samples:
     compressed_sample_dict = dict()
+    list_of_sample_names = []
+    with open(args.namelist, 'r') as namelist_handle:
+        for line in namelist_handle.readlines():
+            sample_name = line.rstrip()
+            if sample_name:
+                list_of_sample_names.append(sample_name)
+                if re.search('/', sample_name):
+                    sys.exit(f'{"[ERROR]:":10} A sample name must not contain '
+                             f'forward slashes. The file {args.namelist} contains: {sample_name}')
 
-    for line in open(args.namelist):
-        name = line.rstrip()
-        if name:
-            if re.search('/', name):
-                sys.exit(f'{"[ERROR]:":10} A sample name must not contain '
-                         f'forward slashes. The file {args.namelist} contains: {name}')
+                compressed_sample = f'{sampledir_parent}/{sample_name}.tar.gz'
+                uncompressed_sample = f'{sampledir_parent}/{sample_name}'
 
-            compressed_sample = f'{name}.tar.gz'
-            if os.path.isfile(compressed_sample):
-                compressed_sample_dict[name] = utils.parse_compressed_sample(compressed_sample)
+                if os.path.isfile(compressed_sample):
+                    compressed_sample_dict[sample_name] = utils.parse_compressed_sample(compressed_sample)
+
+                    # Check for an uncompressed folder as well:
+                    if os.path.isfile(uncompressed_sample):
+                        sys.exit(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found '
+                                 f'for sample {sample_name} in directory {sampledir_parent}. Please remove one!')
 
     # Get sequence lengths for recovered genes, and write them to file, along with total bases recovered:
     (seq_lengths_file_path,
      sample_name_to_total_bases_dict) = get_seq_lengths(targetfile,
-                                                       args.namelist,
-                                                       targetfile_type,
-                                                       args.sequence_type,
-                                                       args.seq_lengths_filename,
-                                                       compressed_sample_dict)
+                                                        targetfile_type,
+                                                        list_of_sample_names,
+                                                        args.sequence_type,
+                                                        args.seq_lengths_filename,
+                                                        compressed_sample_dict,
+                                                        sampledir_parent)
+
+    print(sample_name_to_total_bases_dict)
+
+    sys.exit()
 
     lines_for_stats_report = []
 
@@ -533,41 +575,41 @@ def main(args):
     stats_dict = {}
 
     for line in open(args.namelist):  # iterate over samples
-        name = line.rstrip()
-        if name:
-            stats_dict[name] = []
+        sample_name = line.rstrip()
+        if sample_name:
+            stats_dict[sample_name] = []
 
             # Check is the sample directory is a compressed tarball:
             compressed_sample_bool = False
-            if name in compressed_sample_dict:
+            if sample_name in compressed_sample_dict:
                 compressed_sample_bool = True
 
             # Enrichment Efficiency
-            bamfile = f'{name}/{name}.bam'
-            bamfile_unpaired = f'{name}/{name}_unpaired.bam'
-            blastxfile = f'{name}/{name}.blastx'
-            blastxfile_unpaired = f'{name}/{name}_unpaired.blastx'
-            total_input_reads_paired = f'{name}/total_input_reads_paired.txt'
-            total_input_reads_single = f'{name}/total_input_reads_single.txt'
-            total_input_reads_unpaired = f'{name}/total_input_reads_unpaired.txt'
+            bamfile = f'{sample_name}/{sample_name}.bam'
+            bamfile_unpaired = f'{sample_name}/{sample_name}_unpaired.bam'
+            blastxfile = f'{sample_name}/{sample_name}.blastx'
+            blastxfile_unpaired = f'{sample_name}/{sample_name}_unpaired.blastx'
+            total_input_reads_paired = f'{sample_name}/total_input_reads_paired.txt'
+            total_input_reads_single = f'{sample_name}/total_input_reads_single.txt'
+            total_input_reads_unpaired = f'{sample_name}/total_input_reads_unpaired.txt'
 
             if compressed_sample_bool:
 
                 # Check if files are present in the compressed folder:
-                bam_file_exists = True if bamfile in compressed_sample_dict[name] else False
-                bam_file_unpaired_exists = True if bamfile_unpaired in compressed_sample_dict[name] else False
-                blastxfile_exists = True if blastxfile in compressed_sample_dict[name] else False
-                blastxfile_unpaired_exists = True if blastxfile_unpaired in compressed_sample_dict[name] else False
+                bam_file_exists = True if bamfile in compressed_sample_dict[sample_name] else False
+                bam_file_unpaired_exists = True if bamfile_unpaired in compressed_sample_dict[sample_name] else False
+                blastxfile_exists = True if blastxfile in compressed_sample_dict[sample_name] else False
+                blastxfile_unpaired_exists = True if blastxfile_unpaired in compressed_sample_dict[sample_name] else False
                 total_input_reads_paired_exists = \
-                    True if total_input_reads_paired in compressed_sample_dict[name] else False
+                    True if total_input_reads_paired in compressed_sample_dict[sample_name] else False
                 total_input_reads_single_exists = \
-                    True if total_input_reads_single in compressed_sample_dict[name] else False
+                    True if total_input_reads_single in compressed_sample_dict[sample_name] else False
                 total_input_reads_unpaired_exists = \
-                    True if total_input_reads_unpaired in compressed_sample_dict[name] else False
+                    True if total_input_reads_unpaired in compressed_sample_dict[sample_name] else False
 
                 if not bam_file_exists and not blastxfile_exists:
                     fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for '
-                                                    f'{name}. No statistics will be recovered. Please check the log '
+                                                    f'{sample_name}. No statistics will be recovered. Please check the log '
                                                     f'file for this sample!',
                                                     width=90, subsequent_indent=' ' * 11, break_long_words=False,
                                                     break_on_forward_slash=True)
@@ -575,12 +617,12 @@ def main(args):
                     continue
 
                 if bam_file_exists:
-                    stats_dict[name] += enrich_efficiency_bwa(name,
+                    stats_dict[sample_name] += enrich_efficiency_bwa(sample_name,
                                                               compressed_sample_bool=compressed_sample_bool,
                                                               bam_file_unpaired_exists=bam_file_unpaired_exists)
                 else:
-                    stats_dict[name] += enrich_efficiency_blastx(
-                        name,
+                    stats_dict[sample_name] += enrich_efficiency_blastx(
+                        sample_name,
                         blastxfile,
                         compressed_sample_bool=compressed_sample_bool,
                         blastxfile_unpaired_exists=blastxfile_unpaired_exists,
@@ -600,7 +642,7 @@ def main(args):
 
                 if not bam_file_exists and not blastxfile_exists:
                     fill = utils.fill_forward_slash(f'{"[WARNING]:":10} No *.bam or *.blastx file found for '
-                                                    f'{name}. No statistics will be recovered. Please check the log '
+                                                    f'{sample_name}. No statistics will be recovered. Please check the log '
                                                     f'file for this sample!',
                                                     width=90, subsequent_indent=' ' * 11, break_long_words=False,
                                                     break_on_forward_slash=True)
@@ -608,12 +650,12 @@ def main(args):
                     continue
 
                 if bam_file_exists:
-                    stats_dict[name] += enrich_efficiency_bwa(name,
+                    stats_dict[sample_name] += enrich_efficiency_bwa(sample_name,
                                                               bam_file_unpaired_exists=bam_file_unpaired_exists)
 
                 else:
-                    stats_dict[name] += enrich_efficiency_blastx(
-                        name,
+                    stats_dict[sample_name] += enrich_efficiency_blastx(
+                        sample_name,
                         blastxfile,
                         blastxfile_unpaired_exists=blastxfile_unpaired_exists,
                         total_input_reads_paired_exists=total_input_reads_paired_exists,
@@ -622,69 +664,69 @@ def main(args):
                     )
 
             # Recovery Efficiency
-            stats_dict[name] += recovery_efficiency(name,
+            stats_dict[sample_name] += recovery_efficiency(sample_name,
                                                     compressed_sample_bool,
                                                     compressed_sample_dict)
 
-            stats_dict[name] += seq_length_dict[name]
+            stats_dict[sample_name] += seq_length_dict[sample_name]
 
             # Paralogs - long:
-            long_paralog_warnings_file = f'{name}/{name}_genes_with_long_paralog_warnings.txt'
+            long_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_long_paralog_warnings.txt'
 
             if compressed_sample_bool:
-                if long_paralog_warnings_file in compressed_sample_dict[name]:
-                    long_paralog_warnings_file_lines = utils.get_compressed_file_lines(name,
+                if long_paralog_warnings_file in compressed_sample_dict[sample_name]:
+                    long_paralog_warnings_file_lines = utils.get_compressed_file_lines(sample_name,
                                                                                        long_paralog_warnings_file)
                     paralog_warns = len(long_paralog_warnings_file_lines)
-                    stats_dict[name].append(str(paralog_warns))
+                    stats_dict[sample_name].append(str(paralog_warns))
                 else:
-                    stats_dict[name].append("0")
+                    stats_dict[sample_name].append("0")
             else:
                 if os.path.isfile(long_paralog_warnings_file):
                     paralog_warns = file_len(long_paralog_warnings_file)
-                    stats_dict[name].append(str(paralog_warns))
+                    stats_dict[sample_name].append(str(paralog_warns))
                 else:
-                    stats_dict[name].append("0")
+                    stats_dict[sample_name].append("0")
 
             # Paralogs - by contig depth across query protein:
-            depth_paralog_warnings_file = f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'
+            depth_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'
 
             if compressed_sample_bool:
                 num_genes_paralog_warning_by_depth = 0
 
-                if depth_paralog_warnings_file in compressed_sample_dict[name]:
-                    depth_paralog_warnings_file_lines = utils.get_compressed_file_lines(name,
+                if depth_paralog_warnings_file in compressed_sample_dict[sample_name]:
+                    depth_paralog_warnings_file_lines = utils.get_compressed_file_lines(sample_name,
                                                                                         depth_paralog_warnings_file)
                     for gene_stats in depth_paralog_warnings_file_lines:
                         stat = gene_stats.split(',')[3].strip()
                         if stat == 'True':
                             num_genes_paralog_warning_by_depth += 1
 
-                stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
+                stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
 
             else:
                 num_genes_paralog_warning_by_depth = 0
-                if os.path.isfile(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv'):
-                    with open(f'{name}/{name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
+                if os.path.isfile(f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'):
+                    with open(f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv') as paralogs_by_depth:
                         lines = paralogs_by_depth.readlines()
                         for gene_stats in lines:
                             stat = gene_stats.split(',')[3].strip()
                             if stat == 'True':
                                 num_genes_paralog_warning_by_depth += 1
 
-                stats_dict[name].append(str(num_genes_paralog_warning_by_depth))
+                stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
 
             # Stitched contig information:
             stitched_contig_produced = 0
             no_stitched_contig = 0
             stitched_contig_skipped = 0
 
-            genes_with_stitched_contig_file = f'{name}/{name}_genes_with_stitched_contig.csv'
+            genes_with_stitched_contig_file = f'{sample_name}/{sample_name}_genes_with_stitched_contig.csv'
 
             if compressed_sample_bool:
 
-                if genes_with_stitched_contig_file in compressed_sample_dict[name]:
-                    lines = utils.get_compressed_file_lines(name,
+                if genes_with_stitched_contig_file in compressed_sample_dict[sample_name]:
+                    lines = utils.get_compressed_file_lines(sample_name,
                                                             genes_with_stitched_contig_file)
                     for gene_stats in lines:
                         stat = gene_stats.split(',')[2]
@@ -697,7 +739,7 @@ def main(args):
 
             else:
                 if os.path.isfile(genes_with_stitched_contig_file):
-                    with open(f'{name}/{name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
+                    with open(f'{sample_name}/{sample_name}_genes_with_stitched_contig.csv') as stitched_contig_stats:
                         lines = stitched_contig_stats.readlines()
                         for gene_stats in lines:
                             stat = gene_stats.split(',')[2]
@@ -709,18 +751,18 @@ def main(args):
                                 stitched_contig_skipped += 1
 
             stitched_contigs_produced_total = stitched_contig_produced
-            stats_dict[name].append(str(no_stitched_contig))
-            stats_dict[name].append(str(stitched_contigs_produced_total))
-            stats_dict[name].append(str(stitched_contig_skipped))
+            stats_dict[sample_name].append(str(no_stitched_contig))
+            stats_dict[sample_name].append(str(stitched_contigs_produced_total))
+            stats_dict[sample_name].append(str(stitched_contig_skipped))
 
             chimeric_stitched_contigs = 0
             genes_derived_from_putative_chimeric_stitched_contig_file = \
-                f'{name}/{name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
+                f'{sample_name}/{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
 
             if compressed_sample_bool:
 
-                if genes_derived_from_putative_chimeric_stitched_contig_file in compressed_sample_dict[name]:
-                    lines = utils.get_compressed_file_lines(name,
+                if genes_derived_from_putative_chimeric_stitched_contig_file in compressed_sample_dict[sample_name]:
+                    lines = utils.get_compressed_file_lines(sample_name,
                                                             genes_derived_from_putative_chimeric_stitched_contig_file)
                     for gene_stats in lines:
                         stat = gene_stats.split(',')[2]
@@ -738,15 +780,15 @@ def main(args):
                             if re.search(' Chimera WARNING for stitched contig.', stat):
                                 chimeric_stitched_contigs += 1
 
-            stats_dict[name].append(str(chimeric_stitched_contigs))
+            stats_dict[sample_name].append(str(chimeric_stitched_contigs))
 
             # Total bases recovered (not counting N characters):
-            stats_dict[name].append(str(sample_name_to_total_bases_dict[name]))
+            stats_dict[sample_name].append(str(sample_name_to_total_bases_dict[sample_name]))
 
     # SeqLengths:
-    for name in stats_dict:
-        stats_dict_for_printing = '\t'.join(stats_dict[name])
-        lines_for_stats_report.append(f'{name}\t{stats_dict_for_printing}')
+    for sample_name in stats_dict:
+        stats_dict_for_printing = '\t'.join(stats_dict[sample_name])
+        lines_for_stats_report.append(f'{sample_name}\t{stats_dict_for_printing}')
 
     with open(f'{args.stats_filename}.tsv', 'w') as hybpiper_stats_handle:
         for item in lines_for_stats_report:
