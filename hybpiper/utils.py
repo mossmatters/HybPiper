@@ -1171,44 +1171,6 @@ def get_compressed_seq_length(sample_name,
     return len(seqrecord.seq.replace('N', ''))
 
 
-# def get_bam_flagstat_io(sample_name,
-#                         member_name):
-#     """
-#
-#     :param sample_name:
-#     :param member_name:
-#     :return:
-#     """
-#
-#     with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
-#
-#         bam_flagstat_tsv = tarfile_handle.getmember(member_name)
-#         extracted_file = tarfile_handle.extractfile(bam_flagstat_tsv)
-#         lines = extracted_file.read().decode('utf-8', errors='ignore')
-#         lines = lines.split('\n')
-#
-#     return lines
-#
-#
-# def get_blastx_lines(sample_name,
-#                      member_name):
-#     """
-#
-#     :param sample_name:
-#     :param member_name:
-#     :return:
-#     """
-#
-#     with tarfile.open(f'{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
-#
-#         blastx_flagstat_tsv = tarfile_handle.getmember(member_name)
-#         extracted_file = tarfile_handle.extractfile(blastx_flagstat_tsv)
-#         lines = extracted_file.read().decode('utf-8', errors='ignore')
-#         lines = lines.split('\n')
-#
-#     return lines
-
-
 def get_compressed_file_lines(sample_name,
                               member_name):
     """
