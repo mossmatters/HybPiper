@@ -1224,6 +1224,7 @@ def get_compressed_file_lines(sample_name,
         extracted_file = tarfile_handle.extractfile(tarinfo)
         lines = extracted_file.read().decode('utf-8', errors='ignore')
         lines = lines.split('\n')
+        lines = [line for line in lines if line]
 
     return lines
 
