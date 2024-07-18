@@ -552,6 +552,8 @@ def main(args):
             total_input_reads_unpaired = f'{name}/total_input_reads_unpaired.txt'
 
             if compressed_sample_bool:
+
+                # Check if files are present in the compressed folder:
                 bam_file_exists = True if bamfile in compressed_sample_dict[name] else False
                 bam_file_unpaired_exists = True if bamfile_unpaired in compressed_sample_dict[name] else False
                 blastxfile_exists = True if blastxfile in compressed_sample_dict[name] else False
