@@ -515,11 +515,14 @@ def main(args):
     assert targetfile
     assert targetfile_type
 
+    ####################################################################################################################
+    # Check for presence of required input files:
+    ####################################################################################################################
     logger.info(f'{"[INFO]:":10} The following file of sample names was provided: "{args.namelist}".')
-
     if not utils.file_exists_and_not_empty(args.namelist):
         sys.exit(f'{"[ERROR]:":10} File {args.namelist} is missing or empty, exiting!')
 
+    logger.info(f'{"[INFO]:":10} The following target file was provided: "{targetfile}".')
     if not utils.file_exists_and_not_empty(targetfile):
         sys.exit(f'{"[ERROR]:":10} File {targetfile} is missing or empty, exiting!')
 
@@ -580,7 +583,9 @@ def main(args):
 
     list_of_sample_names = [x for x in list_of_sample_names if x not in samples_missing]
 
+    ####################################################################################################################
     # Get sequence lengths for recovered genes, and write them to file, along with total bases recovered:
+    ####################################################################################################################
     (seq_lengths_file_path,
      sample_name_to_total_bases_dict) = get_seq_lengths(targetfile,
                                                         targetfile_type,
@@ -618,7 +623,9 @@ def main(args):
     categories_for_printing = '\t'.join(categories)
     lines_for_stats_report.append(categories_for_printing)
 
+    ####################################################################################################################
     # Iterate over sample names and populate stats_dict:
+    ####################################################################################################################
     stats_dict = {}
     for sample_name in list_of_sample_names:
 
@@ -629,7 +636,9 @@ def main(args):
 
         stats_dict[sample_name] = []
 
-        # Enrichment Efficiency
+        ################################################################################################################
+        # Enrichment efficiency:
+        ################################################################################################################
 
         # Set expected paths with sample folder as root:
         bamfile = f'{sample_name}/{sample_name}.bam'
@@ -724,15 +733,22 @@ def main(args):
                     total_input_reads_unpaired_exists=total_input_reads_unpaired_exists
                 )
 
-        # Recovery Efficiency
+        ################################################################################################################
+        # Recovery efficiency:
+        ################################################################################################################
         stats_dict[sample_name] += recovery_efficiency(sample_name,
                                                        sampledir_parent,
                                                        compressed_sample_bool,
                                                        compressed_sample_dict)
 
+        ################################################################################################################
+        # Sequence length:
+        ################################################################################################################
         stats_dict[sample_name] += seq_length_dict[sample_name]
 
+        ################################################################################################################
         # Paralogs - long:
+        ################################################################################################################
         long_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_long_paralog_warnings.txt'
 
         if compressed_sample_bool:
@@ -752,7 +768,9 @@ def main(args):
             else:
                 stats_dict[sample_name].append("0")
 
+        ################################################################################################################
         # Paralogs - by contig depth across query protein:
+        ################################################################################################################
         depth_paralog_warnings_file = f'{sample_name}/{sample_name}_genes_with_paralog_warnings_by_contig_depth.csv'
 
         if compressed_sample_bool:
@@ -782,7 +800,9 @@ def main(args):
 
             stats_dict[sample_name].append(str(num_genes_paralog_warning_by_depth))
 
+        ################################################################################################################
         # Stitched contig information:
+        ################################################################################################################
         stitched_contig_produced = 0
         no_stitched_contig = 0
         stitched_contig_skipped = 0
@@ -823,6 +843,9 @@ def main(args):
         stats_dict[sample_name].append(str(stitched_contigs_produced_total))
         stats_dict[sample_name].append(str(stitched_contig_skipped))
 
+        ################################################################################################################
+        # Chimeric stitched contigs:
+        ################################################################################################################
         chimeric_stitched_contigs = 0
         genes_derived_from_putative_chimeric_stitched_contig_file = \
             f'{sample_name}/{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
@@ -851,10 +874,14 @@ def main(args):
 
         stats_dict[sample_name].append(str(chimeric_stitched_contigs))
 
+        ################################################################################################################
         # Total bases recovered (not counting N characters):
+        ################################################################################################################
         stats_dict[sample_name].append(str(sample_name_to_total_bases_dict[sample_name]))
 
+    ####################################################################################################################
     # SeqLengths:
+    ####################################################################################################################
     for sample_name in stats_dict:
         stats_dict_for_printing = '\t'.join(stats_dict[sample_name])
         lines_for_stats_report.append(f'{sample_name}\t{stats_dict_for_printing}')

@@ -359,8 +359,7 @@ def add_retrieve_sequences_parser(subparsers):
                               'must follow the naming convention: >TaxonID-geneName')
     parser_retrieve_sequences.add_argument('--sample_names',
                                            default=None,
-                                           help='Directory containing Hybpiper output OR a file containing HybPiper '
-                                                'output names, one per line.')
+                                           help='Text file with names of HybPiper output directories, one per line.')
     parser_retrieve_sequences.add_argument('--single_sample_name',
                                            default=None,
                                            help='A single sample name to recover sequences for.')
