@@ -164,8 +164,8 @@ def recover_sequences_from_all_samples(seq_dir,
                      f'different filtering options!')
         logger.info(f'{"[INFO]:":10} The filtering options provided will recover sequences from'
                     f' {len(samples_to_recover)} sample(s). These are:')
-        for sample in samples_to_recover:
-            logger.info(f'{" " * 11}{sample}')
+        for sample_name in samples_to_recover:
+            logger.info(f'{" " * 11}{sample_name}')
     else:
         samples_to_recover = False
 
@@ -222,7 +222,7 @@ def recover_sequences_from_all_samples(seq_dir,
 
     if samples_missing:
 
-        fill = utils.fill_forward_slash(f'{"[WARNING]:":10} File {args.namelist} contains samples not found in '
+        fill = utils.fill_forward_slash(f'{"[WARNING]:":10} File {sample_names} contains samples not found in '
                                         f'directory "{sampledir_parent}". The missing samples are:',
                                         width=90, subsequent_indent=' ' * 11, break_long_words=False,
                                         break_on_forward_slash=True)
@@ -235,27 +235,9 @@ def recover_sequences_from_all_samples(seq_dir,
 
     list_of_sample_names = [x for x in list_of_sample_names if x not in samples_missing]
 
-
-
-
-
-    compressed_sample_dict = dict()
-
-    for line in sample_names_list:
-        name = line.rstrip()
-        if name:
-            compressed_sample = f'{sampledir_parent}/{name}.tar.gz'
-            uncompressed_sample = f'{sampledir_parent}/{name}'
-
-            if os.path.isfile(compressed_sample):
-                compressed_sample_dict[name] = utils.parse_compressed_sample(compressed_sample)
-
-                # Check for an uncompressed folder as well:
-                if os.path.isfile(uncompressed_sample):
-                    sys.exit(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found '
-                             f'for sample {name}. Please remove one!')
-
+    ####################################################################################################################
     # Set output directory:
+    ####################################################################################################################
     if fasta_dir:
         fasta_dir = os.path.abspath(fasta_dir)
         if not os.path.isdir(fasta_dir):
@@ -266,8 +248,11 @@ def recover_sequences_from_all_samples(seq_dir,
     if samples_to_recover:
         logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(samples_to_recover)} samples')
     else:
-        logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(sample_names_list)} samples')
+        logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from {len(list_of_sample_names)} samples')
 
+    ####################################################################################################################
+    # Iterate over each gene:
+    ####################################################################################################################
     samples_with_no_chimera_check_performed = set()
     for gene in target_genes:
         num_seqs = 0
@@ -279,22 +264,28 @@ def recover_sequences_from_all_samples(seq_dir,
             outfilename = f'{gene}.{seq_dir}'
 
         with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
-            for sample in sample_names_list:
+
+            ############################################################################################################
+            # Iterate over each sample:
+            ############################################################################################################
+            for sample_name in list_of_sample_names:
 
                 # Filter samples:
-                if samples_to_recover and sample not in samples_to_recover:
+                if samples_to_recover and sample_name not in samples_to_recover:
                     continue
 
-                # Check is the sample directory is a compressed tarball:
+                # Check if the sample directory is a compressed tarball:
                 compressed_sample_bool = False
-                if sample in compressed_sample_dict:
+                if sample_name in compressed_sample_dict:
                     compressed_sample_bool = True
 
+                ########################################################################################################
                 # Determine whether a chimera check was performed for this sample during 'hybpiper assemble':
-                chimera_check_performed_file = f'{sample}/{sample}_chimera_check_performed.txt'  # sample dir as root
+                ########################################################################################################
+                chimera_check_performed_file = f'{sample_name}/{sample_name}_chimera_check_performed.txt'  # sample dir as root
 
                 if compressed_sample_bool:
-                    compressed_sample_bool_lines = utils.get_compressed_file_lines(sample,
+                    compressed_sample_bool_lines = utils.get_compressed_file_lines(sample_name,
                                                                                    sampledir_parent,
                                                                                    chimera_check_performed_file)
                     chimera_check_bool = compressed_sample_bool_lines[0]
@@ -308,42 +299,54 @@ def recover_sequences_from_all_samples(seq_dir,
                 elif chimera_check_bool == 'False':
                     chimera_check_performed_for_sample = False
                 else:
-                    raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample}')
+                    raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {sample_name}')
 
+                ########################################################################################################
                 # Recover a list of putative chimeric genes for the sample (if a chimera check was performed), and
                 # skip gene if in the list:
+                ########################################################################################################
                 if not chimera_check_performed_for_sample:
-                    samples_with_no_chimera_check_performed.add(sample)
+                    samples_with_no_chimera_check_performed.add(sample_name)
                 elif skip_chimeric:
                     chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir_parent,
-                                                                           sample,
+                                                                           sample_name,
                                                                            compressed_sample_dict,
                                                                            compressed_sample_bool)
 
-                    print(f'chimeric_genes_to_skip: {chimeric_genes_to_skip}')
-
                     if gene in chimeric_genes_to_skip:
                         logger.info(f'{"[INFO]:":10} Skipping putative chimeric stitched contig sequence for {gene}, '
-                                    f'sample {sample}')
+                                    f'sample {sample_name}')
                         continue
 
-                sys.exit()
-
-                # Get path to the gene/intron/supercontig sequence:
+                ########################################################################################################
+                # Get path to the gene/intron/supercontig sequence with sample dir as root:
+                ########################################################################################################
                 if seq_dir == 'intron':
-                    sample_path = os.path.join(sampledir_parent, sample, gene, sample, 'sequences', seq_dir,
-                                               f'{gene}_{filename}.fasta')
+                    sample_path = os.path.join(sample_name, gene, sample_name, 'sequences', seq_dir, f'{gene}_{filename}.fasta')
                 else:
-                    sample_path = os.path.join(sampledir_parent, sample, gene, sample, 'sequences', seq_dir,
-                                               f'{gene}.{seq_dir}')
+                    sample_path = os.path.join(sample_name, gene, sample_name, 'sequences', seq_dir, f'{gene}.{seq_dir}')
 
-                if os.path.isfile(sample_path):
-                    if os.path.getsize(sample_path) == 0:
-                        logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
-                    else:
-                        seq = next(SeqIO.parse(sample_path, 'fasta'))
-                        SeqIO.write(seq, outfile, 'fasta')
-                        num_seqs += 1
+                if compressed_sample_bool:
+                    if sample_path in compressed_sample_dict[sample_name]:
+                        sample_path_size = compressed_sample_dict[sample_name][sample_path]
+
+                        if sample_path_size == 0:
+                            logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
+                        else:
+                            seqrecord = utils.get_compressed_seqrecord(sample_name,
+                                                                       sampledir_parent,
+                                                                       sample_path)
+                            SeqIO.write(seqrecord, outfile, 'fasta')
+                            num_seqs += 1
+                else:
+                    full_sample_path = f'{sampledir_parent}/{sample_path}'
+                    if os.path.isfile(full_sample_path):
+                        if os.path.getsize(full_sample_path) == 0:
+                            logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
+                        else:
+                            seqrecord = SeqIO.read(full_sample_path, 'fasta')
+                            SeqIO.write(seqrecord, outfile, 'fasta')
+                            num_seqs += 1
 
         logger.info(f'{"[INFO]:":10} Found {num_seqs} sequences for gene {gene}')
 
@@ -354,8 +357,8 @@ def recover_sequences_from_all_samples(seq_dir,
                              width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
         logger.warning(f'\n{fill}\n')
 
-        for sample in sorted(list(samples_with_no_chimera_check_performed)):
-            logger.warning(f'{" " * 10} {sample}')
+        for sample_name in sorted(list(samples_with_no_chimera_check_performed)):
+            logger.warning(f'{" " * 10} {sample_name}')
 
         logger.warning(f'\n{" " * 10} No putative chimeric sequences were skipped for these samples!')
 
