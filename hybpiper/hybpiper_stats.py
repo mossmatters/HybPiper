@@ -499,7 +499,9 @@ def main(args):
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
+    ####################################################################################################################
     # Set target file type and path:
+    ####################################################################################################################
     targetfile = None
     targetfile_type = None
 
@@ -521,15 +523,19 @@ def main(args):
     if not utils.file_exists_and_not_empty(targetfile):
         sys.exit(f'{"[ERROR]:":10} File {targetfile} is missing or empty, exiting!')
 
+    ####################################################################################################################
     # Search within a user-supplied directory for the given sample directories, or the current directory if not:
+    ####################################################################################################################
     if args.hybpiper_dir:
         sampledir_parent = os.path.abspath(args.hybpiper_dir)
     else:
         sampledir_parent = os.getcwd()
 
-    # Parse namelist and parse any *.tar.gz samples:
-    compressed_sample_dict = dict()
+    ####################################################################################################################
+    # Parse namelist and check for the presence of the corresponding sample directories or *.tar.gz files:
+    ####################################################################################################################
     list_of_sample_names = []
+
     with open(args.namelist, 'r') as namelist_handle:
         for line in namelist_handle.readlines():
             sample_name = line.rstrip()
@@ -539,16 +545,40 @@ def main(args):
                     sys.exit(f'{"[ERROR]:":10} A sample name must not contain '
                              f'forward slashes. The file {args.namelist} contains: {sample_name}')
 
-                compressed_sample = f'{sampledir_parent}/{sample_name}.tar.gz'
-                uncompressed_sample = f'{sampledir_parent}/{sample_name}'
+    samples_found = []
+    compressed_sample_dict = dict()
 
-                if os.path.isfile(compressed_sample):
-                    compressed_sample_dict[sample_name] = utils.parse_compressed_sample(compressed_sample)
+    for sample_name in list_of_sample_names:
+        compressed_sample = f'{sampledir_parent}/{sample_name}.tar.gz'
+        uncompressed_sample = f'{sampledir_parent}/{sample_name}'
 
-                    # Check for an uncompressed folder as well:
-                    if os.path.isfile(uncompressed_sample):
-                        sys.exit(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found '
-                                 f'for sample {sample_name} in directory {sampledir_parent}. Please remove one!')
+        if os.path.isfile(compressed_sample):
+            compressed_sample_dict[sample_name] = utils.parse_compressed_sample(compressed_sample)
+            samples_found.append(sample_name)
+
+        if os.path.isdir(uncompressed_sample):
+            if sample_name in samples_found:
+                sys.exit(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found for '
+                         f'sample {sample_name} in directory {sampledir_parent}. Please remove one!')
+            else:
+                samples_found.append(sample_name)
+
+    samples_missing = sorted(list(set(list_of_sample_names) - set(samples_found)))
+
+    if samples_missing:
+
+        fill = utils.fill_forward_slash(f'{"[WARNING]:":10} File {args.namelist} contains samples not found in '
+                                        f'directory "{sampledir_parent}". The missing samples are:',
+                                        width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                        break_on_forward_slash=True)
+
+        logger.warning(f'{fill}\n')
+
+        for name in samples_missing:
+            logger.warning(f'{" " * 10} {name}')
+        logger.warning('')
+
+    list_of_sample_names = [x for x in list_of_sample_names if x not in samples_missing]
 
     # Get sequence lengths for recovered genes, and write them to file, along with total bases recovered:
     (seq_lengths_file_path,
