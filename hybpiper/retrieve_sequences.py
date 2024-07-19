@@ -72,8 +72,7 @@ def get_chimeric_genes_for_sample(sampledir_parent,
             summary_file_not_found_bool = True
     else:
         try:
-            with open(f'{sampledir_parent}/{sample_name}/'
-                      f'{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv') as chimeric:
+            with open(full_path) as chimeric:
                 lines = chimeric.readlines()
                 for line in lines:
                     chimeric_genes_to_skip.append(line.split(',')[1])
