@@ -1465,7 +1465,6 @@ def main(args):
                 lines = report_handle.readlines()
                 genes_with_chimeras_handle.write('\n'.join(lines))
 
-
     ####################################################################################################################
     # Report paralog warnings and write paralog warning files
     ####################################################################################################################
@@ -1492,10 +1491,13 @@ def main(args):
     logger.info(f'{"[WARNING]:":10} Potential paralogs detected via contig depth for'
                 f' {paralog_warnings_short_true} genes!')
 
+    ####################################################################################################################
+    # Tarball and compress the output folder if --compress_sample_folder provided:
+    ####################################################################################################################
     if args.compress_sample_folder:
         fill = textwrap.fill(f'{"[INFO]:":10} Option "--compress_sample_folder" provided. Sample directory will '
-                               f'be tarballed and compressed with gzip!',
-                               width=90, subsequent_indent=" " * 11)
+                             f'be tarballed and compressed with gzip!',
+                             width=90, subsequent_indent=" " * 11)
         logger.info(fill)
 
         logger.debug(f'os.getcwd(): {os.getcwd()}')
