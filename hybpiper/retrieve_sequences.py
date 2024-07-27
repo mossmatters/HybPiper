@@ -513,6 +513,7 @@ def recover_sequences_from_one_sample(seq_dir,
                     seqrecord = utils.get_compressed_seqrecord(single_sample_name,
                                                                sampledir_parent,
                                                                sample_path)
+                    seqrecord.id = f'{seqrecord.id}-{gene}'
                     sequences_to_write.append(seqrecord)
                     num_seqs += 1
         else:
@@ -522,6 +523,7 @@ def recover_sequences_from_one_sample(seq_dir,
                     logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
                 else:
                     seqrecord = SeqIO.read(full_sample_path, 'fasta')
+                    seqrecord.id = f'{seqrecord.id}-{gene}'
                     sequences_to_write.append(seqrecord)
                     num_seqs += 1
 
