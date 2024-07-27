@@ -174,14 +174,16 @@ def recover_sequences_from_all_samples(seq_dir,
     logger.info(f'{"[INFO]:":10} The following file of sample names was provided using the parameter '
                 f'--sample_names: "{sample_names}".')
     if not os.path.isfile(sample_names):
-        sys.exit(f'{"[ERROR]:":10} Can not find either a directory or a file with the name "{sample_names}", '
-                 f'exiting...')
+        sys.exit(f'{"[ERROR]:":10} Can not find a file with the name "{sample_names}", exiting...')
 
     ####################################################################################################################
     # Search within a user-supplied directory for the given sample directories, or the current directory if not:
     ####################################################################################################################
     if hybpiper_dir:
-        sampledir_parent = os.path.abspath(hybpiper_dir)
+        if os.path.isdir(hybpiper_dir):
+            sampledir_parent = os.path.abspath(hybpiper_dir)
+        else:
+            sys.exit(f'Can not find a directory with name "{hybpiper_dir}, exiting..."')
     else:
         sampledir_parent = os.getcwd()
 
@@ -382,50 +384,86 @@ def recover_sequences_from_one_sample(seq_dir,
     :return None:
     """
 
-    # Check if the sample directory exists in the current dir or provided hybpiper_dir:
+    ####################################################################################################################
+    # Search within current directory or a user-supplied directory for the given sample directory:
+    ####################################################################################################################
     if hybpiper_dir:
-        if not os.path.isdir(os.path.join(hybpiper_dir, single_sample_name)):
-            sys.exit(f'Can not find a directory for sample "{single_sample_name}" within the provided directory'
-                     f' "{hybpiper_dir}", exiting...')
+        if os.path.isdir(hybpiper_dir):
+            sampledir_parent = os.path.abspath(hybpiper_dir)
+        else:
+            sys.exit(f'Can not find a directory with name "{hybpiper_dir}, exiting..."')
     else:
-        if not os.path.isdir(single_sample_name):
-            sys.exit(f'Can not find a directory for sample "{single_sample_name}" in the current directory, exiting...')
+        sampledir_parent = os.getcwd()
 
-    # Create a user-supplied directory if provided, or write to the current directory if not:
+    ####################################################################################################################
+    # Check for the presence of the corresponding sample directory or *.tar.gz file:
+    ####################################################################################################################
+    sample_found = False
+    compressed_sample_dict = dict()
+
+    compressed_sample = f'{sampledir_parent}/{single_sample_name}.tar.gz'
+    uncompressed_sample = f'{sampledir_parent}/{single_sample_name}'
+    compressed_sample_bool = False
+
+    if os.path.isfile(compressed_sample):
+        compressed_sample_dict[single_sample_name] = utils.parse_compressed_sample(compressed_sample)
+        sample_found = True
+        compressed_sample_bool = True
+
+    if os.path.isdir(uncompressed_sample):
+        if sample_found:
+            sys.exit(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found for '
+                     f'sample {single_sample_name} in directory {sampledir_parent}. Please remove one!')
+        else:
+            sample_found = True
+
+    if not sample_found:
+        sys.exit(f'Can not find a directory or *.tar.gz file for sample "{single_sample_name}" within the directory '
+                     f'"{sampledir_parent}", exiting...')
+
+    ####################################################################################################################
+    # Set output directory:
+    ####################################################################################################################
     if fasta_dir:
-        fasta_dir = fasta_dir
+        fasta_dir = os.path.abspath(fasta_dir)
         if not os.path.isdir(fasta_dir):
             os.mkdir(fasta_dir)
     else:
-        fasta_dir = '.'
-
-    # Search within a user-supplied directory for the given sample directory, or the current directory if not:
-    if hybpiper_dir:
-        sampledir = hybpiper_dir
-    else:
-        sampledir = '.'
+        fasta_dir = os.getcwd()
 
     logger.info(f'{"[INFO]:":10} Retrieving {len(target_genes)} genes from sample {single_sample_name}...')
-    sequences_to_write = []
 
-    # Construct names for intron and supercontig output files:
+    ####################################################################################################################
+    # Construct names for intron and supercontig output files, and FNA/FAA files:
+    ####################################################################################################################
     if seq_dir in ['intron', 'supercontig']:
         outfilename = f'{single_sample_name}_{filename}.fasta'
     else:
         outfilename = f'{single_sample_name}_{seq_dir}.fasta'
 
-    # Check if a chimera check was performed for this sample during 'hybpiper assemble':
-    with (open(f'{sampledir}/{single_sample_name}/{single_sample_name}_chimera_check_performed.txt', 'r') as
-          chimera_check_handle):
-        chimera_check_bool = chimera_check_handle.read()
+    ####################################################################################################################
+    # Determine whether a chimera check was performed for this sample during 'hybpiper assemble':
+    ####################################################################################################################
+    chimera_check_performed_file = f'{single_sample_name}/{single_sample_name}_chimera_check_performed.txt'  # sample dir as root
 
-        if chimera_check_bool == 'True':
-            chimera_check_performed_for_sample = True
-        elif chimera_check_bool == 'False':
-            chimera_check_performed_for_sample = False
-        else:
-            raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {single_sample_name}')
+    if compressed_sample_bool:
+        compressed_sample_bool_lines = utils.get_compressed_file_lines(single_sample_name,
+                                                                       sampledir_parent,
+                                                                       chimera_check_performed_file)
+        chimera_check_bool = compressed_sample_bool_lines[0]
 
+    else:
+        with open(f'{sampledir_parent}/{chimera_check_performed_file}', 'r') as chimera_check_handle:
+            chimera_check_bool = chimera_check_handle.read()
+
+    if chimera_check_bool == 'True':
+        chimera_check_performed_for_sample = True
+    elif chimera_check_bool == 'False':
+        chimera_check_performed_for_sample = False
+    else:
+        raise ValueError(f'chimera_check_bool is: {chimera_check_bool} for sample {single_sample_name}')
+
+    # Warn user if --skip_chimeric_genes was provided but some samples didn't have a chimera check performed:
     if skip_chimeric and not chimera_check_performed_for_sample:
         fill = textwrap.fill(f'{"[WARNING]:":10} Option "--skip_chimeric_genes" was provided but a chimera check '
                              f'was not performed during "hybpiper assemble" for sample {single_sample_name}. No '
@@ -433,37 +471,61 @@ def recover_sequences_from_one_sample(seq_dir,
                              width=90, subsequent_indent=' ' * 11, break_on_hyphens=False)
         logger.warning(f'\n{fill}\n')
 
+    ####################################################################################################################
+    # Iterate over each gene:
+    ####################################################################################################################
+    sequences_to_write = []
+
     for gene in target_genes:
-        numSeqs = 0
+        num_seqs = 0
 
         # Recover a list of putative chimeric genes for the sample (if a chimera check was performed), and skip gene
         # if in list:
-        if skip_chimeric:
-            chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir, single_sample_name)
+        if skip_chimeric and chimera_check_performed_for_sample:
+
+            chimeric_genes_to_skip = get_chimeric_genes_for_sample(sampledir_parent,
+                                                                   single_sample_name,
+                                                                   compressed_sample_dict,
+                                                                   compressed_sample_bool)
 
             if gene in chimeric_genes_to_skip:
                 logger.info(f'{"[INFO]:":10} Skipping putative chimeric stitched contig sequence for {gene}, sample'
                             f' {single_sample_name}')
                 continue
 
-        # Get path to the gene/intron/supercontig sequence:
+        ########################################################################################################
+        # Get path to the gene/intron/supercontig sequence with sample dir as root:
+        ########################################################################################################
         if seq_dir == 'intron':
-            sample_path = os.path.join(sampledir, single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
+            sample_path = os.path.join(single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
                                        f'{gene}_{filename}.fasta')
         else:
-            sample_path = os.path.join(sampledir, single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
+            sample_path = os.path.join(single_sample_name, gene, single_sample_name, 'sequences', seq_dir,
                                        f'{gene}.{seq_dir}')
 
-        if os.path.isfile(sample_path):
-            if os.path.getsize(sample_path) == 0:
-                logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
-            else:
-                seq = next(SeqIO.parse(sample_path, 'fasta'))
-                seq.id = f'{seq.id}-{gene}'
-                sequences_to_write.append(seq)
-                numSeqs += 1
+        if compressed_sample_bool:
+            if sample_path in compressed_sample_dict[single_sample_name]:
+                sample_path_size = compressed_sample_dict[single_sample_name][sample_path]
 
-        logger.info(f'{"[INFO]:":10} Found {numSeqs} sequences for gene {gene}.')
+                if sample_path_size == 0:
+                    logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
+                else:
+                    seqrecord = utils.get_compressed_seqrecord(single_sample_name,
+                                                               sampledir_parent,
+                                                               sample_path)
+                    sequences_to_write.append(seqrecord)
+                    num_seqs += 1
+        else:
+            full_sample_path = f'{sampledir_parent}/{sample_path}'
+            if os.path.isfile(full_sample_path):
+                if os.path.getsize(full_sample_path) == 0:
+                    logger.warning(f'{"[WARNING]:":10} File {sample_path} exists, but is empty!')
+                else:
+                    seqrecord = SeqIO.read(full_sample_path, 'fasta')
+                    sequences_to_write.append(seqrecord)
+                    num_seqs += 1
+
+        logger.info(f'{"[INFO]:":10} Found {num_seqs} sequences for gene {gene}')
 
     with open(os.path.join(fasta_dir, outfilename), 'w') as outfile:
         SeqIO.write(sequences_to_write, outfile, 'fasta')
