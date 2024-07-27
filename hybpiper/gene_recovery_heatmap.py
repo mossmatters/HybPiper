@@ -15,6 +15,8 @@ import argparse
 import os
 import logging
 import textwrap
+
+from hybpiper import utils
 from hybpiper.version import __version__
 
 # Import non-standard-library modules:
@@ -152,7 +154,7 @@ def standalone():
 
 def main(args):
     """
-    Entry point for the assemble.py module.
+    Entry point for the hybpiper_main.py module.
 
     :param argparse.Namespace args:
     """
@@ -162,11 +164,18 @@ def main(args):
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
-    if args.seq_lengths_file and not os.path.exists(args.seq_lengths_file):
-        logger.info(f'Can not find file "{args.seq_lengths_file}". Is it in the current working directory?')
-        sys.exit()
+    logger.info(f'{"[INFO]:":10} Creating a gene-recovery heatmap for the HybPiper run(s)...')
 
-    # Read in the sequence length file:
+    ####################################################################################################################
+    # Check for presence of required input files:
+    ####################################################################################################################
+    logger.info(f'{"[INFO]:":10} The following file of sequence lengths was provided: "{args.seq_lengths_file}".')
+    if not utils.file_exists_and_not_empty(args.seq_lengths_file):
+        sys.exit(f'{"[ERROR]:":10} File {args.seq_lengths_file} is missing or empty, exiting!')
+
+    ####################################################################################################################
+    # Read in the sequence length file and process:
+    ####################################################################################################################
     df = pd.read_csv(args.seq_lengths_file, delimiter='\t', )
 
     df = df.astype('object')  # https://pandas.pydata.org/docs/whatsnew/v2.1.0.html#deprecated-silent-upcasting-in-setitem-like-series-operations
@@ -189,7 +198,9 @@ def main(args):
     # Pivot the dataframe for input into the seaborn heatmap function:
     df = df.pivot(index='Species', columns='gene_id', values='percentage_recovery')
 
+    ####################################################################################################################
     # Get figure dimension and label text size based on number of samples and genes:
+    ####################################################################################################################
     fig_length, figure_height, sample_text_size, gene_id_text_size = get_figure_dimensions(df,
                                                                                            args.figure_length,
                                                                                            args.figure_height,
@@ -235,7 +246,9 @@ def main(args):
 
         logger.info(fill)
 
+    ####################################################################################################################
     # Create heatmap:
+    ####################################################################################################################
     sns.set(rc={'figure.figsize': (fig_length, figure_height)})
     sns.set_style('ticks')  # options are: white, dark, whitegrid, darkgrid, ticks
     cmap = 'bone_r'  # sets colour scheme
@@ -256,7 +269,9 @@ def main(args):
     if args.no_ylabels:
         heatmap.set(yticks=[])
 
-    # Save heatmap as png file:
+    ####################################################################################################################
+    # Save heatmap to file:
+    ####################################################################################################################
     logger.info(f'{"[INFO]:":10} Saving heatmap as file "{args.heatmap_filename}.{args.heatmap_filetype}" at'
                 f' {args.heatmap_dpi} DPI')
     plt.savefig(f'{args.heatmap_filename}.{args.heatmap_filetype}', dpi=args.heatmap_dpi, bbox_inches='tight')
