@@ -429,6 +429,9 @@ def add_paralog_retriever_parser(subparsers):
                          help='FASTA file containing amino-acid target sequences for each gene. Used to extract '
                               'unique gene names for paralog recovery. The fasta headers must follow the naming '
                               'convention: >TaxonID-geneName')
+    parser_paralog_retriever.add_argument('--hybpiper_dir',
+                                          default=None,
+                                          help='Specify directory containing HybPiper output')
     parser_paralog_retriever.add_argument('--fasta_dir_all',
                                           default='paralogs_all',
                                           help='Specify directory for output FASTA files (ALL). Default is: '
