@@ -345,9 +345,9 @@ def check_dependencies(logger=None):
 
 def make_basename(readfiles, prefix=None, output_folder=None):
     """
-    Unless prefix is set, generate a directory based on the readfiles name, using everything up to the first
-    underscore. If prefix is set, generate the directory "prefix". In both cases, if --hybpiper_output is set,
-    create the sample folder within the specified parent output directory.
+    Unless prefix is set, generate a directory name based on the readfiles name, using everything up to the first
+    underscore. If prefix is set, generate the directory name "prefix". In both cases, if --hybpiper_output is set,
+    generate the full path to the sample folder using the specified parent output directory.
 
     https://docs.python.org/3/library/os.path.html#os.path.split:
 
@@ -364,24 +364,18 @@ def make_basename(readfiles, prefix=None, output_folder=None):
     :return str parent directory, directory name
     """
 
-    cwd = os.getcwd()
-    output_folder_absolute_path = os.path.abspath(output_folder) if output_folder else None
-    parent_dir = output_folder_absolute_path if output_folder else cwd
+    parent_dir = os.path.abspath(output_folder) if output_folder else os.getcwd()
 
     if prefix:
-        full_output_folder = os.path.join(parent_dir, prefix)
-
-        if not os.path.exists(full_output_folder):
-            os.makedirs(full_output_folder)
+        full_sample_directory = os.path.join(parent_dir, prefix)
 
     else:  # If --prefix is not set on cmd line, get sample name from read file:
         prefix = os.path.split(readfiles[0])[1].split('_')[0]
-        full_output_folder = os.path.join(parent_dir, prefix)
+        full_sample_directory = os.path.join(parent_dir, prefix)
 
-        if not os.path.exists(full_output_folder):
-            os.makedirs(full_output_folder)
-
-    return parent_dir, prefix
+    return (full_sample_directory,
+            parent_dir,
+            prefix)
 
 
 def worker_configurer(gene_name):
