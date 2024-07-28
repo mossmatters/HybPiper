@@ -1496,7 +1496,7 @@ def main(args):
     ####################################################################################################################
     if args.compress_sample_folder:
         fill = textwrap.fill(f'{"[INFO]:":10} Option "--compress_sample_folder" provided. Sample directory will '
-                             f'be tarballed and compressed with gzip!',
+                             f'be tarballed and compressed with gzip...',
                              width=90, subsequent_indent=" " * 11)
         logger.info(fill)
 
