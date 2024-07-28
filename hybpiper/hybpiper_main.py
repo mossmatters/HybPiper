@@ -240,7 +240,8 @@ def parse_arguments():
     :return argparse.Namespace arguments: arguments for the given command/subcommand
     """
 
-    parser = argparse.ArgumentParser(prog='hybpiper', description=__doc__,
+    parser = argparse.ArgumentParser(prog='hybpiper',
+                                     description=__doc__,
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='To view parameters and help for a subcommand, use e.g. "assemble '
                                             '--help"')
