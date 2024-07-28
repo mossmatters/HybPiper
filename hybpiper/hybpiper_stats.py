@@ -499,21 +499,13 @@ def main(args):
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
-    ####################################################################################################################
-    # Set target file type and path:
-    ####################################################################################################################
-    targetfile = None
-    targetfile_type = None
+    logger.info(f'{"[INFO]:":10} Recovering statistics for the HybPiper run(s)...')
 
-    if args.targetfile_dna:
-        targetfile = args.targetfile_dna
-        targetfile_type = 'DNA'
-    elif args.targetfile_aa:
-        targetfile = args.targetfile_aa
-        targetfile_type = 'protein'
-
-    assert targetfile
-    assert targetfile_type
+    ####################################################################################################################
+    # Set target file name and type:
+    ####################################################################################################################
+    targetfile = args.targetfile_dna if args.targetfile_dna else args.targetfile_aa
+    targetfile_type = 'DNA' if args.targetfile_dna else 'protein'
 
     ####################################################################################################################
     # Check for presence of required input files:
