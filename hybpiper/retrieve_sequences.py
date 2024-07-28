@@ -169,14 +169,6 @@ def recover_sequences_from_all_samples(seq_dir,
         samples_to_recover = False
 
     ####################################################################################################################
-    # Check namelist.txt:
-    ####################################################################################################################
-    logger.info(f'{"[INFO]:":10} The following file of sample names was provided using the parameter '
-                f'--sample_names: "{sample_names}".')
-    if not os.path.isfile(sample_names):
-        sys.exit(f'{"[ERROR]:":10} Can not find a file with the name "{sample_names}", exiting...')
-
-    ####################################################################################################################
     # Search within a user-supplied directory for the given sample directories, or the current directory if not:
     ####################################################################################################################
     if hybpiper_dir:
@@ -591,7 +583,28 @@ def main(args):
                          break_on_hyphens=False)
     logger.info(f'{fill}\n')
 
+    logger.info(f'{"[INFO]:":10} Recovering sequences for the HybPiper run(s)...')
+
+    ####################################################################################################################
+    # Set target file name:
+    ####################################################################################################################
+    targetfile = args.targetfile_dna if args.targetfile_dna else args.targetfile_aa
+
+    ####################################################################################################################
+    # Check for presence of required input files:
+    ####################################################################################################################
+    if args.sample_names:
+        logger.info(f'{"[INFO]:":10} The following file of sample names was provided: "{args.sample_names}".')
+        if not utils.file_exists_and_not_empty(args.sample_names):
+            sys.exit(f'{"[ERROR]:":10} File {args.sample_names} is missing or empty, exiting!')
+
+    logger.info(f'{"[INFO]:":10} The following target file was provided: "{targetfile}".')
+    if not utils.file_exists_and_not_empty(targetfile):
+        sys.exit(f'{"[ERROR]:":10} File {targetfile} is missing or empty, exiting!')
+
+    ####################################################################################################################
     # Check some args:
+    ####################################################################################################################
     columns = ['GenesMapped',
                'GenesWithContigs',
                'GenesWithSeqs',
@@ -633,17 +646,9 @@ def main(args):
                 sys.exit(f'{"[ERROR]:":10} Please provide only integers or floats as threshold values. You have '
                          f'provided: {threshold}')
 
-    # Set target file name:
-    targetfile = None
-
-    if args.targetfile_dna:
-        targetfile = args.targetfile_dna
-    elif args.targetfile_aa:
-        targetfile = args.targetfile_aa
-
-    assert targetfile
-
+    ####################################################################################################################
     # Set sequence directory name and file names:
+    ####################################################################################################################
     seq_dir = None
     filename = None
 
@@ -660,13 +665,14 @@ def main(args):
 
     assert seq_dir
 
-    # Use gene names parsed from a target file.
-    try:
-        target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')]))
-    except FileNotFoundError:
-        sys.exit(f'{"[ERROR]:":10} Can not find target file "{targetfile}"')
+    ####################################################################################################################
+    # Get gene names parsed from a target file.
+    ####################################################################################################################
+    target_genes = list(set([x.id.split('-')[-1] for x in SeqIO.parse(targetfile, 'fasta')]))
 
+    ####################################################################################################################
     # Recover sequences from all samples:
+    ####################################################################################################################
     if args.sample_names:
         recover_sequences_from_all_samples(seq_dir,
                                            filename,
@@ -677,6 +683,10 @@ def main(args):
                                            args.skip_chimeric,
                                            args.stats_file,
                                            args.filter_by)
+
+    ####################################################################################################################
+    # Recover sequences from a single sample:
+    ####################################################################################################################
     elif args.single_sample_name:
         recover_sequences_from_one_sample(seq_dir,
                                           filename,
