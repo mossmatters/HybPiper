@@ -1024,14 +1024,38 @@ def main(args):
         sys.exit(f'{"[ERROR]:":10} Please provide a maximum of two read files (R1 and R2) to the -r / '
                  f'--readfiles parameter')
 
-    # Generate a directory for the sample:
-    parent_dir, sample_dir = utils.make_basename(args.readfiles,
-                                                 prefix=args.prefix,
-                                                 output_folder=args.output_folder)
+    # Get directory names for the sample-only, parent-only, and full sample path:
+    (full_sample_directory,
+     parent_dir,
+     sample_dir) = utils.make_basename(args.readfiles,
+                                       prefix=args.prefix,
+                                       output_folder=args.output_folder)
 
-    full_sample_directory = os.path.join(parent_dir, sample_dir)
+    ####################################################################################################################
+    # Check if a *.tar.gz file exists from a previous run and extract it if so:
+    ####################################################################################################################
+    compressed_sample_dir = f'{parent_dir}/{sample_dir}.tar.gz'
+    compressed_sample_dir_found = False
 
+    if os.path.isfile(compressed_sample_dir) and os.path.isdir(full_sample_directory):
+        print(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found for sample '
+              f'{sample_dir} in directory {parent_dir}. Please remove one!')
+        sys.exit(1)
+
+    if os.path.isfile(compressed_sample_dir):
+        compressed_sample_dir_found = True
+        with tarfile.open(compressed_sample_dir) as sample_tarball_handle:
+            sample_tarball_handle.extractall(parent_dir)
+
+    ####################################################################################################################
+    # If no *.tar.gz file exists from a previous run, create the sample directory if it does not exist already:
+    ####################################################################################################################
+    if not compressed_sample_dir_found and not os.path.exists(full_sample_directory):
+        os.makedirs(full_sample_directory)
+
+    ####################################################################################################################
     # Create logger:
+    ####################################################################################################################
     logger = utils.setup_logger(__name__, f'{full_sample_directory}/{sample_dir}_hybpiper_assemble')
 
     # Log command line and default parameters:
@@ -1040,6 +1064,15 @@ def main(args):
                          width=90, initial_indent=' ' * 11, subsequent_indent=' ' * 11, break_on_hyphens=False)
     logger.info(f'{fill}\n')
     logger.debug(args)
+
+    # Tell the user if an existing compressed tarball has been found and used:
+    if compressed_sample_dir_found:
+        fill = utils.fill_forward_slash(f'{"[INFO]:":10} A compressed tarball was found in directory '
+                                        f'{parent_dir} for sample {sample_dir}. The contents have been extracted and '
+                                        f'will be used by the current HybPiper run.',
+                                        width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                        break_on_forward_slash=True)
+        logger.info(fill)
 
     # Log system details for debugging:
     utils.get_platform_info(logger=logger)
@@ -1192,9 +1225,9 @@ def main(args):
             logger.info(fill)
             sys.exit()
 
-    # Write '<prefix>_chimera_check_performed.txt' file containing True or False; used by `hybpiper retrieve_sequences`
-    # and `hybpiper paralog_retriever`:
-    with open(f'{full_sample_directory}/{args.prefix}_chimera_check_performed.txt', 'w') as chimera_check_handle:
+    # Write '<sample_dir>_chimera_check_performed.txt' file containing True or False; used by `hybpiper
+    # retrieve_sequences` and `hybpiper paralog_retriever`:
+    with open(f'{full_sample_directory}/{sample_dir}_chimera_check_performed.txt', 'w') as chimera_check_handle:
         if args.chimera_check:
             chimera_check_handle.write('True')
         else:
@@ -1500,10 +1533,11 @@ def main(args):
                              width=90, subsequent_indent=" " * 11)
         logger.info(fill)
 
-        logger.debug(f'os.getcwd(): {os.getcwd()}')
+        # Change from the sample directory to the parent directory of the sample:
+        logger.debug(f'Current directory is: {os.getcwd()}')
         logger.debug(f'Changing to directory: {parent_dir}')
         os.chdir(parent_dir)
-        logger.debug(f'os.getcwd(): {os.getcwd()}')
+        logger.debug(f'Current directory is now: {os.getcwd()}')
 
         with tarfile.open(f'{sample_dir}.tar.gz', 'w:gz') as tarfile_handle:
             tarfile_handle.add(sample_dir)
