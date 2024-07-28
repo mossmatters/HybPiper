@@ -1173,6 +1173,29 @@ def get_compressed_seqrecord(sample_name,
     return seqrecord
 
 
+def get_compressed_seqrecords(sample_name,
+                              sampledir_parent,
+                              member_name):
+    """
+    Returns a list of seqrecords from fasta sequences within a multi-fasta file located within a compressed tarball of
+    a given sample directory.
+
+    :param sample_name:
+    :param sampledir_parent:
+    :param member_name:
+    :return:
+    """
+
+    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+        read_file = tarfile_handle.getmember(member_name)
+        extracted_file = tarfile_handle.extractfile(read_file)
+        lines = extracted_file.read().decode('utf-8', errors='ignore')
+        seq_io = io.StringIO(lines)
+        seqrecords = list(SeqIO.parse(seq_io, 'fasta'))
+
+    return seqrecords
+
+
 def get_compressed_file_lines(sample_name,
                               sampledir_parent,
                               member_name):
