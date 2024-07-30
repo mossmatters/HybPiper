@@ -3,7 +3,7 @@
 """
 usage: python distribute_targets.py targetfile
 
-Taks a file containing all of the "targets" for a target enrichment. The file can contain multiple copies of the same
+Takes a file containing all the "targets" for a target enrichment. The file can contain multiple copies of the same
 target as specified using a "-" delimiter. For example, the following:
 
 Anomodon-rbcl
@@ -31,7 +31,7 @@ logger = logging.getLogger(f'hybpiper.assemble.{__name__}')
 
 def mkdir_p(path):
     """
-    Creates a directory corresponding the the given path, if it doesn't already exist.
+    Creates a directory corresponding to the given path, if it doesn't already exist.
 
     :param str path: path of directory to create
     :return:
