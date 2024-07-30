@@ -101,11 +101,6 @@ def get_seq_lengths(targetfile,
 
     for sample_name in list_of_sample_names:  # iterate over sample names
 
-        # Check is the sample directory is a compressed tarball:
-        compressed_sample = False
-        if sample_name in compressed_sample_dict:
-            compressed_sample = True
-
         name_lengths = []  # lengths of sequences in nucleotides
         for gene in range(len(unique_names)):  # iterate over genes
 
@@ -123,7 +118,7 @@ def get_seq_lengths(targetfile,
             # Get sequence details depending on compressed vs non-compressed sample directory:
             seq_length = None
 
-            if compressed_sample:
+            if sample_name in compressed_sample_dict:
                 seq_file_exists = True if seq_file in compressed_sample_dict[sample_name] else False
                 seq_file_size = compressed_sample_dict[sample_name][seq_file] \
                     if seq_file in compressed_sample_dict[sample_name] else 0
@@ -431,9 +426,11 @@ def seq_length_calc(seq_lengths_fn):
     """
 
     seq_length_dict = {}
+
     with open(seq_lengths_fn) as seq_len:
         gene_names = seq_len.readline()  # skip the first line
         target_lengths = seq_len.readline().split()[1:]
+
         for line in seq_len:
             line = line.split()
             name = line.pop(0)
@@ -441,6 +438,7 @@ def seq_length_calc(seq_lengths_fn):
             is_50pct = 0
             is_75pct = 0
             is_150pct = 0
+
             for gene in range(len(line)):
                 gene_length = float(line[gene])
                 target_length = float(target_lengths[gene])
@@ -452,7 +450,9 @@ def seq_length_calc(seq_lengths_fn):
                     is_75pct += 1
                 if gene_length > target_length * 1.5:
                     is_150pct += 1
+
             seq_length_dict[name] = [str(is_25pct), str(is_50pct), str(is_75pct), str(is_150pct)]
+
     return seq_length_dict
 
 
@@ -622,10 +622,9 @@ def main(args):
     for sample_name in list_of_sample_names:
 
         # Check is the sample directory is a compressed tarball:
-        compressed_sample_bool = False
-        if sample_name in compressed_sample_dict:
-            compressed_sample_bool = True
+        compressed_sample_bool = True if sample_name in compressed_sample_dict else False
 
+        # Initialise stats list for the sample:
         stats_dict[sample_name] = []
 
         ################################################################################################################
