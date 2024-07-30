@@ -1044,11 +1044,15 @@ def main(args):
 
     if os.path.isfile(compressed_sample_dir):
         compressed_sample_dir_found = True
+
         with tarfile.open(compressed_sample_dir) as sample_tarball_handle:
             sample_tarball_handle.extractall(parent_dir)
 
+        # Remove the *.tar.gz file
+        os.remove(compressed_sample_dir)
+
     ####################################################################################################################
-    # If no *.tar.gz file exists from a previous run, create the sample directory if it does not exist already:
+    # If no *.tar.gz file or uncompressed sample folder exists from a previous run, create the sample directory:
     ####################################################################################################################
     if not compressed_sample_dir_found and not os.path.exists(full_sample_directory):
         os.makedirs(full_sample_directory)
