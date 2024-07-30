@@ -542,9 +542,7 @@ def main(args):
     for sample_name in list_of_sample_names:
 
         # Check if the sample directory is a compressed tarball:
-        compressed_sample_bool = False
-        if sample_name in compressed_sample_dict:
-            compressed_sample_bool = True
+        compressed_sample_bool = True if sample_name in compressed_sample_dict else False
 
         chimera_check_performed_file = f'{sample_name}/{sample_name}_chimera_check_performed.txt'  # sample dir as root
 
