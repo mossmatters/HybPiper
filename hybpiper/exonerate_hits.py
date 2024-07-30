@@ -1610,7 +1610,6 @@ class Exonerate(object):
         else:
             return False
 
-
     def write_exonerate_stats_file(self):
         """
         Write a *.tsv file with stats from the initial Exonerate run following filtering by similarity,
@@ -2200,8 +2199,6 @@ class Exonerate(object):
 
         with open(f'{self.prefix}/genes_with_stitched_contig.csv', 'w') as stitched_contig_reportfile:
             stitched_contig_reportfile.write(f'{data}\n')
-
-
 
     def write_no_stitched_contig(self):
         """
