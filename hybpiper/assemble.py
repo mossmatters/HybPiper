@@ -28,6 +28,7 @@ from hybpiper import distribute_reads_to_targets
 from hybpiper import distribute_targets
 from hybpiper import spades_runner
 from hybpiper import exonerate_hits
+from hybpiper import blast_non_protein_hits
 from hybpiper import utils
 
 # Create logger:
@@ -415,7 +416,7 @@ def distribute_blastx(blastx_outputfile, readfiles, targetfile, target=None, unp
 
 
 def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfile=None, exclude=None, merged=False,
-                   low_mem=False, logger=None):
+                   low_mem=False, translate=True, logger=None):
     """
     When using BWA mapping, distribute sample reads to their corresponding target file gene matches.
 
@@ -431,6 +432,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     :param str exclude: specify sequence not to be used as a target sequence for Exonerate
     :param bool merged: if True, write and distribute fastq files for merging with BBmerge.sh (in addition to fasta)
     :param bool low_mem: If False, reads to distribute will be saved in a dictionary and written once; uses more RAM
+    :param bool translate: If True, translate the 'best' target file reference
     :param logging.Logger logger: a logger object
     :return: None
     """
@@ -483,13 +485,13 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_bwa(bamfile,
-                                                      unpaired_bool,
+                                                          unpaired_bool,
                                                       exclude_string)
 
     distribute_targets.distribute_targets(targetfile,
                                           delim='-',
                                           besthits=besthits,
-                                          translate=True,
+                                          translate=translate,
                                           target=target_string)
     return None
 
@@ -1004,6 +1006,364 @@ def exonerate_multiprocessing(genes,
         sys.exit(1)
 
 
+def blast_non_proteins(gene_name,
+                       sample_dir,
+                       pid_list,
+                       blast_contigs_task='blastn',
+                       thresh=55,
+                       paralog_warning_min_length_percentage=0.75,
+                       depth_multiplier=10,
+                       no_stitched_contig=False,
+                       stitched_contig_pad_n=True,
+                       chimera_check=False,
+                       bbmap_memory=250,
+                       bbmap_subfilter=7,
+                       bbmap_threads=2,
+                       chimeric_stitched_contig_edit_distance=5,
+                       chimeric_stitched_contig_discordant_reads_cutoff=5,
+                       worker_configurer_func=None,
+                       counter=None,
+                       lock=None,
+                       genes_to_process=0,
+                       keep_intermediate_files=False,
+                       blast_hit_sliding_window_size=9,
+                       blast_hit_sliding_window_thresh=65,
+                       verbose_logging=False):
+    """
+    :param str gene_name: name of a gene that had at least one SPAdes contig
+    :param str sample_dir: directory name for sample
+    :param multiprocessing.managers.ListProxy pid_list: list shared by processes for capturing parent PIDs
+    :param str blast_contigs_task: task when running blastn searches
+    :param int thresh: percent identity threshold for stitching together BLASTn results
+    :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
+    :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
+    :param bool no_stitched_contig: if True, don't create stitched contigs and just use longest BLASTn hit
+    :param bool stitched_contig_pad_n: if True, pad gaps in stitched contig with Ns corresponding to query gap * 3
+    :param bool chimera_check: run chimera check. Default is False
+    :param int bbmap_memory: MB memory (RAM ) to use for bbmap.sh
+    :param int bbmap_subfilter: ban alignments with more than this many substitutions
+    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
+    :param int chimeric_stitched_contig_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched
+    contig as chimeric
+    :param function worker_configurer_func: function to configure logging to file
+    :param multiprocessing.managers.ValueProxy counter:
+    :param multiprocessing.managers.AcquirerProxy lock:
+    :param int genes_to_process: total number of genes to be processed via BLASTn
+    :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
+    processing
+    :param int blast_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    of BLASTn hits
+    :param int blast_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    amino-acids) when trimming termini of BLASTn hits
+    :param bool verbose_logging: if True, log additional information to file
+    :return: str gene_name, str prot_length OR None, None
+    """
+
+    # get parent PID and add to shared list; this is used to kill child processes on user interrupt:
+    pid = os.getpid()
+    pid_list.append(pid)
+
+    logger = logging.getLogger()  # Assign root logger from inside the new Python process (ProcessPoolExecutor pool)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    worker_configurer_func(gene_name)  # set up process-specific logging to file
+    logger = logging.getLogger(gene_name)
+    logger.setLevel(logging.DEBUG)
+
+    # Write gene name, start time, PID etc. to a dictionary shared by the multiprocessing pool:
+    start = time.time()
+    worker_stats = (gene_name, multiprocessing.current_process().pid, multiprocessing.Process().name, start)
+    if verbose_logging:
+        logger.debug(f'worker_stats for {gene_name} are: {worker_stats}')
+
+    # Create directories for output files based on the prefix name, or assemblyfile name:
+    prefix = blast_non_protein_hits.create_output_directories(f'{gene_name}/{sample_dir}',
+                                                              f'{gene_name}/{gene_name}_contigs.fasta')
+    logger.debug(f'prefix is: {prefix}')
+
+    # Set whether the chimeric stitched contig test will be performed, and whether a file of interleaved reads is found:
+    (perform_stitched_contig_chimera_test,
+     path_to_interleaved_fasta) = blast_non_protein_hits.set_stitched_contig_chimera_test(no_stitched_contig,
+                                                                                          prefix)
+
+    logger.debug(f'perform_stitched_contig_chimera_test is: {perform_stitched_contig_chimera_test}')
+    logger.debug(f'path_to_interleaved_fasta is: {path_to_interleaved_fasta}')
+
+    # Read the SPAdes contigs and the 'best' locus reference seq into SeqIO dictionaries:
+    try:
+        spades_assembly_dict, best_locus_ref_dict = blast_non_protein_hits.parse_spades_and_best_reference(
+            f'{gene_name}/{gene_name}_contigs.fasta',
+            f'{gene_name}/{gene_name}_target.fasta',
+            prefix)
+
+        if verbose_logging:
+            logger.debug(f'spades_assembly_dict is: {spades_assembly_dict}')
+            logger.debug(f'best_protein_ref_dict is: {best_locus_ref_dict}')
+
+    except FileNotFoundError as e:
+        logger.error(f"\n{'[ERROR!]:':10} Couldn't find an expected file for either the SPAdes assembly or the protein "
+                     f"reference for gene {gene_name}, error is {e}")
+        with lock:
+            counter.value += 1
+            sys.stdout.write(f'\r{"[INFO]:":10} Finished running BLASTn for gene {gene_name}, {counter.value}'
+                             f'/{genes_to_process}')
+
+        end = time.time()
+        proc_run_time = end - start
+        return gene_name, None, proc_run_time  # return gene_name to that log can be re-logged to main log file
+
+    # Perform BLASTn search with 'best' locus ref as query and SPAdes contigs as subjects:
+    blast_xml_output = blast_non_protein_hits.initial_blast(f'{gene_name}/{gene_name}_target.fasta',
+                                                            f'{gene_name}/{gene_name}_contigs.fasta',
+                                                            prefix,
+                                                            blast_contigs_task,
+                                                            keep_intermediate_files=keep_intermediate_files)
+
+    if blast_xml_output:  # i.e. if the initial_blast DID produce a result
+        blast_result = blast_non_protein_hits.parse_blast_and_get_stitched_contig(
+            blast_xml_output,
+            query_file=f'{gene_name}/{gene_name}_target.fasta',
+            paralog_warning_min_length_percentage=paralog_warning_min_length_percentage,
+            thresh=thresh,
+            logger=logger,
+            prefix=prefix,
+            chimera_check=chimera_check,
+            discordant_cutoff=chimeric_stitched_contig_discordant_reads_cutoff,
+            edit_distance=chimeric_stitched_contig_edit_distance,
+            bbmap_subfilter=bbmap_subfilter,
+            bbmap_memory=bbmap_memory,
+            bbmap_threads=bbmap_threads,
+            interleaved_fasta_file=path_to_interleaved_fasta,
+            no_stitched_contig=no_stitched_contig,
+            stitched_contig_pad_n=stitched_contig_pad_n,
+            spades_assembly_dict=spades_assembly_dict,
+            depth_multiplier=depth_multiplier,
+            keep_intermediate_files=keep_intermediate_files,
+            blast_hit_sliding_window_size=blast_hit_sliding_window_size,
+            blast_hit_sliding_window_thresh=blast_hit_sliding_window_thresh,
+            verbose_logging=verbose_logging)
+
+    else:
+        blast_result = False
+
+    with lock:
+        counter.value += 1
+        sys.stdout.write(f'\r{"[INFO]:":10} Finished running BLASTn for gene {gene_name}, {counter.value}'
+                         f'/{genes_to_process}')
+
+    if not blast_xml_output or not blast_result or not blast_result.stitched_contig_seqrecord:
+        end = time.time()
+        proc_run_time = end - start
+
+        # return gene_name to that exonerate_hits.py log can be re-logged to main log file:
+        return (gene_name,
+                None,
+                proc_run_time)
+
+    end = time.time()
+    proc_run_time = end - start
+
+    return (gene_name,
+            len(blast_result.stitched_contig_seqrecord),
+            proc_run_time)
+
+
+def blast_multiprocessing(genes,
+                          sample_dir,
+                          blast_contigs_task='blastn',
+                          thresh=55,
+                          paralog_warning_min_length_percentage=0.75,
+                          pool_threads=None,
+                          depth_multiplier=10,
+                          no_stitched_contig=False,
+                          stitched_contig_pad_n=True,
+                          chimera_check=False,
+                          bbmap_memory=250,
+                          bbmap_subfilter=7,
+                          bbmap_threads=2,
+                          chimeric_stitched_contig_edit_distance=5,
+                          chimeric_stitched_contig_discordant_reads_cutoff=5,
+                          logger=None,
+                          no_padding_supercontigs=False,
+                          keep_intermediate_files=False,
+                          blast_contigs_timeout=None,
+                          blast_hit_sliding_window_size=9,
+                          blast_hit_sliding_window_thresh=65,
+                          verbose_logging=False):
+    """
+    Runs the function blast_non_proteins() using multiprocessing.
+
+    :param list genes: list of genes that had successful SPAdes runs
+    :param str sample_dir: directory name for sample
+    :param str blast_contigs_task: task when running blastn searches
+    :param int thresh: percent identity threshold for stitching together Exonerate results
+    :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
+    :param int pool_threads: number of threads/cpus to use for the pebble.ProcessPool pool
+    :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
+    :param bool no_stitched_contig: if True, don't create stitched contig and just use longest BLASTn hit
+    :param bool stitched_contig_pad_n: if True, pad gaps in stitched contig with Ns corresponding to query gap * 3
+    :param bool chimera_check: run chimera check. Default is False
+    :param int bbmap_memory: MB memory (RAM ) to use for bbmap.sh
+    :param int bbmap_subfilter: ban alignments with more than this many substitutions
+    :param int bbmap_threads: number of threads to use for BBmap when searching for chimeric stitched contigs
+    :param int chimeric_stitched_contig_edit_distance: min num differences for a read pair to be flagged as discordant
+    :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched
+    contig as chimeric
+    :param logging.Logger logger: a logger object
+    :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
+    :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
+    re-logging to the main sample log file
+    :param int blast_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
+    :param int blast_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    of BLASTn hits
+    :param int blast_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    amino-acids) when trimming termini of BLASTn hits
+    :param bool verbose_logging: if True, log additional information to file
+    :return:
+    """
+
+    logger.debug(f'blast_contigs_timeout is: {blast_contigs_timeout}')
+    logger.debug(f'blast_hit_sliding_window_size is: {blast_hit_sliding_window_size}')
+    logger.debug(f'blast_hit_sliding_window_thresh is: {blast_hit_sliding_window_thresh}')
+    logger.debug(f'chimera_check is: {chimera_check}')
+    logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
+    logger.debug(f'blast_multiprocessing pool_threads is: {pool_threads}')
+    logger.debug(f'blast_contigs_task is: {blast_contigs_task}')
+
+    logger.info(f'{"[INFO]:":10} Running blast_hits for {len(genes)} genes...')
+    genes_to_process = len(genes)
+
+    try:
+        with (pebble.ProcessPool(max_workers=pool_threads, context=multiprocessing.get_context('fork')) as pool):
+            genes_cancelled_due_to_timeout = []
+            genes_cancelled_due_to_errors = []
+            future_results_dict = defaultdict()
+            manager = Manager()
+            lock = manager.Lock()
+            pid_list = manager.list()
+            counter = manager.Value('i', 0)
+            kwargs_for_schedule = {
+                                   "blast_contigs_task": blast_contigs_task,
+                                   "thresh": thresh,
+                                   "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
+                                   "depth_multiplier": depth_multiplier,
+                                   "no_stitched_contig": no_stitched_contig,
+                                   "stitched_contig_pad_n": stitched_contig_pad_n,
+                                   "chimera_check": chimera_check,
+                                   "bbmap_memory": bbmap_memory,
+                                   "bbmap_subfilter": bbmap_subfilter,
+                                   "bbmap_threads": bbmap_threads,
+                                   "chimeric_stitched_contig_edit_distance": chimeric_stitched_contig_edit_distance,
+                                   "chimeric_stitched_contig_discordant_reads_cutoff":
+                                       chimeric_stitched_contig_discordant_reads_cutoff,
+                                   "worker_configurer_func": utils.worker_configurer,
+                                   "counter": counter,
+                                   "lock": lock,
+                                   "genes_to_process": genes_to_process,
+                                   "keep_intermediate_files": keep_intermediate_files,
+                                   "blast_hit_sliding_window_size": blast_hit_sliding_window_size,
+                                   "blast_hit_sliding_window_thresh": blast_hit_sliding_window_thresh,
+                                   "verbose_logging": verbose_logging
+            }
+
+            for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
+                blast_job = pool.schedule(blast_non_proteins, args=[gene_name, sample_dir, pid_list],
+                                          kwargs=kwargs_for_schedule, timeout=blast_contigs_timeout)
+                future_results_dict[blast_job] = gene_name
+
+            futures_list = [future for future in future_results_dict.keys()]
+
+            # As per-gene BLASTn runs complete, read the gene log, log it to the main logger, delete gene log:
+            with open('genes_with_seqs.txt', 'w') as genes_with_seqs_handle:
+                for future in as_completed(futures_list):
+                    try:
+                        (gene_name,
+                         prot_length,   # CHANGE TO SEQ LENGTH?
+                         run_time) = future.result()
+
+                        if gene_name:  # i.e. log the BLASTn run regardless of success
+                            gene_log_file_list = glob.glob(f'{gene_name}/{gene_name}*log')
+                            gene_log_file_list.sort(key=os.path.getmtime)  # sort by time in case of previous undeleted log
+                            gene_log_file_to_cat = gene_log_file_list[-1]  # get most recent gene log
+                            with open(gene_log_file_to_cat) as gene_log_handle:
+                                lines = gene_log_handle.readlines()
+                                for line in lines:
+                                    logger.debug(line.strip())  # log contents to main logger
+                            if not keep_intermediate_files:
+                                os.remove(gene_log_file_to_cat)  # delete the BLASTn log file
+
+                        # Write the 'gene_name', 'prot_length' strings returned by each process to file:
+                        if gene_name and prot_length:
+                            genes_with_seqs_handle.write(f'{gene_name}\t{prot_length}\n')
+
+                    except TimeoutError as err:
+                        logger.debug(f'\nProcess timeout - blast_non_proteins() for gene'
+                                     f' {future_results_dict[future]} took more than {err.args[1]} seconds to '
+                                     f'complete and was cancelled')
+                        genes_cancelled_due_to_timeout.append(future_results_dict[future])
+                    except CancelledError:
+                        logger.debug(f'CancelledError raised for gene {future_results_dict[future]}')
+                    except Exception as error:
+                        genes_cancelled_due_to_errors.append(future_results_dict[future])
+                        logger.debug(f'For gene {future_results_dict[future]} exonerate() raised: {error}')
+                        tb = traceback.format_exc()
+                        logger.debug(f'traceback is:\n{tb}')
+
+        wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
+
+        if genes_cancelled_due_to_errors:
+            fill = textwrap.fill(f'{"[WARNING]:":10} The blast_contigs step of the pipeline failed for the '
+                                 f'following genes:\n', width=90, subsequent_indent=" " * 11)
+            logger.info('')
+            logger.info(fill)
+            for gene in genes_cancelled_due_to_errors:
+                logger.info(f'{" " * 11}{gene}')
+
+            logger.info(f'\nPlease see the log file in the sample directory for more information.')
+
+        if genes_cancelled_due_to_timeout:
+            fill = textwrap.fill(f'{"[WARNING]:":10} The blast_contigs step of the pipeline was cancelled for the '
+                                 f'following genes, due to exceeding the timeout limit of {blast_contigs_timeout} '
+                                 f'seconds\n:', width=90, subsequent_indent=" " * 11)
+            logger.info('')
+            logger.info(fill)
+            for gene in genes_cancelled_due_to_timeout:
+                logger.info(f'{" " * 11}{gene}')
+
+            fill = textwrap.fill(f'{"[INFO]:":10} This is most likely caused by many low-complexity reads mapping to '
+                                 f'the corresponding gene sequences in the target file, resulting in a SPAdes assembly '
+                                 f'with many (i.e. hundreds) of repetitive and low-complexity contigs. Subsequently, '
+                                 f'BLASTn searches of these many low-complexity contigs can take a long time. We '
+                                 f'strongly recommend removing such low-complexity sequences from your target file. '
+                                 f'The command "hybpiper check_targetfile" can assist in identifying these '
+                                 f'sequences.', width=90, subsequent_indent=" " * 11)
+            logger.info(fill)
+
+    except KeyboardInterrupt:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ignore additional SIGINT while HybPiper cleans up
+        pid_set = set(pid_list)
+        parent_list = []
+        for process_pid in pid_set:
+            parent = psutil.Process(process_pid)
+            parent_list.append(parent)
+        logger.info(f'\n\nExiting HybPiper due to user interrupt, please wait a moment...\n')
+        while True:
+            count = 0
+            child_list = [parent.children(recursive=True) for parent in parent_list]
+            for children_list in child_list:
+                for child in children_list:
+                    count += 1
+                    try:
+                        child.kill()
+                    except psutil.NoSuchProcess:
+                        pass
+            if count == 0:
+                break
+        sys.exit(1)
+
+
 def main(args):
     """
     Assemble gene, intron, supercontig and paralog sequences.
@@ -1107,10 +1467,12 @@ def main(args):
     ####################################################################################################################
     # Check that --start_from <= --end_with
     ####################################################################################################################
-    assemble_stages_dict = {'map_reads': 0,
+    assemble_stages_dict = {
+                            'map_reads': 0,
                             'distribute_reads': 1,
                             'assemble_reads': 2,
-                            'exonerate_contigs': 3}
+                            'extract_contigs': 3
+                            }
 
     if not assemble_stages_dict[args.start_from] <= assemble_stages_dict[args.end_with]:
         logger.error(f'{"[ERROR]:":10} The selected "--start_from" step is greater than the selected "--end_with" '
@@ -1119,19 +1481,15 @@ def main(args):
         logger.error(f'{" " * 10} --end_with: {args.end_with}')
         logger.error('')
         logger.error(f'{" " * 10} The order of steps is: map_reads, distribute_reads, assemble_reads, '
-                     f'exonerate_contigs')
+                     f'extract_contigs')
         sys.exit()
 
     ####################################################################################################################
     # Check read and target files
     ####################################################################################################################
     # Set target file type and path, and check it exists and isn't empty:
-    if args.targetfile_dna:
-        targetfile = os.path.abspath(args.targetfile_dna)
-        targetfile_type = 'DNA'
-    elif args.targetfile_aa:
-        targetfile = os.path.abspath(args.targetfile_aa)
-        targetfile_type = 'protein'
+    targetfile = os.path.abspath(args.targetfile_dna) if args.targetfile_dna else os.path.abspath(args.targetfile_aa)
+    targetfile_type = 'DNA' if args.targetfile_dna else 'protein'
 
     if os.path.isfile(targetfile) and not os.path.getsize(targetfile) == 0:
         logger.debug(f'Input target file {os.path.basename(targetfile)} exists and is not empty, proceeding...')
@@ -1328,8 +1686,12 @@ def main(args):
             os.remove(fasta)
 
         if args.bwa:
-            distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
-                           merged=args.merged, low_mem=args.distribute_low_mem, logger=logger)
+            if args.not_protein_coding:
+                distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
+                               merged=args.merged, low_mem=args.distribute_low_mem, translate=False, logger=logger)
+            else:
+                distribute_bwa(bamfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
+                               merged=args.merged, low_mem=args.distribute_low_mem, translate=True, logger=logger)
         else:  # distribute BLASTx results
             distribute_blastx(blastx_outputfile, readfiles, targetfile, target, unpaired_readfile, args.exclude,
                               merged=args.merged, low_mem=args.distribute_low_mem, logger=logger)
@@ -1425,7 +1787,8 @@ def main(args):
         sys.exit()
 
     ####################################################################################################################
-    # Run Exonerate on the assembled SPAdes contigs, and intronerate() if flag --run_intronerate is supplied:
+    # Run Exonerate on the assembled SPAdes contigs, and intronerate() if flag --run_intronerate is supplied.
+    # Alternatively, if --not_protein_coding is True, extract sequences from assembled SPAdes contigs using BLASTn:
     ####################################################################################################################
 
     genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
@@ -1439,8 +1802,10 @@ def main(args):
         logger.error(f'{"[ERROR]:":10} No genes recovered for {sample_dir}!')
         return 1
 
-    exonerate_multiprocessing(genes,
+    if args.not_protein_coding:
+        blast_multiprocessing(genes,
                               sample_dir,
+                              blast_contigs_task=args.blast_contigs_task,
                               thresh=args.thresh,
                               paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                               depth_multiplier=args.depth_multiplier,
@@ -1455,34 +1820,59 @@ def main(args):
                               bbmap_threads=args.bbmap_threads,
                               pool_threads=cpu,
                               logger=logger,
-                              no_intronerate=args.no_intronerate,
-                              no_padding_supercontigs=args.no_padding_supercontigs,
                               keep_intermediate_files=args.keep_intermediate_files,
-                              exonerate_contigs_timeout=args.timeout_exonerate_contigs,
-                              exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
-                              exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
-                              exonerate_skip_frameshifts=args.skip_frameshifts,
-                              exonerate_skip_internal_stops=args.skip_internal_stops,
-                              exonerate_skip_terminal_stops=args.skip_terminal_stops,
+                              blast_contigs_timeout=args.timeout_exonerate_contigs,
+                              blast_hit_sliding_window_size=args.blast_hit_sliding_window_size,
+                              blast_hit_sliding_window_thresh=args.blast_hit_sliding_window_thresh,
                               verbose_logging=args.verbose_logging)
+
+    else:
+        exonerate_multiprocessing(genes,
+                                  sample_dir,
+                                  thresh=args.thresh,
+                                  paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
+                                  depth_multiplier=args.depth_multiplier,
+                                  no_stitched_contig=args.no_stitched_contig,
+                                  stitched_contig_pad_n=args.stitched_contig_pad_n,
+                                  chimera_check=args.chimera_check,
+                                  bbmap_memory=args.bbmap_memory,
+                                  bbmap_subfilter=args.bbmap_subfilter,
+                                  chimeric_stitched_contig_edit_distance=args.chimeric_stitched_contig_edit_distance,
+                                  chimeric_stitched_contig_discordant_reads_cutoff=
+                                  args.chimeric_stitched_contig_discordant_reads_cutoff,
+                                  bbmap_threads=args.bbmap_threads,
+                                  pool_threads=cpu,
+                                  logger=logger,
+                                  no_intronerate=args.no_intronerate,
+                                  no_padding_supercontigs=args.no_padding_supercontigs,
+                                  keep_intermediate_files=args.keep_intermediate_files,
+                                  exonerate_contigs_timeout=args.timeout_exonerate_contigs,
+                                  exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
+                                  exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
+                                  exonerate_skip_frameshifts=args.skip_frameshifts,
+                                  exonerate_skip_internal_stops=args.skip_internal_stops,
+                                  exonerate_skip_terminal_stops=args.skip_terminal_stops,
+                                  verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
     # Collate all stitched contig and putative chimera read reports
     ####################################################################################################################
     logger.info(f'\n{"[INFO]:":10} Generated sequences from {len(open("genes_with_seqs.txt").readlines())} genes!')
-    num_genes_with_stop_codons = len(open(f'{sample_dir}_genes_with_non_terminal_stop_codons.txt').readlines())
 
-    if num_genes_with_stop_codons:
-        fill_1 = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. '
-                               f'See file "{sample_dir}_genes_with_non_terminal_stop_codons.txt" for a list of gene '
-                               f'names, and visit the wiki at the following link to view troubleshooting '
-                               f'recommendations:',
-                               width=90, subsequent_indent=" " * 11)
+    if not args.not_protein_coding:
+        num_genes_with_stop_codons = len(open(f'{sample_dir}_genes_with_non_terminal_stop_codons.txt').readlines())
 
-        fill_2 = (f'{" " * 10} https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
-                  f'-and-recommendations#31-sequences-containing-stop-codons')
+        if num_genes_with_stop_codons:
+            fill_1 = textwrap.fill(f'{"[WARNING]:":10} {num_genes_with_stop_codons} genes contain internal stop codons. '
+                                   f'See file "{sample_dir}_genes_with_non_terminal_stop_codons.txt" for a list of gene '
+                                   f'names, and visit the wiki at the following link to view troubleshooting '
+                                   f'recommendations:',
+                                   width=90, subsequent_indent=" " * 11)
 
-        logger.warning(f'{fill_1}\n{fill_2}')
+            fill_2 = (f'{" " * 10} https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,'
+                      f'-and-recommendations#31-sequences-containing-stop-codons')
+
+            logger.warning(f'{fill_1}\n{fill_2}')
 
     # Stitched contigs:
     collate_stitched_contig_reports = [x for x in glob.glob(f'*/{sample_dir}/genes_with_stitched_contig.csv')]
