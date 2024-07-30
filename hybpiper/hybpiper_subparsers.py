@@ -42,29 +42,43 @@ def add_assemble_parser(subparsers):
                          dest='bwa',
                          action='store_true',
                          default=False,
-                         help='Use BWA to search reads for hits to target. Requires BWA and a target file that is '
+                         help='Use BWA to map reads to targets. Requires BWA and a target file that is '
                               'nucleotides! Default is: %(default)s')
     group_2.add_argument('--diamond',
                          dest='diamond',
                          action='store_true',
                          default=False,
-                         help='Use DIAMOND instead of BLASTx. Default is: %(default)s')
+                         help='Use DIAMOND instead of BLASTx for read mapping. Default is: %(default)s')
+    parser_assemble.add_argument('--not_protein_coding',
+                                 action='store_true',
+                                 default='False',
+                                 help='If provided, extract sequences from SPAdes contigs using BLASTn '
+                                      'rather than Exonerate (step: extract_contigs)')
+    parser_assemble.add_argument('--blast_contigs_task',
+                                 choices=['blastn', 'blastn-short', 'megablast', 'dc-megablast'],
+                                 default='blastn',
+                                 help='Task to use for BLASTn searches during the blast_contigs step of the assembly '
+                                      'pipeline. See https://www.ncbi.nlm.nih.gov/books/NBK569839/ for a description '
+                                      'of tasks. Default is: %(default)s')
+
+    ### OTHER BLASTn OPTIONS
+
     parser_assemble.add_argument('--diamond_sensitivity',
                                  choices=['mid-sensitive', 'sensitive', 'more-sensitive', 'very-sensitive',
                                           'ultra-sensitive'],
                                  default=False,
-                                 help='Use the provided sensitivity for DIAMOND searches.')
+                                 help='Use the provided sensitivity for DIAMOND read-mapping searches.')
     parser_assemble.add_argument('--start_from',
-                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
+                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'extract_contigs'],
                                  dest='start_from',
                                  default='map_reads',
                                  help='Start the pipeline from the given step. Note that this relies on the presence '
                                       'of output files for previous steps, produced by a previous run attempt. '
                                       'Default is: %(default)s')
     parser_assemble.add_argument('--end_with',
-                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'exonerate_contigs'],
+                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'extract_contigs'],
                                  dest='end_with',
-                                 default='exonerate_contigs',
+                                 default='extract_contigs',
                                  help='End the pipeline at the given step. Default is: %(default)s')
     parser_assemble.add_argument('--force_overwrite',
                                  action='store_true',
@@ -91,7 +105,7 @@ def add_assemble_parser(subparsers):
                                  type=float,
                                  metavar='FLOAT',
                                  default=1e-4,
-                                 help='e-value threshold for blastx hits. Default is: %(default)s')
+                                 help='e-value threshold for mapping blastx hits. Default is: %(default)s')
     parser_assemble.add_argument('--max_target_seqs',
                                  type=int,
                                  metavar='INTEGER',
@@ -210,12 +224,25 @@ def add_assemble_parser(subparsers):
                                  metavar='INTEGER',
                                  help='Minimum number of discordant reads pairs required to flag a stitched contig as '
                                       'a potential chimera of contigs from multiple paralogs. Default is %(default)s.')
+    parser_assemble.add_argument('--blast_hit_sliding_window_size',
+                                 default=9,
+                                 type=int,
+                                 metavar='INTEGER',
+                                 help='Size of the sliding window (in nucleotides) when trimming termini of Blast '
+                                      'hits. Only applies of the option "--not_protein_coding" is used. Default is: '
+                                      '%(default)s.')
     parser_assemble.add_argument('--exonerate_hit_sliding_window_size',
                                  default=3,
                                  type=int,
                                  metavar='INTEGER',
                                  help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
                                       'hits. Default is: %(default)s.')
+    parser_assemble.add_argument('--blast_hit_sliding_window_thresh',
+                                 default=65,
+                                 type=int,
+                                 metavar='INTEGER',
+                                 help='Percentage similarity threshold for the sliding window (in nucleotides) when '
+                                      'trimming termini of BLASTn hits. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_hit_sliding_window_thresh',
                                  default=55,
                                  type=int,
