@@ -1094,7 +1094,7 @@ def check_for_previous_run_output(full_sample_directory,
     # Search for files from step assemble_reads:
     pre_existing_assemblies = glob.glob(f'{full_sample_directory}/*/*_contigs.fasta')
 
-    # Search for files from step exonerate_contigs:
+    # Search for files from step extract_contigs:
     fna_sequences = glob.glob(f'{full_sample_directory}/*/*/sequences/FNA/*.FNA')
 
     # Populate dictionary with any files found for each pipeline step:
@@ -1107,7 +1107,7 @@ def check_for_previous_run_output(full_sample_directory,
     if pre_existing_assemblies:
         previous_files_dict['assemble_reads'].append(pre_existing_assemblies)
     if fna_sequences:
-        previous_files_dict['exonerate_contigs'].append(pre_existing_assemblies)
+        previous_files_dict['extract_contigs'].append(pre_existing_assemblies)
 
     # Filter the dict to retain only selected pipeline steps:
     start_from_int = assemble_stages_dict[start_from]
