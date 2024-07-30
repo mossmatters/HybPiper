@@ -100,10 +100,22 @@ def initial_blast(locusfilename,
 
     # Delete blast db files:
     blastdb_files = [
-        # 'f'{prefix}/{blast_database_name}.'
+        f'{prefix}/{blast_database_name}.ndb',
+        f'{prefix}/{blast_database_name}.nhr',
+        f'{prefix}/{blast_database_name}.nin',
+        f'{prefix}/{blast_database_name}.njs',
+        f'{prefix}/{blast_database_name}.not',
+        f'{prefix}/{blast_database_name}.nsq',
+        f'{prefix}/{blast_database_name}.ntf',
+        f'{prefix}/{blast_database_name}.nto',
     ]
 
-
+    if not keep_intermediate_files:
+        for file in blastdb_files:
+            try:
+                os.remove(file)
+            except FileNotFoundError:
+                pass
 
     if utils.file_exists_and_not_empty(outputfilename):
         logger.debug('BLASTn ran successfully')
