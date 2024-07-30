@@ -25,7 +25,7 @@ def add_assemble_parser(subparsers):
                                  nargs='+',
                                  required=True,
                                  help='One or more read files to start the pipeline. If exactly two are specified, '
-                                      'will assume it is paired Illumina reads.')
+                                      'HybPiper will assume it is paired Illumina reads.')
     group_1 = parser_assemble.add_mutually_exclusive_group(required=True)
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
@@ -73,6 +73,7 @@ def add_assemble_parser(subparsers):
                                       'and <= --end_with. Default is: %(default)s')
     parser_assemble.add_argument('--cpu',
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Limit the number of CPUs. Default is to use all cores available minus one.')
     parser_assemble.add_argument('--skip_targetfile_checks',
                                  action='store_true',
@@ -88,38 +89,46 @@ def add_assemble_parser(subparsers):
                                       'Default is: %(default)s')
     parser_assemble.add_argument('--evalue',
                                  type=float,
+                                 metavar='FLOAT',
                                  default=1e-4,
                                  help='e-value threshold for blastx hits. Default is: %(default)s')
     parser_assemble.add_argument('--max_target_seqs',
                                  type=int,
+                                 metavar='INTEGER',
                                  default=10,
                                  help='Max target seqs to save in BLASTx search. Default is: %(default)s')
     parser_assemble.add_argument('--cov_cutoff',
                                  default=8,
+                                 metavar='INTEGER',
                                  help='Coverage cutoff for SPAdes. Default is: %(default)s')
     parser_assemble.add_argument('--single_cell_assembly',
                                  action='store_true',
                                  dest='spades_single_cell',
                                  default=False,
                                  help='Run SPAdes assemblies in MDA (single-cell) mode. Default is: %(default)s')
-    parser_assemble.add_argument('--kvals', nargs='+',
+    parser_assemble.add_argument('--kvals',
+                                 nargs='+',
+                                 metavar='INTEGER',
                                  default=None,
                                  help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
                                       'larger k-values! Default is auto-detection by SPAdes.')
     parser_assemble.add_argument('--thresh',
                                  type=int,
+                                 metavar='INTEGER',
                                  default=55,
                                  help='Percent identity threshold for retaining Exonerate hits. Default is 55, '
                                       'but increase this if you are worried about contaminant sequences.')
     parser_assemble.add_argument('--paralog_min_length_percentage',
                                  default=0.75,
                                  type=float,
+                                 metavar='FLOAT',
                                  help='Minimum length percentage of a contig Exonerate hit vs reference protein '
                                       'length for a paralog warning and sequence to be generated. Default is: '
                                       '%(default)s')
     parser_assemble.add_argument('--depth_multiplier',
                                  default=10,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Assign a long paralog as the "main" sequence if it has a coverage depth '
                                       '<depth_multiplier> times all other long paralogs. Set to zero to not use '
                                       'depth. Default is: %(default)s')
@@ -129,11 +138,13 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--timeout_assemble',
                                  default=0,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Kill long-running gene assemblies if they take longer than X percent of '
                                       'average.')
     parser_assemble.add_argument('--timeout_exonerate_contigs',
                                  default=120,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Kill long-running processes if they take longer than X seconds. Default is: '
                                       '%(default)s')
     parser_assemble.add_argument('--target',
@@ -172,36 +183,43 @@ def add_assemble_parser(subparsers):
     parser_assemble.add_argument('--bbmap_memory',
                                  default=1000,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='MB memory (RAM) to use for bbmap.sh with exonerate_hits.py. Default: is '
                                       '%(default)s.')
     parser_assemble.add_argument('--bbmap_subfilter',
                                  default=7,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Ban alignments with more than this many substitutions. Default is: %(default)s.')
     parser_assemble.add_argument('--bbmap_threads',
                                  default=1,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
                                       'Default is: %(default)s.')
     parser_assemble.add_argument('--chimeric_stitched_contig_edit_distance',
                                  default=5,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Minimum number of differences between one read of a read pair vs the '
                                       'stitched contig reference for a read pair to be flagged as discordant. Default '
                                       'is: %(default)s.')
     parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
                                  default=5,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Minimum number of discordant reads pairs required to flag a stitched contig as '
                                       'a potential chimera of contigs from multiple paralogs. Default is %(default)s.')
     parser_assemble.add_argument('--exonerate_hit_sliding_window_size',
                                  default=3,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
                                       'hits. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_hit_sliding_window_thresh',
                                  default=55,
                                  type=int,
+                                 metavar='INTEGER',
                                  help='Percentage similarity threshold for the sliding window (in amino-acids) when '
                                       'trimming termini of Exonerate hits. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_skip_hits_with_frameshifts',
@@ -209,17 +227,17 @@ def add_assemble_parser(subparsers):
                                  dest='skip_frameshifts',
                                  default=False,
                                  help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. '
-                                      'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting-common'
+                                      'See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting-common'
                                       '-issues,-and-recommendations#42-hits-where-the-spades-contig-contains'
-                                      '-frameshifts\n. Default is: %(default)s.')
+                                      '-frameshifts. Default is: %(default)s.')
     parser_assemble.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
                                  action='store_true',
                                  dest='skip_internal_stops',
                                  default=False,
                                  help='Skip Exonerate hits where the SPAdes sequence contains an internal in-frame '
                                       'stop codon. '
-                                      'See:\nhttps://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
-                                      '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.\n'
+                                      'See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
+                                      '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.'
                                       'A single terminal stop codon is allowed, but see option '
                                       '"--exonerate_skip_hits_with_terminal_stop_codons" below. Default is: '
                                       '%(default)s.')
@@ -451,6 +469,7 @@ def add_paralog_retriever_parser(subparsers):
                                                '%(default)s.')
     parser_paralog_retriever.add_argument('--paralogs_list_threshold_percentage',
                                           type=float,
+                                          metavar='FLOAT',
                                           default=0.0,
                                           help='Percent of total number of samples and genes that must have paralog '
                                                'warnings to be reported in the <genes_with_paralogs.txt> report file. '
@@ -466,22 +485,26 @@ def add_paralog_retriever_parser(subparsers):
                                                'Default is: %(default)s.')
     parser_paralog_retriever.add_argument('--figure_length',
                                           type=int,
+                                          metavar='INTEGER',
                                           default=None,
                                           help='Length dimension (in inches) for the output heatmap file. Default is '
                                                'automatically calculated based on the number of genes.')
     parser_paralog_retriever.add_argument('--figure_height',
                                           type=int,
+                                          metavar='INTEGER',
                                           default=None,
                                           help='Height dimension (in inches) for the output heatmap file. Default is '
                                                'automatically calculated based on the number of samples.')
     parser_paralog_retriever.add_argument('--sample_text_size',
                                           type=int,
+                                          metavar='INTEGER',
                                           default=None,
                                           help='Size (in points) for the sample text labels in the output heatmap '
                                                'file. Default is automatically calculated based on the number of '
                                                'samples.')
     parser_paralog_retriever.add_argument('--gene_text_size',
                                           type=int,
+                                          metavar='INTEGER',
                                           default=None,
                                           help='Size (in points) for the gene text labels in the output heatmap file. '
                                                'Default is automatically calculated based on the number of genes.')
@@ -492,6 +515,7 @@ def add_paralog_retriever_parser(subparsers):
                                                '%(default)s.')
     parser_paralog_retriever.add_argument('--heatmap_dpi',
                                           type=int,
+                                          metavar='INTEGER',
                                           default=100,
                                           help='Dots per inch (DPI) for the output heatmap image. Default is: '
                                                '%(default)s.')
@@ -534,24 +558,28 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                                    'Defaults to "recovery_heatmap"')
     parser_gene_recovery_heatmap.add_argument('--figure_length',
                                               type=int,
+                                              metavar='INTEGER',
                                               default=None,
                                               help='Length dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
                                                    'genes')
     parser_gene_recovery_heatmap.add_argument('--figure_height',
                                               type=int,
+                                              metavar='INTEGER',
                                               default=None,
                                               help='Height dimension (in inches) for the output heatmap file. '
                                                    'Default is automatically calculated based on the number of '
                                                    'samples')
     parser_gene_recovery_heatmap.add_argument('--sample_text_size',
                                               type=int,
+                                              metavar='INTEGER',
                                               default=None,
                                               help='Size (in points) for the sample text labels in the output heatmap '
                                                    'file. Default is automatically calculated based on the '
                                                    'number of samples')
     parser_gene_recovery_heatmap.add_argument('--gene_text_size',
                                               type=int,
+                                              metavar='INTEGER',
                                               default=None,
                                               help='Size (in points) for the gene text labels in the output heatmap '
                                                    'file. Default is automatically calculated based on the '
@@ -562,6 +590,7 @@ def add_gene_recovery_heatmap_parser(subparsers):
                                               help='File type to save the output heatmap image as. Default is *.png')
     parser_gene_recovery_heatmap.add_argument('--heatmap_dpi',
                                               type=int,
+                                              metavar='INTEGER',
                                               default=100,
                                               help='Dot per inch (DPI) for the output heatmap image. Default is '
                                                    '%(default)d')
@@ -638,6 +667,7 @@ def add_check_targetfile_parser(subparsers):
                                                'protein sequence. Default is False.')
     parser_check_target_file.add_argument('--sliding_window_size',
                                           type=int,
+                                          metavar='INTEGER',
                                           default=None,
                                           help='Number of characters (single-letter DNA or amino-acid codes) to '
                                                'include in the sliding window when checking for sequences with '
@@ -788,9 +818,9 @@ def add_filter_by_length_parser(subparsers):
     group_1 = parser_filter_by_length.add_mutually_exclusive_group(required=True)
     group_1.add_argument('--denylist',
                          default=None,
-                         help='Text file containing gene-sample combinations to omit.\nThe format of the file should '
+                         help='Text file containing gene-sample combinations to omit. The format of the file should '
                               'be one gene per line, a tab, and then a comma-delimited list of samples to disallow: '
-                              '\n\n\tgene[tab]sample,sample,sample ')
+                              'gene[tab]sample1,sample2,sample3')
     group_1.add_argument('--seq_lengths_file',
                          help='Filename for the seq_lengths file (output of the "hybpiper stats" command), with a list '
                               'of genes in the first row, mean target lengths in the second row, and sample recovery '
@@ -802,12 +832,14 @@ def add_filter_by_length_parser(subparsers):
                                               '<denylist.txt>')
     parser_filter_by_length.add_argument('--length_filter',
                                          default=0,
+                                         metavar='INTEGER',
                                          type=int,
                                          help='Minimum length to allow a sequence in nucleotides for DNA or amino '
                                               'acids for protein sequences')
     parser_filter_by_length.add_argument('--percent_filter',
                                          default=0,
-                                         type=float,
+                                         metavar='FLOAT',
+                                         type=utils.restricted_float,
                                          help='Minimum fraction (between 0 and 1) of the mean target length to allow '
                                               'a sequence for a gene. Lengths taken from HybPiper stats file.')
     parser_filter_by_length.add_argument('--sequence_dir',
