@@ -268,9 +268,7 @@ def recover_sequences_from_all_samples(seq_dir,
                     continue
 
                 # Check if the sample directory is a compressed tarball:
-                compressed_sample_bool = False
-                if sample_name in compressed_sample_dict:
-                    compressed_sample_bool = True
+                compressed_sample_bool = True if sample_name in compressed_sample_dict else False
 
                 ########################################################################################################
                 # Determine whether a chimera check was performed for this sample during 'hybpiper assemble':
@@ -635,10 +633,12 @@ def main(args):
         columns_to_filter = [item[0] for item in args.filter_by]
         operators_to_filter = [item[1] for item in args.filter_by]
         thresholds_to_filter = [item[2] for item in args.filter_by]
+
         if not all(column in columns for column in columns_to_filter):
             sys.exit(f'{"[ERROR]:":10} Only columns from the following list are allowed: {columns}')
         if not all(operator in operators for operator in operators_to_filter):
             sys.exit(f'{"[ERROR]:":10} Only operators from the following list are allowed: {operators}')
+
         for threshold in thresholds_to_filter:
             try:
                 threshold_is_float = float(threshold)
