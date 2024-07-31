@@ -172,7 +172,6 @@ def distribute_targets(targetfile, delim, besthits, translate=False, target=None
             print(f'genes_to_targets is: {genes_to_targets}')
             target_is_file = True
         else:
-            print('nah')
             target_is_file = False    
         
     targets = SeqIO.parse(targetfile, 'fasta')
