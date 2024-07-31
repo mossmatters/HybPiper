@@ -721,7 +721,9 @@ class Exonerate(object):
         single_exonerate_qresult = self.exonerate_searchio_alignment[0]
         filtered_hsps = []
 
+        ################################################################################################################
         # Calculate hsp similarity and filter hsps via a given threshold similarity percentage:
+        ################################################################################################################
         for hsp in single_exonerate_qresult.hsps:
 
             similarity_count_total = 0
@@ -745,7 +747,9 @@ class Exonerate(object):
 
         filtered_by_similarity_hsps_dict = defaultdict(dict)  # dict of dicts for each filtered hsp
 
+        ################################################################################################################
         # Sort hsps list by query start location THEN query end location:
+        ################################################################################################################
         for filtered_hsp in sorted(filtered_hsps, key=lambda x: (x[0].query_start, x[0].query_end)):
 
             # Trim ends of filtered-for-similarity hsps if they fall beneath self.similarity_threshold. First, check if
@@ -760,7 +764,9 @@ class Exonerate(object):
                                                   similarity_triplets_list]
             concatenated_fragment_codons = [codon for codon_list in fragment_codons for codon in codon_list]
 
+            ############################################################################################################
             # Calculate similarity values within a sliding window:
+            ############################################################################################################
             window_size = self.sliding_window_size
             window_thresh = self.sliding_window_thresh
             window_similarity_percentages = []
@@ -788,7 +794,9 @@ class Exonerate(object):
 
                 window_similarity_percentages.append(float(window_similarity))
 
+            ############################################################################################################
             # Calculate indices of where a sliding-window similarity value crosses the similarity threshold:
+            ############################################################################################################
             data = np.array(window_similarity_percentages)
             data_adjusted = np.where(data <= window_thresh, 0, 1)  # 0 or 1 if above or below/equal
 
@@ -811,7 +819,9 @@ class Exonerate(object):
                 self.logger.debug(f'three_prime_upward_crossings: {three_prime_upward_crossings}')
                 self.logger.debug(f'three_prime_downward_crossings: {three_prime_downward_crossings}')
 
+            ############################################################################################################
             # Adjust crossings to correspond to nucleotide positions rather than sliding window amino-acid positions:
+            ############################################################################################################
 
             # Five prime:
             five_prime_upward_crossings_nucleotides = \
@@ -863,7 +873,9 @@ class Exonerate(object):
             except IndexError:
                 three_prime_first_downward_crossing_nucleotides = 'no_crossing'
 
+            ############################################################################################################
             # Get slice indices, if any:
+            ############################################################################################################
             five_prime_slice = 0  # i.e. default is the first position in the sequence
             three_prime_slice = 0  # i.e. default is the first (converted from last) position in the sequence
 
@@ -908,7 +920,9 @@ class Exonerate(object):
                     self.logger.debug(f'3-prime trimming for prefix {self.prefix} hsp {hsp.hit_id} is '
                                       f'{three_prime_slice}')
 
+            ############################################################################################################
             # Adjust ends of slices to start with the first codon with similarity '|||':
+            ############################################################################################################
             if five_prime_slice:  # i.e., five_prime_slice is not zero
                 window_similarity_five_prime_slice = all_window_similarity_triplets[round(five_prime_slice / 3)]
                 for triplet in window_similarity_five_prime_slice:
@@ -926,7 +940,9 @@ class Exonerate(object):
                     else:
                         break
 
+            ############################################################################################################
             # Re-calculate the hit similarity based in the sliced sequence:
+            ############################################################################################################
             concatenated_fragment_similarities_slice = \
                 concatenated_fragment_similarities[int(five_prime_slice / 3):
                                                    int(len(concatenated_fragment_similarities) -
@@ -941,7 +957,9 @@ class Exonerate(object):
                 similarity_count_total += 1
             hit_similarity = f'{similarity_count / similarity_count_total * 100:.2f}'
 
+            ############################################################################################################
             # Extract values from hsp object and adjust as necessary for trim slices:
+            ############################################################################################################
             spades_contig_depth = float(filtered_hsp[0].hit_id.split('_')[-1])  # dependant on SPAdes header output!
             query_range_original = filtered_hsp[0].query_range
             query_range = (round(query_range_original[0] + (five_prime_slice / 3)),
@@ -974,7 +992,9 @@ class Exonerate(object):
             for pair in grouped(hit_range_all_flattened, 2):
                 hit_range_all.append(pair)
 
+            ############################################################################################################
             # Set a unique hit name for cases where there's >1 hit for a single SPAdes contig:
+            ############################################################################################################
             unique_hit_name = f'{filtered_hsp[0].hit_id},{self.query_id},{query_range[0]},{query_range[1]}' \
                               f',{hit_similarity},({hsp_hit_strand}),{hit_range[0]},{hit_range[1]}'
 
