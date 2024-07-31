@@ -1821,7 +1821,7 @@ def main(args):
     if args.not_protein_coding:
         blast_multiprocessing(genes,
                               sample_dir,
-                              blast_contigs_task=args.blast_contigs_task,
+                              blast_contigs_task=args.extract_contigs_blast_task,
                               thresh=args.thresh,
                               paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                               depth_multiplier=args.depth_multiplier,
