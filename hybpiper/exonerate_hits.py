@@ -616,8 +616,8 @@ class Exonerate(object):
                  spades_assembly_dict=None,
                  depth_multiplier=10,
                  keep_intermediate_files=False,
-                 exonerate_hit_sliding_window_size=3,
-                 exonerate_hit_sliding_window_thresh=55,
+                 trim_hit_sliding_window_size=3,
+                 trim_hit_sliding_window_thresh=55,
                  exonerate_skip_frameshifts=False,
                  exonerate_skip_internal_stops=False,
                  exonerate_skip_terminal_stops=False,
@@ -660,8 +660,8 @@ class Exonerate(object):
         self.query_id = searchio_object[0].id
         self.query_length = len(SeqIO.read(query_file, 'fasta'))
         self.similarity_threshold = thresh
-        self.sliding_window_size = exonerate_hit_sliding_window_size
-        self.sliding_window_thresh = exonerate_hit_sliding_window_thresh
+        self.sliding_window_size = trim_hit_sliding_window_size
+        self.sliding_window_thresh = trim_hit_sliding_window_thresh
         self.skip_frameshifts = exonerate_skip_frameshifts
         self.skip_internal_stops = exonerate_skip_internal_stops
         self.skip_terminal_stops = exonerate_skip_terminal_stops
