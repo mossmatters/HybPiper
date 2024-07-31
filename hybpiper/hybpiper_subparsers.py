@@ -21,12 +21,15 @@ def add_assemble_parser(subparsers):
 
     parser_assemble = subparsers.add_parser('assemble',
                                             help='Assemble gene, intron, and supercontig sequences for a sample')
-    parser_assemble.add_argument('--readfiles', '-r',
-                                 nargs='+',
-                                 required=True,
-                                 help='One or more read files to start the pipeline. If exactly two are specified, '
-                                      'HybPiper will assume it is paired Illumina reads.')
-    group_1 = parser_assemble.add_mutually_exclusive_group(required=True)
+
+    ####################################################################################################################
+    required_group = parser_assemble.add_argument_group('Required input')
+    required_group.add_argument('--readfiles', '-r',
+                                nargs='+',
+                                required=True,
+                                help='One or more read files to start the pipeline. If exactly two are specified, '
+                                     'HybPiper will assume it is paired Illumina reads.')
+    group_1 = required_group.add_mutually_exclusive_group(required=True)
     group_1.add_argument('--targetfile_dna', '-t_dna',
                          dest='targetfile_dna',
                          default=False,
@@ -37,7 +40,16 @@ def add_assemble_parser(subparsers):
                          default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
                               'must follow the naming convention: >TaxonID-geneName')
-    group_2 = parser_assemble.add_mutually_exclusive_group()
+    ####################################################################################################################
+    optional_group_input = parser_assemble.add_argument_group('Optional input')
+    optional_group_input.add_argument('--unpaired',
+                                      default=False,
+                                      help='Include a single FASTQ file with unpaired reads along with two paired read '
+                                           'files')
+
+    ####################################################################################################################
+    optional_group_map_reads = parser_assemble.add_argument_group('Options for step: map_reads')
+    group_2 = optional_group_map_reads.add_mutually_exclusive_group()
     group_2.add_argument('--bwa',
                          dest='bwa',
                          action='store_true',
@@ -49,288 +61,297 @@ def add_assemble_parser(subparsers):
                          action='store_true',
                          default=False,
                          help='Use DIAMOND instead of BLASTx for read mapping. Default is: %(default)s')
-    parser_assemble.add_argument('--not_protein_coding',
-                                 action='store_true',
-                                 default='False',
-                                 help='If provided, extract sequences from SPAdes contigs using BLASTn '
-                                      'rather than Exonerate (step: extract_contigs)')
-    parser_assemble.add_argument('--blast_contigs_task',
-                                 choices=['blastn', 'blastn-short', 'megablast', 'dc-megablast'],
-                                 default='blastn',
-                                 help='Task to use for BLASTn searches during the blast_contigs step of the assembly '
-                                      'pipeline. See https://www.ncbi.nlm.nih.gov/books/NBK569839/ for a description '
-                                      'of tasks. Default is: %(default)s')
+    optional_group_map_reads.add_argument('--diamond_sensitivity',
+                                          choices=['mid-sensitive', 'sensitive', 'more-sensitive', 'very-sensitive',
+                                                      'ultra-sensitive'],
+                                          default=False,
+                                          help='Use the provided sensitivity for DIAMOND read-mapping searches.')
+    optional_group_map_reads.add_argument('--evalue',
+                                          type=float,
+                                          metavar='FLOAT',
+                                          default=1e-4,
+                                          help='e-value threshold for mapping blastx hits. Default is: %(default)s')
+    optional_group_map_reads.add_argument('--max_target_seqs',
+                                          type=int,
+                                          metavar='INTEGER',
+                                          default=10,
+                                          help='Max target seqs to save in BLASTx search. Default is: %(default)s')
+    ####################################################################################################################
+    optional_group_distribute_reads = parser_assemble.add_argument_group('Options for step: distribute_reads')
 
-    ### OTHER BLASTn OPTIONS
+    ####################################################################################################################
+    optional_group_assemble_reads = parser_assemble.add_argument_group('Options for step: assemble_reads')
+    optional_group_assemble_reads.add_argument('--cov_cutoff',
+                                               default=8,
+                                               metavar='INTEGER',
+                                               help='Coverage cutoff for SPAdes. Default is: %(default)s')
+    optional_group_assemble_reads.add_argument('--single_cell_assembly',
+                                               action='store_true',
+                                               dest='spades_single_cell',
+                                               default=False,
+                                               help='Run SPAdes assemblies in MDA (single-cell) mode. '
+                                                    'Default is: %(default)s')
+    optional_group_assemble_reads.add_argument('--kvals',
+                                               nargs='+',
+                                               metavar='INTEGER',
+                                               default=None,
+                                               help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to '
+                                                    'handle larger k-values! Default is auto-detection by SPAdes.')
+    optional_group_assemble_reads.add_argument('--merged',
+                                               action='store_true',
+                                               default=False,
+                                               help='For assembly with both merged and unmerged (interleaved) reads. '
+                                                    'Default is: %(default)s.')
+    optional_group_assemble_reads.add_argument('--timeout_assemble_reads',
+                                               default=0,
+                                               type=int,
+                                               metavar='INTEGER',
+                                               help='Kill long-running gene assemblies if they take longer than X '
+                                                    'percent of average.')
+    optional_group_assemble_reads.add_argument('--no_spades_eta',
+                                               action='store_true',
+                                               default=False,
+                                               help='When SPAdes is run concurrently using GNU parallel, the "--eta" '
+                                                    'flag can result in many "sh: /dev/tty: Device not configured" '
+                                                    'errors written to stderr. Using this option removes the "--eta" '
+                                                    'flag to GNU parallel. Default is %(default)s.')
 
-    parser_assemble.add_argument('--diamond_sensitivity',
-                                 choices=['mid-sensitive', 'sensitive', 'more-sensitive', 'very-sensitive',
-                                          'ultra-sensitive'],
-                                 default=False,
-                                 help='Use the provided sensitivity for DIAMOND read-mapping searches.')
-    parser_assemble.add_argument('--start_from',
-                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'extract_contigs'],
-                                 dest='start_from',
-                                 default='map_reads',
-                                 help='Start the pipeline from the given step. Note that this relies on the presence '
-                                      'of output files for previous steps, produced by a previous run attempt. '
-                                      'Default is: %(default)s')
-    parser_assemble.add_argument('--end_with',
-                                 choices=['map_reads', 'distribute_reads', 'assemble_reads', 'extract_contigs'],
-                                 dest='end_with',
-                                 default='extract_contigs',
-                                 help='End the pipeline at the given step. Default is: %(default)s')
-    parser_assemble.add_argument('--force_overwrite',
-                                 action='store_true',
-                                 default=False,
-                                 help='Overwrite any output from a previous run for pipeline steps >= --start_from '
-                                      'and <= --end_with. Default is: %(default)s')
-    parser_assemble.add_argument('--cpu',
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Limit the number of CPUs. Default is to use all cores available minus one.')
-    parser_assemble.add_argument('--skip_targetfile_checks',
-                                 action='store_true',
-                                 default=False,
-                                 help='Skip the target file checks. Can be used if you are confident that your target '
-                                      'file has no issues (e.g. if you have previously run "hybpiper '
-                                      'check_targetfile". Default is: %(default)s'),
-    parser_assemble.add_argument('--distribute_low_mem',
-                                 action='store_true',
-                                 default=False,
-                                 help='Distributing and writing reads to individual gene directories will be 40-50 '
-                                      'percent slower, but can use less memory/RAM with large input files (see wiki). '
-                                      'Default is: %(default)s')
-    parser_assemble.add_argument('--evalue',
-                                 type=float,
-                                 metavar='FLOAT',
-                                 default=1e-4,
-                                 help='e-value threshold for mapping blastx hits. Default is: %(default)s')
-    parser_assemble.add_argument('--max_target_seqs',
-                                 type=int,
-                                 metavar='INTEGER',
-                                 default=10,
-                                 help='Max target seqs to save in BLASTx search. Default is: %(default)s')
-    parser_assemble.add_argument('--cov_cutoff',
-                                 default=8,
-                                 metavar='INTEGER',
-                                 help='Coverage cutoff for SPAdes. Default is: %(default)s')
-    parser_assemble.add_argument('--single_cell_assembly',
-                                 action='store_true',
-                                 dest='spades_single_cell',
-                                 default=False,
-                                 help='Run SPAdes assemblies in MDA (single-cell) mode. Default is: %(default)s')
-    parser_assemble.add_argument('--kvals',
-                                 nargs='+',
-                                 metavar='INTEGER',
-                                 default=None,
-                                 help='Values of k for SPAdes assemblies. SPAdes needs to be compiled to handle '
-                                      'larger k-values! Default is auto-detection by SPAdes.')
-    parser_assemble.add_argument('--thresh',
-                                 type=int,
-                                 metavar='INTEGER',
-                                 default=55,
-                                 help='Percent identity threshold for retaining Exonerate hits. Default is 55, '
-                                      'but increase this if you are worried about contaminant sequences.')
-    parser_assemble.add_argument('--paralog_min_length_percentage',
-                                 default=0.75,
-                                 type=float,
-                                 metavar='FLOAT',
-                                 help='Minimum length percentage of a contig Exonerate hit vs reference protein '
-                                      'length for a paralog warning and sequence to be generated. Default is: '
-                                      '%(default)s')
-    parser_assemble.add_argument('--depth_multiplier',
-                                 default=10,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Assign a long paralog as the "main" sequence if it has a coverage depth '
-                                      '<depth_multiplier> times all other long paralogs. Set to zero to not use '
-                                      'depth. Default is: %(default)s')
-    parser_assemble.add_argument('--prefix',
-                                 default=None,
-                                 help='Directory name for pipeline output, default is to use the FASTQ file name.')
-    parser_assemble.add_argument('--timeout_assemble',
-                                 default=0,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Kill long-running gene assemblies if they take longer than X percent of '
-                                      'average.')
-    parser_assemble.add_argument('--timeout_exonerate_contigs',
-                                 default=120,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Kill long-running processes if they take longer than X seconds. Default is: '
-                                      '%(default)s')
-    parser_assemble.add_argument('--target',
-                                 default=None,
-                                 help='Use the target file sequence with this taxon name in Exonerate searches for '
-                                      'each gene. Other targets for that gene will be used only for read sorting. Can '
-                                      'be a tab-delimited file (one <gene>\\t<taxon_name> per line) or a single taxon '
-                                      'name.')
-    parser_assemble.add_argument('--exclude',
-                                 default=None,
-                                 help='Do not use any sequence with the specified taxon name string in Exonerate '
-                                      'searches. Sequenced from this taxon will still be used for read sorting.')
-    parser_assemble.add_argument('--unpaired',
-                                 default=False,
-                                 help='Include a single FASTQ file with unpaired reads along with two paired read '
-                                      'files')
-    parser_assemble.add_argument('--no_stitched_contig',
-                                 dest='no_stitched_contig',
-                                 action='store_true',
-                                 default=False,
-                                 help='Do not create any stitched contigs. The longest single Exonerate hit will be '
-                                      'used. Default is: %(default)s.')
-    parser_assemble.add_argument('--no_pad_stitched_contig_gaps_with_n',
-                                 action="store_false",
-                                 dest='stitched_contig_pad_n',
-                                 default=True,
-                                 help='When constructing stitched contigs, do not pad any gaps between hits (with '
-                                      'respect to the "best" protein reference) with a number of Ns corresponding to '
-                                      'the reference gap multiplied by 3. Default is: %(default)s.')
-    parser_assemble.add_argument('--chimeric_stitched_contig_check',
-                                 action='store_true',
-                                 dest='chimera_check',
-                                 default=False,
-                                 help='Attempt to determine whether a stitched contig is a potential '
-                                      'chimera of contigs from multiple paralogs. Default is: %(default)s.')
-    parser_assemble.add_argument('--bbmap_memory',
-                                 default=1000,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='MB memory (RAM) to use for bbmap.sh with exonerate_hits.py. Default: is '
-                                      '%(default)s.')
-    parser_assemble.add_argument('--bbmap_subfilter',
-                                 default=7,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Ban alignments with more than this many substitutions. Default is: %(default)s.')
-    parser_assemble.add_argument('--bbmap_threads',
-                                 default=1,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Number of threads to use for BBmap when searching for chimeric stitched contig. '
-                                      'Default is: %(default)s.')
-    parser_assemble.add_argument('--chimeric_stitched_contig_edit_distance',
-                                 default=5,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Minimum number of differences between one read of a read pair vs the '
-                                      'stitched contig reference for a read pair to be flagged as discordant. Default '
-                                      'is: %(default)s.')
-    parser_assemble.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
-                                 default=5,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Minimum number of discordant reads pairs required to flag a stitched contig as '
-                                      'a potential chimera of contigs from multiple paralogs. Default is %(default)s.')
-    parser_assemble.add_argument('--blast_hit_sliding_window_size',
-                                 default=9,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Size of the sliding window (in nucleotides) when trimming termini of Blast '
-                                      'hits. Only applies of the option "--not_protein_coding" is used. Default is: '
-                                      '%(default)s.')
-    parser_assemble.add_argument('--exonerate_hit_sliding_window_size',
-                                 default=3,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
-                                      'hits. Default is: %(default)s.')
-    parser_assemble.add_argument('--blast_hit_sliding_window_thresh',
-                                 default=65,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Percentage similarity threshold for the sliding window (in nucleotides) when '
-                                      'trimming termini of BLASTn hits. Default is: %(default)s.')
-    parser_assemble.add_argument('--exonerate_hit_sliding_window_thresh',
-                                 default=55,
-                                 type=int,
-                                 metavar='INTEGER',
-                                 help='Percentage similarity threshold for the sliding window (in amino-acids) when '
-                                      'trimming termini of Exonerate hits. Default is: %(default)s.')
-    parser_assemble.add_argument('--exonerate_skip_hits_with_frameshifts',
-                                 action='store_true',
-                                 dest='skip_frameshifts',
-                                 default=False,
-                                 help='Skip Exonerate hits where the SPAdes sequence contains a frameshift. '
-                                      'See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting-common'
-                                      '-issues,-and-recommendations#42-hits-where-the-spades-contig-contains'
-                                      '-frameshifts. Default is: %(default)s.')
-    parser_assemble.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
-                                 action='store_true',
-                                 dest='skip_internal_stops',
-                                 default=False,
-                                 help='Skip Exonerate hits where the SPAdes sequence contains an internal in-frame '
-                                      'stop codon. '
-                                      'See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
-                                      '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.'
-                                      'A single terminal stop codon is allowed, but see option '
-                                      '"--exonerate_skip_hits_with_terminal_stop_codons" below. Default is: '
-                                      '%(default)s.')
-    parser_assemble.add_argument('--exonerate_skip_hits_with_terminal_stop_codons',
-                                 action='store_true',
-                                 dest='skip_terminal_stops',
-                                 default=False,
-                                 help='Skip Exonerate hits where the SPAdes sequence contains a single terminal stop '
-                                      'codon. Only applies when option '
-                                      '"--exonerate_skip_hits_with_internal_stop_codons" is also provided. Only use '
-                                      'this flag if your target file exclusively contains protein-coding genes with no '
-                                      'stop codons included, and you would like to prevent any in-frame stop codons in '
-                                      'the output sequences. Default is: %(default)s.')
-    parser_assemble.add_argument('--merged',
-                                 action='store_true',
-                                 default=False,
-                                 help='For assembly with both merged and unmerged (interleaved) reads. Default is: '
-                                      '%(default)s.')
-    parser_assemble.add_argument('--no_intronerate',
-                                 action='store_true',
-                                 dest='no_intronerate',
-                                 default=False,
-                                 help='Do not run intronerate to recover fasta files for supercontigs with introns (if '
-                                      'present), and introns-only. Default is: %(default)s.')
-    parser_assemble.add_argument('--keep_intermediate_files',
-                                 action='store_true',
-                                 dest='keep_intermediate_files',
-                                 default=False,
-                                 help='Keep all intermediate files and logs, which can be useful for '
-                                      'debugging. Default action is to delete them, which greatly reduces the total '
-                                      'file number. Default is: %(default)s.')
-    parser_assemble.add_argument('--no_padding_supercontigs',
-                                 action='store_true',
-                                 dest='no_padding_supercontigs',
-                                 default=False,
-                                 help='If Intronerate is run, and a supercontig is created by concatenating multiple '
-                                      'SPAdes contigs, do not add 10 "N" characters between contig joins. By default, '
-                                      'Ns will be added. Default is: %(default)s.')
-    parser_assemble.add_argument('--verbose_logging',
-                                 action='store_true',
-                                 dest='verbose_logging',
-                                 default=False,
-                                 help='If supplied, enable verbose logging. NOTE: this can increase the size of the '
-                                      'log files by an order of magnitude. Default is: %(default)s.')
-    parser_assemble.add_argument('--hybpiper_output', '-o',
-                                 dest='output_folder',
-                                 default=None,
-                                 help='Folder for HybPiper output. Default is %(default)s.')
-    parser_assemble.add_argument('--compress_sample_folder',
-                                 action='store_true',
-                                 default=False,
-                                 help='Tarball and compress the sample folder after assembly has completed '
-                                      '(<sample_name>.tar.gz). Default is %(default)s.')
-    parser_assemble.add_argument('--no_spades_eta',
-                                 action='store_true',
-                                 default=False,
-                                 help='When SPAdes is run concurrently using GNU parallel, the "--eta" flag can '
-                                      'result in many "sh: /dev/tty: Device not configured" errors written to stderr. '
-                                      'Using this option removes the "--eta" flag to GNU parallel. Default is '
-                                      '%(default)s.')
-    parser_assemble.add_argument('--run_profiler',
-                                 action='store_true',
-                                 dest='run_profiler',
-                                 default=False,
-                                 help='If supplied, run the subcommand using cProfile. Saves a *.csv file of results. '
-                                      'Default is: %(default)s.')
+    ####################################################################################################################
+    optional_group_extract_contigs = parser_assemble.add_argument_group('Options for step: extract_contigs')
+    optional_group_extract_contigs.add_argument('--not_protein_coding',
+                                                action='store_true',
+                                                default='False',
+                                                help='If provided, extract sequences from SPAdes contigs using BLASTn '
+                                                     'rather than Exonerate (step: extract_contigs)')
+    optional_group_extract_contigs.add_argument('--blast_contigs_task',
+                                                choices=['blastn', 'blastn-short', 'megablast', 'dc-megablast'],
+                                                default='blastn',
+                                                help='Task to use for BLASTn searches during the blast_contigs step of '
+                                                     'the assembly pipeline. See '
+                                                     'https://www.ncbi.nlm.nih.gov/books/NBK569839/ for a description '
+                                                     'of tasks. Default is: %(default)s')
+    optional_group_extract_contigs.add_argument('--thresh',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                default=55,
+                                                help='Percent identity threshold for retaining Exonerate/BLASTn hits. '
+                                                     'Default is 55, but increase this if you are worried about '
+                                                     'contaminant sequences. Exonerate hit identity is calculated '
+                                                     'using amino-acids, BLASTn hit identity is calculated using '
+                                                     'nucleotides.')
+    optional_group_extract_contigs.add_argument('--paralog_min_length_percentage',
+                                                default=0.75,
+                                                type=float,
+                                                metavar='FLOAT',
+                                                help='Minimum length percentage of a contig Exonerate hit vs reference '
+                                                     'protein length for a paralog warning and sequence to be '
+                                                     'generated. Default is: %(default)s')
+    optional_group_extract_contigs.add_argument('--depth_multiplier',
+                                                default=10,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Assign a long paralog as the "main" sequence if it has a '
+                                                     'coverage depth <depth_multiplier> times all other long paralogs. '
+                                                     'Set to zero to not use depth. Default is: %(default)s')
+    optional_group_extract_contigs.add_argument('--target',
+                                                default=None,
+                                                help='Use the target file sequence with this taxon name in '
+                                                     'Exonerate/BLASTn searches for each gene. Other targets for that '
+                                                     'gene will be used only for read sorting. Can be a tab-delimited '
+                                                     'file (one <gene>\\t<taxon_name> per line) or a single taxon '
+                                                     'name.')
+    optional_group_extract_contigs.add_argument('--exclude',
+                                                default=None,
+                                                help='Do not use any sequence with the specified taxon name string in '
+                                                     'Exonerate/BLASTn searches. Sequences from this taxon will still '
+                                                     'be used for read sorting.')
+    optional_group_extract_contigs.add_argument('--timeout_extract_contigs',
+                                                default=120,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Kill long-running processes if they take longer than X seconds. '
+                                                     'Default is: %(default)s')
+    optional_group_extract_contigs.add_argument('--no_stitched_contig',
+                                                dest='no_stitched_contig',
+                                                action='store_true',
+                                                default=False,
+                                                help='Do not create any stitched contigs. The longest single '
+                                                     'Exonerate/BLASTn hit will be used. Default is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--no_pad_stitched_contig_gaps_with_n',
+                                                action="store_false",
+                                                dest='stitched_contig_pad_n',
+                                                default=True,
+                                                help='When constructing stitched contigs, do not pad any gaps between '
+                                                     'hits (with respect to the "best" protein reference) with a '
+                                                     'number of Ns corresponding to the reference gap multiplied by '
+                                                     '3 (Exonerate) or reference gap (BLASTn). Default is: '
+                                                     '%(default)s.')
+    optional_group_extract_contigs.add_argument('--chimeric_stitched_contig_check',
+                                                action='store_true',
+                                                dest='chimera_check',
+                                                default=False,
+                                                help='Attempt to determine whether a stitched contig is a potential '
+                                                     'chimera of contigs from multiple paralogs. Default is: '
+                                                     '%(default)s.')
+    optional_group_extract_contigs.add_argument('--bbmap_memory',
+                                                default=1000,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='MB memory (RAM) to use for bbmap.sh if a chimera check is '
+                                                     'performed during step extract_contigs. Default: is %(default)s.')
+    optional_group_extract_contigs.add_argument('--bbmap_subfilter',
+                                                default=7,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Ban alignments with more than this many substitutions. Default '
+                                                     'is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--bbmap_threads',
+                                                default=1,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Number of threads to use for BBmap when searching for chimeric '
+                                                     'stitched contig. Default is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--chimeric_stitched_contig_edit_distance',
+                                                default=5,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Minimum number of differences between one read of a read pair vs '
+                                                     'the stitched contig reference for a read pair to be flagged as '
+                                                     'discordant. Default is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--chimeric_stitched_contig_discordant_reads_cutoff',
+                                                default=5,
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Minimum number of discordant reads pairs required to flag a '
+                                                     'stitched contig as a potential chimera of contigs from multiple '
+                                                     'paralogs. Default is %(default)s.')
+    optional_group_extract_contigs.add_argument('--trim_hit_sliding_window_size',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Size of the sliding window (amino acids for Exonerate, '
+                                                     'nucleotides for BLASTn) when trimming hit termini. Default is: '
+                                                     '3 (Exonerate) or 9 (BLASTn).')
+    optional_group_extract_contigs.add_argument('--trim_hit_sliding_window_thresh',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Percentage similarity threshold for the sliding window (amino '
+                                                     'acids for Exonerate, nucleotides for BLASTn) when trimming '
+                                                     'hit termini. Default is: 55 (Exonerate) or 65 (BLASTn).')
+    optional_group_extract_contigs.add_argument('--exonerate_skip_hits_with_frameshifts',
+                                                action='store_true',
+                                                dest='skip_frameshifts',
+                                                default=False,
+                                                help='Skip Exonerate hits where the SPAdes sequence contains a '
+                                                     'frameshift. See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting-common'
+                                                     '-issues,-and-recommendations#42-hits-where-the-spades-contig-contains'
+                                                     '-frameshifts. Default is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--exonerate_skip_hits_with_internal_stop_codons',
+                                                action='store_true',
+                                                dest='skip_internal_stops',
+                                                default=False,
+                                                help='Skip Exonerate hits where the SPAdes sequence contains an '
+                                                     'internal in-frame stop codon. See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
+                                                     '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.'
+                                                     'A single terminal stop codon is allowed, but see option '
+                                                     '"--exonerate_skip_hits_with_terminal_stop_codons" below. Default '
+                                                     'is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--exonerate_skip_hits_with_terminal_stop_codons',
+                                                action='store_true',
+                                                dest='skip_terminal_stops',
+                                                default=False,
+                                                help='Skip Exonerate hits where the SPAdes sequence contains a single '
+                                                     'terminal stop codon. Only applies when option '
+                                                     '"--exonerate_skip_hits_with_internal_stop_codons" is also '
+                                                     'provided. Only use this flag if your target file exclusively '
+                                                     'contains protein-coding genes with no stop codons included, and '
+                                                     'you would like to prevent any in-frame stop codons in '
+                                                     'the output sequences. Default is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--no_intronerate',
+                                                action='store_true',
+                                                dest='no_intronerate',
+                                                default=False,
+                                                help='Do not run intronerate to recover fasta files for supercontigs '
+                                                     'with introns (if present), and introns-only. Default is: '
+                                                     '%(default)s.')
+    optional_group_extract_contigs.add_argument('--no_padding_supercontigs',
+                                                action='store_true',
+                                                dest='no_padding_supercontigs',
+                                                default=False,
+                                                help='If Intronerate is run, and a supercontig is created by '
+                                                     'concatenating multiple SPAdes contigs, do not add 10 "N" '
+                                                     'characters between contig joins. By default, Ns will be added. '
+                                                     'Default is: %(default)s.')
+
+    # ### OTHER BLASTn OPTIONS
+
+    ####################################################################################################################
+    optional_group_general = parser_assemble.add_argument_group('General pipeline options')
+    optional_group_general.add_argument('--prefix',
+                                        default=None,
+                                        help='Directory name for pipeline output, default is to use the FASTQ file '
+                                             'name.')
+    optional_group_general.add_argument('--start_from',
+                                        choices=['map_reads', 'distribute_reads', 'assemble_reads', 'extract_contigs'],
+                                        dest='start_from',
+                                        default='map_reads',
+                                        help='Start the pipeline from the given step. Note that this relies on the '
+                                             'presence of output files for previous steps, produced by a previous run '
+                                             'attempt. Default is: %(default)s')
+    optional_group_general.add_argument('--end_with',
+                                        choices=['map_reads', 'distribute_reads', 'assemble_reads', 'extract_contigs'],
+                                        dest='end_with',
+                                        default='extract_contigs',
+                                        help='End the pipeline at the given step. Default is: %(default)s')
+    optional_group_general.add_argument('--force_overwrite',
+                                        action='store_true',
+                                        default=False,
+                                        help='Overwrite any output from a previous run for pipeline steps '
+                                             '>= --start_from and <= --end_with. Default is: %(default)s')
+    optional_group_general.add_argument('--cpu',
+                                        type=int,
+                                        metavar='INTEGER',
+                                        help='Limit the number of CPUs. Default is to use all cores available minus '
+                                             'one.')
+    optional_group_general.add_argument('--compress_sample_folder',
+                                        action='store_true',
+                                        default=False,
+                                        help='Tarball and compress the sample folder after assembly has completed '
+                                             '(<sample_name>.tar.gz). Default is %(default)s.')
+    optional_group_general.add_argument('--skip_targetfile_checks',
+                                        action='store_true',
+                                        default=False,
+                                        help='Skip the target file checks. Can be used if you are confident that your '
+                                             'target file has no issues (e.g. if you have previously run "hybpiper '
+                                             'check_targetfile". Default is: %(default)s'),
+    optional_group_general.add_argument('--distribute_low_mem',
+                                        action='store_true',
+                                        default=False,
+                                        help='Distributing and writing reads to individual gene directories will be '
+                                             '40-50 percent slower, but can use less memory/RAM with large input files '
+                                             '(see wiki). Default is: %(default)s')
+    optional_group_general.add_argument('--keep_intermediate_files',
+                                        action='store_true',
+                                        dest='keep_intermediate_files',
+                                        default=False,
+                                        help='Keep all intermediate files and logs, which can be useful for debugging. '
+                                             'Default action is to delete them, which greatly reduces the total '
+                                             'file number. Default is: %(default)s.')
+    optional_group_general.add_argument('--verbose_logging',
+                                        action='store_true',
+                                        dest='verbose_logging',
+                                        default=False,
+                                        help='If supplied, enable verbose logging. NOTE: this can increase the size of '
+                                             'the log files by an order of magnitude. Default is: %(default)s.')
+    optional_group_general.add_argument('--hybpiper_output', '-o',
+                                        dest='output_folder',
+                                        default=None,
+                                        help='Folder for HybPiper output. Default is %(default)s.')
+    optional_group_general.add_argument('--run_profiler',
+                                        action='store_true',
+                                        dest='run_profiler',
+                                        default=False,
+                                        help='If supplied, run the subcommand using cProfile. Saves a *.csv file of '
+                                             'results. Default is: %(default)s.')
 
     # Set defaults for subparser <parser_assemble>:
     parser_assemble.set_defaults(blast=True)
