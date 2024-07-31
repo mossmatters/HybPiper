@@ -438,7 +438,6 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
     """
 
     # Distribute reads to gene directories:
-
     read_hit_dict = distribute_reads_to_targets.read_sorting_bwa(bamfile)
 
     if len(readfiles) == 2:
@@ -471,7 +470,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
                                                      low_mem=low_mem)
 
     # Distribute the 'best' target file sequence (translated if necessary) to each gene directory:
-    if target:  # i.e. a target name or file of name is specified manually
+    if target:  # i.e. a target name or file of names is specified manually
         target_string = f'{target}'
     else:
         target_string = None
@@ -485,7 +484,7 @@ def distribute_bwa(bamfile, readfiles, targetfile, target=None, unpaired_readfil
         exclude_string = None
 
     besthits = distribute_targets.tailored_target_bwa(bamfile,
-                                                          unpaired_bool,
+                                                      unpaired_bool,
                                                       exclude_string)
 
     distribute_targets.distribute_targets(targetfile,
@@ -605,8 +604,8 @@ def exonerate(gene_name,
               no_intronerate=False,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
-              exonerate_hit_sliding_window_size=3,
-              exonerate_hit_sliding_window_thresh=55,
+              trim_hit_sliding_window_size=3,
+              trim_hit_sliding_window_thresh=55,
               exonerate_skip_frameshifts=False,
               exonerate_skip_internal_stops=False,
               exonerate_skip_terminal_stops=False,
@@ -635,10 +634,10 @@ def exonerate(gene_name,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
-    :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
-    of Exonerate hits
-    :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
-    amino-acids) when trimming termini of Exonerate hits
+    :param int trim_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini of
+    Exonerate hits
+    :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in amino-acids)
+    when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
     :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
@@ -728,8 +727,8 @@ def exonerate(gene_name,
             spades_assembly_dict=spades_assembly_dict,
             depth_multiplier=depth_multiplier,
             keep_intermediate_files=keep_intermediate_files,
-            exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
-            exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
+            trim_hit_sliding_window_size=trim_hit_sliding_window_size,
+            trim_hit_sliding_window_thresh=trim_hit_sliding_window_thresh,
             exonerate_skip_frameshifts=exonerate_skip_frameshifts,
             exonerate_skip_internal_stops=exonerate_skip_internal_stops,
             exonerate_skip_terminal_stops=exonerate_skip_terminal_stops,
@@ -798,9 +797,9 @@ def exonerate_multiprocessing(genes,
                               no_intronerate=False,
                               no_padding_supercontigs=False,
                               keep_intermediate_files=False,
-                              exonerate_contigs_timeout=None,
-                              exonerate_hit_sliding_window_size=3,
-                              exonerate_hit_sliding_window_thresh=55,
+                              extract_contigs_timeout=None,
+                              trim_hit_sliding_window_size=3,
+                              trim_hit_sliding_window_thresh=55,
                               exonerate_skip_frameshifts=False,
                               exonerate_skip_internal_stops=False,
                               exonerate_skip_terminal_stops=False,
@@ -828,10 +827,10 @@ def exonerate_multiprocessing(genes,
     :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
-    :param int exonerate_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
-    :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
-    of Exonerate hits
-    :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    :param int extract_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
+    :param int trim_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini of
+    Exonerate hits
+    :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
@@ -841,9 +840,9 @@ def exonerate_multiprocessing(genes,
     """
 
     logger.debug(f'no_intronerate is: {no_intronerate}')
-    logger.debug(f'exonerate_contigs_timeout is: {exonerate_contigs_timeout}')
-    logger.debug(f'exonerate_hit_sliding_window_size is: {exonerate_hit_sliding_window_size}')
-    logger.debug(f'exonerate_hit_sliding_window_thresh is: {exonerate_hit_sliding_window_thresh}')
+    logger.debug(f'extract_contigs_timeout is: {extract_contigs_timeout}')
+    logger.debug(f'trim_hit_sliding_window_size is: {trim_hit_sliding_window_size}')
+    logger.debug(f'trim_hit_sliding_window_thresh is: {trim_hit_sliding_window_thresh}')
     logger.debug(f'exonerate_skip_frameshifts is: {exonerate_skip_frameshifts}')
     logger.debug(f'exonerate_skip_internal_stops is: {exonerate_skip_internal_stops}')
     logger.debug(f'exonerate_skip_terminal_stops is: {exonerate_skip_terminal_stops}')
@@ -882,8 +881,8 @@ def exonerate_multiprocessing(genes,
                                    "no_intronerate": no_intronerate,
                                    "no_padding_supercontigs": no_padding_supercontigs,
                                    "keep_intermediate_files": keep_intermediate_files,
-                                   "exonerate_hit_sliding_window_size": exonerate_hit_sliding_window_size,
-                                   "exonerate_hit_sliding_window_thresh": exonerate_hit_sliding_window_thresh,
+                                   "trim_hit_sliding_window_size": trim_hit_sliding_window_size,
+                                   "trim_hit_sliding_window_thresh": trim_hit_sliding_window_thresh,
                                    "exonerate_skip_frameshifts": exonerate_skip_frameshifts,
                                    "exonerate_skip_internal_stops": exonerate_skip_internal_stops,
                                    "exonerate_skip_terminal_stops": exonerate_skip_terminal_stops,
@@ -891,7 +890,7 @@ def exonerate_multiprocessing(genes,
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
                 exonerate_job = pool.schedule(exonerate, args=[gene_name, sample_dir, pid_list],
-                                              kwargs=kwargs_for_schedule, timeout=exonerate_contigs_timeout)
+                                              kwargs=kwargs_for_schedule, timeout=extract_contigs_timeout)
                 future_results_dict[exonerate_job] = gene_name
 
             futures_list = [future for future in future_results_dict.keys()]
@@ -956,7 +955,7 @@ def exonerate_multiprocessing(genes,
             logger.info(f'\nPlease see the log file in the sample directory for more information.')
 
         if genes_cancelled_due_to_errors:
-            fill = textwrap.fill(f'{"[WARNING]:":10} The exonerate_contigs step of the pipeline failed for the '
+            fill = textwrap.fill(f'{"[WARNING]:":10} The extract_contigs step of the pipeline failed for the '
                                  f'following genes:\n', width=90, subsequent_indent=" " * 11)
             logger.info('')
             logger.info(fill)
@@ -967,7 +966,7 @@ def exonerate_multiprocessing(genes,
 
         if genes_cancelled_due_to_timeout:
             fill = textwrap.fill(f'{"[WARNING]:":10} The exonerate_contigs step of the pipeline was cancelled for the '
-                                 f'following genes, due to exceeding the timeout limit of {exonerate_contigs_timeout} '
+                                 f'following genes, due to exceeding the timeout limit of {extract_contigs_timeout} '
                                  f'seconds\n:', width=90, subsequent_indent=" " * 11)
             logger.info('')
             logger.info(fill)
@@ -1026,8 +1025,8 @@ def blast_non_proteins(gene_name,
                        lock=None,
                        genes_to_process=0,
                        keep_intermediate_files=False,
-                       blast_hit_sliding_window_size=9,
-                       blast_hit_sliding_window_thresh=65,
+                       trim_hit_sliding_window_size=9,
+                       trim_hit_sliding_window_thresh=65,
                        verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -1052,9 +1051,9 @@ def blast_non_proteins(gene_name,
     :param int genes_to_process: total number of genes to be processed via BLASTn
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig and intronerate()
     processing
-    :param int blast_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    :param int trim_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
     of BLASTn hits
-    :param int blast_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of BLASTn hits
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
@@ -1141,8 +1140,8 @@ def blast_non_proteins(gene_name,
             spades_assembly_dict=spades_assembly_dict,
             depth_multiplier=depth_multiplier,
             keep_intermediate_files=keep_intermediate_files,
-            blast_hit_sliding_window_size=blast_hit_sliding_window_size,
-            blast_hit_sliding_window_thresh=blast_hit_sliding_window_thresh,
+            trim_hit_sliding_window_size=trim_hit_sliding_window_size,
+            trim_hit_sliding_window_thresh=trim_hit_sliding_window_thresh,
             verbose_logging=verbose_logging)
 
     else:
@@ -1186,11 +1185,10 @@ def blast_multiprocessing(genes,
                           chimeric_stitched_contig_edit_distance=5,
                           chimeric_stitched_contig_discordant_reads_cutoff=5,
                           logger=None,
-                          no_padding_supercontigs=False,
                           keep_intermediate_files=False,
-                          blast_contigs_timeout=None,
-                          blast_hit_sliding_window_size=9,
-                          blast_hit_sliding_window_thresh=65,
+                          extract_contigs_timeout=None,
+                          trim_hit_sliding_window_size=9,
+                          trim_hit_sliding_window_thresh=65,
                           verbose_logging=False):
     """
     Runs the function blast_non_proteins() using multiprocessing.
@@ -1212,21 +1210,20 @@ def blast_multiprocessing(genes,
     :param int chimeric_stitched_contig_discordant_reads_cutoff: min num discordant reads pairs to flag a stitched
     contig as chimeric
     :param logging.Logger logger: a logger object
-    :param bool no_padding_supercontigs: if True, don't pad contig joins in supercontigs with stretches if 10 Ns
     :param bool keep_intermediate_files: if True, keep individual Exonerate logs rather than deleting them after
     re-logging to the main sample log file
-    :param int blast_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
-    :param int blast_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
-    of BLASTn hits
-    :param int blast_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    :param int extract_contigs_timeout: number of second for pebble.ProcessPool pool.schedule timeout
+    :param int trim_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini of
+    BLASTn hits
+    :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of BLASTn hits
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
 
-    logger.debug(f'blast_contigs_timeout is: {blast_contigs_timeout}')
-    logger.debug(f'blast_hit_sliding_window_size is: {blast_hit_sliding_window_size}')
-    logger.debug(f'blast_hit_sliding_window_thresh is: {blast_hit_sliding_window_thresh}')
+    logger.debug(f'extract_contigs_timeout is: {extract_contigs_timeout}')
+    logger.debug(f'trim_hit_sliding_window_size is: {trim_hit_sliding_window_size}')
+    logger.debug(f'trim_hit_sliding_window_thresh is: {trim_hit_sliding_window_thresh}')
     logger.debug(f'chimera_check is: {chimera_check}')
     logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
     logger.debug(f'blast_multiprocessing pool_threads is: {pool_threads}')
@@ -1263,14 +1260,14 @@ def blast_multiprocessing(genes,
                                    "lock": lock,
                                    "genes_to_process": genes_to_process,
                                    "keep_intermediate_files": keep_intermediate_files,
-                                   "blast_hit_sliding_window_size": blast_hit_sliding_window_size,
-                                   "blast_hit_sliding_window_thresh": blast_hit_sliding_window_thresh,
+                                   "trim_hit_sliding_window_size": trim_hit_sliding_window_size,
+                                   "trim_hit_sliding_window_thresh": trim_hit_sliding_window_thresh,
                                    "verbose_logging": verbose_logging
             }
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
                 blast_job = pool.schedule(blast_non_proteins, args=[gene_name, sample_dir, pid_list],
-                                          kwargs=kwargs_for_schedule, timeout=blast_contigs_timeout)
+                                          kwargs=kwargs_for_schedule, timeout=extract_contigs_timeout)
                 future_results_dict[blast_job] = gene_name
 
             futures_list = [future for future in future_results_dict.keys()]
@@ -1324,8 +1321,8 @@ def blast_multiprocessing(genes,
             logger.info(f'\nPlease see the log file in the sample directory for more information.')
 
         if genes_cancelled_due_to_timeout:
-            fill = textwrap.fill(f'{"[WARNING]:":10} The blast_contigs step of the pipeline was cancelled for the '
-                                 f'following genes, due to exceeding the timeout limit of {blast_contigs_timeout} '
+            fill = textwrap.fill(f'{"[WARNING]:":10} The extract_contigs step of the pipeline was cancelled for the '
+                                 f'following genes, due to exceeding the timeout limit of {extract_contigs_timeout} '
                                  f'seconds\n:', width=90, subsequent_indent=" " * 11)
             logger.info('')
             logger.info(fill)
@@ -1483,6 +1480,25 @@ def main(args):
         logger.error(f'{" " * 10} The order of steps is: map_reads, distribute_reads, assemble_reads, '
                      f'extract_contigs')
         sys.exit()
+
+    ####################################################################################################################
+    # Set defaults for --trim_hit_sliding_window_size and --trim_hit_sliding_window_thresh if not provided at the
+    # command line:
+    ####################################################################################################################
+    if not args.trim_hit_sliding_window_size:
+        if args.not_protein_coding:
+            args.trim_hit_sliding_window_size = 9  # BLASTn nucleotides
+        else:
+            args.trim_hit_sliding_window_size = 3  # Exonerate amino-acids
+
+    if not args.trim_hit_sliding_window_thresh:
+        if args.not_protein_coding:
+            args.trim_hit_sliding_window_thresh = 65  # BLASTn nucleotides
+        else:
+            args.trim_hit_sliding_window_thresh = 55  # Exonerate amino-acids
+
+    logger.debug(f'trim_hit_sliding_window_size: {args.trim_hit_sliding_window_size}')
+    logger.debug(f'trim_hit_sliding_window_thresh: {args.trim_hit_sliding_window_thresh}')
 
     ####################################################################################################################
     # Check read and target files
@@ -1755,7 +1771,7 @@ def main(args):
                                      cpu=cpu,
                                      kvals=args.kvals,
                                      paired=False,
-                                     timeout=args.timeout_assemble,
+                                     timeout=args.timeout_assemble_reads,
                                      logger=logger,
                                      keep_folder=args.keep_intermediate_files,
                                      single_cell_mode=args.spades_single_cell,
@@ -1767,7 +1783,7 @@ def main(args):
                                      cpu=cpu,
                                      kvals=args.kvals,
                                      paired=True,
-                                     timeout=args.timeout_assemble,
+                                     timeout=args.timeout_assemble_reads,
                                      merged=args.merged,
                                      unpaired=unpaired,
                                      logger=logger,
@@ -1821,9 +1837,9 @@ def main(args):
                               pool_threads=cpu,
                               logger=logger,
                               keep_intermediate_files=args.keep_intermediate_files,
-                              blast_contigs_timeout=args.timeout_exonerate_contigs,
-                              blast_hit_sliding_window_size=args.blast_hit_sliding_window_size,
-                              blast_hit_sliding_window_thresh=args.blast_hit_sliding_window_thresh,
+                              extract_contigs_timeout=args.timeout_extract_contigs,
+                              trim_hit_sliding_window_size=args.trim_hit_sliding_window_size,
+                              trim_hit_sliding_window_thresh=args.trim_hit_sliding_window_thresh,
                               verbose_logging=args.verbose_logging)
 
     else:
@@ -1846,9 +1862,9 @@ def main(args):
                                   no_intronerate=args.no_intronerate,
                                   no_padding_supercontigs=args.no_padding_supercontigs,
                                   keep_intermediate_files=args.keep_intermediate_files,
-                                  exonerate_contigs_timeout=args.timeout_exonerate_contigs,
-                                  exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
-                                  exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
+                                  extract_contigs_timeout=args.timeout_extract_contigs,
+                                  trim_hit_sliding_window_size=args.trim_hit_sliding_window_size,
+                                  trim_hit_sliding_window_thresh=args.trim_hit_sliding_window_thresh,
                                   exonerate_skip_frameshifts=args.skip_frameshifts,
                                   exonerate_skip_internal_stops=args.skip_internal_stops,
                                   exonerate_skip_terminal_stops=args.skip_terminal_stops,
