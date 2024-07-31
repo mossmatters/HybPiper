@@ -142,8 +142,8 @@ def parse_blast_and_get_stitched_contig(blast_xml_output,
                                         spades_assembly_dict,
                                         depth_multiplier,
                                         keep_intermediate_files,
-                                        blast_hit_sliding_window_size,
-                                        blast_hit_sliding_window_thresh,
+                                        trim_hit_sliding_window_size,
+                                        trim_hit_sliding_window_thresh,
                                         verbose_logging):
     """
     => Parses the C4 alignment text output of Exonerate using BioPython SearchIO.
@@ -170,9 +170,9 @@ def parse_blast_and_get_stitched_contig(blast_xml_output,
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
-    :param int blast_hit_sliding_window_size: size of the sliding window (in nucletides) when trimming termini
+    :param int trim_hit_sliding_window_size: size of the sliding window (in nucletides) when trimming termini
     of BLASTn hits
-    :param int blast_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     nucleotides) when trimming termini of BLASTn hits
     :param bool verbose_logging: if True, log additional information to file
 
@@ -205,8 +205,8 @@ def parse_blast_and_get_stitched_contig(blast_xml_output,
                                 spades_assembly_dict=spades_assembly_dict,
                                 depth_multiplier=depth_multiplier,
                                 keep_intermediate_files=keep_intermediate_files,
-                                blast_hit_sliding_window_size=blast_hit_sliding_window_size,
-                                blast_hit_sliding_window_thresh=blast_hit_sliding_window_thresh,
+                                trim_hit_sliding_window_size=trim_hit_sliding_window_size,
+                                trim_hit_sliding_window_thresh=trim_hit_sliding_window_thresh,
                                 verbose_logging=verbose_logging)
 
     if verbose_logging:
@@ -255,8 +255,8 @@ class BlastContigs(object):
                  spades_assembly_dict=None,
                  depth_multiplier=10,
                  keep_intermediate_files=False,
-                 blast_hit_sliding_window_size=9,
-                 blast_hit_sliding_window_thresh=65,
+                 trim_hit_sliding_window_size=9,
+                 trim_hit_sliding_window_thresh=65,
                  verbose_logging=False):
         """
         Initialises class attributes.
@@ -279,9 +279,9 @@ class BlastContigs(object):
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
         :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
-        :param int blast_hit_sliding_window_size: size of the sliding window (in nucleotides) when trimming
+        :param int trim_hit_sliding_window_size: size of the sliding window (in nucleotides) when trimming
         termini of BLASTn hits
-        :param int blast_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
+        :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
         in nucleotides) when trimming termini of BLASTn hits
         :param bool verbose_logging: if True, log additional information to file
         """
@@ -293,8 +293,8 @@ class BlastContigs(object):
         self.query_id = searchio_object[0].id
         self.query_length = len(SeqIO.read(query_file, 'fasta'))
         self.similarity_threshold = thresh
-        self.sliding_window_size = blast_hit_sliding_window_size
-        self.sliding_window_thresh = blast_hit_sliding_window_thresh
+        self.sliding_window_size = trim_hit_sliding_window_size
+        self.sliding_window_thresh = trim_hit_sliding_window_thresh
         self.paralog_warning_by_contig_length_pct = paralog_warning_min_length_percentage
         self.logger = logger
         self.prefix = prefix
