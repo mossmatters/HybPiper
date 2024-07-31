@@ -643,9 +643,9 @@ class Exonerate(object):
         :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
         :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
         :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
-        :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming
+        :param int trim_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming
         termini of Exonerate hits
-        :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
+        :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (
         in amino-acids) when trimming termini of Exonerate hits
         :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
         :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
