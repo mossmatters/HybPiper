@@ -38,6 +38,14 @@ def initial_blast(locusfilename,
                   assemblyfilename,
                   prefix,
                   blast_contigs_task,
+                  extract_contigs_blast_evalue,
+                  extract_contigs_blast_word_size,
+                  extract_contigs_blast_gapopen,
+                  extract_contigs_blast_gapextend,
+                  extract_contigs_blast_penalty,
+                  extract_contigs_blast_reward,
+                  extract_contigs_blast_perc_identity,
+                  extract_contigs_blast_max_target_seqs,
                   keep_intermediate_files=False):
     """
     Conduct BLASTn search.
@@ -46,6 +54,15 @@ def initial_blast(locusfilename,
     :param str assemblyfilename: path to the SPAdes assembly contigs file
     :param str prefix: path of gene/sample name
     :param str blast_contigs_task: task when running blastn searches
+    :param float extract_contigs_blast_evalue: expectation value (E) threshold for saving hits. Default is 10.
+    :param int extract_contigs_blast_word_size: word size for wordfinder algorithm (length of best perfect match).
+    :param int extract_contigs_blast_gapopen: cost to open a gap.
+    :param int extract_contigs_blast_gapextend: cost to extend a gap.
+    :param int extract_contigs_blast_penalty: penalty for a nucleotide mismatch.
+    :param int extract_contigs_blast_reward: reward for a nucleotide match.
+    :param int extract_contigs_blast_perc_identity: percent identity.
+    :param int extract_contigs_blast_max_target_seqs: Maximum number of aligned sequences to keep (value of 5 or more
+    is recommended). Default is 500.
     :param bool keep_intermediate_files: if True, keep intermediate files
     :return NoneType or str, None or outputfilename:
         - None: returned if BLASTn searches fail to produce output file
@@ -81,13 +98,33 @@ def initial_blast(locusfilename,
     # Run the BLASTn search:
     outputfilename = f'{prefix}/blastn_results.xml'
 
-    blastn_command = (f'blastn '
-                      f'-task {blast_contigs_task} '
-                      f'-db {blast_database_full_path} '
-                      f'-query {locusfilename} '
-                      f'-outfmt 5 '
-                      f'-out {outputfilename}')
+    # Set base blastn commands:
+    blastn_command_list = [
+                           'blastn',
+                           '-task', blast_contigs_task,
+                           '-evalue', str(extract_contigs_blast_evalue),
+                           '-max_target_seqs', str(extract_contigs_blast_max_target_seqs),
+                           '-db', blast_database_full_path,
+                           '-query', locusfilename,
+                           '-outfmt 5',
+                           '-out', outputfilename
+    ]
 
+    # Add commands if provided at command line:
+    if extract_contigs_blast_word_size:
+        blastn_command_list.extend(['-word_size', str(extract_contigs_blast_word_size)])
+    if extract_contigs_blast_reward:
+        blastn_command_list.extend(['-reward', str(extract_contigs_blast_reward)])
+    if extract_contigs_blast_penalty:
+        blastn_command_list.extend(['-penalty', str(extract_contigs_blast_penalty)])
+    if extract_contigs_blast_gapopen:
+        blastn_command_list.extend(['-gapopen', str(extract_contigs_blast_gapopen)])
+    if extract_contigs_blast_gapextend:
+        blastn_command_list.extend(['-gapextend', str(extract_contigs_blast_gapextend)])
+    if extract_contigs_blast_perc_identity:
+        blastn_command_list.extend(['-perc_identity', str(extract_contigs_blast_perc_identity)])
+
+    blastn_command = ' '.join(blastn_command_list)
     logger.debug(f'BLASTn command is: {blastn_command}')
 
     try:
