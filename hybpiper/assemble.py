@@ -1009,6 +1009,14 @@ def blast_non_proteins(gene_name,
                        sample_dir,
                        pid_list,
                        blast_contigs_task='blastn',
+                       extract_contigs_blast_evalue=10,
+                       extract_contigs_blast_word_size=None,
+                       extract_contigs_blast_gapopen=None,
+                       extract_contigs_blast_gapextend=None,
+                       extract_contigs_blast_penalty=None,
+                       extract_contigs_blast_reward=None,
+                       extract_contigs_blast_perc_identity=None,
+                       extract_contigs_blast_max_target_seqs=500,
                        thresh=55,
                        paralog_warning_min_length_percentage=0.75,
                        depth_multiplier=10,
@@ -1033,6 +1041,15 @@ def blast_non_proteins(gene_name,
     :param str sample_dir: directory name for sample
     :param multiprocessing.managers.ListProxy pid_list: list shared by processes for capturing parent PIDs
     :param str blast_contigs_task: task when running blastn searches
+    :param float extract_contigs_blast_evalue: expectation value (E) threshold for saving hits. Default is 10.
+    :param int extract_contigs_blast_word_size: word size for wordfinder algorithm (length of best perfect match).
+    :param int extract_contigs_blast_gapopen: cost to open a gap.
+    :param int extract_contigs_blast_gapextend: cost to extend a gap.
+    :param int extract_contigs_blast_penalty: penalty for a nucleotide mismatch.
+    :param int extract_contigs_blast_reward: reward for a nucleotide match.
+    :param int extract_contigs_blast_perc_identity: percent identity.
+    :param int extract_contigs_blast_max_target_seqs: Maximum number of aligned sequences to keep (value of 5 or more
+    is recommended). Default is 500.
     :param int thresh: percent identity threshold for stitching together BLASTn results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> other paralogs
@@ -1118,6 +1135,14 @@ def blast_non_proteins(gene_name,
                                                             f'{gene_name}/{gene_name}_contigs.fasta',
                                                             prefix,
                                                             blast_contigs_task,
+                                                            extract_contigs_blast_evalue,
+                                                            extract_contigs_blast_word_size,
+                                                            extract_contigs_blast_gapopen,
+                                                            extract_contigs_blast_gapextend,
+                                                            extract_contigs_blast_penalty,
+                                                            extract_contigs_blast_reward,
+                                                            extract_contigs_blast_perc_identity,
+                                                            extract_contigs_blast_max_target_seqs,
                                                             keep_intermediate_files=keep_intermediate_files)
 
     if blast_xml_output:  # i.e. if the initial_blast DID produce a result
@@ -1172,6 +1197,14 @@ def blast_non_proteins(gene_name,
 def blast_multiprocessing(genes,
                           sample_dir,
                           blast_contigs_task='blastn',
+                          extract_contigs_blast_evalue=10,
+                          extract_contigs_blast_word_size=None,
+                          extract_contigs_blast_gapopen=None,
+                          extract_contigs_blast_gapextend=None,
+                          extract_contigs_blast_penalty=None,
+                          extract_contigs_blast_reward=None,
+                          extract_contigs_blast_perc_identity=None,
+                          extract_contigs_blast_max_target_seqs=500,
                           thresh=55,
                           paralog_warning_min_length_percentage=0.75,
                           pool_threads=None,
@@ -1196,6 +1229,15 @@ def blast_multiprocessing(genes,
     :param list genes: list of genes that had successful SPAdes runs
     :param str sample_dir: directory name for sample
     :param str blast_contigs_task: task when running blastn searches
+    :param float extract_contigs_blast_evalue: expectation value (E) threshold for saving hits. Default is 10.
+    :param int extract_contigs_blast_word_size: word size for wordfinder algorithm (length of best perfect match).
+    :param int extract_contigs_blast_gapopen: cost to open a gap.
+    :param int extract_contigs_blast_gapextend: cost to extend a gap.
+    :param int extract_contigs_blast_penalty: penalty for a nucleotide mismatch.
+    :param int extract_contigs_blast_reward: reward for a nucleotide match.
+    :param int extract_contigs_blast_perc_identity: percent identity.
+    :param int extract_contigs_blast_max_target_seqs: Maximum number of aligned sequences to keep (value of 5 or more
+    is recommended). Default is 500.
     :param int thresh: percent identity threshold for stitching together Exonerate results
     :param float paralog_warning_min_length_percentage: min % of a contig vs ref protein length for a paralog warning
     :param int pool_threads: number of threads/cpus to use for the pebble.ProcessPool pool
@@ -1228,6 +1270,14 @@ def blast_multiprocessing(genes,
     logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
     logger.debug(f'blast_multiprocessing pool_threads is: {pool_threads}')
     logger.debug(f'blast_contigs_task is: {blast_contigs_task}')
+    logger.debug(f'extract_contigs_blast_evalue is: {extract_contigs_blast_evalue}')
+    logger.debug(f'extract_contigs_blast_word_size is: {extract_contigs_blast_word_size}')
+    logger.debug(f'extract_contigs_blast_gapopen is: {extract_contigs_blast_gapopen}')
+    logger.debug(f'extract_contigs_blast_gapextend is: {extract_contigs_blast_gapextend}')
+    logger.debug(f'extract_contigs_blast_penalty is: {extract_contigs_blast_penalty}')
+    logger.debug(f'extract_contigs_blast_reward is: {extract_contigs_blast_reward}')
+    logger.debug(f'extract_contigs_blast_perc_identity is: {extract_contigs_blast_perc_identity}')
+    logger.debug(f'extract_contigs_blast_max_target_seqs is: {extract_contigs_blast_max_target_seqs}')
 
     logger.info(f'{"[INFO]:":10} Running blast_hits for {len(genes)} genes...')
     genes_to_process = len(genes)
@@ -1243,6 +1293,14 @@ def blast_multiprocessing(genes,
             counter = manager.Value('i', 0)
             kwargs_for_schedule = {
                                    "blast_contigs_task": blast_contigs_task,
+                                   "extract_contigs_blast_evalue": extract_contigs_blast_evalue,
+                                   "extract_contigs_blast_word_size": extract_contigs_blast_word_size,
+                                   "extract_contigs_blast_gapopen": extract_contigs_blast_gapopen,
+                                   "extract_contigs_blast_gapextend": extract_contigs_blast_gapextend,
+                                   "extract_contigs_blast_penalty": extract_contigs_blast_penalty,
+                                   "extract_contigs_blast_reward": extract_contigs_blast_reward,
+                                   "extract_contigs_blast_perc_identity": extract_contigs_blast_perc_identity,
+                                   "extract_contigs_blast_max_target_seqs": extract_contigs_blast_max_target_seqs,
                                    "thresh": thresh,
                                    "paralog_warning_min_length_percentage": paralog_warning_min_length_percentage,
                                    "depth_multiplier": depth_multiplier,
@@ -1311,7 +1369,7 @@ def blast_multiprocessing(genes,
         wait(futures_list, return_when="ALL_COMPLETED")  # redundant, but...
 
         if genes_cancelled_due_to_errors:
-            fill = textwrap.fill(f'{"[WARNING]:":10} The blast_contigs step of the pipeline failed for the '
+            fill = textwrap.fill(f'{"[WARNING]:":10} The extract_contigs step of the pipeline failed for the '
                                  f'following genes:\n', width=90, subsequent_indent=" " * 11)
             logger.info('')
             logger.info(fill)
@@ -1822,6 +1880,14 @@ def main(args):
         blast_multiprocessing(genes,
                               sample_dir,
                               blast_contigs_task=args.extract_contigs_blast_task,
+                              extract_contigs_blast_evalue=args.extract_contigs_blast_evalue,
+                              extract_contigs_blast_word_size=args.extract_contigs_blast_word_size,
+                              extract_contigs_blast_gapopen=args.extract_contigs_blast_gapopen,
+                              extract_contigs_blast_gapextend=args.extract_contigs_blast_gapextend,
+                              extract_contigs_blast_penalty=args.extract_contigs_blast_penalty,
+                              extract_contigs_blast_reward=args.extract_contigs_blast_reward,
+                              extract_contigs_blast_perc_identity=args.extract_contigs_blast_perc_identity,
+                              extract_contigs_blast_max_target_seqs=args.extract_contigs_blast_max_target_seqs,
                               thresh=args.thresh,
                               paralog_warning_min_length_percentage=args.paralog_min_length_percentage,
                               depth_multiplier=args.depth_multiplier,
