@@ -482,6 +482,52 @@ def restricted_float(input_float):
     return input_float
 
 
+def restricted_int_word_size(input_int,
+                             start_value=4,
+                             end_value=1000):
+    """
+    Checks that a provided value is an integer within the range start_value to end_value
+
+    :param input_int:
+    :param int start_value:
+    :param int end_value:
+    :return:
+    """
+
+    try:
+        input_int = int(input_int)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'{input_int} not an integer!')
+
+    if input_int < start_value or input_int > end_value:
+        raise argparse.ArgumentTypeError(f'{input_int} not in range [{start_value}, {end_value}]')
+
+    return input_int
+
+
+def restricted_int_perc_identity(input_int,
+                                 start_value=0,
+                                 end_value=100):
+    """
+    Checks that a provided value is an integer within the range start_value to end_value
+
+    :param input_int:
+    :param int start_value:
+    :param int end_value:
+    :return:
+    """
+
+    try:
+        input_int = int(input_int)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'{input_int} not an integer!')
+
+    if input_int < start_value or input_int > end_value:
+        raise argparse.ArgumentTypeError(f'{input_int} not in range [{start_value}, {end_value}]')
+
+    return input_int
+
+
 def createfolder(directory):
     """
     Attempts to create a directory named after the name provided, and provides an error message on failure
