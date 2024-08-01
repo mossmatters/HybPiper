@@ -1256,7 +1256,3 @@ def get_compressed_file_lines(sample_name,
         lines = [line for line in lines if line]
 
     return lines
-
-
-
-
