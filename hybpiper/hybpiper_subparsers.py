@@ -328,8 +328,6 @@ def add_assemble_parser(subparsers):
                                                      'characters between contig joins. By default, Ns will be added. '
                                                      'Default is: %(default)s.')
 
-    # ### OTHER BLASTn OPTIONS
-
     ####################################################################################################################
     optional_group_general = parser_assemble.add_argument_group('General pipeline options')
     optional_group_general.add_argument('--prefix',
