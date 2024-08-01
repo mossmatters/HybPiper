@@ -40,6 +40,7 @@ def add_assemble_parser(subparsers):
                          default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
                               'must follow the naming convention: >TaxonID-geneName')
+
     ####################################################################################################################
     optional_group_input = parser_assemble.add_argument_group('Optional input')
     optional_group_input.add_argument('--unpaired',
@@ -76,8 +77,15 @@ def add_assemble_parser(subparsers):
                                           metavar='INTEGER',
                                           default=10,
                                           help='Max target seqs to save in BLASTx search. Default is: %(default)s')
+
     ####################################################################################################################
     optional_group_distribute_reads = parser_assemble.add_argument_group('Options for step: distribute_reads')
+    optional_group_distribute_reads.add_argument('--distribute_low_mem',
+                                                 action='store_true',
+                                                 default=False,
+                                                 help='Distributing and writing reads to individual gene directories '
+                                                      'will be 40-50 percent slower, but can use less memory/RAM with '
+                                                      'large input files (see wiki). Default is: %(default)s')
 
     ####################################################################################################################
     optional_group_assemble_reads = parser_assemble.add_argument_group('Options for step: assemble_reads')
@@ -123,13 +131,51 @@ def add_assemble_parser(subparsers):
                                                 default='False',
                                                 help='If provided, extract sequences from SPAdes contigs using BLASTn '
                                                      'rather than Exonerate (step: extract_contigs)')
-    optional_group_extract_contigs.add_argument('--blast_contigs_task',
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_task',
                                                 choices=['blastn', 'blastn-short', 'megablast', 'dc-megablast'],
                                                 default='blastn',
-                                                help='Task to use for BLASTn searches during the blast_contigs step of '
-                                                     'the assembly pipeline. See '
+                                                help='Task to use for BLASTn searches during the extract_contigs step '
+                                                     'of the assembly pipeline. See '
                                                      'https://www.ncbi.nlm.nih.gov/books/NBK569839/ for a description '
                                                      'of tasks. Default is: %(default)s')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_evalue',
+                                                type=float,
+                                                metavar='FLOAT',
+                                                default=10,
+                                                help='Expectation value (E) threshold for saving hits. Default is: '
+                                                     '%(default)s')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_word_size',
+                                                type=utils.restricted_int_word_size,
+                                                metavar='INTEGER',
+                                                help='Word size for wordfinder algorithm (length of best perfect '
+                                                     'match).')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_gapopen',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Cost to open a gap.')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_gapextend',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Cost to extend a gap.')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_penalty',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Penalty for a nucleotide mismatch.')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_reward',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                help='Reward for a nucleotide match.')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_perc_identity',
+                                                type=utils.restricted_int_perc_identity,
+                                                metavar='INTEGER',
+                                                help='Percent identity. Can be used as a pre-filter at the BLASTn '
+                                                     'stage, followed by --thresh (see below).')
+    optional_group_extract_contigs.add_argument('--extract_contigs_blast_max_target_seqs',
+                                                type=int,
+                                                metavar='INTEGER',
+                                                default=500,
+                                                help='Maximum number of aligned sequences to keep (value of 5 or more '
+                                                     'is recommended). Default is: %(default)s')
     optional_group_extract_contigs.add_argument('--thresh',
                                                 type=int,
                                                 metavar='INTEGER',
@@ -323,12 +369,6 @@ def add_assemble_parser(subparsers):
                                         help='Skip the target file checks. Can be used if you are confident that your '
                                              'target file has no issues (e.g. if you have previously run "hybpiper '
                                              'check_targetfile". Default is: %(default)s'),
-    optional_group_general.add_argument('--distribute_low_mem',
-                                        action='store_true',
-                                        default=False,
-                                        help='Distributing and writing reads to individual gene directories will be '
-                                             '40-50 percent slower, but can use less memory/RAM with large input files '
-                                             '(see wiki). Default is: %(default)s')
     optional_group_general.add_argument('--keep_intermediate_files',
                                         action='store_true',
                                         dest='keep_intermediate_files',
