@@ -275,8 +275,24 @@ def parse_arguments():
     parser_fix_targetfile.set_defaults(func=fix_targetfile_standalone)
     parser_filter_by_length.set_defaults(func=filter_by_length_main)
 
-    # Parse and return all arguments:
-    arguments = parser.parse_args()
+    # Parse and return all arguments, known and unknown. Check unknown arguments for old HybPiper options:
+    arguments, leftovers = parser.parse_known_args()
+
+    old_hybpiper_arguments = {
+        '--timeout_exonerate_contigs': '--timeout_extract_contigs',
+        '--exonerate_hit_sliding_window_size': '--trim_hit_sliding_window_size',
+        '--exonerate_hit_sliding_window_thresh': '--trim_hit_sliding_window_thresh',
+    }
+
+    old_option_found = False
+    for leftover in leftovers:
+        if leftover in old_hybpiper_arguments:
+            old_option_found = True
+            sys.stderr.write(f'\nYou have provided option {leftover}. This was renamed to '
+                             f'{old_hybpiper_arguments[leftover]} in HybPiper >= v2.3.0. Please use the new option!')
+
+    if old_option_found:
+        sys.exit(1)
 
     return arguments
 
