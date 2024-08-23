@@ -307,6 +307,7 @@ def enrich_efficiency_blastx(sample_name,
 
 def enrich_efficiency_bwa(sample_name,
                           sampledir_parent,
+                          compressed_sample_dict,
                           compressed_sample_bool=False,
                           bam_file_unpaired_exists=False):
     """
@@ -315,6 +316,7 @@ def enrich_efficiency_bwa(sample_name,
 
     :param str sample_name: sample name
     :param path sampledir_parent: sampledir_parent name
+    :param dict compressed_sample_dict:
     :param bool compressed_sample_bool: True if sample directory is a compressed tarball
     :param bool bam_file_unpaired_exists: True if an unpaired bamfile exists for this sample
     :return str, str, str: values for input reads, mapped reads, and percent mapped reads:
@@ -323,6 +325,14 @@ def enrich_efficiency_bwa(sample_name,
     # Set expected file paths with sample folder as root:
     bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_bam_flagstat.tsv'
     unpaired_bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_unpaired_bam_flagstat.tsv'
+
+    # # Check if the bam flagstat file exist (i.e., samples were run with HybPiper >= v2.3.0). If not, run flagstats now
+    # # and write the files to either the compressed file or uncompressed folder for the sample.
+    # if compressed_sample_bool:
+    #     if bam_flagstats_tsv_file in compressed_sample_dict[sample_name]:
+    #         print(f'YEAH {sample_name}')
+    #     else:
+    #         print(f'NAH {sample_name}')
 
     # Initialise count at zero:
     num_reads = 0
@@ -526,6 +536,9 @@ def main(args):
     else:
         sampledir_parent = os.getcwd()
 
+    if not os.path.isdir(sampledir_parent):
+        sys.exit(f'{"[ERROR]:":10} Folder {sampledir_parent} not found, exiting!')
+
     ####################################################################################################################
     # Parse namelist and check for the presence of the corresponding sample directories or *.tar.gz files:
     ####################################################################################################################
@@ -668,6 +681,7 @@ def main(args):
                 stats_dict[sample_name] += enrich_efficiency_bwa(
                     sample_name,
                     sampledir_parent,
+                    compressed_sample_dict,
                     compressed_sample_bool=compressed_sample_bool,
                     bam_file_unpaired_exists=bam_file_unpaired_exists
                 )
@@ -711,6 +725,7 @@ def main(args):
             if bam_file_exists:
                 stats_dict[sample_name] += enrich_efficiency_bwa(sample_name,
                                                                  sampledir_parent,
+                                                                 compressed_sample_dict,
                                                                  bam_file_unpaired_exists=bam_file_unpaired_exists)
 
             else:
