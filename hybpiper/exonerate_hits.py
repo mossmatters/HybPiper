@@ -488,8 +488,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                             spades_assembly_dict,
                                             depth_multiplier,
                                             keep_intermediate_files,
-                                            exonerate_hit_sliding_window_size,
-                                            exonerate_hit_sliding_window_thresh,
+                                            trim_hit_sliding_window_size,
+                                            trim_hit_sliding_window_thresh,
                                             exonerate_skip_frameshifts,
                                             exonerate_skip_internal_stops,
                                             exonerate_skip_terminal_stops,
@@ -519,9 +519,9 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
     :param dict spades_assembly_dict: a dictionary of raw SPAdes contigs
     :param int depth_multiplier: assign long paralog as main if coverage depth <depth_multiplier> time other paralogs
     :param bool keep_intermediate_files: if True, keep intermediate files from stitched contig
-    :param int exonerate_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
+    :param int trim_hit_sliding_window_size: size of the sliding window (in amino-acids) when trimming termini
     of Exonerate hits
-    :param int exonerate_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
+    :param int trim_hit_sliding_window_thresh: percentage similarity threshold for the sliding window (in
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
@@ -561,8 +561,8 @@ def parse_exonerate_and_get_stitched_contig(exonerate_text_output,
                                  spades_assembly_dict=spades_assembly_dict,
                                  depth_multiplier=depth_multiplier,
                                  keep_intermediate_files=keep_intermediate_files,
-                                 exonerate_hit_sliding_window_size=exonerate_hit_sliding_window_size,
-                                 exonerate_hit_sliding_window_thresh=exonerate_hit_sliding_window_thresh,
+                                 trim_hit_sliding_window_size=trim_hit_sliding_window_size,
+                                 trim_hit_sliding_window_thresh=trim_hit_sliding_window_thresh,
                                  exonerate_skip_frameshifts=exonerate_skip_frameshifts,
                                  exonerate_skip_internal_stops=exonerate_skip_internal_stops,
                                  exonerate_skip_terminal_stops=exonerate_skip_terminal_stops,
@@ -1030,6 +1030,8 @@ class Exonerate(object):
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_spades_contig_depth'] = spades_contig_depth
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_original'] = filtered_hsp[1]
             filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity'] = hit_similarity
+            filtered_by_similarity_hsps_dict[unique_hit_name]['hit_similarity_triplets'] = (
+                concatenated_fragment_similarities_slice)
 
         # The sliding window trim filter can change the query start/end order of hits, so re-sort the dictionary:
         filtered_by_similarity_hsps_dict_sorted = \
@@ -1257,18 +1259,93 @@ class Exonerate(object):
                 left_seq_hit_name, right_seq_hit_name = pair[0]['hit_sequence'].id, pair[1]['hit_sequence'].id
                 left_seq_query_range, right_seq_query_range = pair[0]['query_range'], pair[1]['query_range']
                 left_seq_seq, right_seq_seq = pair[0]['hit_sequence'], pair[1]['hit_sequence']
+                left_seq_sim_triplets, right_seq_sim_triplets = (
+                    pair[0]['hit_similarity_triplets'], pair[1]['hit_similarity_triplets'])
+
+                print('')
+                print(f'left_seq_sim_triplets {left_seq_hit_name}:\n{left_seq_sim_triplets}')
+                print(f'right_seq_sim_triplets {right_seq_hit_name}:\n{right_seq_sim_triplets}')
 
                 # If overlapping hits, always trim the 3' end of the left hit:
+                # If overlapping hits, choose the overlapping region with the highest identity:
                 if left_seq_query_range[1] > right_seq_query_range[0]:
                     num_amino_acid_overlap = left_seq_query_range[1] - right_seq_query_range[0]
+                    print(f'num_amino_acid_overlap: {num_amino_acid_overlap}')
 
-                    seq_to_keep = left_seq_seq[: -num_amino_acid_overlap * 3]
-                    seq_to_trim = left_seq_seq[-num_amino_acid_overlap * 3:]
+                    # seq_to_keep = left_seq_seq[: -num_amino_acid_overlap * 3]
+                    # seq_to_trim = left_seq_seq[-num_amino_acid_overlap * 3:]
 
-                    assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
+                    # Get possible seqs to keep and seq to trim from both seqs:
+                    seq_to_keep_left = left_seq_seq[: -num_amino_acid_overlap * 3]
+                    seq_to_trim_left = left_seq_seq[-num_amino_acid_overlap * 3:]
+                    seq_to_trim_left_sim_triplets = left_seq_sim_triplets[-num_amino_acid_overlap:]
 
-                    assert len(seq_to_keep) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
-                                                   f'right_seq_hit_name: {right_seq_hit_name}')
+                    seq_to_keep_right = right_seq_seq[num_amino_acid_overlap * 3:]
+                    seq_to_trim_right = right_seq_seq[: num_amino_acid_overlap * 3:]
+                    seq_to_trim_right_sim_triplets = right_seq_sim_triplets[: num_amino_acid_overlap:]
+
+                    print(f'seq_to_keep_left:\n{seq_to_keep_left.seq}')
+                    print(f'seq_to_trim_left_sim_triplets:\n{seq_to_trim_left_sim_triplets}')
+                    print(f'seq_to_trim_left:\n{seq_to_trim_left.seq}')
+                    print(f'seq_to_keep_right:\n{seq_to_keep_right.seq}')
+                    print(f'seq_to_trim_right_sim_triplets:\n{seq_to_trim_right_sim_triplets}')
+                    print(f'seq_to_trim_right:\n{seq_to_trim_right.seq}')
+
+                    # Make sure slices add up:
+                    assert len(seq_to_keep_left) + len(seq_to_trim_left) == len(left_seq_seq)
+                    assert len(seq_to_keep_left) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
+                                                        f'right_seq_hit_name: {right_seq_hit_name}')
+                    assert len(seq_to_keep_right) + len(seq_to_trim_right) == len(right_seq_seq)
+                    assert len(seq_to_keep_right) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
+                                                         f'right_seq_hit_name: {right_seq_hit_name}')
+                    assert len(seq_to_trim_left_sim_triplets) == len(seq_to_trim_right_sim_triplets)
+
+                    # Identity the candidate trimmed sequence with the lower similarity to the query protein:
+                    similarity_count_total_left = 0
+                    similarity_count_left = 0
+                    for triplet in seq_to_trim_left_sim_triplets:
+                        if triplet == '|||':
+                            similarity_count_left += 1
+                        similarity_count_total_left += 1
+                    trim_candidate_hit_similarity_left = \
+                        f'{similarity_count_left / similarity_count_total_left * 100:.2f}'
+
+                    similarity_count_total_right = 0
+                    similarity_count_right = 0
+                    for triplet in seq_to_trim_right_sim_triplets:
+                        if triplet == '|||':
+                            similarity_count_right += 1
+                        similarity_count_total_right += 1
+                    trim_candidate_hit_similarity_right = \
+                        f'{similarity_count_right / similarity_count_total_right * 100:.2f}'
+
+                    print(f'trim_candidate_hit_similarity_left: {trim_candidate_hit_similarity_left}')
+                    print(f'trim_candidate_hit_similarity_right: {trim_candidate_hit_similarity_right}')
+
+                    trim_left_seq = False
+                    trim_right_seq = False
+
+                    if trim_candidate_hit_similarity_left == trim_candidate_hit_similarity_right:
+                        trim_left_seq = True  # arbitrarily choose the left seq to trim
+                    elif trim_candidate_hit_similarity_left < trim_candidate_hit_similarity_right:
+                        trim_left_seq = True
+                    else:
+                        trim_right_seq = True
+
+
+
+
+
+                    continue
+
+
+                    # assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
+                    #
+                    # assert len(seq_to_keep) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
+                    #                                f'right_seq_hit_name: {right_seq_hit_name}')
+
+
+
 
                     seq_to_keep_no_gaps = seq_to_keep.seq.replace('-', '')
                     seq_to_trim_no_gaps = seq_to_trim.seq.replace('-', '')
@@ -2443,12 +2520,12 @@ def standalone():
                              'debugging. Default action is to delete them, which greatly reduces the total file '
                              'number).',
                         action='store_true', dest='keep_intermediate_files', default=False)
-    parser.add_argument('--exonerate_hit_sliding_window_size',
+    parser.add_argument('--trim_hit_sliding_window_size',
                         help='Size of the sliding window (in amino-acids) when trimming termini of Exonerate '
                              'hits. Default is %(default)s.',
                         default=3,
                         type=int)
-    parser.add_argument('--exonerate_hit_sliding_window_thresh',
+    parser.add_argument('--trim_hit_sliding_window_thresh',
                         help='Percentage similarity threshold for the sliding window (in amino-acids) when trimming '
                              'termini of Exonerate hits. Default is %(default)s.',
                         default=55,
@@ -2545,8 +2622,8 @@ def main(args):
         spades_assembly_dict=spades_assembly_dict,
         depth_multiplier=args.depth_multiplier,
         keep_intermediate_files=args.keep_intermediate_files,
-        exonerate_hit_sliding_window_size=args.exonerate_hit_sliding_window_size,
-        exonerate_hit_sliding_window_thresh=args.exonerate_hit_sliding_window_thresh,
+        trim_hit_sliding_window_size=args.trim_hit_sliding_window_size,
+        trim_hit_sliding_window_thresh=args.trim_hit_sliding_window_thresh,
         exonerate_skip_frameshifts=args.skip_frameshifts,
         exonerate_skip_internal_stops=args.skip_internal_stops,
         exonerate_skip_terminal_stops=args.skip_terminal_stops,
