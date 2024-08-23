@@ -276,22 +276,31 @@ def parse_arguments():
     parser_filter_by_length.set_defaults(func=filter_by_length_main)
 
     # Parse and return all arguments, known and unknown. Check unknown arguments for old HybPiper options:
-    arguments, leftovers = parser.parse_known_args()
+    arguments, unknown_arguments = parser.parse_known_args()
 
-    old_hybpiper_arguments = {
+    old_hybpiper_arguments_dict = {
         '--timeout_exonerate_contigs': '--timeout_extract_contigs',
         '--exonerate_hit_sliding_window_size': '--trim_hit_sliding_window_size',
         '--exonerate_hit_sliding_window_thresh': '--trim_hit_sliding_window_thresh',
     }
 
+    unknown_arguments_boolean = True if len(unknown_arguments) != 0 else False
     old_option_found = False
-    for leftover in leftovers:
-        if leftover in old_hybpiper_arguments:
-            old_option_found = True
-            sys.stderr.write(f'\nYou have provided option {leftover}. This was renamed to '
-                             f'{old_hybpiper_arguments[leftover]} in HybPiper >= v2.3.0. Please use the new option!')
+
+    if unknown_arguments_boolean:
+        for unknown_argument in unknown_arguments:
+            if unknown_argument in old_hybpiper_arguments_dict:
+                old_option_found = True
+                sys.stderr.write(f'\nYou have provided option {unknown_argument}. This was renamed to '
+                                 f'{old_hybpiper_arguments_dict[unknown_argument]} in HybPiper >= v2.3.0. Please use '
+                                 f'the new option!')
 
     if old_option_found:
+        sys.exit(1)
+    elif unknown_arguments_boolean:  # i.e. there were unknown arguments but none of them from old HybPiper options
+        unknown_arguments_joined = ' '.join(unknown_arguments)
+        sys.stderr.write(f'usage: hybpiper [-h] [--version]  ...\n')
+        sys.stderr.write(f'hybpiper: error: unrecognized arguments: {unknown_arguments_joined}')
         sys.exit(1)
 
     return arguments
