@@ -1,10 +1,46 @@
 # Changelog
 
-**2.3.0** *18th July 2024*
+**2.3.0** *30th July 2024*
 
-- Add option `--compress_sample_folder` to command `hybpiper assemble`. Tarball and compress the sample folder after assembly has completed (<sample_name>.tar.gz).
+- Add option `--compress_sample_folder` to command `hybpiper assemble`. Tarball and compress the sample folder after assembly has completed i.e. `<sample_name>.tar.gz`. 
+  - This is useful when running HybPiper on HPC clusters with file number limits.
+  - If both an uncompressed and compressed folder exist for a sample, a warning is shown and HybPiper exits.
+  - All HybPiper subcommands (`stats`, `recovery_heatmap`, `retrieve_sequences`, `paralog_retriever`, `filter_by_length`) work with either compressed or uncompressed sample files/folders, or a combination of both.
+  - If a `<sample_name>.tar.gz` file already exists for a sample, it will be extracted and used for the current run of `hybpiper assemble`, and the `<sample_name>.tar.gz` file will be deleted.
+- Bam flagstat file 
+- Add option `--not_protein_coding` to `hybpiper assemble`. When this option is provided, sequences matching your target file references will be extracted from SPAdes contigs using BLASTn, rather than Exonerate. This should improve recovery when using a target file with non-protein-coding sequences.
+  - Only nucleotide `*.FNA` sequences will be produced (i.e. no amino-acid sequences).
+  - Intronerate will not be run; intron and supercontig sequences will not be produced.
+- Add the following options to control BLASTn searches of SPAdes contigs when option `--not_protein_coding` is used:
 
-# Deal with scenario where user runs hybpiper assemble on existing sample folder tarball - uncompress and removed compressed file.
+  - `--extract_contigs_blast_task`. Task to use for blastn searches (blastn, blastn-short, megablast, dc-megablast). Default is blastn.
+  - `--extract_contigs_blast_evalue`. Expectation value (E) threshold for saving hits. Default is 10.
+  - `--extract_contigs_blast_word_size`. Word size for wordfinder algorithm (length of best perfect match).
+  - `--extract_contigs_blast_gapopen`. Cost to open a gap.
+  - `--extract_contigs_blast_gapextend`. Cost to extend a gap.
+  - `--extract_contigs_blast_penalty`. Penalty for a nucleotide mismatch.
+  - `--extract_contigs_blast_reward`. Reward for a nucleotide match.
+  - `--extract_contigs_blast_perc_identity`. Percent identity.
+  - `--extract_contigs_blast_max_target_seqs`. Maximum number of aligned sequences to keep (value of 5 or more is recommended). Default is 500.
+
+- The final step of the `hybpiper assemble` pipeline has been renamed from `exonerate_contigs` to `extract_contigs` (as either Exonerate or BLASTn can now be used).
+- Reorganised grouping of help options when running `hybpiper assemble --help` to improve clarity. 
+- Changed option `--timeout_assemble` for `hybpiper assemble` to `--timeout_assemble_reads` to match the step name.
+- Changed option `--timeout_exonerate_contigs` for `hybpiper assemble` to `--timeout_extract_contigs` to match the step name.
+- Changed option `--exonerate_hit_sliding_window_size` for `hybpiper assemble` to `--trim_hit_sliding_window_size`. This option now applies to either Exonerate hits (and is measured in amino-acids) or BLASTn (measured in nucleotides). Defaults are 3 amino-acids (Exonerate) or 9 nucleotides (BLASTn).
+- Changed option `--exonerate_hit_sliding_window_thresh` for `hybpiper assemble` to `--trim_hit_sliding_window_thresh`. This option now applies to either Exonerate hits (and is measured via amino-acid similarity) or BLASTn (measured via nucleotide similarity). Defaults are 55 for amino-acids (Exonerate) or 65 for nucleotides (BLASTn).
+
+UPDATE WIKI:
+
+- compressed sample info
+- Adding 
+- Subcommand help printouts
+- intermediate files - assembl blastdb
+ 
+- Hybpiper stats
+  - if not <sample_name>_bam_flagstat.tsv in compressed or uncompressed sample folder, have hybpiper stats generated this and write it to the compressed or uncompressed folder. This is needed because if someone runs stats from 2.3 on an old sample, the tsv file won't be there.
+  
+Check through downstream subcommands on v2.1 output. 
 
 **2.2.0** *17th July, 2024*
 
