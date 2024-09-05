@@ -604,8 +604,8 @@ def exonerate(gene_name,
               no_intronerate=False,
               no_padding_supercontigs=False,
               keep_intermediate_files=False,
-              trim_hit_sliding_window_size=3,
-              trim_hit_sliding_window_thresh=55,
+              trim_hit_sliding_window_size=5,
+              trim_hit_sliding_window_thresh=75,
               exonerate_skip_frameshifts=False,
               exonerate_skip_internal_stops=False,
               exonerate_skip_terminal_stops=False,
@@ -798,8 +798,8 @@ def exonerate_multiprocessing(genes,
                               no_padding_supercontigs=False,
                               keep_intermediate_files=False,
                               extract_contigs_timeout=None,
-                              trim_hit_sliding_window_size=3,
-                              trim_hit_sliding_window_thresh=55,
+                              trim_hit_sliding_window_size=5,
+                              trim_hit_sliding_window_thresh=75,
                               exonerate_skip_frameshifts=False,
                               exonerate_skip_internal_stops=False,
                               exonerate_skip_terminal_stops=False,
@@ -1033,7 +1033,7 @@ def blast_non_proteins(gene_name,
                        lock=None,
                        genes_to_process=0,
                        keep_intermediate_files=False,
-                       trim_hit_sliding_window_size=9,
+                       trim_hit_sliding_window_size=15,
                        trim_hit_sliding_window_thresh=65,
                        verbose_logging=False):
     """
@@ -1220,7 +1220,7 @@ def blast_multiprocessing(genes,
                           logger=None,
                           keep_intermediate_files=False,
                           extract_contigs_timeout=None,
-                          trim_hit_sliding_window_size=9,
+                          trim_hit_sliding_window_size=15,
                           trim_hit_sliding_window_thresh=65,
                           verbose_logging=False):
     """
@@ -1540,20 +1540,33 @@ def main(args):
         sys.exit()
 
     ####################################################################################################################
+    # Check if BLASTx or DIAMOND is used as well as --not_protein_coding. If so, warn the user and switch to BWA:
+    ####################################################################################################################
+    if args.not_protein_coding and args.blast or args.diamond:
+        fill = textwrap.fill(f'{"[INFO]:":10} You have provided the option "--not_protein_coding" but BLASTx or '
+                             f'DIAMOND has been selected for read mapping. Switching to BWA instead...',
+                             width=90, subsequent_indent=' ' * 11)
+        logger.info(fill)
+
+        args.blast = False
+        args.diamond = False
+        args.bwa = True
+
+    ####################################################################################################################
     # Set defaults for --trim_hit_sliding_window_size and --trim_hit_sliding_window_thresh if not provided at the
     # command line:
     ####################################################################################################################
     if not args.trim_hit_sliding_window_size:
         if args.not_protein_coding:
-            args.trim_hit_sliding_window_size = 9  # BLASTn nucleotides
+            args.trim_hit_sliding_window_size = 15  # BLASTn nucleotides
         else:
-            args.trim_hit_sliding_window_size = 3  # Exonerate amino-acids
+            args.trim_hit_sliding_window_size = 5  # Exonerate amino-acids
 
     if not args.trim_hit_sliding_window_thresh:
         if args.not_protein_coding:
             args.trim_hit_sliding_window_thresh = 65  # BLASTn nucleotides
         else:
-            args.trim_hit_sliding_window_thresh = 55  # Exonerate amino-acids
+            args.trim_hit_sliding_window_thresh = 75  # Exonerate amino-acids
 
     logger.debug(f'trim_hit_sliding_window_size: {args.trim_hit_sliding_window_size}')
     logger.debug(f'trim_hit_sliding_window_thresh: {args.trim_hit_sliding_window_thresh}')

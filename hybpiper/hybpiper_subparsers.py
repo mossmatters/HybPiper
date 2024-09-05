@@ -276,13 +276,13 @@ def add_assemble_parser(subparsers):
                                                 metavar='INTEGER',
                                                 help='Size of the sliding window (amino acids for Exonerate, '
                                                      'nucleotides for BLASTn) when trimming hit termini. Default is: '
-                                                     '3 (Exonerate) or 9 (BLASTn).')
+                                                     '5 (Exonerate) or 15 (BLASTn).')
     optional_group_extract_contigs.add_argument('--trim_hit_sliding_window_thresh',
                                                 type=int,
                                                 metavar='INTEGER',
                                                 help='Percentage similarity threshold for the sliding window (amino '
                                                      'acids for Exonerate, nucleotides for BLASTn) when trimming '
-                                                     'hit termini. Default is: 55 (Exonerate) or 65 (BLASTn).')
+                                                     'hit termini. Default is: 75 (Exonerate) or 65 (BLASTn).')
     optional_group_extract_contigs.add_argument('--exonerate_skip_hits_with_frameshifts',
                                                 action='store_true',
                                                 dest='skip_frameshifts',

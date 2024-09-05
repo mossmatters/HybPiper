@@ -315,9 +315,24 @@ def choose_best_match_translation(sequence_list, gene_to_inframe_seqs, ref_is_pr
         with open(temp_fasta_file, 'w') as temp_handle:
             SeqIO.write(temp_seqs_to_write, temp_handle, 'fasta')
 
-        mafft_cline = (MafftCommandline('linsi', thread=1, input=temp_fasta_file))
-        stdout, stderr = mafft_cline()
-        alignment = AlignIO.read(io.StringIO(stdout), 'fasta')
+        mafft_command = f'linsi --thread 1 {temp_fasta_file}'
+
+        try:
+            result = subprocess.run(mafft_command,
+                                    universal_newlines=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    check=True,
+                                    shell=True)
+
+        except subprocess.CalledProcessError as exc:
+            logger.error(f'mafft FAILED. Output is: {exc}')
+            logger.error(f'mafft stdout is: {exc.stdout}')
+            logger.error(f'mafft stderr is: {exc.stderr}')
+
+            raise ValueError('There was an issue running MAFFT. Check input files!')
+
+        alignment = AlignIO.read(io.StringIO(result.stdout), 'fasta')
         for sequence in alignment:  # Distance matrix requires capital letters
             sequence.seq = sequence.seq.upper()
 
