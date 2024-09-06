@@ -38,9 +38,6 @@ UPDATE WIKI:
 - Adding 
 - Subcommand help printouts
 - intermediate files now includes blastdb when running non-proteins
- 
-- Hybpiper stats
-  - if not <sample_name>_bam_flagstat.tsv in compressed or uncompressed sample folder, have hybpiper stats generated this and write it to the compressed or uncompressed folder. This is needed because if someone runs stats from 2.3 on an old sample, the tsv file won't be there.
   
 Check through downstream subcommands on v2.1 output. 
 

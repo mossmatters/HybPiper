@@ -128,7 +128,7 @@ def add_assemble_parser(subparsers):
     optional_group_extract_contigs = parser_assemble.add_argument_group('Options for step: extract_contigs')
     optional_group_extract_contigs.add_argument('--not_protein_coding',
                                                 action='store_true',
-                                                default='False',
+                                                default=False,
                                                 help='If provided, extract sequences from SPAdes contigs using BLASTn '
                                                      'rather than Exonerate (step: extract_contigs)')
     optional_group_extract_contigs.add_argument('--extract_contigs_blast_task',

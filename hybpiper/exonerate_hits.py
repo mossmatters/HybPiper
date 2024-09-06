@@ -35,7 +35,10 @@ import textwrap
 import numpy as np
 
 
-def initial_exonerate(proteinfilename, assemblyfilename, prefix):
+def initial_exonerate(proteinfilename,
+                      assemblyfilename,
+                      prefix,
+                      exonerate_refine_full=False):
     """
     Conduct Exonerate search (first with option `--refine full` and then without if it doesn't work).
 
@@ -56,6 +59,7 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     :param str proteinfilename: path to the chosen target-file protein query fasta file
     :param str assemblyfilename: path to the SPAdes assembly contigs file
     :param str prefix: path of gene/sample name
+    :param str exonerate_refine_full: if true, run Exonerate with the "--refine full" option
     :return NoneType or str, None or outputfilename:
         - None: returned if Exonerate searches fail to produce output file
         - outputfilename: the Exonerate text file output
@@ -66,28 +70,43 @@ def initial_exonerate(proteinfilename, assemblyfilename, prefix):
     outputfilename = f'{prefix}/exonerate_results.fasta'
     exonerate_ryo = '">%ti,%qi,%qab,%qae,%pi,(%tS),%tab,%tae\\n%tcs\\n"'
 
-    exonerate_command = f'exonerate -m protein2genome --showalignment yes --showvulgar no -V 0 --refine ' \
-                        f'full --ryo' \
-                        f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
-    logger.debug(f'Exonerate command is: {exonerate_command}')
+    if exonerate_refine_full:
 
-    try:  # with --refine
-        subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                       universal_newlines=True, check=True)
-    except subprocess.CalledProcessError as exc:
-        logger.debug(f'Exonerate with "--refine" FAILED for {prefix}. Output is: {exc}')
-        logger.debug(f'Exonerate with "--refine" stdout is: {exc.stdout}')
-        logger.debug(f'Exonerate with "--refine" stderr is: {exc.stderr}')
+        exonerate_command = (f'exonerate '
+                             f'-m protein2genome '
+                             f'--showalignment yes '
+                             f'--showvulgar no '
+                             f'-V 0 '
+                             f'--refine full '
+                             f'--ryo {exonerate_ryo} '
+                             f'{proteinfilename} '
+                             f'{assemblyfilename} '
+                             f'> {outputfilename}')
+        logger.debug(f'Exonerate command is: {exonerate_command}')
+
+        try:  # with --refine
+            subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           universal_newlines=True, check=True)
+        except subprocess.CalledProcessError as exc:
+            logger.debug(f'Exonerate with "--refine" FAILED for {prefix}. Output is: {exc}')
+            logger.debug(f'Exonerate with "--refine" stdout is: {exc.stdout}')
+            logger.debug(f'Exonerate with "--refine" stderr is: {exc.stderr}')
 
     if utils.file_exists_and_not_empty(outputfilename):  # Exonerate with --refine can fail (empty output file) with no
         # error
         logger.debug('Exonerate ran with --refine')
         return outputfilename
     else:
-        try:  # without --refine
-            exonerate_command = f'exonerate -m protein2genome --showalignment yes --showvulgar no -V 0 ' \
-                                f'--ryo' \
-                                f' {exonerate_ryo} {proteinfilename} {assemblyfilename} > {outputfilename}'
+        try:  # without --refine; this will be all that's run if exonerate_refine_full is not True
+            exonerate_command = (f'exonerate '
+                                 f'-m protein2genome '
+                                 f'--showalignment yes '
+                                 f'--showvulgar no '
+                                 f'-V 0 '
+                                 f'--ryo {exonerate_ryo} '
+                                 f'{proteinfilename} '
+                                 f'{assemblyfilename} '
+                                 f'> {outputfilename}')
             logger.debug(f'Exonerate command is: {exonerate_command}')
             subprocess.run(exonerate_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            universal_newlines=True, check=True)
@@ -1259,93 +1278,18 @@ class Exonerate(object):
                 left_seq_hit_name, right_seq_hit_name = pair[0]['hit_sequence'].id, pair[1]['hit_sequence'].id
                 left_seq_query_range, right_seq_query_range = pair[0]['query_range'], pair[1]['query_range']
                 left_seq_seq, right_seq_seq = pair[0]['hit_sequence'], pair[1]['hit_sequence']
-                left_seq_sim_triplets, right_seq_sim_triplets = (
-                    pair[0]['hit_similarity_triplets'], pair[1]['hit_similarity_triplets'])
-
-                print('')
-                print(f'left_seq_sim_triplets {left_seq_hit_name}:\n{left_seq_sim_triplets}')
-                print(f'right_seq_sim_triplets {right_seq_hit_name}:\n{right_seq_sim_triplets}')
 
                 # If overlapping hits, always trim the 3' end of the left hit:
-                # If overlapping hits, choose the overlapping region with the highest identity:
                 if left_seq_query_range[1] > right_seq_query_range[0]:
                     num_amino_acid_overlap = left_seq_query_range[1] - right_seq_query_range[0]
-                    print(f'num_amino_acid_overlap: {num_amino_acid_overlap}')
 
-                    # seq_to_keep = left_seq_seq[: -num_amino_acid_overlap * 3]
-                    # seq_to_trim = left_seq_seq[-num_amino_acid_overlap * 3:]
+                    seq_to_keep = left_seq_seq[: -num_amino_acid_overlap * 3]
+                    seq_to_trim = left_seq_seq[-num_amino_acid_overlap * 3:]
 
-                    # Get possible seqs to keep and seq to trim from both seqs:
-                    seq_to_keep_left = left_seq_seq[: -num_amino_acid_overlap * 3]
-                    seq_to_trim_left = left_seq_seq[-num_amino_acid_overlap * 3:]
-                    seq_to_trim_left_sim_triplets = left_seq_sim_triplets[-num_amino_acid_overlap:]
+                    assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
 
-                    seq_to_keep_right = right_seq_seq[num_amino_acid_overlap * 3:]
-                    seq_to_trim_right = right_seq_seq[: num_amino_acid_overlap * 3:]
-                    seq_to_trim_right_sim_triplets = right_seq_sim_triplets[: num_amino_acid_overlap:]
-
-                    print(f'seq_to_keep_left:\n{seq_to_keep_left.seq}')
-                    print(f'seq_to_trim_left_sim_triplets:\n{seq_to_trim_left_sim_triplets}')
-                    print(f'seq_to_trim_left:\n{seq_to_trim_left.seq}')
-                    print(f'seq_to_keep_right:\n{seq_to_keep_right.seq}')
-                    print(f'seq_to_trim_right_sim_triplets:\n{seq_to_trim_right_sim_triplets}')
-                    print(f'seq_to_trim_right:\n{seq_to_trim_right.seq}')
-
-                    # Make sure slices add up:
-                    assert len(seq_to_keep_left) + len(seq_to_trim_left) == len(left_seq_seq)
-                    assert len(seq_to_keep_left) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
-                                                        f'right_seq_hit_name: {right_seq_hit_name}')
-                    assert len(seq_to_keep_right) + len(seq_to_trim_right) == len(right_seq_seq)
-                    assert len(seq_to_keep_right) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
-                                                         f'right_seq_hit_name: {right_seq_hit_name}')
-                    assert len(seq_to_trim_left_sim_triplets) == len(seq_to_trim_right_sim_triplets)
-
-                    # Identity the candidate trimmed sequence with the lower similarity to the query protein:
-                    similarity_count_total_left = 0
-                    similarity_count_left = 0
-                    for triplet in seq_to_trim_left_sim_triplets:
-                        if triplet == '|||':
-                            similarity_count_left += 1
-                        similarity_count_total_left += 1
-                    trim_candidate_hit_similarity_left = \
-                        f'{similarity_count_left / similarity_count_total_left * 100:.2f}'
-
-                    similarity_count_total_right = 0
-                    similarity_count_right = 0
-                    for triplet in seq_to_trim_right_sim_triplets:
-                        if triplet == '|||':
-                            similarity_count_right += 1
-                        similarity_count_total_right += 1
-                    trim_candidate_hit_similarity_right = \
-                        f'{similarity_count_right / similarity_count_total_right * 100:.2f}'
-
-                    print(f'trim_candidate_hit_similarity_left: {trim_candidate_hit_similarity_left}')
-                    print(f'trim_candidate_hit_similarity_right: {trim_candidate_hit_similarity_right}')
-
-                    trim_left_seq = False
-                    trim_right_seq = False
-
-                    if trim_candidate_hit_similarity_left == trim_candidate_hit_similarity_right:
-                        trim_left_seq = True  # arbitrarily choose the left seq to trim
-                    elif trim_candidate_hit_similarity_left < trim_candidate_hit_similarity_right:
-                        trim_left_seq = True
-                    else:
-                        trim_right_seq = True
-
-
-
-
-
-                    continue
-
-
-                    # assert len(seq_to_keep) + len(seq_to_trim) == len(left_seq_seq)
-                    #
-                    # assert len(seq_to_keep) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
-                    #                                f'right_seq_hit_name: {right_seq_hit_name}')
-
-
-
+                    assert len(seq_to_keep) >= 3, (f'{self.prefix} left_seq_hit_name: {left_seq_hit_name}, '
+                                                   f'right_seq_hit_name: {right_seq_hit_name}')
 
                     seq_to_keep_no_gaps = seq_to_keep.seq.replace('-', '')
                     seq_to_trim_no_gaps = seq_to_trim.seq.replace('-', '')

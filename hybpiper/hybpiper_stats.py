@@ -329,8 +329,7 @@ def enrich_efficiency_bwa(sample_name,
     unpaired_bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_unpaired_bam_flagstat.tsv'
 
     ####################################################################################################################
-    # Check if the bam flagstat file(s) exist (i.e., samples were run with HybPiper >= v2.3.0). If not, warn the user
-    # and exit:
+    # Check if the bam flagstat file(s) exist (i.e., samples were run with HybPiper >= v2.3.0):
     ####################################################################################################################
     if compressed_sample_bool:
 

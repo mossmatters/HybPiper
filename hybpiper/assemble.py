@@ -609,6 +609,7 @@ def exonerate(gene_name,
               exonerate_skip_frameshifts=False,
               exonerate_skip_internal_stops=False,
               exonerate_skip_terminal_stops=False,
+              exonerate_refine_full=False,
               verbose_logging=False):
     """
     :param str gene_name: name of a gene that had at least one SPAdes contig
@@ -641,6 +642,7 @@ def exonerate(gene_name,
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
     :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
+    :param bool exonerate_refine_full: if true, run Exonerate with the "--refine full" option
     :param bool verbose_logging: if True, log additional information to file
     :return: str gene_name, str prot_length OR None, None
     """
@@ -705,7 +707,8 @@ def exonerate(gene_name,
     # Perform Exonerate search with 'best' protein ref as query and SPAdes contigs as subjects:
     exonerate_text_output = exonerate_hits.initial_exonerate(f'{gene_name}/{gene_name}_target.fasta',
                                                              f'{gene_name}/{gene_name}_contigs.fasta',
-                                                             prefix)
+                                                             prefix,
+                                                             exonerate_refine_full=exonerate_refine_full)
 
     if exonerate_text_output:  # i.e. if the initial_exonerate DID produce a result
         exonerate_result = exonerate_hits.parse_exonerate_and_get_stitched_contig(
@@ -803,6 +806,7 @@ def exonerate_multiprocessing(genes,
                               exonerate_skip_frameshifts=False,
                               exonerate_skip_internal_stops=False,
                               exonerate_skip_terminal_stops=False,
+                              exonerate_refine_full=False,
                               verbose_logging=False):
     """
     Runs the function exonerate() using multiprocessing.
@@ -834,11 +838,14 @@ def exonerate_multiprocessing(genes,
     amino-acids) when trimming termini of Exonerate hits
     :param bool exonerate_skip_frameshifts: skip Exonerate hits where SPAdes sequence contains frameshifts
     :param bool exonerate_skip_internal_stops: skip Exonerate hits where SPAdes sequence contains internal stop codons
-    :param bool exonerate_skip_terminal_stops: skip Exonerate hits where SPAdes sequence contains a terminal stop codon
+    :param bool exonerate_skip_terminal_stops: skip Exonerate hits where the SPAdes sequence contains a single terminal
+    stop codon
+    :param bool exonerate_refine_full: if true, run Exonerate with the "--refine full" option
     :param bool verbose_logging: if True, log additional information to file
     :return:
     """
 
+    # Log some parameters for debugging:
     logger.debug(f'no_intronerate is: {no_intronerate}')
     logger.debug(f'extract_contigs_timeout is: {extract_contigs_timeout}')
     logger.debug(f'trim_hit_sliding_window_size is: {trim_hit_sliding_window_size}')
@@ -846,6 +853,7 @@ def exonerate_multiprocessing(genes,
     logger.debug(f'exonerate_skip_frameshifts is: {exonerate_skip_frameshifts}')
     logger.debug(f'exonerate_skip_internal_stops is: {exonerate_skip_internal_stops}')
     logger.debug(f'exonerate_skip_terminal_stops is: {exonerate_skip_terminal_stops}')
+    logger.debug(f'exonerate_refine_full is: {exonerate_refine_full}')
     logger.debug(f'chimera_check is: {chimera_check}')
     logger.debug(f'stitched_contig_pad_n is: {stitched_contig_pad_n}')
     logger.debug(f'exonerate_multiprocessing pool_threads is: {pool_threads}')
@@ -886,6 +894,7 @@ def exonerate_multiprocessing(genes,
                                    "exonerate_skip_frameshifts": exonerate_skip_frameshifts,
                                    "exonerate_skip_internal_stops": exonerate_skip_internal_stops,
                                    "exonerate_skip_terminal_stops": exonerate_skip_terminal_stops,
+                                   "exonerate_refine_full": exonerate_refine_full,
                                    "verbose_logging": verbose_logging}
 
             for gene_name in genes:  # schedule jobs and store each future in a future : gene_name dict
@@ -1542,15 +1551,16 @@ def main(args):
     ####################################################################################################################
     # Check if BLASTx or DIAMOND is used as well as --not_protein_coding. If so, warn the user and switch to BWA:
     ####################################################################################################################
-    if args.not_protein_coding and args.blast or args.diamond:
-        fill = textwrap.fill(f'{"[INFO]:":10} You have provided the option "--not_protein_coding" but BLASTx or '
-                             f'DIAMOND has been selected for read mapping. Switching to BWA instead...',
-                             width=90, subsequent_indent=' ' * 11)
-        logger.info(fill)
+    if args.not_protein_coding:
+        if args.blast or args.diamond:
+            fill = textwrap.fill(f'{"[INFO]:":10} You have provided the option "--not_protein_coding" but BLASTx or '
+                                 f'DIAMOND has been selected for read mapping. Switching to BWA instead...',
+                                 width=90, subsequent_indent=' ' * 11)
+            logger.info(fill)
 
-        args.blast = False
-        args.diamond = False
-        args.bwa = True
+            args.blast = False
+            args.diamond = False
+            args.bwa = True
 
     ####################################################################################################################
     # Set defaults for --trim_hit_sliding_window_size and --trim_hit_sliding_window_thresh if not provided at the
@@ -1878,7 +1888,7 @@ def main(args):
     # Alternatively, if --not_protein_coding is True, extract sequences from assembled SPAdes contigs using BLASTn:
     ####################################################################################################################
 
-    genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines()]
+    genes = [x.rstrip() for x in open('exonerate_genelist.txt').readlines() if x.rstrip()]
     # Remove any pre-existing directories:
     for g in genes:
         if os.path.isdir(os.path.join(g, sample_dir)):
@@ -1947,6 +1957,7 @@ def main(args):
                                   exonerate_skip_frameshifts=args.skip_frameshifts,
                                   exonerate_skip_internal_stops=args.skip_internal_stops,
                                   exonerate_skip_terminal_stops=args.skip_terminal_stops,
+                                  exonerate_refine_full=args.exonerate_refine_full,
                                   verbose_logging=args.verbose_logging)
 
     ####################################################################################################################
