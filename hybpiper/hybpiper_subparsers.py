@@ -298,7 +298,7 @@ def add_assemble_parser(subparsers):
                                                 help='Skip Exonerate hits where the SPAdes sequence contains an '
                                                      'internal in-frame stop codon. See: https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,'
                                                      '-common-issues,-and-recommendations#31-sequences-containing-stop-codons.'
-                                                     'A single terminal stop codon is allowed, but see option '
+                                                     ' A single terminal stop codon is allowed, but see option '
                                                      '"--exonerate_skip_hits_with_terminal_stop_codons" below. Default '
                                                      'is: %(default)s.')
     optional_group_extract_contigs.add_argument('--exonerate_skip_hits_with_terminal_stop_codons',
@@ -312,6 +312,11 @@ def add_assemble_parser(subparsers):
                                                      'contains protein-coding genes with no stop codons included, and '
                                                      'you would like to prevent any in-frame stop codons in '
                                                      'the output sequences. Default is: %(default)s.')
+    optional_group_extract_contigs.add_argument('--exonerate_refine_full',
+                                                action='store_true',
+                                                default=False,
+                                                help='Run Exonerate searches using the parameter "--refine full". '
+                                                     'Default is: %(default)s.')
     optional_group_extract_contigs.add_argument('--no_intronerate',
                                                 action='store_true',
                                                 dest='no_intronerate',
@@ -360,7 +365,7 @@ def add_assemble_parser(subparsers):
                                         action='store_true',
                                         default=False,
                                         help='Tarball and compress the sample folder after assembly has completed '
-                                             '(<sample_name>.tar.gz). Default is %(default)s.')
+                                             '(<sample_name>.tar.gz). Default is: %(default)s.')
     optional_group_general.add_argument('--skip_targetfile_checks',
                                         action='store_true',
                                         default=False,

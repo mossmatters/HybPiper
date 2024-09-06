@@ -27,6 +27,7 @@ import progressbar
 from collections import defaultdict
 import glob
 import tarfile
+import shutil
 
 from hybpiper.version import __version__
 
@@ -535,9 +536,10 @@ def createfolder(directory):
     try:
         if not os.path.exists(directory):
             os.makedirs(directory)
+        return directory
     except OSError:
         print(f'Error: Creating directory: {directory}')
-
+        raise
 
 def check_macos_version(logger=None):
     """
@@ -1122,7 +1124,7 @@ def check_for_previous_run_output(full_sample_directory,
     :param path full_sample_directory: full path to the sample directory
     :param str start_from: pipeline step to start from
     :param str end_with: pipeline step to end with
-    :param dict assemble_stages_dict: dict of assembly stages and correspond integer
+    :param dict assemble_stages_dict: dict of assembly stages and corresponding integer
 
     :return dict previous_files_dict: dictionary of previous files for each pipeline step >= start_from and <= end_with
     """
@@ -1197,9 +1199,9 @@ def get_compressed_seqrecord(sample_name,
     """
     Returns the seqrecord of a fasta sequence within a compressed tarball of a given sample directory.
 
-    :param sample_name:
-    :param sampledir_parent:
-    :param member_name:
+    :param sample_name: sample name
+    :param sampledir_parent: sampledir_parent name
+    :param member_name: name of the tarfile member to find
     :return:
     """
 
@@ -1220,9 +1222,9 @@ def get_compressed_seqrecords(sample_name,
     Returns a list of seqrecords from fasta sequences within a multi-fasta file located within a compressed tarball of
     a given sample directory.
 
-    :param sample_name:
-    :param sampledir_parent:
-    :param member_name:
+    :param sample_name: sample name
+    :param sampledir_parent: sampledir_parent name
+    :param member_name: name of the tarfile member to find
     :return:
     """
 
@@ -1241,9 +1243,9 @@ def get_compressed_file_lines(sample_name,
                               member_name):
     """
 
-    :param sample_name:
-    :param sampledir_parent:
-    :param member_name:
+    :param sample_name: sample name
+    :param sampledir_parent: sampledir_parent name
+    :param member_name: name of the tarfile member to find
     :return:
     """
 
@@ -1256,3 +1258,90 @@ def get_compressed_file_lines(sample_name,
         lines = [line for line in lines if line]
 
     return lines
+
+
+def get_bamtools_flagstat_lines_from_compressed(sample_name,
+                                                sampledir_parent,
+                                                bam_file):
+    """
+
+    :param sample_name: sample name
+    :param sampledir_parent: sampledir_parent name
+    :param bam_file: name of the bam file to extract to disk
+    :return:
+    """
+
+    # Create temp output directory:
+    outdir = f'{os.getcwd()}/temp_bam_files'
+
+    print(f'{"[INFO]:":10} No samtools flagstat output file "{bam_file}" was found for sample {sample_name}.')
+    print(f'{" " * 10} Attempting to extract {sample_name}.bam file to directory "{outdir}"...')
+
+    try:
+        outdir = createfolder(outdir)
+    except OSError:
+        print(f'{"[ERROR]:":10} Could not create directory {outdir}. Do you have write permission for the parent '
+              f'directory?')
+        sys.exit(1)
+
+    # Extract the bam file to a temp directory:
+    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
+        tarfile_handle.extract(bam_file, outdir)
+
+    print(f'{" " * 10} Success! Running `samtools flagstat` now...')
+
+    # Run samtools flagstat:
+    samtools_cmd = f'samtools flagstat --output-fmt tsv {outdir}/{bam_file}'
+
+    try:
+        result = subprocess.run(samtools_cmd,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                universal_newlines=True,
+                                check=True)
+
+    except subprocess.CalledProcessError as exc:
+        print(f'samtools flagstat mapping FAILED. Output is: {exc}')
+        print(f'samtools flagstat mapping stdout is: {exc.stdout}')
+        print(f'samtools flagstat mapping stderr is: {exc.stderr}')
+        sys.exit(1)
+
+    # Remove the temp directory:
+    shutil.rmtree(outdir)
+
+    return [line.rstrip() for line in result.stdout.split('\n')]
+
+
+def get_bamtools_flagstat_lines_from_uncompressed(sample_name,
+                                                  sampledir_parent,
+                                                  bam_file):
+    """
+
+    :param sample_name: sample name
+    :param sampledir_parent: sampledir_parent name
+    :param bam_file: name of the bamfile to run `samtools flagstat` on
+    :return:
+    """
+
+    print(f'{"[INFO]:":10} No samtools flagstat output file {bam_file} was found for sample {sample_name}. Running '
+          f'`samtools flagstat` now...')
+
+    # Run samtools flagstat:
+    samtools_cmd = f'samtools flagstat --output-fmt tsv {sampledir_parent}/{bam_file}'
+
+    try:
+        result = subprocess.run(samtools_cmd,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                universal_newlines=True,
+                                check=True)
+
+    except subprocess.CalledProcessError as exc:
+        print(f'samtools flagstat mapping FAILED. Output is: {exc}')
+        print(f'samtools flagstat mapping stdout is: {exc.stdout}')
+        print(f'samtools flagstat mapping stderr is: {exc.stderr}')
+        sys.exit(1)
+
+    return [line.rstrip() for line in result.stdout.split('\n')]

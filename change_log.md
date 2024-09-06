@@ -7,7 +7,7 @@
   - If both an uncompressed and compressed folder exist for a sample, a warning is shown and HybPiper exits.
   - All HybPiper subcommands (`stats`, `recovery_heatmap`, `retrieve_sequences`, `paralog_retriever`, `filter_by_length`) work with either compressed or uncompressed sample files/folders, or a combination of both.
   - If a `<sample_name>.tar.gz` file already exists for a sample, it will be extracted and used for the current run of `hybpiper assemble`, and the `<sample_name>.tar.gz` file will be deleted.
-- When using BWA for read mapping, the command `samtools flagstat` is now run during the `hybpiper assemble` step, rather than during `hybpiper stats`, and the results are written to a `<sample_name>_bam_flagstat.tsv` \ `<sample_name>_unpaired_bam_flagstat.tsv` file(s).
+- When using BWA for read mapping, the command `samtools flagstat` is now run during the `hybpiper assemble` step, rather than during `hybpiper stats`, and the results are written to a `<sample_name>_bam_flagstat.tsv` \ `<sample_name>_unpaired_bam_flagstat.tsv` file(s). 
 - Add option `--not_protein_coding` to `hybpiper assemble`. When this option is provided, sequences matching your target file references will be extracted from SPAdes contigs using BLASTn, rather than Exonerate. This should improve recovery when using a target file with non-protein-coding sequences.
   - Only nucleotide `*.FNA` sequences will be produced (i.e. no amino-acid sequences).
   - Intronerate will not be run; intron and supercontig sequences will not be produced.

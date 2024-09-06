@@ -316,36 +316,66 @@ def enrich_efficiency_bwa(sample_name,
 
     :param str sample_name: sample name
     :param path sampledir_parent: sampledir_parent name
-    :param dict compressed_sample_dict:
+    :param dict compressed_sample_dict: dictionary containing *.tar.gz contents for compressed sample directories
     :param bool compressed_sample_bool: True if sample directory is a compressed tarball
     :param bool bam_file_unpaired_exists: True if an unpaired bamfile exists for this sample
     :return str, str, str: values for input reads, mapped reads, and percent mapped reads:
     """
 
     # Set expected file paths with sample folder as root:
+    bam_file = f'{sample_name}/{sample_name}.bam'
+    bam_file_unpaired = f'{sample_name}/{sample_name}_unpaired.bam'
     bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_bam_flagstat.tsv'
     unpaired_bam_flagstats_tsv_file = f'{sample_name}/{sample_name}_unpaired_bam_flagstat.tsv'
 
-    # # Check if the bam flagstat file exist (i.e., samples were run with HybPiper >= v2.3.0). If not, run flagstats now
-    # # and write the files to either the compressed file or uncompressed folder for the sample.
-    # if compressed_sample_bool:
-    #     if bam_flagstats_tsv_file in compressed_sample_dict[sample_name]:
-    #         print(f'YEAH {sample_name}')
-    #     else:
-    #         print(f'NAH {sample_name}')
+    ####################################################################################################################
+    # Check if the bam flagstat file(s) exist (i.e., samples were run with HybPiper >= v2.3.0). If not, warn the user
+    # and exit:
+    ####################################################################################################################
+    if compressed_sample_bool:
+
+        bam_flagstats_tsv_file_exists = \
+            True if bam_flagstats_tsv_file in compressed_sample_dict[sample_name] else False
+
+        unpaired_bam_flagstats_tsv_file_exists = \
+            True if unpaired_bam_flagstats_tsv_file in compressed_sample_dict[sample_name] else False
+
+    else:
+        bam_flagstats_tsv_file_exists = \
+            True if utils.file_exists_and_not_empty(f'{sampledir_parent}/{bam_flagstats_tsv_file}') else False
+
+        unpaired_bam_flagstats_tsv_file_exists = \
+            True if utils.file_exists_and_not_empty(f'{sampledir_parent}/{unpaired_bam_flagstats_tsv_file}') else False
+
+    ####################################################################################################################
+    # Process stats from the 'main' bam file:
+    ####################################################################################################################
 
     # Initialise count at zero:
     num_reads = 0
     mapped_reads = 0
 
-    # Process stats from the 'main' bam file:
     if compressed_sample_bool:
-        bam_flagstat_lines = utils.get_compressed_file_lines(sample_name,
-                                                             sampledir_parent,
-                                                             bam_flagstats_tsv_file)
+        if bam_flagstats_tsv_file_exists:
+
+            bam_flagstat_lines = utils.get_compressed_file_lines(sample_name,
+                                                                 sampledir_parent,
+                                                                 bam_flagstats_tsv_file)
+        else:
+            bam_flagstat_lines = utils.get_bamtools_flagstat_lines_from_compressed(sample_name,
+                                                                                   sampledir_parent,
+                                                                                   bam_file)
     else:
-        bam_flagstat_handle = open(f'{sampledir_parent}/{bam_flagstats_tsv_file}', 'r')
-        bam_flagstat_lines = bam_flagstat_handle.readlines()
+        if bam_flagstats_tsv_file_exists:
+
+            bam_flagstat_handle = open(f'{sampledir_parent}/{bam_flagstats_tsv_file}', 'r')
+            bam_flagstat_lines = list(bam_flagstat_handle.readlines())
+            bam_flagstat_handle.close()
+
+        else:
+            bam_flagstat_lines = utils.get_bamtools_flagstat_lines_from_uncompressed(sample_name,
+                                                                                     sampledir_parent,
+                                                                                     bam_file)
 
     for line in bam_flagstat_lines:
         if re.search('primary$', line):
@@ -353,27 +383,41 @@ def enrich_efficiency_bwa(sample_name,
         if re.search(r'\bprimary mapped$', line):
             mapped_reads = float(line.split('\t')[0])
 
-    if not compressed_sample_bool:
-        bam_flagstat_handle.close()
-
+    ####################################################################################################################
     # If an unpaired bam exists for this sample, process stats:
+    ####################################################################################################################
     if bam_file_unpaired_exists:
+
         if compressed_sample_bool:
-            bam_flagstat_unpaired_lines = utils.get_compressed_file_lines(sample_name,
-                                                                          sampledir_parent,
-                                                                          unpaired_bam_flagstats_tsv_file)
+
+            if unpaired_bam_flagstats_tsv_file_exists:
+                bam_flagstat_unpaired_lines = utils.get_compressed_file_lines(sample_name,
+                                                                              sampledir_parent,
+                                                                              unpaired_bam_flagstats_tsv_file)
+            else:
+                bam_flagstat_unpaired_lines = \
+                    utils.get_bamtools_flagstat_lines_from_compressed(sample_name,
+                                                                      sampledir_parent,
+                                                                      bam_file_unpaired)
         else:
-            bam_flagstat_unpaired_handle = open(f'{sampledir_parent}/{unpaired_bam_flagstats_tsv_file}', 'r')
-            bam_flagstat_unpaired_lines = bam_flagstat_unpaired_handle.readlines()
+
+            if unpaired_bam_flagstats_tsv_file_exists:
+
+                bam_flagstat_unpaired_handle = open(f'{sampledir_parent}/{unpaired_bam_flagstats_tsv_file}', 'r')
+                bam_flagstat_unpaired_lines = list(bam_flagstat_unpaired_handle.readlines())
+                bam_flagstat_unpaired_handle.close()
+
+            else:
+                bam_flagstat_unpaired_lines = \
+                    utils.get_bamtools_flagstat_lines_from_uncompressed(sample_name,
+                                                                        sampledir_parent,
+                                                                        bam_file_unpaired)
 
         for line in bam_flagstat_unpaired_lines:
             if re.search('primary$', line):
                 num_reads += float(line.split('\t')[0])
             if re.search(r'\bprimary mapped\b', line):
                 mapped_reads += float(line.split('\t')[0])
-
-        if not compressed_sample_bool:
-            bam_flagstat_unpaired_handle.close()
 
     try:
         pct_mapped = 100 * mapped_reads / num_reads
@@ -391,9 +435,9 @@ def recovery_efficiency(sample_name,
     Reports the number of genes with mapping hits, contigs, and exon sequences
 
     :param str sample_name: sample name
-    :param str sampledir_parent:
-    :param bool compressed_sample_bool:
-    :param dict compressed_sample_dict:
+    :param str sampledir_parent: sampledir_parent name
+    :param bool compressed_sample_bool: True if sample directory is a compressed tarball
+    :param dict compressed_sample_dict: dictionary containing *.tar.gz contents for compressed sample directories
     :return list: a list containing the number of genes with contigs, exonerate hits, and assembled sequences
     """
 
