@@ -415,7 +415,7 @@ def enrich_efficiency_bwa(sample_name,
         for line in bam_flagstat_unpaired_lines:
             if re.search('primary$', line):
                 num_reads += float(line.split('\t')[0])
-            if re.search(r'\bprimary mapped\b', line):
+            if re.search(r'\bprimary mapped$\b', line):
                 mapped_reads += float(line.split('\t')[0])
 
     try:
