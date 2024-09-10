@@ -435,7 +435,8 @@ def add_stats_parser(subparsers):
                               help='File name for the stats *.tsv file. Default is: <hybpiper_stats.tsv>')
     parser_stats.add_argument('--hybpiper_dir',
                               default=None,
-                              help='Specify directory containing HybPiper output sample folders.')
+                              help='Specify directory containing HybPiper output sample folders. Default is the '
+                                   'current working directory.')
     parser_stats.add_argument('--run_profiler',
                               action='store_true',
                               dest='run_profiler',
@@ -477,7 +478,8 @@ def add_retrieve_sequences_parser(subparsers):
                                            help='Type of sequence to extract.')
     parser_retrieve_sequences.add_argument('--hybpiper_dir',
                                            default=None,
-                                           help='Specify directory containing HybPiper output sample folders.')
+                                           help='Specify directory containing HybPiper output sample folders. Default '
+                                                'is the current working directory.')
     parser_retrieve_sequences.add_argument('--fasta_dir',
                                            default=None,
                                            help='Specify directory for output FASTA files.')
@@ -540,7 +542,8 @@ def add_paralog_retriever_parser(subparsers):
                               'convention: >TaxonID-geneName')
     parser_paralog_retriever.add_argument('--hybpiper_dir',
                                           default=None,
-                                          help='Specify directory containing HybPiper output')
+                                          help='Specify directory containing HybPiper output sample folders. Default '
+                                               'is the current working directory.')
     parser_paralog_retriever.add_argument('--fasta_dir_all',
                                           default='paralogs_all',
                                           help='Specify directory for output FASTA files (ALL). Default is: '
