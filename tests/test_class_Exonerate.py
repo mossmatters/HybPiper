@@ -98,8 +98,8 @@ class ExonerateClass(TestCase):
                                      spades_assembly_dict=spades_assembly_dict,
                                      depth_multiplier=10,
                                      keep_intermediate_files=False,
-                                     exonerate_hit_sliding_window_size=3,
-                                     exonerate_hit_sliding_window_thresh=55,
+                                     trim_hit_sliding_window_size=5,
+                                     trim_hit_sliding_window_thresh=75,
                                      exonerate_skip_frameshifts=False,
                                      verbose_logging=False)
 
@@ -198,8 +198,8 @@ class ExonerateClass(TestCase):
                                      spades_assembly_dict=spades_assembly_dict,
                                      depth_multiplier=10,
                                      keep_intermediate_files=False,
-                                     exonerate_hit_sliding_window_size=3,
-                                     exonerate_hit_sliding_window_thresh=55,
+                                     trim_hit_sliding_window_size=5,
+                                     trim_hit_sliding_window_thresh=75,
                                      exonerate_skip_frameshifts=True,
                                      verbose_logging=False)
 
