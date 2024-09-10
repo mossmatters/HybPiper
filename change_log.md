@@ -1,6 +1,6 @@
 # Changelog
 
-**2.3.0** *30th July 2024*
+**2.3.0** *10th September 2024*
 
 - Add option `--compress_sample_folder` to command `hybpiper assemble`. Tarball and compress the sample folder after assembly has completed i.e. `<sample_name>.tar.gz`. 
   - This is useful when running HybPiper on HPC clusters with file number limits.
@@ -8,7 +8,7 @@
   - All HybPiper subcommands (`stats`, `recovery_heatmap`, `retrieve_sequences`, `paralog_retriever`, `filter_by_length`) work with either compressed or uncompressed sample files/folders, or a combination of both.
   - If a `<sample_name>.tar.gz` file already exists for a sample, it will be extracted and used for the current run of `hybpiper assemble`, and the `<sample_name>.tar.gz` file will be deleted.
 - When using BWA for read mapping, the command `samtools flagstat` is now run during the `hybpiper assemble` step, rather than during `hybpiper stats`, and the results are written to a `<sample_name>_bam_flagstat.tsv` \ `<sample_name>_unpaired_bam_flagstat.tsv` file(s). 
-  - Add detail here about what happens in stats if file not found!
+  - If the `<sample_name>_bam_flagstat.tsv` \ `<sample_name>_unpaired_bam_flagstat.tsv` file(s) are not present in a sample directory (i.e. the sample was assembled with HybPiper version <2.3.0), `samtools flagstat` will be run during `hybpiper stats`. If the sample is a `*.tar.gz` file, the `*.bam` file(s) will first be extracted to disk to a temporary directory called `temp_bam_files`, within your current working directory. This temporary directory will be deleted after `samtools flagstat` has been run.
 - Add option `--not_protein_coding` to `hybpiper assemble`. When this option is provided, sequences matching your target file references will be extracted from SPAdes contigs using BLASTn, rather than Exonerate. This should improve recovery when using a target file with non-protein-coding sequences. Note that this feature is new and might have bugs - please report any issues.
   - Only nucleotide `*.FNA` sequences will be produced (i.e. no amino-acid sequences).
   - Intronerate will not be run; intron and supercontig sequences will not be produced.
