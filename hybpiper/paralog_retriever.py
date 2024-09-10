@@ -546,15 +546,33 @@ def main(args):
 
         chimera_check_performed_file = f'{sample_name}/{sample_name}_chimera_check_performed.txt'  # sample dir as root
 
+        chimera_file_fill = textwrap.fill(f'{"[ERROR]:":10} No file "{chimera_check_performed_file}" '
+                                          f'found. If you are running `hybpiper paralog_retriever` from Hybpiper '
+                                          f'version >=2.2.0 on a sample that was assembled using HybPiper version '
+                                          f'<2.2.0, please create a text file in the main sample directory for sample '
+                                          f'{sample_name} named "{chimera_check_performed_file}", containing '
+                                          f'the text "True" (no quotation marks), and run `hybpiper paralog_retriever` '
+                                          f'again.',
+                                          width=90, subsequent_indent=" " * 11)
+
         if compressed_sample_bool:
-            compressed_sample_bool_lines = utils.get_compressed_file_lines(sample_name,
-                                                                           sampledir_parent,
-                                                                           chimera_check_performed_file)
+            try:
+                compressed_sample_bool_lines = utils.get_compressed_file_lines(sample_name,
+                                                                               sampledir_parent,
+                                                                               chimera_check_performed_file)
+            except KeyError:
+                logger.error(chimera_file_fill)
+                sys.exit(1)
+
             chimera_check_bool = compressed_sample_bool_lines[0]
 
         else:
-            with open(f'{sampledir_parent}/{chimera_check_performed_file}', 'r') as chimera_check_handle:
-                chimera_check_bool = chimera_check_handle.read()
+            try:
+                with open(f'{sampledir_parent}/{chimera_check_performed_file}', 'r') as chimera_check_handle:
+                    chimera_check_bool = chimera_check_handle.read()
+            except FileNotFoundError:
+                logger.error(chimera_file_fill)
+                sys.exit(1)
 
         if chimera_check_bool == 'True':
             chimera_check_samples_dict[sample_name] = True
