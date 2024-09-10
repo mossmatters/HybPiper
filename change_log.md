@@ -8,7 +8,8 @@
   - All HybPiper subcommands (`stats`, `recovery_heatmap`, `retrieve_sequences`, `paralog_retriever`, `filter_by_length`) work with either compressed or uncompressed sample files/folders, or a combination of both.
   - If a `<sample_name>.tar.gz` file already exists for a sample, it will be extracted and used for the current run of `hybpiper assemble`, and the `<sample_name>.tar.gz` file will be deleted.
 - When using BWA for read mapping, the command `samtools flagstat` is now run during the `hybpiper assemble` step, rather than during `hybpiper stats`, and the results are written to a `<sample_name>_bam_flagstat.tsv` \ `<sample_name>_unpaired_bam_flagstat.tsv` file(s). 
-- Add option `--not_protein_coding` to `hybpiper assemble`. When this option is provided, sequences matching your target file references will be extracted from SPAdes contigs using BLASTn, rather than Exonerate. This should improve recovery when using a target file with non-protein-coding sequences.
+  - Add detail here about what happens in stats if file not found!
+- Add option `--not_protein_coding` to `hybpiper assemble`. When this option is provided, sequences matching your target file references will be extracted from SPAdes contigs using BLASTn, rather than Exonerate. This should improve recovery when using a target file with non-protein-coding sequences. Note that this feature is new and might have bugs - please report any issues.
   - Only nucleotide `*.FNA` sequences will be produced (i.e. no amino-acid sequences).
   - Intronerate will not be run; intron and supercontig sequences will not be produced.
   - If BLASTx or DIAMOND is selected for read mapping (i.e. protein vs translated-nucleotide searches), a warning will be displayed and read mapping will switch to BWA.
@@ -30,16 +31,10 @@
 - Changed option `--timeout_exonerate_contigs` for `hybpiper assemble` to `--timeout_extract_contigs` to match the step name.
 - Changed option `--exonerate_hit_sliding_window_size` for `hybpiper assemble` to `--trim_hit_sliding_window_size`. This option now applies to either Exonerate hits (and is measured in amino-acids) or BLASTn (measured in nucleotides). Defaults are 5 amino-acids (Exonerate; changed from previous default of 3) or 15 nucleotides (BLASTn).
 - Changed option `--exonerate_hit_sliding_window_thresh` for `hybpiper assemble` to `--trim_hit_sliding_window_thresh`. This option now applies to either Exonerate hits (and is measured via amino-acid similarity) or BLASTn (measured via nucleotide similarity). Defaults are 75 for amino-acids (Exonerate; changed from previous default of 55) or 65 for nucleotides (BLASTn).
-- Fixed a bug in `fix_targetfile.py` - `MAFFT` is now called via `subprocess` rather than `Bio.Align.Applications.MafftCommandline` when checking for best match translations (see [issue#156](https://github.com/mossmatters/HybPiper/issues/156))
+- Fixed a bug in `fix_targetfile.py` - `MAFFT` is now called via `subprocess` rather than `Bio.Align.Applications.MafftCommandline` when checking for best match translations (see [issue#156](https://github.com/mossmatters/HybPiper/issues/156)).
+- Added a more informative error message if running `hybpiper retrieve_sequences` or `hybpiper paralog_retriever` from HybPiper version >=2.2.0 on sample folders from HybPiper version >2.2.0. This error occurs because the sample folders do not contain a `<prefix>_chimera_check_performed.txt` file (see [issue#155](https://github.com/mossmatters/HybPiper/issues/155)).
+- When extracting coding sequences from SPAdes contigs using Exonerate, changed the initial Exonerate run to **not** use the option `--refine full` (see Exonerate docs), unless the option `--exonerate_refine_full` is provided to `hybpiper assemble`. Although the Exonerate option `--refine full` **should** improve output alignments, in some cases it can result in spurious alignment regions (e.g. an intron/non-coding region being included as an "exon" alignment) that can get incorporated in to the HybPiper output sequence.    
 
-UPDATE WIKI:
-
-- compressed sample info
-- Adding 
-- Subcommand help printouts
-- intermediate files now includes blastdb when running non-proteins
-  
-Check through downstream subcommands on v2.1 output. 
 
 **2.2.0** *17th July, 2024*
 
