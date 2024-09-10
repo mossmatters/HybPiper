@@ -276,12 +276,12 @@ def recover_sequences_from_all_samples(seq_dir,
                 chimera_check_performed_file = f'{sample_name}/{sample_name}_chimera_check_performed.txt'  # sample dir as root
 
                 chimera_file_fill = textwrap.fill(f'{"[ERROR]:":10} No file "{chimera_check_performed_file}" '
-                                                  f'found. If you are running `hybpiper stats` from Hybpiper version '
-                                                  f'>=2.2.0 on a sample that was assembled using hybPiper version '
-                                                  f'<2.2.0, please create a text file in the directory for sample '
-                                                  f'{sample_name} named "{chimera_check_performed_file}", containing '
-                                                  f'the text "True" (no quotation marks), and run `hybpiper stats` '
-                                                  f'again.',
+                                                  f'found. If you are running `hybpiper retrieve_sequences` from '
+                                                  f'Hybpiper version >=2.2.0 on a sample that was assembled using '
+                                                  f'HybPiper version <2.2.0, please create a text file in the '
+                                                  f'main sample directory for sample {sample_name} named '
+                                                  f'"{chimera_check_performed_file}", containing the text "True" '
+                                                  f'(no quotation marks), and run `hybpiper retrieve_sequences` again.',
                                                   width=90, subsequent_indent=" " * 11)
 
                 if compressed_sample_bool:
