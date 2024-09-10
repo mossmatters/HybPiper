@@ -298,7 +298,7 @@ def recover_sequences_from_all_samples(seq_dir,
                 else:
                     try:
                         with open(f'{sampledir_parent}/{chimera_check_performed_file}', 'r') as chimera_check_handle:
-                            chimera_check_bool = chimera_check_handle.read()
+                            chimera_check_bool = chimera_check_handle.read().rstrip()
                     except FileNotFoundError:
                         logger.error(chimera_file_fill)
                         sys.exit(1)
@@ -477,7 +477,7 @@ def recover_sequences_from_one_sample(seq_dir,
     else:
         try:
             with open(f'{sampledir_parent}/{chimera_check_performed_file}', 'r') as chimera_check_handle:
-                chimera_check_bool = chimera_check_handle.read()
+                chimera_check_bool = chimera_check_handle.read().rstrip()
         except FileNotFoundError:
             logger.error(chimera_file_fill)
             sys.exit(1)
