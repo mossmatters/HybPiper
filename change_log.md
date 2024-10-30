@@ -4,8 +4,8 @@
 
 - Re-write of the modules for commands `hybpiper stats`, `hybpiper retrieve_sequences`, and `hybpiper paralog_retriever`, to vastly speed up processing of compressed sample (`*.tar.gz`) folders. 
   - Much improved speed using a single thread (the hard-coded default for HybPiper version 2.3.0)
-  - Samples can now be processed in parallel; new option `--cpu` added (default is to  use all available CPUs minus one).
-  - Bugfix: ensure all intron sequences are recovered when running `hybpiper retrieve_sequences` using the `intron` option.
+  - Samples can now be processed in parallel when using these commands; new option `--cpu` added (default is to  use all available CPUs minus one).
+- Bugfix: ensure all intron sequences are recovered when running `hybpiper retrieve_sequences` using the `intron` option.
 
 **2.3.0** *10th September 2024*
 
