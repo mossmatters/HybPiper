@@ -1516,7 +1516,7 @@ def main(args):
         cpu = args.cpu
         logger.info(f'{"[INFO]:":10} Using {cpu} cpus/threads.')
     else:
-        cpu = multiprocessing.cpu_count() - 1  # i.e. use all cpus.
+        cpu = multiprocessing.cpu_count() - 1
         logger.info(f'{"[INFO]:":10} Number of cpus/threads not specified, using all available cpus minus 1 ({cpu}).')
 
     ####################################################################################################################
