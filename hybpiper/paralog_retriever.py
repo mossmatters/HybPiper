@@ -334,8 +334,6 @@ def parse_sample(sample_name,
                         for line in chimeric_genes_list_lines:
                             chimeric_genes_list.append(line.split(',')[1])
 
-                        print(f'sample {sample_name}: chimeric_genes_list: {chimeric_genes_list}')
-
     else:
         ################################################################################################################
         # Get seqrecords:
@@ -383,8 +381,6 @@ def parse_sample(sample_name,
             with open(chimeric_genes_list_fn_full_path) as chimeric_genes_list_handle:
                 for line in chimeric_genes_list_handle.readlines():
                     chimeric_genes_list.append(line.split(',')[1])
-
-            print(f'sample {sample_name}: chimeric_genes_list: {chimeric_genes_list}')
 
     ####################################################################################################################
     # Populate sample dict:
@@ -589,7 +585,7 @@ def recover_paralogs_from_all_samples_mp(list_of_sample_names,
                 # chimeric_genes_to_skip (which corresponds to *.FNA sequences), as paralog sequences are derived from
                 # single Exonerate hits only:
 
-                if chimera_check_performed and gene_fna_seqrecord.name in chimeric_genes_list:
+                if chimera_check_performed and gene_name in chimeric_genes_list:
                     any_putative_chimera_removed = True
                     seqs_to_write_all_dict[gene_name].append(gene_fna_seqrecord)
                 else:
