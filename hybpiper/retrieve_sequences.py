@@ -368,7 +368,7 @@ def recover_sequences_from_all_samples(list_of_sample_names,
                 logger.warning(fill)
 
     ####################################################################################################################
-    # Check for chimera_check value and exit with message if not found for some samples:
+    # Check for chimera_check value and provide warning message if not found for some samples:
     ####################################################################################################################
     samples_no_chimera_check_info = []
 
@@ -378,22 +378,19 @@ def recover_sequences_from_all_samples(list_of_sample_names,
             samples_no_chimera_check_info.append(sample_name)
 
     if len(samples_no_chimera_check_info) != 0:
-        chimera_file_fill = textwrap.fill(f'{"[ERROR]:":10} No file "<sample_name>_chimera_check_performed.txt" '
-                                          f'found for one or more samples. If you are running '
+        chimera_file_fill = textwrap.fill(f'{"[WARNING]:":10} No file "<sample_name>_chimera_check_performed.txt" '
+                                          f'found for one or more samples. This might be because you are running '
                                           f'"hybpiper retrieve_sequences" from Hybpiper version >=2.2.0 on a sample '
-                                          f'that was assembled using HybPiper version <2.2.0, please create a text '
-                                          f'file in the main sample directory for each sample named '
-                                          f'"<sample_name>_chimera_check_performed.txt", containing the text "True" '
-                                          f'(no quotation marks), and run "hybpiper retrieve_sequences" again. Samples '
-                                          f'are:',
+                                          f'that was assembled using HybPiper version <2.2.0. It will be assumed that '
+                                          f'a chimera check was performed for this sample(s). Samples are:',
                                           width=90, subsequent_indent=" " * 11)
 
-        logger.error(chimera_file_fill)
+        logger.warning(chimera_file_fill)
         logger.info('')
 
         for sample_name in sorted(samples_no_chimera_check_info):
-            logger.error(f'{" " *10} {sample_name}')
-        sys.exit(1)
+            logger.warning(f'{" " *10} {sample_name}')
+            sample_dict_collated[sample_name]['chimera_check'] = True
 
     ####################################################################################################################
     # Warn user if --skip_chimeric_genes was provided but some samples didn't have a chimera check performed:
@@ -478,11 +475,11 @@ def recover_sequences_from_one_sample(seq_dir,
 
     compressed_sample = f'{sampledir_parent}/{single_sample_name}.tar.gz'
     uncompressed_sample = f'{sampledir_parent}/{single_sample_name}'
-    list_of_compressed_samples = []
+    set_of_compressed_samples = set()
 
     if os.path.isfile(compressed_sample):
         sample_found = True
-        list_of_compressed_samples = [single_sample_name]
+        set_of_compressed_samples.add(single_sample_name)
 
     if os.path.isdir(uncompressed_sample):
         if sample_found:
@@ -506,7 +503,7 @@ def recover_sequences_from_one_sample(seq_dir,
         future_result = [pool.submit(parse_sample,
                                      single_sample_name,
                                      sampledir_parent,
-                                     list_of_compressed_samples,
+                                     set_of_compressed_samples,
                                      target_genes,
                                      seq_dir,
                                      filename,
@@ -543,17 +540,14 @@ def recover_sequences_from_one_sample(seq_dir,
     ####################################################################################################################
     chimera_check = sample_dict['chimera_check']
     if chimera_check == 'file_not_found':
-        chimera_file_fill = textwrap.fill(f'{"[ERROR]:":10} No file "<sample_name>_chimera_check_performed.txt" '
-                                          f'found. If you are running `hybpiper stats` from Hybpiper version '
-                                          f'>=2.2.0 on a sample that was assembled using hybPiper version '
-                                          f'<2.2.0, please create a text file in the directory for sample '
-                                          f'{single_sample_name} named "<sample_name>_chimera_check_performed.txt", '
-                                          f'containing the text "True" (no quotation marks), and run "hybpiper '
-                                          f'retrieve_sequences" again.',
+        chimera_file_fill = textwrap.fill(f'{"[WARNING]:":10} No file "<sample_name>_chimera_check_performed.txt" '
+                                          f'found. This might be because you are running "hybpiper retrieve_sequences" '
+                                          f'from Hybpiper version >=2.2.0 on a sample that was assembled using '
+                                          f'HybPiper version <2.2.0. It will be assumed that a chimera check was '
+                                          f'performed for this sample.',
                                           width=90, subsequent_indent=" " * 11)
 
-        logger.error(chimera_file_fill)
-        sys.exit(1)
+        logger.warning(chimera_file_fill)
 
     ####################################################################################################################
     # Warn user if --skip_chimeric_genes was provided but some samples didn't have a chimera check performed:
