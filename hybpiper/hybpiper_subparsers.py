@@ -437,6 +437,11 @@ def add_stats_parser(subparsers):
                               default=None,
                               help='Specify directory containing HybPiper output sample folders. Default is the '
                                    'current working directory.')
+    parser_stats.add_argument('--cpu',
+                              type=int,
+                              metavar='INTEGER',
+                              help='Limit the number of CPUs. Default is to use all cores available minus '
+                                   'one.')
     parser_stats.add_argument('--run_profiler',
                               action='store_true',
                               dest='run_profiler',
@@ -467,12 +472,13 @@ def add_retrieve_sequences_parser(subparsers):
                          default=False,
                          help='FASTA file containing amino-acid target sequences for each gene. The fasta headers '
                               'must follow the naming convention: >TaxonID-geneName')
-    parser_retrieve_sequences.add_argument('--sample_names',
-                                           default=None,
-                                           help='Text file with names of HybPiper output directories, one per line.')
-    parser_retrieve_sequences.add_argument('--single_sample_name',
-                                           default=None,
-                                           help='A single sample name to recover sequences for.')
+    group_2 = parser_retrieve_sequences.add_mutually_exclusive_group(required=True)
+    group_2.add_argument('--sample_names',
+                         help='Text file with names of HybPiper output directories, one per line.',
+                         default=None)
+    group_2.add_argument('--single_sample_name',
+                         help='A single sample name to recover sequences for',
+                         default=None)
     parser_retrieve_sequences.add_argument('sequence_type',
                                            choices=['dna', 'aa', 'intron', 'supercontig'],
                                            help='Type of sequence to extract.')
@@ -504,6 +510,11 @@ def add_retrieve_sequences_parser(subparsers):
                                                 'integer (raw number of genes) or float (percentage of genes in '
                                                 'analysis). This parameter can be supplied more than once to filter '
                                                 'by multiple criteria.')
+    parser_retrieve_sequences.add_argument('--cpu',
+                                           type=int,
+                                           metavar='INTEGER',
+                                           help='Limit the number of CPUs. Default is to use all cores available minus '
+                                                'one.')
     parser_retrieve_sequences.add_argument('--run_profiler',
                                            action='store_true',
                                            dest='run_profiler',
@@ -623,6 +634,11 @@ def add_paralog_retriever_parser(subparsers):
                                           default=False,
                                           help='If supplied, do not render labels for y-axis (samples) in the '
                                                'saved heatmap figure. Default is: %(default)s.')
+    parser_paralog_retriever.add_argument('--cpu',
+                                          type=int,
+                                          metavar='INTEGER',
+                                          help='Limit the number of CPUs. Default is to use all cores available minus '
+                                               'one.')
     parser_paralog_retriever.add_argument('--run_profiler',
                                           action='store_true',
                                           dest='run_profiler',
