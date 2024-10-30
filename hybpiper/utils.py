@@ -1175,13 +1175,21 @@ def check_for_previous_run_output(full_sample_directory,
     return previous_files_dict_filtered
 
 
-def parse_compressed_sample(compressed_sample):
+def parse_compressed_sample(sample_name,
+                            sampledir_parent,
+                            lock,
+                            counter):
     """
     Parses a *.tar.gz compressed tarball sample directory and return a list of all folder and files within the tarball.
 
-    :param str compressed_sample: e.g. <sample_name>.tar.gz
+    :param str sample_name: name of the sample
+    :param str sampledir_parent: name of the sample parent directory
+    :param multiprocessing.managers.AcquirerProxy lock:
+    :param multiprocessing.managers.ValueProxy counter:
     :return list member_names: a list of all contents of the <sample_id>.tar.gz
     """
+
+    compressed_sample = f'{sampledir_parent}/{sample_name}.tar.gz'
 
     with tarfile.open(compressed_sample, 'r:gz') as tarfile_handle:
 
@@ -1190,72 +1198,45 @@ def parse_compressed_sample(compressed_sample):
         for tarinfo in tarfile_handle.getmembers():
             member_name_and_size_dict[tarinfo.name] = tarinfo.size
 
-    return member_name_and_size_dict
+    with lock:
+        counter.value += 1
+        return (sample_name,
+                member_name_and_size_dict,
+                counter.value)
 
 
-def get_compressed_seqrecord(sample_name,
-                             sampledir_parent,
-                             member_name):
-    """
-    Returns the seqrecord of a fasta sequence within a compressed tarball of a given sample directory.
-
-    :param sample_name: sample name
-    :param sampledir_parent: sampledir_parent name
-    :param member_name: name of the tarfile member to find
-    :return:
-    """
-
-    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
-        read_file = tarfile_handle.getmember(member_name)
-        extracted_file = tarfile_handle.extractfile(read_file)
-        lines = extracted_file.read().decode('utf-8', errors='ignore')
-        seq_io = io.StringIO(lines)
-        seqrecord = SeqIO.read(seq_io, 'fasta')
-
-    return seqrecord
-
-
-def get_compressed_seqrecords(sample_name,
-                              sampledir_parent,
+def get_compressed_seqrecords(tarfile_handle,
                               member_name):
     """
     Returns a list of seqrecords from fasta sequences within a multi-fasta file located within a compressed tarball of
     a given sample directory.
 
-    :param sample_name: sample name
-    :param sampledir_parent: sampledir_parent name
+    :param tarfile_handle:
     :param member_name: name of the tarfile member to find
-    :return:
+    :return list: returns a list of seqrecords
     """
 
-    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
-        read_file = tarfile_handle.getmember(member_name)
-        extracted_file = tarfile_handle.extractfile(read_file)
-        lines = extracted_file.read().decode('utf-8', errors='ignore')
-        seq_io = io.StringIO(lines)
-        seqrecords = list(SeqIO.parse(seq_io, 'fasta'))
+    extracted_file = tarfile_handle.extractfile(member_name)
+    lines = extracted_file.read().decode('utf-8', errors='ignore')
+    seq_io = io.StringIO(lines)
+    seqrecords = list(SeqIO.parse(seq_io, 'fasta'))
 
     return seqrecords
 
 
-def get_compressed_file_lines(sample_name,
-                              sampledir_parent,
+def get_compressed_file_lines(tarfile_handle,
                               member_name):
     """
 
-    :param sample_name: sample name
-    :param sampledir_parent: sampledir_parent name
-    :param member_name: name of the tarfile member to find
+    :param tarfile_handle:
+    :param member_name: name of the tarfile member to extract
     :return:
     """
 
-    with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
-
-        tarinfo = tarfile_handle.getmember(member_name)
-        extracted_file = tarfile_handle.extractfile(tarinfo)
-        lines = extracted_file.read().decode('utf-8', errors='ignore')
-        lines = lines.split('\n')
-        lines = [line for line in lines if line]
+    extracted_file = tarfile_handle.extractfile(member_name)
+    lines = extracted_file.read().decode('utf-8', errors='ignore')
+    lines = lines.split('\n')
+    lines = [line for line in lines if line]
 
     return lines
 
@@ -1274,21 +1255,22 @@ def get_bamtools_flagstat_lines_from_compressed(sample_name,
     # Create temp output directory:
     outdir = f'{os.getcwd()}/temp_bam_files'
 
-    print(f'{"[INFO]:":10} No samtools flagstat output file "{bam_file}" was found for sample {sample_name}.')
-    print(f'{" " * 10} Attempting to extract {sample_name}.bam file to directory "{outdir}"...')
+    message_list = [f'No samtools flagstat output for file "{bam_file}" was found for sample {sample_name}. '
+                    f'Attempting to extract {sample_name}.bam file to directory "{outdir}"...']
 
     try:
         outdir = createfolder(outdir)
     except OSError:
-        print(f'{"[ERROR]:":10} Could not create directory {outdir}. Do you have write permission for the parent '
-              f'directory?')
-        sys.exit(1)
+        message_list.append(f'Could not create directory {outdir}. Do you have write permission for the parent '
+                            f'directory?')
+        return ([],
+                message_list)
 
     # Extract the bam file to a temp directory:
     with tarfile.open(f'{sampledir_parent}/{sample_name}.tar.gz', 'r:gz') as tarfile_handle:
         tarfile_handle.extract(bam_file, outdir)
 
-    print(f'{" " * 10} Success! Running `samtools flagstat` now...')
+    message_list.append(f'Success! Running `samtools flagstat` now...')
 
     # Run samtools flagstat:
     samtools_cmd = f'samtools flagstat --output-fmt tsv {outdir}/{bam_file}'
@@ -1301,16 +1283,20 @@ def get_bamtools_flagstat_lines_from_compressed(sample_name,
                                 universal_newlines=True,
                                 check=True)
 
+        message_list.append(f'Success!')
+
     except subprocess.CalledProcessError as exc:
-        print(f'samtools flagstat mapping FAILED. Output is: {exc}')
-        print(f'samtools flagstat mapping stdout is: {exc.stdout}')
-        print(f'samtools flagstat mapping stderr is: {exc.stderr}')
-        sys.exit(1)
+        message_list.append(f'samtools flagstat mapping FAILED. Output is: {exc}')
+        message_list.append(f'samtools flagstat mapping stdout is: {exc.stdout}')
+        message_list.append(f'samtools flagstat mapping stderr is: {exc.stderr}')
+        return ([],
+                message_list)
 
     # Remove the temp directory:
     shutil.rmtree(outdir)
 
-    return [line.rstrip() for line in result.stdout.split('\n')]
+    return ([line.rstrip() for line in result.stdout.split('\n')],
+            message_list)
 
 
 def get_bamtools_flagstat_lines_from_uncompressed(sample_name,
@@ -1324,8 +1310,8 @@ def get_bamtools_flagstat_lines_from_uncompressed(sample_name,
     :return:
     """
 
-    print(f'{"[INFO]:":10} No samtools flagstat output file {bam_file} was found for sample {sample_name}. Running '
-          f'`samtools flagstat` now...')
+    message_list = [f'No samtools flagstat output for file "{bam_file}" was found for sample {sample_name}. Running '
+                    f'`samtools flagstat` now...']
 
     # Run samtools flagstat:
     samtools_cmd = f'samtools flagstat --output-fmt tsv {sampledir_parent}/{bam_file}'
@@ -1338,10 +1324,140 @@ def get_bamtools_flagstat_lines_from_uncompressed(sample_name,
                                 universal_newlines=True,
                                 check=True)
 
-    except subprocess.CalledProcessError as exc:
-        print(f'samtools flagstat mapping FAILED. Output is: {exc}')
-        print(f'samtools flagstat mapping stdout is: {exc.stdout}')
-        print(f'samtools flagstat mapping stderr is: {exc.stderr}')
-        sys.exit(1)
+        message_list.append(f'Success!')
 
-    return [line.rstrip() for line in result.stdout.split('\n')]
+    except subprocess.CalledProcessError as exc:
+        message_list.append(f'samtools flagstat mapping FAILED. Output is: {exc}')
+        message_list.append(f'samtools flagstat mapping stdout is: {exc.stdout}')
+        message_list.append(f'samtools flagstat mapping stderr is: {exc.stderr}')
+        return ([],
+                message_list)
+
+    return ([line.rstrip() for line in result.stdout.split('\n')],
+            message_list)
+
+
+def check_namelist(namelist,
+                   logger):
+    """
+    Parse namelist text file and check for issues
+
+    :param namelist:
+    :param logger:
+    :return:
+    """
+
+    set_of_sample_names = set()
+    duplicate_sample_names_set = set()
+    samples_with_slashes_list = []
+
+    with open(namelist, 'r') as namelist_handle:
+        for line in namelist_handle.readlines():
+            sample_name = line.rstrip()
+            if sample_name:
+                if sample_name in set_of_sample_names:
+                    duplicate_sample_names_set.add(sample_name)
+                if re.search('/', sample_name):
+                    samples_with_slashes_list.append(sample_name)
+
+                set_of_sample_names.add(sample_name)
+
+    if len(samples_with_slashes_list) != 0:
+        logger.error(f'{"[ERROR]:":10} A sample name must not contain forward slashes. The file "{namelist}" '
+                     f'contains the following sample names with forward slashes:\n')
+        for sample_name in sorted(samples_with_slashes_list):
+            logger.error(f'{" " * 10} {sample_name}')
+        logger.error(f'')
+
+    if len(duplicate_sample_names_set) != 0:
+        logger.error(f'{"[ERROR]:":10} The file "{namelist}" should not contain duplicate sample names. '
+                     f'More than one entry was found for the following sample names:\n')
+        for sample_name in sorted(duplicate_sample_names_set):
+            logger.error(f'{" " * 10} {sample_name}')
+        logger.error(f'')
+
+    if len(samples_with_slashes_list) != 0 or len(duplicate_sample_names_set) != 0:
+        sys.exit()
+
+    return set_of_sample_names
+
+
+def check_for_compressed_and_uncompressed_samples(set_of_sample_names,
+                                                  sampledir_parent,
+                                                  logger):
+    """
+    Check if there is both an uncompressed folder AND a compressed file for any sample
+
+    :param set_of_sample_names:
+    :param sampledir_parent: parent directory containing sample files/folders
+    :param logger:
+    :return:
+    """
+
+    ####################################################################################################################
+    samples_found = []
+    compressed_samples_set = set()
+    uncompressed_samples_set = set()
+
+    for sample_name in set_of_sample_names:
+
+        compressed_sample = f'{sampledir_parent}/{sample_name}.tar.gz'
+        uncompressed_sample = f'{sampledir_parent}/{sample_name}'
+
+        if os.path.isfile(compressed_sample):
+            compressed_samples_set.add(sample_name)
+            samples_found.append(sample_name)
+
+        if os.path.isdir(uncompressed_sample):
+            uncompressed_samples_set.add(sample_name)
+            samples_found.append(sample_name)
+
+    both_compressed_and_uncompressed_present = compressed_samples_set.intersection(uncompressed_samples_set)
+
+    if len(both_compressed_and_uncompressed_present) != 0:
+        logger.error(f'{"[ERROR]:":10} Both a compressed and an un-compressed sample folder have been found for the '
+                     f'following samples - please remove one:\n')
+        for sample_name in sorted(list(both_compressed_and_uncompressed_present)):
+            logger.error(f'{" " * 10} {sample_name}')
+        logger.error(f'')
+        sys.exit()
+
+    return (samples_found,
+            compressed_samples_set,
+            uncompressed_samples_set)
+
+
+def check_for_missing_samples(namelist,
+                              set_of_sample_names,
+                              samples_found,
+                              sampledir_parent,
+                              logger):
+    """
+    Check for sample names present in the namelist.txt but not found in the directory provided
+
+    :param namelist:
+    :param set_of_sample_names:
+    :param samples_found:
+    :param sampledir_parent: parent directory containing sample files/folders
+    :param logger:
+    :return:
+    """
+
+    samples_missing = sorted(list(set(set_of_sample_names) - set(samples_found)))
+
+    if samples_missing:
+
+        fill = fill_forward_slash(f'{"[WARNING]:":10} File {namelist} contains samples not found in directory '
+                                  f'"{sampledir_parent}". The missing samples are:',
+                                  width=90, subsequent_indent=' ' * 11, break_long_words=False,
+                                  break_on_forward_slash=True)
+
+        logger.warning(f'{fill}\n')
+
+        for name in samples_missing:
+            logger.warning(f'{" " * 10} {name}')
+        logger.warning('')
+
+    list_of_sample_names = sorted([x for x in set_of_sample_names if x not in samples_missing])
+
+    return list_of_sample_names
