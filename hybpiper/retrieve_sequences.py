@@ -578,18 +578,25 @@ def recover_sequences_from_one_sample(seq_dir,
     ####################################################################################################################
     # Write seqrecords to fasta file:
     ####################################################################################################################
+    sequences_to_write = []
+
+    # Construct names for intron and supercontig output files:
+    if seq_dir in ['intron', 'supercontig']:
+        outfilename = f'{single_sample_name}_{filename}.fasta'
+    else:
+        outfilename = f'{single_sample_name}_{seq_dir}.fasta'
+
     for locus_name, seqrecord_list in loci_to_write_dict.items():
 
-        # Construct names for intron and supercontig output files:
-        if seq_dir in ['intron', 'supercontig']:
-            outfilename = f'{single_sample_name}_{locus_name}.fasta'
-        else:
-            outfilename = f'{single_sample_name}_{locus_name}_{seq_dir}.fasta'
-
-        with open(os.path.join(fasta_dir, outfilename), 'w') as fasta_handle:
-            SeqIO.write(seqrecord_list, fasta_handle, 'fasta')
+        for seqrecord in seqrecord_list:
+            seqrecord.name = f'{seqrecord.name}-{locus_name}'
+            seqrecord.id = f'{seqrecord.id}-{locus_name}'
+            sequences_to_write.append(seqrecord)
 
         logger.info(f'{"[INFO]:":10} Found {len(seqrecord_list)} sequences for gene {locus_name}')
+
+    with open(os.path.join(fasta_dir, outfilename), 'w') as fasta_handle:
+        SeqIO.write(sequences_to_write, fasta_handle, 'fasta')
 
     logger.info(f'{"[INFO]:":10} Done!')
 
