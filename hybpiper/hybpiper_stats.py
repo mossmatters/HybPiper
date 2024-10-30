@@ -115,7 +115,7 @@ def parse_sample(sample_name,
     :param dict compressed_sample_dict: dict of compressed file contents for compressed samples
     :param list unique_gene_names: a list of unique gene/locus names extracted from the target file
     :param str sequence_type: sequence type (gene or supercontig) to recover stats for
-    :param lock: :param multiprocessing.managers.AcquirerProxy lock:
+    :param multiprocessing.managers.AcquirerProxy lock:
     :param multiprocessing.managers.ValueProxy counter:
     :return:
     """
