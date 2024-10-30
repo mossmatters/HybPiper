@@ -102,7 +102,6 @@ def seq_length_calc(seq_lengths_fn):
 def parse_sample(sample_name,
                  sampledir_parent,
                  compressed_samples_set,
-                 uncompressed_samples_set,
                  compressed_sample_dict,
                  unique_gene_names,
                  sequence_type,
@@ -110,15 +109,14 @@ def parse_sample(sample_name,
                  counter):
     """
 
-    :param sample_name:
-    :param sampledir_parent:
-    :param compressed_samples_set:
-    :param uncompressed_samples_set:
-    :param compressed_sample_dict:
-    :param unique_gene_names:
-    :param sequence_type:
-    :param lock:
-    :param counter:
+    :param str sample_name: name of the sample (no ".tar.gz")
+    :param str sampledir_parent: path of the parent directory containing HybPiper output
+    :param set compressed_samples_set: set of sample names that are compressed (i.e. *.tar.gz)
+    :param dict compressed_sample_dict: dict of compressed file contents for compressed samples
+    :param list unique_gene_names: a list of unique gene/locus names extracted from the target file
+    :param str sequence_type: sequence type (gene or supercontig) to recover stats for
+    :param lock: :param multiprocessing.managers.AcquirerProxy lock:
+    :param multiprocessing.managers.ValueProxy counter:
     :return:
     """
 
@@ -870,7 +868,6 @@ def main(args):
                                           sample_name,
                                           sampledir_parent,
                                           compressed_samples_set,
-                                          uncompressed_samples_set,
                                           compressed_sample_dict,
                                           unique_gene_names,
                                           args.sequence_type,
