@@ -1039,6 +1039,7 @@ def main(args):
             hybpiper_stats_handle.write(f'{item}\n')
 
     logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
+    logger.info(f'{"[INFO]:":10} Done!')
 
 
 if __name__ == "__main__":
