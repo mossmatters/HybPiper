@@ -275,7 +275,7 @@ def parse_sample(sample_name,
                     # Get seq lengths:
                     ####################################################################################################
                     if tarinfo.name in gene_fasta_paths:
-                        gene_name = os.path.basename(tarinfo.name).split('.')[0]
+                        gene_name, _ = os.path.splitext(os.path.basename(tarinfo.name))
 
                         seqrecord = utils.get_compressed_seqrecords(tarfile_handle,
                                                                     tarinfo)[0]
@@ -434,7 +434,7 @@ def parse_sample(sample_name,
         # Get seq lengths:
         ################################################################################################################
         for gene_path in gene_fasta_paths:
-            gene_name = os.path.basename(gene_path).split('.')[0]
+            gene_name, _ = os.path.splitext(os.path.basename(gene_path))
             gene_path_full = f'{sampledir_parent}/{gene_path}'
 
             if utils.file_exists_and_not_empty(gene_path_full):

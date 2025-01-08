@@ -1,6 +1,10 @@
 # Changelog
 
-**2.3.01** *30th October 2024*
+**2.3.2** *8th January 2025*
+
+- Bugfix: allow `hybpiper stats` to be run when gene names in the target file contain a dot (e.g. `taxon1-gene001.01`). See [issue#164](https://github.com/mossmatters/HybPiper/issues/164).
+
+**2.3.1** *30th October 2024*
 
 - Re-write of the modules for commands `hybpiper stats`, `hybpiper retrieve_sequences`, and `hybpiper paralog_retriever`, to vastly speed up processing of compressed sample (`*.tar.gz`) folders. 
   - Much improved speed using a single thread (the hard-coded default for HybPiper version 2.3.0)
