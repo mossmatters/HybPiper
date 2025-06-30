@@ -3,7 +3,7 @@
 **2.3.3** *30th June 2025*
 
 - Bugfix: sequence lengths are now calculated correctly when running `hybpiper stats` with the sequence type `supercontig`. See [issue#169](https://github.com/mossmatters/HybPiper/issues/169). Note that the GenesAt*pct columns in the stats report will not be accurate, as supercontigs can contain introns as well as coding exon sequence.
-- Fix: running `hybpiper stats` on compressed (`*.tar.gz`) sample folders with large `'BLASTX` output files now requires mich less memory.
+- Fix: running `hybpiper stats` on compressed (`*.tar.gz`) sample folders with large `BLASTX` output files now requires much less memory.
 
 **2.3.2** *8th January 2025*
 
