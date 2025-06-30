@@ -145,7 +145,7 @@ def parse_sample(sample_name,
                                     sample_name,
                                     'sequences',
                                     'intron',
-                                    f'{gene}_supercontig.FNA')
+                                    f'{gene}_supercontig.fasta')
             gene_fasta_paths.append(seq_file)
 
     bamfile_fn = f'{sample_name}/{sample_name}.bam'
@@ -277,6 +277,9 @@ def parse_sample(sample_name,
                     if tarinfo.name in gene_fasta_paths:
                         gene_name, _ = os.path.splitext(os.path.basename(tarinfo.name))
 
+                        if sequence_type.upper() == 'SUPERCONTIG':
+                            gene_name = gene_name.split('_')[0]
+
                         seqrecord = utils.get_compressed_seqrecords(tarfile_handle,
                                                                     tarinfo)[0]
                         seq_length = len(seqrecord.seq.replace('N', ''))
@@ -328,15 +331,16 @@ def parse_sample(sample_name,
                                 mapped_reads_unpaired += int(line.split('\t')[0])
 
                     if tarinfo.name == blastxfile_fn and bamfile_fn not in compressed_sample_dict[sample_name]:
-                        blastx_lines_main = utils.get_compressed_file_lines(tarfile_handle,
-                                                                            tarinfo)
-                        reads_with_hits_main = [x.split('\t')[0] for x in blastx_lines_main if x]
+                        reads_with_hits_main = set(x.split('\t')[0] for x in
+                                                   utils.get_compressed_file_lines_generator(tarfile_handle,
+                                                                                             tarinfo))
                         mapped_reads_main = len(set(reads_with_hits_main))
 
                     if tarinfo.name == blastxfile_unpaired_fn and bamfile_fn not in compressed_sample_dict[sample_name]:
-                        blastx_lines_unpaired = utils.get_compressed_file_lines(tarfile_handle,
-                                                                                tarinfo)
-                        reads_with_hits_unpaired = [x.split('\t')[0] for x in blastx_lines_unpaired if x]
+
+                        reads_with_hits_unpaired = set(x.split('\t')[0] for x in
+                                                       utils.get_compressed_file_lines_generator(tarfile_handle,
+                                                                                                 tarinfo))
                         mapped_reads_unpaired = len(set(reads_with_hits_unpaired))
 
                     ####################################################################################################
@@ -435,6 +439,10 @@ def parse_sample(sample_name,
         ################################################################################################################
         for gene_path in gene_fasta_paths:
             gene_name, _ = os.path.splitext(os.path.basename(gene_path))
+
+            if sequence_type.upper() == 'SUPERCONTIG':
+                gene_name = gene_name.split('_')[0]
+
             gene_path_full = f'{sampledir_parent}/{gene_path}'
 
             if utils.file_exists_and_not_empty(gene_path_full):
@@ -851,6 +859,11 @@ def main(args):
     ####################################################################################################################
 
     logger.info(f'{"[INFO]:":10} Parsing data for all samples...')
+
+    if args.sequence_type.upper() == 'SUPERCONTIG':
+        logger.warning(f'{"[WARNING]:":10} "SUPERCONTIG" was selected as the sequence type. PLEASE NOTE that the '
+                       f'"GenesAt*pct" columns in the stats report will not be accurate, as supercontig sequences can '
+                       f'contain intronic as well as coding sequence!')
 
     sample_stats_dict_collated = dict()
     warning_messages_dict = dict()

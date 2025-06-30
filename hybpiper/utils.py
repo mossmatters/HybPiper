@@ -1241,6 +1241,20 @@ def get_compressed_file_lines(tarfile_handle,
     return lines
 
 
+def get_compressed_file_lines_generator(tarfile_handle,
+                                        member_name):
+    """
+
+    :param tarfile_handle:
+    :param member_name: name of the tarfile member to extract
+    :return:
+    """
+    with tarfile_handle.extractfile(member_name) as f:
+        # Read and yield lines one by one
+        for line in f:
+            yield line.decode('utf-8', errors='ignore').rstrip()
+
+
 def get_bamtools_flagstat_lines_from_compressed(sample_name,
                                                 sampledir_parent,
                                                 bam_file):
