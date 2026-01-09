@@ -1,7 +1,7 @@
 # Changelog
 
 **2.3.4** *8th January 2026*
-- Add new output file `gene_read_counts.tsv` in the sample directory when running `hybpiper assemble`. This file lists the number of reads used for assembly. Note that this number does not necessarily correspond directly to the number of reads mapped; see wiki entry [here](link).
+- Add new output file `gene_read_counts.tsv` in the sample directory when running `hybpiper assemble`. This file lists the number of reads used for assembly. Note that this number does not necessarily correspond directly to the number of reads mapped; see wiki entry [here](https://github.com/mossmatters/HybPiper/wiki/Troubleshooting,-common-issues,-and-recommendations#60-comparing-reads-mapped-to-gene-read-counts).
 - Add new output file `gene_read_counts_all.tsv` when running `hybpiper stats`, and a corresponding heatmap `gene_read_counts_all_heatmap.png` with gene count results collated across all samples. Various command-line options are available for heatmap generation.
 
 **2.3.3** *30th June 2025*
