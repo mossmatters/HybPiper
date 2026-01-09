@@ -202,6 +202,73 @@ def write_single_seqs_once(target, read_list):
             outfile.write(f'>{ID1}\n{Seq1}\n')
 
 
+def count_reads_in_fasta(fasta_file):
+    """
+    Count the number of sequences (reads) in a FASTA file by counting header lines.
+
+    :param str fasta_file: path to FASTA file
+    :return: int: number of sequences in the file, or 0 if file doesn't exist
+    """
+    if not os.path.exists(fasta_file):
+        return 0
+    
+    count = 0
+    with open(fasta_file, 'r') as f:
+        for line in f:
+            if line.startswith('>'):
+                count += 1
+    return count
+
+
+def write_gene_read_counts_tsv(gene_2_reads_dict=None):
+    """
+    Write a TSV file containing the combined number of reads in the <gene_name>_interleaved.fasta
+    and <gene_name>_unpaired.fasta files for each gene.
+
+    :param dict gene_2_reads_dict: dictionary of genes that received reads (optional, used to find gene dirs)
+    :return:
+    """
+    logger.info(f'{"[INFO]:":10} Counting reads per gene and writing TSV file...')
+    
+    # Get list of genes - either from gene_2_reads_dict or by scanning current directory
+    if gene_2_reads_dict:
+        genes = set(gene_2_reads_dict.keys())
+    else:
+        # Find all directories that look like gene directories (contain fasta files)
+        genes = set()
+        for item in os.listdir('.'):
+            if os.path.isdir(item):
+                interleaved_file = os.path.join(item, f'{item}_interleaved.fasta')
+                unpaired_file = os.path.join(item, f'{item}_unpaired.fasta')
+                if os.path.exists(interleaved_file) or os.path.exists(unpaired_file):
+                    genes.add(item)
+    
+    # Count reads for each gene
+    gene_read_counts = {}
+    for gene in genes:
+        interleaved_file = os.path.join(gene, f'{gene}_interleaved.fasta')
+        unpaired_file = os.path.join(gene, f'{gene}_unpaired.fasta')
+
+        # Count interleaved reads
+        interleaved_count = count_reads_in_fasta(interleaved_file)
+        
+        # Count unpaired reads (each sequence is 1 read)
+        unpaired_count = count_reads_in_fasta(unpaired_file)
+        
+        # Total reads for this gene
+        total_count = interleaved_count + unpaired_count
+        gene_read_counts[gene] = total_count
+    
+    # Write TSV file
+    tsv_filename = 'gene_read_counts.tsv'
+    with open(tsv_filename, 'w') as tsv_file:
+        # Sort genes for consistent output
+        for gene in sorted(gene_read_counts.keys()):
+            tsv_file.write(f'{gene}\t{gene_read_counts[gene]}\n')
+    
+    logger.info(f'{"[INFO]:":10} Wrote read counts to {tsv_filename}')
+
+
 def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=None, single_end=False, low_mem=False):
     """
 
@@ -273,6 +340,10 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
         # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
         with open(f'total_input_reads_single.txt', 'w') as single_reads_number:
             single_reads_number.write(f'{num_reads_in_readfile}\n')
+        
+        # Write TSV file with read counts per gene
+        write_gene_read_counts_tsv(gene_2_reads_dict if not low_mem else None)
+        return
 
     if len(readfiles) == 1 and unpaired_readfile:
         logger.info(f'{"[NOTE]:":10} Distributing unpaired reads to gene directories')
@@ -307,6 +378,9 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
         # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
         with open(f'total_input_reads_unpaired.txt', 'w') as unpaired_reads_number:
             unpaired_reads_number.write(f'{num_reads_in_readfile}\n')
+        
+        # Write TSV file with read counts per gene
+        write_gene_read_counts_tsv(gene_2_reads_dict if not low_mem else None)
 
         return
 
@@ -364,6 +438,9 @@ def distribute_reads(readfiles, read_hit_dict, merged=False, unpaired_readfile=N
         # hybpiper_stats.py when calculating BLASTX enrichment efficiency:
         with open(f'total_input_reads_paired.txt', 'w') as paired_reads_number:
             paired_reads_number.write(f'{num_reads_in_readfile * 2}\n')
+    
+    # Write TSV file with read counts per gene
+    write_gene_read_counts_tsv(gene_2_reads_dict if not low_mem else None)
 
 
 def main():

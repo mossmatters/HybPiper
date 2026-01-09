@@ -35,7 +35,23 @@ import io
 
 from hybpiper import utils
 from hybpiper.version import __version__
+from hybpiper.gene_recovery_heatmap import get_figure_dimensions
 
+
+try:
+    import pandas as pd
+except ImportError:
+    sys.exit(f"Required Python package 'pandas' not found. Is it installed for the Python used to run this script?")
+
+try:
+    import seaborn as sns
+except ImportError:
+    sys.exit(f"Required Python package 'seaborn' not found. Is it installed for the Python used to run this script?")
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    sys.exit(f"Required Python package 'matplotlib' not found. Is it installed for the Python used to run this script?")
 
 # Create a custom logger
 
@@ -97,6 +113,109 @@ def seq_length_calc(seq_lengths_fn):
             seq_length_dict[name] = [str(is_25pct), str(is_50pct), str(is_75pct), str(is_150pct)]
 
     return seq_length_dict
+
+
+def create_gene_read_counts_heatmap(gene_read_counts_filename,
+                                    figure_length,
+                                    figure_height,
+                                    sample_text_size,
+                                    gene_text_size,
+                                    heatmap_filename,
+                                    heatmap_filetype,
+                                    heatmap_dpi,
+                                    no_xlabels,
+                                    no_ylabels):
+    """
+    Creates a heatmap showing the number of reads mapped to each gene, for each sample.
+
+    :param gene_read_counts_filename: filename of the gene read counts report file *.tsv table
+    :param int figure_length: length in inches for heatmap figure
+    :param int figure_height: height in inches for heatmap figure
+    :param int sample_text_size: size in points for sample name text in heatmap figure
+    :param int gene_text_size: size in points for gene name text in heatmap figure
+    :param str heatmap_filename: name for the heatmap figure image file
+    :param str heatmap_filetype: type of figure to save ('png', 'pdf', 'eps', 'tiff', 'svg')
+    :param int heatmap_dpi: Dots per inch (DPI) for the output heatmap image
+    :param bool no_xlabels: if True, don't draw x-axis labels on saved figure
+    :param bool no_ylabels: if True, don't draw y-axis labels on saved figure
+    :return:
+    """
+
+    # Read in the gene read counts file:
+    df = pd.read_csv(gene_read_counts_filename, delimiter='\t')
+
+    # Melt the dataframe to make it suitable for the df.pivot method:
+    df = df.melt(id_vars=['Species'], var_name='gene_id', value_name='num_reads')
+
+    # Pivot the dataframe for input into the seaborn heatmap function:
+    df = df.pivot(index='Species', columns='gene_id', values='num_reads')
+
+    # Get figure dimension and label text size based on number of samples and genes:
+    fig_length, figure_height, sample_text_size, gene_id_text_size = get_figure_dimensions(df,
+                                                                                           figure_length,
+                                                                                           figure_height,
+                                                                                           sample_text_size,
+                                                                                           gene_text_size)
+
+    # Check that figure won't be greater than the maximum pixels allowed (65536) in either dimension:
+    figure_length_pixels = fig_length * heatmap_dpi
+    figure_height_pixels = figure_height * heatmap_dpi
+
+    if figure_length_pixels >= 65536:
+        fig_length = 400
+        heatmap_dpi = 100
+
+        fill = textwrap.fill(
+            f'{"[INFO]:":10} The large number of loci in this analysis means that the auto-calculated figure length '
+            f'({fig_length:.2f} inches / {figure_length_pixels} pixels) is larger than the maximum allowed size '
+            f'(65536 pixels). Figure length has been set to 400 inches, and DPI has been set to 100 '
+            f'({400 * heatmap_dpi:.2f} pixels). If you find that the heatmap is only partially rendered in the '
+            f'saved file, try reducing the DPI further via the --heatmap_dpi parameter, and/or the figure length via '
+            f'the --figure_length parameter.',
+            width=90, subsequent_indent=' ' * 11)
+
+        logger.info(fill)
+
+    if figure_height_pixels >= 65536:
+        figure_height = 400
+        heatmap_dpi = 100
+
+        fill = textwrap.fill(
+            f'{"[INFO]:":10} The large number of samples in this analysis means that the auto-calculated figure height '
+            f'({figure_height:.2f} inches / {figure_height_pixels} pixels) is larger than the maximum allowed size '
+            f'(65536 pixels). Figure height has been set to 400 inches, and DPI has been set to 100 '
+            f'({400 * heatmap_dpi:.2f} pixels). If you find that the heatmap is only partially rendered in the '
+            f'saved file, try reducing the DPI further via the --heatmap_dpi parameter, and/or the figure length via '
+            f'the --figure_length parameter.',
+            width=90, subsequent_indent=' ' * 11)
+
+        logger.info(fill)
+
+    # Create heatmap:
+    sns.set(rc={'figure.figsize': (fig_length, figure_height)})
+    sns.set_style('ticks')
+    cmap = 'YlOrRd'  # Yellow-Orange-Red color scheme for read counts
+    heatmap = sns.heatmap(df, vmin=0, cmap=cmap, xticklabels=1, yticklabels=1,
+                          cbar_kws={"orientation": "vertical", "pad": 0.01})
+    heatmap.tick_params(axis='x', labelsize=gene_id_text_size)
+    heatmap.tick_params(axis='y', labelsize=sample_text_size)
+    heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0)
+    heatmap.set_xlabel("Gene name", fontsize=14, fontweight='bold', labelpad=20)
+    heatmap.set_ylabel("Sample name", fontsize=14, fontweight='bold', labelpad=20)
+    plt.title("Number of reads mapped to each gene, for each sample", fontsize=14,
+              fontweight='bold', y=1.05)
+
+    # Remove x-axis and y-axis labels if flags provided:
+    if no_xlabels:
+        heatmap.set(xticks=[])
+
+    if no_ylabels:
+        heatmap.set(yticks=[])
+
+    # Save heatmap:
+    logger.info(f'{"[INFO]:":10} Saving heatmap as file "{heatmap_filename}.{heatmap_filetype}" at {heatmap_dpi} DPI')
+    plt.savefig(f'{heatmap_filename}.{heatmap_filetype}', dpi=heatmap_dpi, bbox_inches='tight')
+    plt.close()
 
 
 def parse_sample(sample_name,
@@ -172,6 +291,8 @@ def parse_sample(sample_name,
     genes_derived_from_putative_chimeric_stitched_contig_file_fn = \
         f'{sample_name}/{sample_name}_genes_derived_from_putative_chimeric_stitched_contig.csv'
 
+    gene_read_counts_fn = f'{sample_name}/gene_read_counts.tsv'
+
     ####################################################################################################################
     # Check that a bam or blastx mapping file is present, and check if `samtools stats` has already been run if bam:
     ####################################################################################################################
@@ -237,6 +358,10 @@ def parse_sample(sample_name,
     sample_stats_dict['seq_lengths'] = dict()
     for gene_name in unique_gene_names:
         sample_stats_dict['seq_lengths'][gene_name] = 0  # set default of zero length
+
+    sample_stats_dict['gene_read_counts'] = dict()
+    for gene_name in unique_gene_names:
+        sample_stats_dict['gene_read_counts'][gene_name] = 0  # set default of zero read count
 
     sample_stats_dict['sample_total_bases'] = 0
 
@@ -432,6 +557,19 @@ def parse_sample(sample_name,
                             if re.search(' Chimera WARNING for stitched_contig.', stat):
                                 chimeric_stitched_contigs += 1
 
+                    ####################################################################################################
+                    # Gene read counts:
+                    ####################################################################################################
+                    if tarinfo.name == gene_read_counts_fn:
+                        gene_read_counts_lines = utils.get_compressed_file_lines(tarfile_handle,
+                                                                                 tarinfo)
+                        for line in gene_read_counts_lines:
+                            if line.strip():
+                                parts = line.strip().split('\t')
+                                if len(parts) == 2:
+                                    gene_name, read_count = parts
+                                    sample_stats_dict['gene_read_counts'][gene_name] = int(read_count)
+
     else:  # i.e. sample is uncompressed
 
         ################################################################################################################
@@ -615,6 +753,19 @@ def parse_sample(sample_name,
                     if re.search(' Chimera WARNING for stitched_contig.', stat):
                         chimeric_stitched_contigs += 1
 
+        ################################################################################################################
+        # Gene read counts:
+        ################################################################################################################
+        gene_read_counts_fn_full_path = f'{sampledir_parent}/{gene_read_counts_fn}'
+        if utils.file_exists_and_not_empty(gene_read_counts_fn_full_path):
+            with open(gene_read_counts_fn_full_path) as gene_read_counts_handle:
+                for line in gene_read_counts_handle:
+                    if line.strip():
+                        parts = line.strip().split('\t')
+                        if len(parts) == 2:
+                            gene_name, read_count = parts
+                            sample_stats_dict['gene_read_counts'][gene_name] = int(read_count)
+
     ####################################################################################################################
     # Populate sample stat dict:
     ####################################################################################################################
@@ -709,6 +860,48 @@ def standalone():
                         metavar='INTEGER',
                         help='Limit the number of CPUs. Default is to use all cores available minus '
                              'one.')
+    parser.add_argument('--gene_read_counts_filename',
+                        help='File name for the gene read counts *.tsv file. Default is <gene_read_counts_all.tsv>.',
+                        default='gene_read_counts_all')
+    parser.add_argument('--no_heatmap',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not create a gene read counts heatmap')
+    parser.add_argument('--heatmap_filename',
+                        help='Filename for the output heatmap, saved by default as a *.png file. Defaults to '
+                             '"gene_read_counts_heatmap_all"',
+                        default='gene_read_counts_heatmap_all')
+    parser.add_argument('--figure_length', type=int,
+                        help='Length dimension (in inches) for the output heatmap file. Default is '
+                             'automatically calculated based on the number of genes',
+                        default=None)
+    parser.add_argument('--figure_height', type=int,
+                        help='Height dimension (in inches) for the output heatmap file. Default is '
+                             'automatically calculated based on the number of samples',
+                        default=None)
+    parser.add_argument('--sample_text_size', type=int,
+                        help='Size (in points) for the sample text labels in the output heatmap file. Default is '
+                             'automatically calculated based on the number of samples',
+                        default=None)
+    parser.add_argument('--gene_text_size', type=int,
+                        help='Size (in points) for the gene text labels in the output heatmap file. Default is '
+                             'automatically calculated based on the number of genes',
+                        default=None)
+    parser.add_argument('--heatmap_filetype',
+                        choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
+                        help='File type to save the output heatmap image as. Default is png',
+                        default='png')
+    parser.add_argument('--heatmap_dpi', type=int,
+                        help='Dots per inch (DPI) for the output heatmap image. Default is 300',
+                        default=300)
+    parser.add_argument('--no_xlabels',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not render labels for x-axis (loci) in the saved heatmap figure')
+    parser.add_argument('--no_ylabels',
+                        action='store_true',
+                        default=False,
+                        help='If supplied, do not render labels for y-axis (samples) in the saved heatmap figure')
 
     parser.set_defaults(targetfile_dna=False, targetfile_aa=False)
 
@@ -1052,6 +1245,52 @@ def main(args):
             hybpiper_stats_handle.write(f'{item}\n')
 
     logger.info(f'{"[INFO]:":10} A statistics table has been written to file: {args.stats_filename}.tsv')
+
+    ####################################################################################################################
+    # Write combined gene_read_counts.tsv file:
+    ####################################################################################################################
+    gene_read_counts_filename = f'{args.gene_read_counts_filename}.tsv'
+    lines_for_gene_read_counts_report = []
+
+    # Get header:
+    sorted_gene_names_concat = '\t'.join(sorted(unique_gene_names))
+    header = f'Species\t{sorted_gene_names_concat}'
+    lines_for_gene_read_counts_report.append(header)
+
+    # Get sample lines:
+    for sample_name in sorted(sample_stats_dict_collated.keys()):
+        sample_gene_read_counts = []
+        for gene_name in sorted(unique_gene_names):
+            read_count = sample_stats_dict_collated[sample_name]['gene_read_counts'].get(gene_name, 0)
+            sample_gene_read_counts.append(str(read_count))
+
+        sample_gene_read_counts_concat = '\t'.join(sample_gene_read_counts)
+        sample_line = f'{sample_name}\t{sample_gene_read_counts_concat}'
+        lines_for_gene_read_counts_report.append(sample_line)
+
+    # Write the report:
+    with open(gene_read_counts_filename, 'w') as gene_read_counts_handle:
+        for item in lines_for_gene_read_counts_report:
+            gene_read_counts_handle.write(f'{item}\n')
+
+    logger.info(f'{"[INFO]:":10} A gene read counts table has been written to file: {gene_read_counts_filename}')
+
+    ####################################################################################################################
+    # Create a heatmap from the gene_read_counts.tsv file (if requested):
+    ####################################################################################################################
+    if not args.no_heatmap:
+        logger.info(f'{"[INFO]:":10} Creating gene read counts heatmap...')
+        create_gene_read_counts_heatmap(gene_read_counts_filename,
+                                       args.figure_length,
+                                       args.figure_height,
+                                       args.sample_text_size,
+                                       args.gene_text_size,
+                                       args.heatmap_filename,
+                                       args.heatmap_filetype,
+                                       args.heatmap_dpi,
+                                       args.no_xlabels,
+                                       args.no_ylabels)
+
     logger.info(f'{"[INFO]:":10} Done!')
 
 

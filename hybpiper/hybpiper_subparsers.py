@@ -442,6 +442,63 @@ def add_stats_parser(subparsers):
                               metavar='INTEGER',
                               help='Limit the number of CPUs. Default is to use all cores available minus '
                                    'one.')
+    parser_stats.add_argument('--gene_read_counts_filename',
+                              default='gene_read_counts_all',
+                              help='File name for the gene read counts *.tsv file. Default is: <gene_read_counts.tsv>.')
+    parser_stats.add_argument('--no_heatmap',
+                              action='store_true',
+                              default=False,
+                              help='If supplied, do not create a gene read counts heatmap. Default is: %(default)s.')
+    parser_stats.add_argument('--heatmap_filename',
+                              default='gene_read_counts_all_heatmap',
+                              help='Filename for the output heatmap, saved by default as a *.png file. '
+                                   'Default is: %(default)s.')
+    parser_stats.add_argument('--figure_length',
+                              type=int,
+                              metavar='INTEGER',
+                              default=None,
+                              help='Length dimension (in inches) for the output heatmap file. Default is '
+                                   'automatically calculated based on the number of genes.')
+    parser_stats.add_argument('--figure_height',
+                              type=int,
+                              metavar='INTEGER',
+                              default=None,
+                              help='Height dimension (in inches) for the output heatmap file. Default is '
+                                   'automatically calculated based on the number of samples.')
+    parser_stats.add_argument('--sample_text_size',
+                              type=int,
+                              metavar='INTEGER',
+                              default=None,
+                              help='Size (in points) for the sample text labels in the output heatmap '
+                                   'file. Default is automatically calculated based on the number of '
+                                   'samples.')
+    parser_stats.add_argument('--gene_text_size',
+                              type=int,
+                              metavar='INTEGER',
+                              default=None,
+                              help='Size (in points) for the gene text labels in the output heatmap file. '
+                                   'Default is automatically calculated based on the number of genes.')
+    parser_stats.add_argument('--heatmap_filetype',
+                              choices=['png', 'pdf', 'eps', 'tiff', 'svg'],
+                              default='png',
+                              help='File type to save the output heatmap image as. Default is: '
+                                   '%(default)s.')
+    parser_stats.add_argument('--heatmap_dpi',
+                              type=int,
+                              metavar='INTEGER',
+                              default=300,
+                              help='Dots per inch (DPI) for the output heatmap image. Default is: '
+                                   '%(default)s.')
+    parser_stats.add_argument('--no_xlabels',
+                              action='store_true',
+                              default=False,
+                              help='If supplied, do not render labels for x-axis (loci) in the saved '
+                                   'heatmap figure. Default is: %(default)s.')
+    parser_stats.add_argument('--no_ylabels',
+                              action='store_true',
+                              default=False,
+                              help='If supplied, do not render labels for y-axis (samples) in the '
+                                   'saved heatmap figure. Default is: %(default)s.')
     parser_stats.add_argument('--run_profiler',
                               action='store_true',
                               dest='run_profiler',

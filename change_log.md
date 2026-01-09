@@ -1,5 +1,9 @@
 # Changelog
 
+**2.3.4** *8th January 2026*
+- Add new output file `gene_read_counts.tsv` in the sample directory when running `hybpiper assemble`. This file lists the number of reads used for assembly. Note that this number does not necessarily correspond directly to the number of reads mapped; see wiki entry [here](link).
+- Add new output file `gene_read_counts_all.tsv` when running `hybpiper stats`, and a corresponding heatmap `gene_read_counts_all_heatmap.png` with gene count results collated across all samples. Various command-line options are available for heatmap generation.
+
 **2.3.3** *30th June 2025*
 
 - Bugfix: sequence lengths are now calculated correctly when running `hybpiper stats` with the sequence type `supercontig`. See [issue#169](https://github.com/mossmatters/HybPiper/issues/169). Note that the GenesAt*pct columns in the stats report will not be accurate, as supercontigs can contain introns as well as coding exon sequence.
